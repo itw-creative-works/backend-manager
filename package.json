@@ -1,0 +1,43 @@
+{
+  "name": "backend-manager",
+  "version": "0.0.0",
+  "description": "Quick tools for developing Firebase functions",
+  "main": "src/manager/index.js",
+  "bin": {
+    "bem": "bin/bem"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node src/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itw-creative-works/backend-manager.git"
+  },
+  "keywords": [
+    "cli",
+    "backend manager",
+    "firebase"
+  ],
+  "author": "ITW Creative Works",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/itw-creative-works/backend-manager/issues"
+  },
+  "homepage": "https://github.com/itw-creative-works/backend-manager#readme",
+  "dependencies": {
+    "arg": "^4.1.2",
+    "chalk": "^3.0.0",
+    "fs-jetpack": "^2.2.3",
+    "inquirer": "^7.0.1",
+    "lodash": "^4.17.15",
+    "npm-api": "^1.0.0",
+    "semver": "^7.0.0",
+    "yargs": "^15.0.2"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "templates/"
+  ]
+}
