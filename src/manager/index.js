@@ -2,14 +2,14 @@ module.exports = function (args) {
   console.log('Initialized BackendManager/index.js');
   functions = args.ref.functions;
 
-  args.ref.exports.backendmanager_webhookTest =
+  args.ref.exports.bm_webhookTest =
     functions
     .runWith( { memory: '256MB', timeoutSeconds: 60 } )
     .https.onRequest(async (req, res) => {
       console.log('Called BackendManager/webhookTest.js INNER');
       return require('./functions/webhookTest.js')(args.ref, req, res, args.options);
     });
-  args.ref.exports.backendmanager_signUpHandler =
+  args.ref.exports.bm_signUpHandler =
     functions
     .runWith( { memory: '256MB', timeoutSeconds: 60 } )
     .https.onRequest(async (req, res) => {

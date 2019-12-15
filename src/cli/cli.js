@@ -1,3 +1,10 @@
+// CLI GUIDE:
+// https://www.twilio.com/blog/how-to-build-a-cli-with-node-js
+// https://www.npmjs.com/package/@dkundel/create-project
+
+// https://www.sitepoint.com/javascript-command-line-interface-cli-node-js/
+// https://github.com/sitepoint-editors/ginit
+
 const arg = require('arg');
 let exec = require('child_process').exec;
 const fs = require('fs-jetpack');
@@ -9,6 +16,7 @@ let NpmApi = require('npm-api');
 const semver = require("semver");
 let inquirer = require('inquirer');
 const { spawn } = require('child_process');
+const clear = require('clear');
 
 // function parseArgumentsIntoOptions(rawArgs) {
 //   const args = arg(
@@ -55,12 +63,21 @@ Main.prototype.process = async function (args) {
   if (this.options.v || this.options.version || this.options['-v'] || this.options['-version']) {
     console.log(`Backend manager is version: ${require('../../package.json').version}`);
   }
-
+  if (this.options.clear) {
+    clear();
+  }
   if (this.options.cwd) {
     console.log('cwd: ', this.firebaseProjectPath);
   }
   if (this.options.setup) {
     await This.setup();
+  }
+  if (this.options.i && (this.options.local || this.options.dev || this.options.development)) {
+    await uninstallPkg('backend-manager');
+    return await installPkg('file:../../backend-manager');
+  }
+  if (this.options.i && (this.options.live || this.options.prod || this.options.production)) {
+    return await installPkg('backend-manager');
   }
   if (this.options.serve) {
     await This.setup();
@@ -175,28 +192,21 @@ Main.prototype.setup = async function () {
     let latest = semver.clean(await getPkgVersion(pkg));
     let mine = (This.package.dependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
     return !(semver.gt(latest, mine));
-  }, fix_outdated_fbadmin);
+  }, fix_fba);
 
   await this.test('using updated firebase-functions', async function () {
     let pkg = 'firebase-functions';
     let latest = semver.clean(await getPkgVersion(pkg));
     let mine = (This.package.dependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
     return !(semver.gt(latest, mine));
-  }, fix_outdated_fbfunc);
+  }, fix_fbf);
 
   await this.test('using updated backend-manager', async function () {
     let pkg = 'backend-manager';
     let latest = semver.clean(await getPkgVersion(pkg));
     let mine = (This.package.dependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
     return isLocal(mine) || !(semver.gt(latest, mine));
-  }, fix_outdated_bem);
-
-  await this.test('using updated backend-manager-cli', async function () {
-    let pkg = 'backend-manager-cli';
-    let latest = semver.clean(await getPkgVersion(pkg));
-    let mine = (This.package.dependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
-    return isLocal(mine) || !(semver.gt(latest, mine));
-  }, fix_outdated_bemcli);
+  }, fix_bem);
 
   await this.test('using node 10', function () {
     return This.package.engines.node.toString() == '10';
@@ -225,7 +235,7 @@ Main.prototype.setup = async function () {
 
 };
 
-Main.prototype.test = async function(name, fn, fix) {
+Main.prototype.test = async function(name, fn, fix, args) {
   let This = this;
   let status;
   let passed = await fn();
@@ -241,7 +251,7 @@ Main.prototype.test = async function(name, fn, fix) {
     log(chalk.black.bold(`[${This.testTotal}]`), chalk.black(`${name}:`), status);
     if (!passed) {
       log(chalk.yellow(`Fixing...`));
-      fix(This)
+      fix(This, args)
       .then(function (result) {
         log(chalk.green(`...done~!`));
         resolve();
@@ -261,54 +271,15 @@ function fix_node10(This) {
   });
 };
 
-function fix_outdated_fbadmin(This) {
-  return new Promise(function(resolve, reject) {
-    let cmd = exec(`npm i firebase-admin@latest`, function (error, stdout, stderr) {
-      if (error) {
-        reject(error);
-      } else {
-        resolve();
-      }
-    });
-  });
-};
 
-function fix_outdated_fbfunc(This) {
-  return new Promise(function(resolve, reject) {
-    let cmd = exec(`npm i firebase-functions@latest`, function (error, stdout, stderr) {
-      if (error) {
-        reject(error);
-      } else {
-        resolve();
-      }
-    });
-  });
+async function fix_fbf(This) {
+  return await installPkg('firebase-functions')
 };
-
-function fix_outdated_bem(This) {
-  return new Promise(function(resolve, reject) {
-    let cmd = exec(`npm i backend-manager@latest`, function (error, stdout, stderr) {
-      if (error) {
-        reject(error);
-      } else {
-        resolve();
-      }
-    });
-    resolve();
-  });
+async function fix_fba(This) {
+  return await installPkg('firebase-admin')
 };
-
-function fix_outdated_bemcli(This) {
-  return new Promise(function(resolve, reject) {
-    let cmd = exec(`npm i backend-manager-cli@latest`, function (error, stdout, stderr) {
-      if (error) {
-        reject(error);
-      } else {
-        resolve();
-      }
-    });
-    resolve();
-  });
+async function fix_bem(This) {
+  return await installPkg('backend-manager')
 };
 
 function fix_gitignore(This) {
@@ -362,4 +333,41 @@ function getPkgVersion(package) {
 
 function isLocal(name) {
   return name.indexOf('file:') > -1;
+}
+
+function installPkg(name, version) {
+  let v;
+  if (name.indexOf('file:') > -1) {
+    v = '';
+  } else if (!version) {
+    v = '@latest';
+  } else {
+    v = version;
+  }
+  let latest = version ? '' : '@latest';
+  return new Promise(function(resolve, reject) {
+    let command = `npm i ${name}${v}`;
+    console.log('Running ', command);
+    let cmd = exec(command, function (error, stdout, stderr) {
+      if (error) {
+        reject(error);
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
+function uninstallPkg(name) {
+  return new Promise(function(resolve, reject) {
+    let command = `npm uninstall ${name}`;
+    console.log('Running ', command);
+    let cmd = exec(command, function (error, stdout, stderr) {
+      if (error) {
+        reject(error);
+      } else {
+        resolve();
+      }
+    });
+  });
 }
