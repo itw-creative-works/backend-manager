@@ -107,46 +107,17 @@ Main.prototype.process = async function (args) {
     });
   }
   if (this.options['config:get']) {
-    let cmd = exec(`firebase functions:config:get > ${this.firebaseProjectPath}/functions/.runtimeconfig.json`, function (error, stdout, stderr) {
-      if (error) {
-        console.error(error);
-      } else {
-        console.log(`Saving config to: ${this.firebaseProjectPath}/functions/.runtimeconfig.json`);
-        console.log(stdout);
-      }
-    });
+    return await cmd_configGet(This);
   }
 
   if (this.options['config:set']) {
-    // console.log(this.options);
-    // console.log(this.argv);
-    await inquirer
-      .prompt([
-        /* Pass your questions in here */
-        {
-          type: 'input',
-          name: 'path',
-          default: 'service.key'
-        },
-        {
-          type: 'input',
-          name: 'value',
-          default: '123-abc'
-        }
-      ])
-      .then(answers => {
-        // Use user feedback for... whatever!!
-        // console.log('answer', answers);
-        log(chalk.yellow(`Saving...`));
-        let cmd = exec(`firebase functions:config:set ${answers.path}="${answers.value}"`, function (error, stdout, stderr) {
-          if (error) {
-            console.error(error);
-          } else {
-            console.log(stdout);
-          }
-        });
-      });
+    await cmd_configSet(This);
+    return await cmd_configGet(This);
+  }
 
+  if (this.options['config:unset'] || this.options['config:delete']) {
+    await cmd_configUnset(This);
+    return await cmd_configGet(This);
   }
 
   if (this.options.deploy) {
@@ -327,6 +298,87 @@ function getPkgVersion(package) {
   });
 }
 
+
+
+  async function cmd_configGet(This) {
+    return new Promise(function(resolve, reject) {
+      let cmd = exec(`firebase functions:config:get > ${This.firebaseProjectPath}/functions/.runtimeconfig.json`, function (error, stdout, stderr) {
+        if (error) {
+          console.error(error);
+          reject(error);
+        } else {
+          console.log(`Saving config to: ${This.firebaseProjectPath}/functions/.runtimeconfig.json`);
+          console.log(stdout);
+          resolve();
+        }
+      });
+    });
+  }
+
+  async function cmd_configSet(This) {
+    return new Promise(async function(resolve, reject) {
+      // console.log(this.options);
+      // console.log(this.argv);
+      await inquirer
+        .prompt([
+          /* Pass your questions in here */
+          {
+            type: 'input',
+            name: 'path',
+            default: 'service.key'
+          },
+          {
+            type: 'input',
+            name: 'value',
+            default: '123-abc'
+          }
+        ])
+        .then(answers => {
+          // Use user feedback for... whatever!!
+          // console.log('answer', answers);
+          log(chalk.yellow(`Saving...`));
+          let cmd = exec(`firebase functions:config:set ${answers.path}="${answers.value}"`, function (error, stdout, stderr) {
+            if (error) {
+              console.error(error);
+              reject();
+            } else {
+              console.log(stdout);
+              resolve();
+            }
+          });
+        });
+    });
+  }
+
+  async function cmd_configUnset(This) {
+    return new Promise(async function(resolve, reject) {
+      // console.log(this.options);
+      // console.log(this.argv);
+      await inquirer
+        .prompt([
+          /* Pass your questions in here */
+          {
+            type: 'input',
+            name: 'path',
+            default: 'service.key'
+          }
+        ])
+        .then(answers => {
+          // Use user feedback for... whatever!!
+          // console.log('answer', answers);
+          log(chalk.yellow(`Saving...`));
+          let cmd = exec(`firebase functions:config:unset ${answers.path}`, function (error, stdout, stderr) {
+            if (error) {
+              console.error(error);
+              reject();
+            } else {
+              console.log(stdout);
+              resolve();
+            }
+          });
+        });
+    });
+  }
 
 
 // HELPER
