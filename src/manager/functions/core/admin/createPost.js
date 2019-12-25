@@ -80,7 +80,9 @@ async function createFile(user, repoUser, repoName, key, path, contents) {
     try {
 
       // let pathGet = `https://api.github.com/repos/iwiedenm/ultimate-jekyll/git/trees/template:${encodeURIComponent(path_noExt)}`;
-      let pathGet = `https://api.github.com/repos/${repoUser}/${repoName}/git/trees/template:${encodeURIComponent(pathApi.dirname(path))}`;
+      let branch = (repoName == 'ultimate-jekyll') ? 'template' : 'master';
+
+      let pathGet = `https://api.github.com/repos/${repoUser}/${repoName}/git/trees/${branch}:${encodeURIComponent(pathApi.dirname(path))}`;
       console.log('-------GET', pathGet);
       await makeRequest({
         // url: `https://api.github.com/repos/:owner/:repo/contents/:path`,
