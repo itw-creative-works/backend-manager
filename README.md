@@ -36,7 +36,7 @@ npm install backend-manager
 * Automatically keep your Firebase dependencies up to date
 
 ## Example Setup
-After installing via npm, simply paste this script before the closing `</body>` tag to initialize Backend Manager.
+After installing via npm, simply paste this script simply paste this script in your `functions/index.js` file.
 ```js
 // In your functions/index.js file
 exports.backendManager = (require('backend-manager'))({

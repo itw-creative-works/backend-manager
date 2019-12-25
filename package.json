@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "0.0.8",
+  "version": "0.0.10",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -34,7 +34,9 @@
     "inquirer": "^7.0.1",
     "lodash": "^4.17.15",
     "npm-api": "^1.0.0",
+    "request": "^2.88.0",
     "semver": "^7.0.0",
+    "shortid": "^2.2.15",
     "yargs": "^15.0.2"
   },
   "files": [

@@ -41,6 +41,9 @@ const clear = require('clear');
 // }
 
 let bem_regex = /# BEM>>>(.*\n?)# <<<BEM/sg;
+let bem_fsRulesRegex = /(\/\/\/---backend-manager---\/\/\/)(.*)(\/\/\/---------end---------\/\/\/)/sgm;
+let bem_fsRulesBackupRegex = /({{\s*?backend-manager\s*?}})/sgm;
+let MOCHA_PKG_SCRIPT = 'mocha ../test/ --recursive --timeout=10000'
 
 
 function Main() {
@@ -54,6 +57,8 @@ Main.prototype.process = async function (args) {
   this.firebaseProjectPath = this.firebaseProjectPath.match(/\/functions$/) ? this.firebaseProjectPath.replace(/\/functions$/, '') : this.firebaseProjectPath;
   this.testCount = 0;
   this.testTotal = 0;
+  this.default = {};
+  this.default.version = `${require('../../package.json').version}`;
 
   for (var i = 0; i < args.length; i++) {
     this.options[args[i]] = true;
@@ -61,7 +66,7 @@ Main.prototype.process = async function (args) {
   // console.log(args);
   // console.log(options);
   if (this.options.v || this.options.version || this.options['-v'] || this.options['-version']) {
-    console.log(`Backend manager is version: ${require('../../package.json').version}`);
+    console.log(`Backend manager is version: ${this.default.version}`);
   }
   if (this.options.clear) {
     clear();
@@ -80,30 +85,20 @@ Main.prototype.process = async function (args) {
     return await installPkg('backend-manager');
   }
   if (this.options.serve) {
+    if (!this.options.quick && !this.options.q) {
+    }
     await This.setup();
-    let port = this.argv.port || _.get(This.argv, '_', [])[1] || '5000';
-    let nextRun = false;
-    // console.log(This.options);
-    // console.log(This.argv);
-    // console.log('PORT', port);
-    let cmd = exec(`firebase functions:config:get > ${this.firebaseProjectPath}/functions/.runtimeconfig.json`, function (error, stdout, stderr) {
-      if (error) {
-        console.error(`${error}`);
-      } else {
-        if (!nextRun) {
-          nextRun = true;
-          console.log(`Saving config to: ${this.firebaseProjectPath}/functions/.runtimeconfig.json`);
-          let ls = spawn('firebase', ['serve', '--port', port]);
+    await cmd_configGet(This);
 
-          ls.stdout.on('data', (data) => {
-            console.log(`${data}`);
-          });
-          ls.stderr.on('data', (data) => {
-            console.error(`${data}`);
-            // ls = null;
-          });
-        }
-      }
+    let port = this.argv.port || _.get(This.argv, '_', [])[1] || '5000';
+    let ls = spawn('firebase', ['serve', '--port', port]);
+
+    ls.stdout.on('data', (data) => {
+      console.log(`${cleanOutput(data)}`);
+    });
+    ls.stderr.on('data', (data) => {
+      console.error(`${cleanOutput(data)}`);
+      // ls = null;
     });
   }
   if (this.options['config:get']) {
@@ -122,16 +117,38 @@ Main.prototype.process = async function (args) {
 
   if (this.options.deploy) {
     await This.setup();
-      let ls = spawn('firebase', ['deploy', '--only', 'functions']);
-      ls.stdout.on('data', (data) => {
-        console.log(`${data}`);
-      });
-      ls.stderr.on('data', (data) => {
-        console.error(`${data}`);
-        // ls = null;
-      });
+
+    // Quick check that not using local packages
+    let deps = JSON.stringify(This.package.dependencies)
+    let hasLocal = deps.includes('file:');
+    if (hasLocal) {
+      log(chalk.red(`Please remove local packages before deploying!`));
+      return;
+    }
+    // let ls = spawn('firebase', ['deploy', '--only', 'functions']);
+    let ls = spawn('firebase', ['deploy', '--only', 'functions,firestore:rules']);
+    ls.stdout.on('data', (data) => {
+      // console.log(`${cleanOutput(data)}`);
+      console.log(`${cleanOutput(data)}`);
+    });
+    ls.stderr.on('data', (data) => {
+      console.error(`${cleanOutput(data)}`);
+      // ls = null;
+    });
 
   }
+  if (this.options['test']) {
+    await This.setup();
+    // let ls = spawn('npm', ['run', 'test']);
+    let ls = spawn('firebase', ['emulators:exec', '--only', 'firestore', 'npm test']);
+    ls.stdout.on('data', (data) => {
+      console.log(`${cleanOutput(data)}`);
+    });
+    ls.stderr.on('data', (data) => {
+      console.error(`${cleanOutput(data)}`);
+    });
+  }
+
 
 };
 
@@ -153,11 +170,19 @@ Main.prototype.setup = async function () {
   this.firebaseJSON = JSON.parse(this.firebaseJSON);
   this.firebaseRC = JSON.parse(this.firebaseRC);
 
+  this.default.firestoreRulesWhole = (fs.read(path.resolve(`${__dirname}/../../templates/firestore.rules`))).replace('-0.0.0-', `-${This.default.version}-`);
+  this.default.firestoreRulesCore = this.default.firestoreRulesWhole.match(bem_fsRulesRegex)[0];
+  this.default.firestoreRulesVersionRegex = new RegExp(`///---version-${This.default.version}---///`)
+
   // tests
   // await this.test('using updates backend-manager-clie', function () {
   //   return This.package.engines.node.toString() == '10';
   // }, fix_node10);
-  log(chalk.black(`For project:`, chalk.bold(`${this.firebaseRC.projects.default}`)));
+  log(chalk.black(`For Firebase project:`, chalk.bold(`${this.firebaseRC.projects.default}`)));
+  await this.test('is a firebase project', async function () {
+    let exists = fs.exists(`${This.firebaseProjectPath}/firebase.json`);
+    return exists;
+  }, fix_isFirebase);
   await this.test('using updated firebase-admin', async function () {
     let pkg = 'firebase-admin';
     let latest = semver.clean(await getPkgVersion(pkg));
@@ -179,6 +204,27 @@ Main.prototype.setup = async function () {
     return isLocal(mine) || !(semver.gt(latest, mine));
   }, fix_bem);
 
+  await this.test('using updated backend-assistant', async function () {
+    let pkg = 'backend-assistant';
+    let latest = semver.clean(await getPkgVersion(pkg));
+    let mine = (This.package.dependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
+    return isLocal(mine) || !(semver.gt(latest, mine));
+  }, fix_bea);
+
+  await this.test('using updated @firebase/testing', async function () {
+    let pkg = '@firebase/testing';
+    let latest = semver.clean(await getPkgVersion(pkg));
+    let mine = (This.package.devDependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
+    return isLocal(mine) || !(semver.gt(latest, mine));
+  }, fix_fbTesting);
+
+  await this.test('using updated mocha', async function () {
+    let pkg = 'mocha';
+    let latest = semver.clean(await getPkgVersion(pkg));
+    let mine = (This.package.devDependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
+    return isLocal(mine) || !(semver.gt(latest, mine));
+  }, fix_mocha);
+
   await this.test('using node 10', function () {
     return This.package.engines.node.toString() == '10';
   }, fix_node10);
@@ -187,15 +233,40 @@ Main.prototype.setup = async function () {
     return This.gitignore.match(bem_regex);
   }, fix_gitignore);
 
-  await this.test('ignore firestore rules & indexes', function () {
+  await this.test('check firebase rules in JSON', function () {
     let firestore = _.get(This.firebaseJSON, 'firestore', {});
-    return (firestore.rules == '' && firestore.indexes == '')
-  }, fix_firebaseJSON);
+    return (firestore.rules == 'firestore.rules')
+  }, fix_firebaseRules);
 
-  await this.test('deleted firestore rules', function () {
-    let rules = fs.exists(`${This.firebaseProjectPath}/firestore.rules`);
-    return (!rules);
+  await this.test('update backend-manager-tests.js', function () {
+    fs.write(`${This.firebaseProjectPath}/test/backend-manager-tests.js`,
+      (fs.read(path.resolve(`${__dirname}/../../templates/backend-manager-tests.js`)))
+    )
+    return true;
+  }, NOFIX);
+
+  await this.test('has mocha package.json script', function () {
+    let script = _.get(This.package, 'scripts.test', '')
+    return script == MOCHA_PKG_SCRIPT;
+  }, fix_mochaScript);
+
+  await this.test('ignore firestore indexes file', function () {
+    let firestore = _.get(This.firebaseJSON, 'firestore', {});
+    return (firestore.indexes == '')
+  }, fix_firebaseIndexes);
+
+  await this.test('update firestore rules file', function () {
+    let exists = fs.exists(`${This.firebaseProjectPath}/firestore.rules`);
+    let contents = fs.read(`${This.firebaseProjectPath}/firestore.rules`) || '';
+    let containsCore = contents.match(bem_fsRulesRegex);
+    let matchesVersion = contents.match(This.default.firestoreRulesVersionRegex);
+    // console.log('LIST', fs.list(`${This.firebaseProjectPath}/`));
+    // console.log('RULES EXISTS', !!exists);
+    // console.log('CONTAINS CORE', containsCore);
+    return (!!exists && containsCore && matchesVersion);
   }, fix_fsrules);
+
+  return;
 
   await this.test('deleted firestore indexes', function () {
     let indexes = fs.exists(`${This.firebaseProjectPath}/firestore.indexes.json`);
@@ -233,6 +304,19 @@ Main.prototype.test = async function(name, fn, fix, args) {
   });
 }
 
+
+// FIXES
+function NOFIX() {
+
+}
+
+function fix_mochaScript(This) {
+  return new Promise(function(resolve, reject) {
+    _.set(This.package, 'scripts.test', MOCHA_PKG_SCRIPT);
+    fs.write(`${This.firebaseProjectPath}/functions/package.json`, JSON.stringify(This.package, null, 2) );
+    resolve();
+  });
+}
 function fix_node10(This) {
   return new Promise(function(resolve, reject) {
     _.set(This.package, 'engines.node', '10')
@@ -242,6 +326,11 @@ function fix_node10(This) {
   });
 };
 
+async function fix_isFirebase(This) {
+  log(chalk.red(`This is not a firebase project. Please use ${chalk.bold('firebase-init')} to set up.`));
+  throw '';
+  return;
+};
 
 async function fix_fbf(This) {
   return await installPkg('firebase-functions')
@@ -252,10 +341,19 @@ async function fix_fba(This) {
 async function fix_bem(This) {
   return await installPkg('backend-manager')
 };
+async function fix_bea(This) {
+  return await installPkg('backend-assistant')
+};
+async function fix_fbTesting(This) {
+  return await installPkg('@firebase/testing', '', '--save-dev')
+};
+async function fix_mocha(This) {
+  return await installPkg('mocha', '', '--save-dev')
+};
 
 function fix_gitignore(This) {
   return new Promise(function(resolve, reject) {
-    let gi = (fs.read(path.resolve(`${__dirname}/../templates/gitignore.md`)));
+    let gi = (fs.read(path.resolve(`${__dirname}/../../templates/gitignore.md`)));
     This.gitignore.replace(bem_regex, '');
     This.gitignore = `${This.gitignore}\n${gi}`.replace(/$\n/m,'');
     fs.write(`${This.firebaseProjectPath}/functions/.gitignore`, This.gitignore);
@@ -263,9 +361,17 @@ function fix_gitignore(This) {
   });
 };
 
-function fix_firebaseJSON(This) {
+function fix_firebaseRules(This) {
   return new Promise(function(resolve, reject) {
-    _.set(This.firebaseJSON, 'firestore', {"rules": "", "indexes": ""})
+    _.set(This.firebaseJSON, 'firestore.rules', "firestore.rules")
+    fs.write(`${This.firebaseProjectPath}/firebase.json`, JSON.stringify(This.firebaseJSON, null, 2));
+    resolve();
+  });
+};
+
+function fix_firebaseIndexes(This) {
+  return new Promise(function(resolve, reject) {
+    _.set(This.firebaseJSON, 'firestore.indexes', "")
     fs.write(`${This.firebaseProjectPath}/firebase.json`, JSON.stringify(This.firebaseJSON, null, 2));
     resolve();
   });
@@ -273,7 +379,30 @@ function fix_firebaseJSON(This) {
 
 function fix_fsrules(This) {
   return new Promise(function(resolve, reject) {
-    fs.remove(`${This.firebaseProjectPath}/firestore.rules`)
+    let path = `${This.firebaseProjectPath}/firestore.rules`;
+    let exists = fs.exists(path);
+    let contents = fs.read(path) || '';
+
+    if (!exists || !contents) {
+      log(chalk.yellow(`Writing new firestore.rules file...`));
+      fs.write(path, This.default.firestoreRulesWhole)
+      contents = fs.read(path) || '';
+    }
+
+    let hasTemplate = contents.match(bem_fsRulesRegex) || contents.match(bem_fsRulesBackupRegex);
+
+    if (!hasTemplate) {
+      log(chalk.red(`Could not find rules template. Please edit firestore.rules file and add`), chalk.red(`{{backend-manager}}`), chalk.red(`to it.`));
+      reject()
+    }
+
+    let matchesVersion = contents.match(This.default.firestoreRulesVersionRegex);
+    if (!matchesVersion) {
+      contents = contents.replace(bem_fsRulesBackupRegex, This.default.firestoreRulesCore)
+      contents = contents.replace(bem_fsRulesRegex, This.default.firestoreRulesCore)
+      fs.write(path, contents)
+      log(chalk.yellow(`Writing core rules to firestore.rules file...`));
+    }
     resolve();
   });
 };
@@ -383,12 +512,17 @@ function getPkgVersion(package) {
 
 // HELPER
 
+function initMocha() {
+
+}
+
 function isLocal(name) {
   return name.indexOf('file:') > -1;
 }
 
-function installPkg(name, version) {
+function installPkg(name, version, type) {
   let v;
+  let t;
   if (name.indexOf('file:') > -1) {
     v = '';
   } else if (!version) {
@@ -396,9 +530,16 @@ function installPkg(name, version) {
   } else {
     v = version;
   }
+
+  if (!type) {
+    t = ''
+  } else if (type == 'dev' || type == '--save-dev') {
+    t = ' --save-dev';
+  }
+
   let latest = version ? '' : '@latest';
   return new Promise(function(resolve, reject) {
-    let command = `npm i ${name}${v}`;
+    let command = `npm i ${name}${v}${t}`;
     console.log('Running ', command);
     let cmd = exec(command, function (error, stdout, stderr) {
       if (error) {
@@ -422,4 +563,27 @@ function uninstallPkg(name) {
       }
     });
   });
+}
+
+function cleanOutput(data) {
+  try {
+    // data = (data + '').replace('\n', '')
+    data = (data + '').replace(/\n$/, '')
+  } catch (e) {
+
+  }
+  return data;
+  // try {
+  //   data = data.replace(/\n/, '');
+  // } catch (e) {
+  //
+  // } finally {
+  //
+  // }
+  // return data;
+  // // if (typeof data !== 'string') {
+  // //   return data;
+  // // } else {
+  // //   return data.replace(/\n/, '');
+  // // }
 }

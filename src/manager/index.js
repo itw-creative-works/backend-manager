@@ -1,21 +1,78 @@
 module.exports = function (args) {
-  console.log('Initialized BackendManager/index.js');
   functions = args.ref.functions;
+  let core = './functions/core';
+  let test = './functions/test';
+  let wrappers = './functions/wrappers';
 
-  args.ref.exports.bm_webhookTest =
-    functions
-    .runWith( { memory: '256MB', timeoutSeconds: 60 } )
-    .https.onRequest(async (req, res) => {
-      console.log('Called BackendManager/webhookTest.js INNER');
-      return require('./functions/webhookTest.js')(args.ref, req, res, args.options);
-    });
+  // Main functions
+  // console.log('Initialized BackendManager/index.js');
   args.ref.exports.bm_signUpHandler =
-    functions
-    .runWith( { memory: '256MB', timeoutSeconds: 60 } )
-    .https.onRequest(async (req, res) => {
-      console.log('Called BackendManager/signUpHandler.js INNER');
-      return require('./functions/signUpHandler.js')(args.ref, req, res, args.options);
-    });
+  functions
+  .runWith( { memory: '256MB', timeoutSeconds: 60 } )
+  .https.onRequest(async (req, res) => {
+    let Module = require(`${core}/signUpHandler.js`)
+    Module.init({
+      ref: args.ref,
+      req: req,
+      res: res,
+    })
+    return Module.main();
+  });
+
+  // Admin
+  args.ref.exports.bm_createPost =
+  functions
+  .runWith( { memory: '256MB', timeoutSeconds: 60 } )
+  .https.onRequest(async (req, res) => {
+    let Module = require(`${core}/admin/createPost.js`)
+    Module.init({
+      ref: args.ref,
+      req: req,
+      res: res,
+    })
+    return Module.main();
+  });
+
+  // Test
+  args.ref.exports.bm_test_webhook =
+  functions
+  .runWith( { memory: '256MB', timeoutSeconds: 60 } )
+  .https.onRequest(async (req, res) => {
+    let Module = require(`${test}/webhook.js`)
+    Module.init({
+      ref: args.ref,
+      req: req,
+      res: res,
+    })
+    return Module.main();
+  });
+
+  args.ref.exports.bm_test_authorizeAdmin =
+  functions
+  .runWith( { memory: '256MB', timeoutSeconds: 60 } )
+  .https.onRequest(async (req, res) => {
+    let Module = require(`${test}/authorizeAdmin.js`)
+    Module.init({
+      ref: args.ref,
+      req: req,
+      res: res,
+    })
+    return Module.main();
+  });
+
+  args.ref.exports.bm_test_createTestAccounts =
+  functions
+  .runWith( { memory: '256MB', timeoutSeconds: 60 } )
+  .https.onRequest(async (req, res) => {
+    let Module = require(`${test}/createTestAccounts.js`)
+    Module.init({
+      ref: args.ref,
+      req: req,
+      res: res,
+    })
+    return Module.main();
+  });
+
 
     // exports.sendWelcomeEmail = functions.auth.user().onCreate((user) => {
     //   // ...

@@ -1,0 +1,99 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Lock by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Custom rules
+    match /users/{uid} {
+      allow read: if (belongsTo(uid) || isAdmin());
+      allow write: if ((belongsTo(uid) && !isWritingProtectedUserField()) || isAdmin());
+      // might also want to include a check for email verified?
+    }
+
+    ///---backend-manager---///
+    ///---version-0.0.9---///
+    // Basic rules
+
+    // Auth functions
+    function authEmail() {
+      // return request.auth.email;
+      return request.auth.token.email;
+    }
+    function authUid() {
+      return request.auth.uid;
+    }
+    function isAuthenticated() {
+      return request.auth.uid != null;
+    }
+    function belongsTo(identity) {
+      return (isAuthenticated() && (authUid() == identity || authEmail() == identity));
+      // eventually include a check for (existingData().link.email == identity)...(in case its a doc owned by a user that's not actually user doc)
+    }
+
+    function getRoles() {
+      // return get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.roles;
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.roles;
+    }
+    function getVerifications() {
+      // return get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.roles;
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.verifications;
+    }
+    function isAdmin() {
+      return getRoles().admin == true;
+    }
+    function emailVerified() {
+      return getVerifications().email == true;
+    }
+
+    function isWritingProtectedUserField() {
+      return isWritingField('firebase')
+      		|| isWritingField('roles')
+          || isWritingField('plan')
+          || isWritingField('affiliate')
+          || isWritingField('api')
+          || isWritingField('link')
+          || isWritingField('verifications')
+          || isWritingField('view');
+    }
+
+    function isCreatingField(field) {
+      return !(field in resource.data) && field in request.resource.data;
+    }
+
+    function isUpdatingField(field) {
+      return field in resource.data && field in request.resource.data && resource.data[field] != request.resource.data[field];
+    }
+
+    function isWritingField(field) {
+      return isCreatingField(field) || isUpdatingField(field);
+    }
+
+    // function userEmail(userId) {
+    //   return get(/databases/$(database)/documents/users/$(userId)).data.email;
+    // }
+    // Helper functions
+    // [READ] Data that exists on the Firestore document
+    function existingData() {
+      return resource.data;
+    }
+    // [WRITE] Data that is sent to a Firestore document
+    function incomingData() {
+      return request.resource.data;
+    }
+    ///--------tests--------///
+    // match /test-cases/write/admin {
+    //   allow write: if isAdmin();
+    // }
+    ///------resources------///
+    // https://fireship.io/snippets/firestore-rules-recipes/
+    // https://github.com/jaysquared/atom-firestore-grammar
+    // https://fireship.io/courses/firestore-data-modeling/models-roles/
+    // https://firebase.google.com/docs/firestore/security/test-rules-emulator
+    ///---------end---------///
+
+  }
+}
