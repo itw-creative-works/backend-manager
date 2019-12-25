@@ -211,6 +211,13 @@ Main.prototype.setup = async function () {
     return isLocal(mine) || !(semver.gt(latest, mine));
   }, fix_bea);
 
+  await this.test('using updated ultimate-jekyll-poster', async function () {
+    let pkg = 'ultimate-jekyll-poster';
+    let latest = semver.clean(await getPkgVersion(pkg));
+    let mine = (This.package.dependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
+    return isLocal(mine) || !(semver.gt(latest, mine));
+  }, fix_ujp);
+
   await this.test('using updated @firebase/testing', async function () {
     let pkg = '@firebase/testing';
     let latest = semver.clean(await getPkgVersion(pkg));
@@ -224,6 +231,24 @@ Main.prototype.setup = async function () {
     let mine = (This.package.devDependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
     return isLocal(mine) || !(semver.gt(latest, mine));
   }, fix_mocha);
+
+  await this.test('using proper .runtimeconfig', async function () {
+    let runtimeconfig = JSON.parse(fs.read(`${This.firebaseProjectPath}/functions/.runtimeconfig.json`) || '{}');
+
+    // console.log('runtimeconfig', runtimeconfig, runtimeconfig.mailchimp);
+    return runtimeconfig.mailchimp &&
+           runtimeconfig.mailchimp.key &&
+           runtimeconfig.mailchimp.list_id &&
+
+           runtimeconfig.backend_manager &&
+           runtimeconfig.backend_manager.key &&
+
+           runtimeconfig.github &&
+           runtimeconfig.github.key &&
+           runtimeconfig.github.user &&
+           runtimeconfig.github.repo_website
+
+  }, NOFIX);
 
   await this.test('using node 10', function () {
     return This.package.engines.node.toString() == '10';
@@ -260,10 +285,11 @@ Main.prototype.setup = async function () {
     let contents = fs.read(`${This.firebaseProjectPath}/firestore.rules`) || '';
     let containsCore = contents.match(bem_fsRulesRegex);
     let matchesVersion = contents.match(This.default.firestoreRulesVersionRegex);
-    // console.log('LIST', fs.list(`${This.firebaseProjectPath}/`));
-    // console.log('RULES EXISTS', !!exists);
-    // console.log('CONTAINS CORE', containsCore);
-    return (!!exists && containsCore && matchesVersion);
+
+    // console.log('exists', !!exists);
+    // console.log('containsCore', !!containsCore);
+    // console.log('matchesVersion', !!matchesVersion);
+    return (!!exists && !!containsCore && !!matchesVersion);
   }, fix_fsrules);
 
   return;
@@ -344,6 +370,9 @@ async function fix_bem(This) {
 async function fix_bea(This) {
   return await installPkg('backend-assistant')
 };
+async function fix_ujp(This) {
+  return await installPkg('ultimate-jekyll-poster')
+};
 async function fix_fbTesting(This) {
   return await installPkg('@firebase/testing', '', '--save-dev')
 };
@@ -398,6 +427,7 @@ function fix_fsrules(This) {
 
     let matchesVersion = contents.match(This.default.firestoreRulesVersionRegex);
     if (!matchesVersion) {
+      console.log('replace wih', This.default.firestoreRulesCore);
       contents = contents.replace(bem_fsRulesBackupRegex, This.default.firestoreRulesCore)
       contents = contents.replace(bem_fsRulesRegex, This.default.firestoreRulesCore)
       fs.write(path, contents)
