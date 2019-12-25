@@ -35,8 +35,7 @@ let Module = {
       if (!authAdmin) {
         response.status = 500;
         response.error = 'Unauthenticated, admin required.';
-        assistant.log(response);
-        return res.status(response.status).json(response);
+
       } else {
         // Poster = Poster || require('/Users/ianwiedenman/Documents/GitHub/ITW-Creative-Works/ultimate-jekyll-poster');
         Poster = Poster || require('ultimate-jekyll-poster');
@@ -83,7 +82,7 @@ async function createFile(user, repoUser, repoName, key, path, contents) {
       let branch = (repoName == 'ultimate-jekyll') ? 'template' : 'master';
 
       let pathGet = `https://api.github.com/repos/${repoUser}/${repoName}/git/trees/${branch}:${encodeURIComponent(pathApi.dirname(path))}`;
-      console.log('-------GET', pathGet);
+      // console.log('-------GET', pathGet);
       await makeRequest({
         // url: `https://api.github.com/repos/:owner/:repo/contents/:path`,
         method: 'GET',
@@ -104,13 +103,13 @@ async function createFile(user, repoUser, repoName, key, path, contents) {
       .then(function (resp) {
         // sha = resp.sha;
         sha = resp.tree.find(function (element) {
-          console.log('checiing', element.path, fileParsed.base);
+          // console.log('checiing', element.path, fileParsed.base);
           return element.path == fileParsed.base;
         });
         sha = sha.sha;
       });
   } catch (e) {
-    console.log('ERROR', e);
+    // console.log('ERROR', e);
     sha = null;
   }
 
@@ -137,7 +136,7 @@ async function createFile(user, repoUser, repoName, key, path, contents) {
   if (sha) {
     writeRequest.body.sha = sha;
   }
-  console.log('--------PUT', pathPut);
+  // console.log('--------PUT', pathPut);
   await makeRequest(writeRequest);
   resolve(true)
   });
