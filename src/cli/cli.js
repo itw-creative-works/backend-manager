@@ -211,12 +211,12 @@ Main.prototype.setup = async function () {
     return isLocal(mine) || !(semver.gt(latest, mine));
   }, fix_bea);
 
-  await this.test('using updated ultimate-jekyll-poster', async function () {
-    let pkg = 'ultimate-jekyll-poster';
-    let latest = semver.clean(await getPkgVersion(pkg));
-    let mine = (This.package.dependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
-    return isLocal(mine) || !(semver.gt(latest, mine));
-  }, fix_ujp);
+  // await this.test('using updated ultimate-jekyll-poster', async function () {
+  //   let pkg = 'ultimate-jekyll-poster';
+  //   let latest = semver.clean(await getPkgVersion(pkg));
+  //   let mine = (This.package.dependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
+  //   return isLocal(mine) || !(semver.gt(latest, mine));
+  // }, fix_ujp);
 
   await this.test('using updated @firebase/testing', async function () {
     let pkg = '@firebase/testing';
@@ -370,9 +370,9 @@ async function fix_bem(This) {
 async function fix_bea(This) {
   return await installPkg('backend-assistant')
 };
-async function fix_ujp(This) {
-  return await installPkg('ultimate-jekyll-poster')
-};
+// async function fix_ujp(This) {
+//   return await installPkg('ultimate-jekyll-poster')
+// };
 async function fix_fbTesting(This) {
   return await installPkg('@firebase/testing', '', '--save-dev')
 };
