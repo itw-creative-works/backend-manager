@@ -3,7 +3,7 @@ let Module = {
     this.ref = data.ref;
     this.req = data.req;
     this.res = data.res
-    this.assistant = new this.ref.BackendAssistant().init({
+    this.assistant = new this.ref.Assistant().init({
       ref: {
         req: data.req,
         res: data.res,

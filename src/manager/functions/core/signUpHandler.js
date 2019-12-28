@@ -7,7 +7,7 @@ let Module = {
     this.ref = data.ref;
     this.req = data.req;
     this.res = data.res
-    this.assistant = new this.ref.BackendAssistant().init({
+    this.assistant = new this.ref.Assistant().init({
       ref: {
         req: data.req,
         res: data.res,
@@ -25,7 +25,7 @@ let Module = {
     let This = this;
 
     return ref.cors(req, res, async () => {
-      // let assistant = new ref.BackendAssistant();
+      // let assistant = new ref.Assistant();
       // assistant.init({
       //   ref: {
       //     req: req,

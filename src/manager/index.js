@@ -33,6 +33,19 @@ module.exports = function (args) {
     return Module.main();
   });
 
+  args.ref.exports.bm_sendNotification =
+  functions
+  .runWith( { memory: '1GB', timeoutSeconds: 420 } )
+  .https.onRequest(async (req, res) => {
+    let Module = require(`${core}/admin/sendNotification.js`)
+    Module.init({
+      ref: args.ref,
+      req: req,
+      res: res,
+    })
+    return Module.main();
+  });
+
   // Test
   args.ref.exports.bm_test_webhook =
   functions

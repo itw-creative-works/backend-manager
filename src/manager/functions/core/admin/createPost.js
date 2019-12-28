@@ -7,7 +7,7 @@ let Module = {
     this.ref = data.ref;
     this.req = data.req;
     this.res = data.res
-    this.assistant = new this.ref.BackendAssistant().init({
+    this.assistant = new this.ref.Assistant().init({
       ref: {
         req: data.req,
         res: data.res,
@@ -29,7 +29,7 @@ let Module = {
         status: 200,
       };
 
-      // TODO: authenticate admin!
+      // authenticate admin!
       let authAdmin = await assistant.authorizeAdmin();
       let repoInfo = assistant.parseRepo(This.ref.functions.config().github.repo_website);
       if (!authAdmin) {

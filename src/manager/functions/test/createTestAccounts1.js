@@ -3,7 +3,7 @@ let uuid4;
 module.exports = {
   main: async function(ref, req, res, options) {
     return ref.cors(req, res, async () => {
-      let assistant = new ref.BackendAssistant();
+      let assistant = new ref.Assistant();
       assistant.init({
         ref: {
           req: req,

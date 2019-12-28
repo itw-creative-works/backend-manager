@@ -40,7 +40,8 @@ const clear = require('clear');
 //   };
 // }
 
-let bem_regex = /# BEM>>>(.*\n?)# <<<BEM/sg;
+let bem_giRegex = 'Set in .setup()'
+let bem_giRegexOuter = /# BEM>>>(.*\n?)# <<<BEM/sg;
 let bem_fsRulesRegex = /(\/\/\/---backend-manager---\/\/\/)(.*)(\/\/\/---------end---------\/\/\/)/sgm;
 let bem_fsRulesBackupRegex = /({{\s*?backend-manager\s*?}})/sgm;
 let MOCHA_PKG_SCRIPT = 'mocha ../test/ --recursive --timeout=10000'
@@ -87,8 +88,8 @@ Main.prototype.process = async function (args) {
   if (this.options.serve) {
     if (!this.options.quick && !this.options.q) {
     }
-    await This.setup();
     await cmd_configGet(This);
+    await This.setup();
 
     let port = this.argv.port || _.get(This.argv, '_', [])[1] || '5000';
     let ls = spawn('firebase', ['serve', '--port', port]);
@@ -173,12 +174,14 @@ Main.prototype.setup = async function () {
   this.default.firestoreRulesWhole = (fs.read(path.resolve(`${__dirname}/../../templates/firestore.rules`))).replace('-0.0.0-', `-${This.default.version}-`);
   this.default.firestoreRulesCore = this.default.firestoreRulesWhole.match(bem_fsRulesRegex)[0];
   this.default.firestoreRulesVersionRegex = new RegExp(`///---version-${This.default.version}---///`)
-
+  // bem_giRegex = new RegExp(fs.read(path.resolve(`${__dirname}/../../templates/gitignore.md`)).replace(/\./g, '\\.'), 'm' )
+  bem_giRegex = new RegExp(fs.read(path.resolve(`${__dirname}/../../templates/gitignore.md`)), 'm' )
   // tests
   // await this.test('using updates backend-manager-clie', function () {
   //   return This.package.engines.node.toString() == '10';
   // }, fix_node10);
-  log(chalk.black(`For Firebase project:`, chalk.bold(`${this.firebaseRC.projects.default}`)));
+  this.projectName = this.firebaseRC.projects.default;
+  log(chalk.black(`For Firebase project:`, chalk.bold(`${this.projectName}`)));
   await this.test('is a firebase project', async function () {
     let exists = fs.exists(`${This.firebaseProjectPath}/firebase.json`);
     return exists;
@@ -254,8 +257,16 @@ Main.prototype.setup = async function () {
     return This.package.engines.node.toString() == '10';
   }, fix_node10);
 
+  await this.test('has service-account.json', function () {
+    let exists = fs.exists(`${This.firebaseProjectPath}/functions/service-account.json`);
+    if (!exists) {
+      log(chalk.yellow(`Please install a service account --> ` + chalk.yellow.bold(`https://console.firebase.google.com/project/${This.projectName}/settings/serviceaccounts/adminsdk`)));
+    }
+    return !!exists;
+  }, NOFIX);
+
   await this.test('has correct .gitignore', function () {
-    return This.gitignore.match(bem_regex);
+    return !!This.gitignore.match(bem_giRegex);
   }, fix_gitignore);
 
   await this.test('check firebase rules in JSON', function () {
@@ -333,7 +344,9 @@ Main.prototype.test = async function(name, fn, fix, args) {
 
 // FIXES
 function NOFIX() {
-
+  return new Promise(function(resolve, reject) {
+    reject();
+  });
 }
 
 function fix_mochaScript(This) {
@@ -383,8 +396,14 @@ async function fix_mocha(This) {
 function fix_gitignore(This) {
   return new Promise(function(resolve, reject) {
     let gi = (fs.read(path.resolve(`${__dirname}/../../templates/gitignore.md`)));
-    This.gitignore.replace(bem_regex, '');
-    This.gitignore = `${This.gitignore}\n${gi}`.replace(/$\n/m,'');
+    if (This.gitignore.match(bem_giRegexOuter)) {
+      This.gitignore = This.gitignore.replace(bem_giRegexOuter, gi);
+    } else {
+      This.gitignore = gi;
+    }
+    This.gitignore = This.gitignore.replace(/\n\s*\n$/mg, '\n')
+    // This.gitignore = `${This.gitignore}\n${gi}`.replace(/$\n/m,'');
+    // This.gitignore = This.gitignore.replace(/$\n/m,'');
     fs.write(`${This.firebaseProjectPath}/functions/.gitignore`, This.gitignore);
     resolve();
   });
@@ -427,7 +446,7 @@ function fix_fsrules(This) {
 
     let matchesVersion = contents.match(This.default.firestoreRulesVersionRegex);
     if (!matchesVersion) {
-      console.log('replace wih', This.default.firestoreRulesCore);
+      // console.log('replace wih', This.default.firestoreRulesCore);
       contents = contents.replace(bem_fsRulesBackupRegex, This.default.firestoreRulesCore)
       contents = contents.replace(bem_fsRulesRegex, This.default.firestoreRulesCore)
       fs.write(path, contents)
