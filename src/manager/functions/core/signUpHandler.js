@@ -86,44 +86,51 @@ let Module = {
   signUp: async function (payload) {
     let This = this;
     payload = payload || {};
+    payload.roles = payload.roles || {};
+
 
     let response = {};
     uuid4 = uuid4 || require('uuid/v4');
     shortid = shortid || require('shortid');
     return new Promise(function(resolve, reject) {
 
-      This.ref.admin.firestore().doc(`users/${payload.uid}`)
-      .set(
-        {
-          // MAKEITFAIL: undefined,
-          activity: {
-            lastActivity: {
-              timestamp: payload.timestamp || '',
-              timestampUNIX: payload.timestampUNIX || 0,
-            },
-            created: {
-              timestamp: payload.timestamp || '',
-              timestampUNIX: payload.timestampUNIX || 0,
-            }
+      let finalPayload =
+      {
+        // MAKEITFAIL: undefined,
+        activity: {
+          lastActivity: {
+            timestamp: payload.timestamp || '',
+            timestampUNIX: payload.timestampUNIX || 0,
           },
-          firebase: {
-            uid: payload.uid,
-            email: payload.email,
-          },
-          roles: {},
-          plan: {},
-          affiliate: {
-            code: shortid.generate(),
-            referrals: {
-              // TIMESTAMPS for referrals as KEYS
-            },
-            referredBy: payload.affiliateCode || '',
-          },
-          api: {
-            privateKey: `api_${uuid4()}`,
-            // publicKey: '', // Not stored here. Should be firebase email or firebase UID
-          },
+          created: {
+            timestamp: payload.timestamp || '',
+            timestampUNIX: payload.timestampUNIX || 0,
+          }
         },
+        firebase: {
+          uid: payload.uid,
+          email: payload.email,
+        },
+        roles: {},
+        plan: {},
+        affiliate: {
+          code: shortid.generate(),
+          referrals: {
+            // TIMESTAMPS for referrals as KEYS
+          },
+          referredBy: payload.affiliateCode || '',
+        },
+        api: {
+          privateKey: `api_${uuid4()}`,
+          // publicKey: '', // Not stored here. Should be firebase email or firebase UID
+        },
+      }
+      if (payload.roles.admin) {
+        finalPayload.roles.admin = true
+      }
+
+      This.ref.admin.firestore().doc(`users/${payload.uid}`)
+      .set(finalPayload,
         {
           merge: true
         }

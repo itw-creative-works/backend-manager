@@ -96,15 +96,29 @@ let Module = {
               password: options.password
             };
 
-            ref.admin.firestore().doc(`users/${uid}`)
-            .set(
-              {
-                roles: options.roles,
-              },
-              {
-                merge: true
-              }
-            )
+            let SignUpHandler = require('../core/signUpHandler.js');
+            SignUpHandler.init({
+              ref: ref,
+              req: req,
+              res: res,
+            })
+            SignUpHandler.signUp({
+              timestamp: assistant.meta.startTime.timestamp,
+              timestampUNIX: assistant.meta.startTime.timestampUNIX,
+              uid: uid,
+              email: email,
+              roles: options.roles,
+            })
+
+            // ref.admin.firestore().doc(`users/${uid}`)
+            // .set(
+            //   {
+            //     roles: options.roles,
+            //   },
+            //   {
+            //     merge: true
+            //   }
+            // )
             .then(function(data) {
               assistant.log('Successfully created new user:', uid);
               resolve(result);

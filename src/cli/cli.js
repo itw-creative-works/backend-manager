@@ -5,7 +5,6 @@
 // https://www.sitepoint.com/javascript-command-line-interface-cli-node-js/
 // https://github.com/sitepoint-editors/ginit
 
-const arg = require('arg');
 let exec = require('child_process').exec;
 const fs = require('fs-jetpack');
 const path = require('path');
@@ -17,6 +16,7 @@ const semver = require("semver");
 let inquirer = require('inquirer');
 const { spawn } = require('child_process');
 const clear = require('clear');
+let argv = require('yargs').argv;
 
 // function parseArgumentsIntoOptions(rawArgs) {
 //   const args = arg(
@@ -42,7 +42,8 @@ const clear = require('clear');
 
 let bem_giRegex = 'Set in .setup()'
 let bem_giRegexOuter = /# BEM>>>(.*\n?)# <<<BEM/sg;
-let bem_fsRulesRegex = /(\/\/\/---backend-manager---\/\/\/)(.*)(\/\/\/---------end---------\/\/\/)/sgm;
+let bem_fsRulesRegex = /(\/\/\/---backend-manager---\/\/\/)(.*?)(\/\/\/---------end---------\/\/\/)/sgm;
+let bem_fsRulesDefaultRegex = /(\/\/\/---default-rules---\/\/\/)(.*?)(\/\/\/---------end---------\/\/\/)/sgm;
 let bem_fsRulesBackupRegex = /({{\s*?backend-manager\s*?}})/sgm;
 let MOCHA_PKG_SCRIPT = 'mocha ../test/ --recursive --timeout=10000'
 
@@ -53,7 +54,7 @@ function Main() {
 Main.prototype.process = async function (args) {
   let This = this;
   this.options = {};
-  this.argv = require('yargs').argv;
+  this.argv = argv;
   this.firebaseProjectPath = process.cwd();
   this.firebaseProjectPath = this.firebaseProjectPath.match(/\/functions$/) ? this.firebaseProjectPath.replace(/\/functions$/, '') : this.firebaseProjectPath;
   this.testCount = 0;
@@ -78,12 +79,15 @@ Main.prototype.process = async function (args) {
   if (this.options.setup) {
     await This.setup();
   }
-  if (this.options.i && (this.options.local || this.options.dev || this.options.development)) {
+  if ((this.options.i || this.options.install) && (this.options.local || this.options.dev || this.options.development)) {
     await uninstallPkg('backend-manager');
-    return await installPkg('file:../../backend-manager');
+    await installPkg('file:../../backend-manager');
+    await uninstallPkg('backend-assistant');
+    return await installPkg('file:../../backend-assistant');
   }
-  if (this.options.i && (this.options.live || this.options.prod || this.options.production)) {
-    return await installPkg('backend-manager');
+  if ((this.options.i || this.options.install) && (this.options.live || this.options.prod || this.options.production)) {
+    await installPkg('backend-manager');
+    return await installPkg('backend-assistant');
   }
   if (this.options.serve) {
     if (!this.options.quick && !this.options.q) {
@@ -116,6 +120,12 @@ Main.prototype.process = async function (args) {
     return await cmd_configGet(This);
   }
 
+  if (this.options['rules:default'] || this.options['rules:getdefault']) {
+    This.getRulesFile();
+    console.log(This.default.firestoreRulesWhole.match(bem_fsRulesDefaultRegex)[0].replace('    ///', '///'));
+    return;
+  }
+
   if (this.options.deploy) {
     await This.setup();
 
@@ -140,7 +150,7 @@ Main.prototype.process = async function (args) {
   }
   if (this.options['test']) {
     await This.setup();
-    // let ls = spawn('npm', ['run', 'test']);
+    // firebase emulators:exec --only firestore 'npm test'
     let ls = spawn('firebase', ['emulators:exec', '--only', 'firestore', 'npm test']);
     ls.stdout.on('data', (data) => {
       console.log(`${cleanOutput(data)}`);
@@ -155,6 +165,13 @@ Main.prototype.process = async function (args) {
 
 module.exports = Main;
 
+
+Main.prototype.getRulesFile = function () {
+  let This = this;
+  this.default.firestoreRulesWhole = (fs.read(path.resolve(`${__dirname}/../../templates/firestore.rules`))).replace('=0.0.0-', `-${This.default.version}-`);
+  this.default.firestoreRulesCore = this.default.firestoreRulesWhole.match(bem_fsRulesRegex)[0];
+
+};
 
 Main.prototype.setup = async function () {
   let This = this;
@@ -171,8 +188,8 @@ Main.prototype.setup = async function () {
   this.firebaseJSON = JSON.parse(this.firebaseJSON);
   this.firebaseRC = JSON.parse(this.firebaseRC);
 
-  this.default.firestoreRulesWhole = (fs.read(path.resolve(`${__dirname}/../../templates/firestore.rules`))).replace('-0.0.0-', `-${This.default.version}-`);
-  this.default.firestoreRulesCore = this.default.firestoreRulesWhole.match(bem_fsRulesRegex)[0];
+  This.getRulesFile();
+
   this.default.firestoreRulesVersionRegex = new RegExp(`///---version-${This.default.version}---///`)
   // bem_giRegex = new RegExp(fs.read(path.resolve(`${__dirname}/../../templates/gitignore.md`)).replace(/\./g, '\\.'), 'm' )
   bem_giRegex = new RegExp(fs.read(path.resolve(`${__dirname}/../../templates/gitignore.md`)), 'm' )

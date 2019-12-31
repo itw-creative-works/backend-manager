@@ -122,4 +122,31 @@ describe("BackendManager Tests", () => {
     });
   });
 
+
+  describe("notifications", () => {
+    it("unauthenticated can subscribe", async () => {
+      const db = auth(accounts.unauthenticated);
+      const doc = db.doc(`notifications/subscriptions/all/token`);
+      await firebase.assertSucceeds(doc.set({token: 'token'}));
+    });
+    it("authenticated can subscribe", async () => {
+      const db = auth(accounts.regular);
+      const doc = db.doc(`notifications/subscriptions/all/token`);
+      await firebase.assertSucceeds(doc.set({token: 'token'}));
+    });
+
+    it("unauthenticated can read subscription by token", async () => {
+      const db = auth(accounts.unauthenticated);
+      const doc = db.doc(`notifications/subscriptions/all/token`);
+      await firebase.assertSucceeds(doc.get());
+    });
+
+    it("authenticated can read subscription by token", async () => {
+      const db = auth(accounts.regular);
+      const doc = db.doc(`notifications/subscriptions/all/token`);
+      await firebase.assertSucceeds(doc.get());
+    });
+
+    // Add a test for updating?
+
 });

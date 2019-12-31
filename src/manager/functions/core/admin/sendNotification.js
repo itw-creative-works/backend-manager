@@ -42,32 +42,35 @@ let Module = {
   getTokens: getTokens,
   sendBatch: sendBatch,
   cleanTokens: cleanTokens,
+  deleteToken: deleteToken,
 }
 module.exports = Module;
 
 // HELPERS //
 let path_processing = 'notifications/processing/all/{notificationId}';
 let path_subscriptions = 'notifications/subscriptions/all';
+let badTokenReasons = ['messaging/invalid-registration-token', 'messaging/registration-token-not-registered']
 let batchPromises = [];
 
 function sendBatch(batch, id) {
   let This = this;
-  console.log(`Sending batch ID: ${id}`, batch);
+  // This.assistant.log(`Sending batch ID: ${id}`, batch);
+  This.assistant.log(`Sending batch ID: ${id}`);
   let payload = {};
   payload.notification = {};
   payload.notification.title = This.assistant.request.data.payload.title;
   payload.notification.click_action = This.assistant.request.data.payload.click_action;
   payload.notification.body = This.assistant.request.data.payload.body;
   payload.notification.icon = This.assistant.request.data.payload.icon;
-  console.log('payload', payload);
+  // This.assistant.log('payload', payload);
   return new Promise(async function(resolve, reject) {
     await This.ref.admin.messaging().sendToDevice(batch, payload)
       .then(async function (response) {
         // This.result.batches.list.push('#' + id + ' | ' + '✅  ' + response.successCount + ' | ' + '❌  ' + response.failureCount);
-        console.log('Sent batch #' + id);
+        This.assistant.log('Sent batch #' + id);
         // This.result.successes += response.successCount;
         // This.result.failures += response.failureCount;
-        console.log('RESP', response);
+        // console.log('RESP', response);
         if (response.failureCount > 0) {
           await This.cleanTokens(batch, response.results, id);
         }
@@ -93,7 +96,7 @@ function getTokens(options) {
     await subs
       .get()
       .then(function(querySnapshot) {
-        console.log(`Queried ${querySnapshot.size} tokens.`);
+        This.assistant.log(`Queried ${querySnapshot.size} tokens.`);
         // This.result.subscriptionsStart = querySnapshot.size;
         let batchCurrentSize = 0;
         let batchSizeMax = 1000;
@@ -118,17 +121,60 @@ function getTokens(options) {
           }
           batchLoops++;
         });
-        resolve();
       })
       .catch(function(error) {
         console.error("Error querying tokens: ", error);
         reject(error);
       });
+
+    await Promise.all(batchPromises)
+      .then(function(values) {
+        This.assistant.log('Finished all batches.');
+      })
+      .catch(function(e) {
+        console.error("Error sending batches: ", e);
+        // This.result.status = 'fail';
+      });
+    resolve();
+
   });
 }
 
-function cleanTokens() {
-  return new Promise(function(resolve, reject) {
+function cleanTokens(batch, results, id) {
+  let This = this;
+  let cleanPromises = [];
+  // This.assistant.log(`Cleaning tokens of batch ID: ${id}`, results);
+  This.assistant.log(`Cleaning tokens of batch ID: ${id}`);
+  return new Promise(async function(resolve, reject) {
+    results.forEach(function (item, index) {
+      if (!item.error) { return false; }
+      let curCode = item.error.code;
+      let token = batch[index];
+      This.assistant.log(`Found bad token: ${index} = ${curCode}`);
+      if (badTokenReasons.includes(curCode)) {
+        cleanPromises.push(This.deleteToken(token, curCode));
+      }
+    })
+    await Promise.all(cleanPromises)
+      .catch(function(e) {
+        This.assistant.log('error', "Error cleaning failed tokens: ", e);
+      });
     resolve();
+  });
+}
+
+function deleteToken(token, errorCode) {
+  let This = this;
+  return new Promise(function(resolve, reject) {
+    This.ref.admin.firestore().doc(`${path_subscriptions}/${token}`)
+      .delete()
+      .then(function() {
+        This.assistant.log(`Deleting bad token: ${token} for reason ${errorCode}`);
+        resolve();
+      })
+      .catch(function(error) {
+        This.assistant.log('error', `Error deleting bad token: ${token} for reason ${errorCode} because of error ${error}`);
+        resolve();
+      })
   });
 }

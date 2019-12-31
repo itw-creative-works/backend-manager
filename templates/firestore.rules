@@ -4,23 +4,30 @@ service cloud.firestore {
 
     // Lock by default
     match /{document=**} {
-      allow read, write: if false;
+      allow read, write: if isAdmin();
     }
 
     // Custom rules
+    ///---default-rules---///
     match /users/{uid} {
-      allow read: if (belongsTo(uid) || isAdmin());
-      allow write: if ((belongsTo(uid) && !isWritingProtectedUserField()) || isAdmin());
+      allow read: if belongsTo(uid);
+      allow write: if ((belongsTo(uid) && !isWritingProtectedUserField()));
       // might also want to include a check for email verified?
     }
+    match /notifications/subscriptions/all/{token} {
+      allow read: if (existingData().token == token) || belongsTo(existingData().link.user.pk);
+      allow update: if (existingData().token == token);
+      allow create: if true;
+    }
+    ///---------end---------///
+
 
     ///---backend-manager---///
-    ///---version-0.0.0---///
+    ///---version=0.0.0---///
     // Basic rules
 
     // Auth functions
     function authEmail() {
-      // return request.auth.email;
       return request.auth.token.email;
     }
     function authUid() {
