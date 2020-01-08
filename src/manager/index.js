@@ -18,7 +18,6 @@ module.exports = function (args) {
   }
 
   // Main functions
-  // console.log('Initialized BackendManager/index.js');
   args.ref.exports.bm_signUpHandler =
   functions
   .runWith({memory: '256MB', timeoutSeconds: 60})
@@ -31,6 +30,19 @@ module.exports = function (args) {
     })
     return Module.main();
   });
+
+  // args.ref.exports.bm_paymentProcessor =
+  // functions
+  // .runWith({memory: '256MB', timeoutSeconds: 60})
+  // .https.onRequest(async (req, res) => {
+  //   let Module = require(`${core}/paymentProcessor.js`)
+  //   Module.init({
+  //     ref: args.ref,
+  //     req: req,
+  //     res: res,
+  //   })
+  //   return Module.main();
+  // });
 
   // Admin
   args.ref.exports.bm_createPost =
