@@ -1,0 +1,15 @@
+{
+  "mailchimp": {
+    "key": "key",
+    "datacenter": "datacenter",
+    "list_id": "list_id"
+  },
+  "backend_manager": {
+    "key": "key"
+  },
+  "github": {
+    "key": "key",
+    "user": "user",
+    "repo_website": "repo_website"
+  }
+}

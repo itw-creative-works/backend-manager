@@ -4,7 +4,7 @@ let Module = {
     this.libraries = Manager.libraries;
     this.req = data.req;
     this.res = data.res
-    this.assistant = Manager.getNewAssistant(data.req, data.res)
+    this.assistant = Manager.getNewAssistant(data.req, data.res, {accept: 'json'})
 
     return this;
   },
@@ -14,8 +14,10 @@ let Module = {
     let libraries = this.libraries;
     let assistant = this.assistant;
     return libraries.cors(req, res, async () => {
-      assistant.log(assistant.request);
-      return res.status(200).json({status: 200, request: assistant.request.data});
+      assistant.log('Request:', assistant.request.data);
+      let user = await assistant.authorize();
+      assistant.log('Result user:', user);
+      return res.status(200).json({status: 200, user: user });
     });
   }
 }

@@ -1,38 +1,33 @@
-let request;
+let fetch;
 let Poster;
 let pathApi;
 let os;
 let Module = {
-  init: async function (data) {
-    this.ref = data.ref;
+  init: async function (Manager, data) {
+    this.Manager = Manager;
+    this.libraries = Manager.libraries;
     this.req = data.req;
     this.res = data.res
-    this.assistant = new this.ref.Assistant().init({
-      ref: {
-        req: data.req,
-        res: data.res,
-        admin: data.ref.admin,
-        functions: data.ref.functions,
-      }
-    })
+    this.assistant = Manager.getNewAssistant(data.req, data.res)
+
     return this;
   },
   main: async function() {
     let req = this.req;
     let res = this.res;
-    let ref = this.ref;
+    let libraries = this.libraries;
     let assistant = this.assistant;
-    let This = this;
+    let self = this;
 
-    return ref.cors(req, res, async () => {
+    return libraries.cors(req, res, async () => {
       let response = {
         status: 200,
       };
 
       // authenticate admin!
-      let authAdmin = await assistant.authorizeAdmin();
-      let repoInfo = assistant.parseRepo(This.ref.functions.config().github.repo_website);
-      if (!authAdmin) {
+      let user = await assistant.authorize();
+      let repoInfo = assistant.parseRepo(self.libraries.functions.config().github.repo_website);
+      if (!user.roles.admin) {
         response.status = 500;
         response.error = 'Unauthenticated, admin required.';
 
@@ -47,7 +42,10 @@ let Module = {
           return new Promise(async function(resolve, reject) {
             let finalPath = poster.removeDirDot(meta.finalPath);
             let tempPath = (meta.tempPath);
-            await createFile(This.ref.functions.config().github.user, repoInfo.user, repoInfo.name, This.ref.functions.config().github.key, finalPath, await poster.readImage(tempPath));
+            await createFile(self.libraries.functions.config().github.user, repoInfo.user, repoInfo.name, self.libraries.functions.config().github.key, finalPath, await poster.readImage(tempPath))
+            .catch((e) => {
+              // console.log('---CAUGHT 1', e);
+            })
             resolve();
           });
         }
@@ -55,7 +53,12 @@ let Module = {
         let finalPost = await poster.create(assistant.request.data);
 
         // Save post OR commit
-        await createFile(This.ref.functions.config().github.user, repoInfo.user, repoInfo.name, This.ref.functions.config().github.key, poster.removeDirDot(finalPost.path), finalPost.content);
+        await createFile(self.libraries.functions.config().github.user, repoInfo.user, repoInfo.name, self.libraries.functions.config().github.key, poster.removeDirDot(finalPost.path), finalPost.content)
+        .catch((e) => {
+          response.status = 500;
+          response.error = 'Failed to post: ' + e;
+          // console.log('---CAUGHT 2', e);
+        })
       }
 
       assistant.log(assistant.request.data, response);
@@ -82,22 +85,17 @@ async function createFile(user, repoUser, repoName, key, path, contents) {
       let branch = (repoName == 'ultimate-jekyll') ? 'template' : 'master';
 
       let pathGet = `https://api.github.com/repos/${repoUser}/${repoName}/git/trees/${branch}:${encodeURIComponent(pathApi.dirname(path))}`;
-      // console.log('-------GET', pathGet);
       await makeRequest({
-        // url: `https://api.github.com/repos/:owner/:repo/contents/:path`,
         method: 'GET',
-        // url: `https://api.github.com/repos/iwiedenm/ultimate-jekyll/contents/api-test/text.txt`,
         url: pathGet,
         body: {
         },
         timeout: 30000,
         json: true,
-        auth: {
-          user: user,
-          pass: key
-        },
         headers: {
-          'User-Agent': user
+          'User-Agent': user,
+          // 'Authorization': `Basic ${user}:${key}`,
+          'Authorization': `Basic ${Buffer.from(user + ':' + key).toString('base64')}`,
         }
       })
       .then(function (resp) {
@@ -109,7 +107,6 @@ async function createFile(user, repoUser, repoName, key, path, contents) {
         sha = sha.sha;
       });
   } catch (e) {
-    // console.log('ERROR', e);
     sha = null;
   }
 
@@ -120,43 +117,73 @@ async function createFile(user, repoUser, repoName, key, path, contents) {
     method: 'PUT',
     url: pathPut,
     body: {
-      message: "NEW POST",
+      message: `BackendManager Post: ${new Date().toISOString()}`,
       content: base64Data,
     },
     timeout: 30000,
     json: true,
-    auth: {
-      user: user,
-      pass: key
-    },
     headers: {
-      'User-Agent': user
+      'User-Agent': user,
+      // 'Authorization': `Basic ${user}:${key}`,
+      'Authorization': `Basic ${Buffer.from(user + ':' + key).toString('base64')}`,
     }
   }
   if (sha) {
     writeRequest.body.sha = sha;
   }
   // console.log('--------PUT', pathPut);
-  await makeRequest(writeRequest);
-  resolve(true)
+  await makeRequest(writeRequest)
+  .then((json) => {
+    if (!json || (json.message && (json.message === 'Not Found' || json.message.includes('Invalid request'))) ) {
+      return reject(new Error(json.message));
+    }
+  })
+  .catch((e) => {
+    return reject(e);
+  })
+  return resolve(true)
   });
 }
-
-
 
 function makeRequest(options) {
   return new Promise(function(resolve, reject) {
-    request = request || require('request');
-    request(options,
-      function (err, httpResponse, body) {
-        if (err) {
-          // console.log('ERROR', err);
-          reject(err);
-        } else {
-          // console.log('SUCCESS', body);
-          resolve(body);
-        }
-      }
-    );
+    fetch = fetch || require('node-fetch');
+    options.headers = options.headers || {};
+    options.headers['Content-Type'] = 'application/json';
+    let hasBody = Object.keys(options.body || {}).length > 0
+    fetch(options.url, {
+        method: options.method,
+        body: hasBody ? JSON.stringify(options.body) : undefined,
+        timeout: 30000,
+        headers: options.headers,
+        auth: options.auth,
+      })
+      .then(res => res.json())
+      .then(json => {
+        return resolve(json);
+      })
+      .catch(e => {
+        // console.error('e', e);
+        return reject(e);
+      })
+
   });
 }
+
+
+// function makeRequest(options) {
+//   return new Promise(function(resolve, reject) {
+//     request = request || require('request');
+//     request(options,
+//       function (err, httpResponse, body) {
+//         if (err) {
+//           // console.log('ERROR', err);
+//           reject(err);
+//         } else {
+//           // console.log('SUCCESS', body);
+//           resolve(body);
+//         }
+//       }
+//     );
+//   });
+// }

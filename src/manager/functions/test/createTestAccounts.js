@@ -1,25 +1,20 @@
 let Module = {
-  init: async function (data) {
-    this.ref = data.ref;
+  init: async function (Manager, data) {
+    this.Manager = Manager;
+    this.libraries = Manager.libraries;
     this.req = data.req;
     this.res = data.res
-    this.assistant = new this.ref.Assistant().init({
-      ref: {
-        req: data.req,
-        res: data.res,
-        admin: data.ref.admin,
-        functions: data.ref.functions,
-      },
-    })
+    this.assistant = Manager.getNewAssistant(data.req, data.res)
+
     return this;
   },
   main: async function() {
     let uuid4;
     let req = this.req;
     let res = this.res;
-    let ref = this.ref;
+    let libraries = this.libraries;
     let assistant = this.assistant;
-    return ref.cors(req, res, async () => {
+    return libraries.cors(req, res, async () => {
       let assistant = this.assistant;
 
       let response = {
@@ -52,7 +47,7 @@ let Module = {
       async function deleteUser(uid) {
         let currentUid;
         return new Promise(async function(resolve, reject) {
-          // await ref.admin.auth().getUserByEmail(email)
+          // await libraries.admin.auth().getUserByEmail(email)
           // .then(function(userRecord) {
           //   // See the UserRecord reference doc for the contents of userRecord.
           //   currentUid = userRecord.toJSON().uid;
@@ -62,7 +57,7 @@ let Module = {
           //   // assistant.log('Error fetching user data:', error);
           // });
 
-          await ref.admin.auth().deleteUser(uid)
+          await libraries.admin.auth().deleteUser(uid)
           .then(function() {
             // assistant.log('Successfully deleted user', currentUid);
             resolve();
@@ -83,7 +78,7 @@ let Module = {
         let result = {};
         return new Promise(async function(resolve, reject) {
           await deleteUser(uid);
-          ref.admin.auth().createUser({
+          libraries.admin.auth().createUser({
             uid: uid,
             email: email,
             password: options.password,
@@ -97,8 +92,7 @@ let Module = {
             };
 
             let SignUpHandler = require('../core/signUpHandler.js');
-            SignUpHandler.init({
-              ref: ref,
+            SignUpHandler.init(Manager, {
               req: req,
               res: res,
             })
@@ -110,7 +104,7 @@ let Module = {
               roles: options.roles,
             })
 
-            // ref.admin.firestore().doc(`users/${uid}`)
+            // libraries.admin.firestore().doc(`users/${uid}`)
             // .set(
             //   {
             //     roles: options.roles,

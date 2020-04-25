@@ -1,55 +1,50 @@
 let _;
 let Module = {
-  init: async function (data) {
-    this.ref = data.ref;
+  init: async function (Manager, data) {
+    this.Manager = Manager;
+    this.libraries = Manager.libraries;
     this.req = data.req;
     this.res = data.res
-    this.assistant = new this.ref.Assistant().init({
-      ref: {
-        req: data.req,
-        res: data.res,
-        admin: data.ref.admin,
-        functions: data.ref.functions,
-      }
-    })
+    this.assistant = Manager.getNewAssistant(data.req, data.res)
+
     return this;
   },
   main: async function() {
     let req = this.req;
     let res = this.res;
-    let ref = this.ref;
+    let libraries = this.libraries;
     let assistant = this.assistant;
-    let This = this;
+    let self = this;
 
-    return ref.cors(req, res, async () => {
+    return libraries.cors(req, res, async () => {
       let response = {
         status: 200,
       };
 
       // authenticate admin!
-      let authAdmin = await assistant.authorizeAdmin();
-      if (!authAdmin) {
+      let user = await assistant.authorize();
+      if (!user.roles.admin) {
         response.status = 500;
         response.error = 'Unauthenticated, admin required.';
       } else {
-        This.docs = [];
+        self.docs = [];
         assistant.log('queries', assistant.request.data.queries);
         let queries = arrayify(assistant.request.data.queries || []);
 
         let promises = [];
         for (var i = 0; i < queries.length; i++) {
           queries[i]
-          promises.push(This.runQuery(queries[i]))
+          promises.push(self.runQuery(queries[i]))
         }
         await Promise.all(promises)
         .then(function () {
-          console.log('ALL', This.docs);
+          console.log('ALL', self.docs);
         })
       }
 
       assistant.log(assistant.request.data, response);
       // return 'break';
-      return res.status(response.status).json(This.docs);
+      return res.status(response.status).json(self.docs);
     });
   },
   runQuery: runQuery,
@@ -58,7 +53,7 @@ module.exports = Module;
 
 // HELPERS //
 async function runQuery(payload) {
-  let This = this;
+  let self = this;
 
   payload = payload || {};
   payload.where = arrayify(payload.where || []);
@@ -69,7 +64,7 @@ async function runQuery(payload) {
   // payload.orderBy = payload.orderBy || false;
 
   return new Promise(function(resolve, reject) {
-    var collection = This.ref.admin.firestore().collection(payload.collection);
+    var collection = self.libraries.admin.firestore().collection(payload.collection);
     for (var i = 0; i < payload.where.length; i++) {
       let cur = payload.where[i];
       collection = collection.where(cur.field, cur.operator, cur.value);
@@ -93,7 +88,7 @@ async function runQuery(payload) {
       querySnapshot.forEach(function (doc) {
 
         if (checkFilter(doc.data(), payload.filter)) {
-          This.docs.push(doc.data());
+          self.docs.push(doc.data());
         }
 
       });
@@ -101,8 +96,8 @@ async function runQuery(payload) {
       if (payload.filterIndex) {
         let iS = payload.filterIndex[0];
         let iF = payload.filterIndex[1];
-        iF = iF > This.docs.length ? This.docs.length - 1 : iF;
-        This.docs = This.docs.slice(iS, iF);
+        iF = iF > self.docs.length ? self.docs.length - 1 : iF;
+        self.docs = self.docs.slice(iS, iF);
       }
 
       resolve();

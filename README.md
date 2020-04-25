@@ -51,14 +51,16 @@ exports.backendManager = (require('backend-manager'))({
 ```
 
 ## Example CLI Usage
-  * `bm -v`: Check version of backend-manager.
+  * `bm v`: Check version of backend-manager.
+  * `bm setup`: Runs some checks and sets up your Firebase project.
+
   * `bm config:get`: Save Firebase config to your project.
   * `bm config:set`: Start an interface for setting a config value. You'll be prompted for the `path` and `value`.
   * `bm config:delete`: Start an interface for deleting a config value. You'll be prompted for the `path`.
-  * `bm setup`: Runs some checks and sets up your Firebase project.
   * `bm serve <port>`: Serve your Firebase project, defaults to port 5000.
-  * `bm i local`: Install local copies of two important modules: `backend-manager` and `backend-assistant`.
-  * `bm i production`: Install production copies of two important modules: `backend-manager` and `backend-assistant`.
+  * `bm test`: Run Firebase test `.js` files in the `./test` directory.
+  * `bm i local`: Install local copies of this important module: `backend-manager`.
+  * `bm i production`: Install production copies of this important module: `backend-manager`.
   * `bm deploy`: Deploy the functions of your Firebase project.
 
 

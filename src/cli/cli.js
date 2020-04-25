@@ -17,6 +17,7 @@ let inquirer = require('inquirer');
 const { spawn } = require('child_process');
 const clear = require('clear');
 let argv = require('yargs').argv;
+// const JSON5 = require('json5');
 
 // function parseArgumentsIntoOptions(rawArgs) {
 //   const args = arg(
@@ -45,7 +46,11 @@ let bem_giRegexOuter = /# BEM>>>(.*\n?)# <<<BEM/sg;
 let bem_fsRulesRegex = /(\/\/\/---backend-manager---\/\/\/)(.*?)(\/\/\/---------end---------\/\/\/)/sgm;
 let bem_fsRulesDefaultRegex = /(\/\/\/---default-rules---\/\/\/)(.*?)(\/\/\/---------end---------\/\/\/)/sgm;
 let bem_fsRulesBackupRegex = /({{\s*?backend-manager\s*?}})/sgm;
-let MOCHA_PKG_SCRIPT = 'mocha ../test/ --recursive --timeout=10000'
+let MOCHA_PKG_SCRIPT = 'mocha ../test/ --recursive --timeout=10000';
+let NPM_CLEAN_SCRIPT = 'rm -fr node_modules && rm -fr package-lock.json && npm cache clean --force && npm install && npm rb';
+let NOFIX_TEXT = chalk.red(`There is no automatic fix for this check.`);
+let runtimeconfigTemplate = JSON.parse((fs.read(path.resolve(`${__dirname}/../../templates/runtimeconfig.json`))) || '{}');
+
 
 
 function Main() {
@@ -81,9 +86,9 @@ Main.prototype.process = async function (args) {
   }
   if ((this.options.i || this.options.install) && (this.options.local || this.options.dev || this.options.development)) {
     await uninstallPkg('backend-manager');
-    await installPkg('file:../../backend-manager');
-    await uninstallPkg('backend-assistant');
-    return await installPkg('file:../../backend-assistant');
+    return await installPkg('file:../../backend-manager');
+    // await uninstallPkg('backend-assistant');
+    // return await installPkg('file:../../backend-assistant');
   }
   if ((this.options.i || this.options.install) && (this.options.live || this.options.prod || this.options.production)) {
     await installPkg('backend-manager');
@@ -96,13 +101,13 @@ Main.prototype.process = async function (args) {
     await This.setup();
 
     let port = this.argv.port || _.get(This.argv, '_', [])[1] || '5000';
-    let ls = spawn('firebase', ['serve', '--port', port]);
+    let ls = spawn(`firebase serve --port ${port}`, {shell: true});
 
     ls.stdout.on('data', (data) => {
       console.log(`${cleanOutput(data)}`);
     });
     ls.stderr.on('data', (data) => {
-      console.error(`${cleanOutput(data)}`);
+      console.error(chalk.red(`${cleanOutput(data)}`));
       // ls = null;
     });
   }
@@ -137,13 +142,14 @@ Main.prototype.process = async function (args) {
       return;
     }
     // let ls = spawn('firebase', ['deploy', '--only', 'functions']);
-    let ls = spawn('firebase', ['deploy', '--only', 'functions,firestore:rules']);
+    // let ls = spawn('firebase', ['deploy', '--only', 'functions,firestore:rules']);
+    let ls = spawn('firebase deploy --only functions,firestore:rules', {shell: true});
     ls.stdout.on('data', (data) => {
       // console.log(`${cleanOutput(data)}`);
       console.log(`${cleanOutput(data)}`);
     });
     ls.stderr.on('data', (data) => {
-      console.error(`${cleanOutput(data)}`);
+      console.error(chalk.red(`${cleanOutput(data)}`));
       // ls = null;
     });
 
@@ -151,15 +157,28 @@ Main.prototype.process = async function (args) {
   if (this.options['test']) {
     await This.setup();
     // firebase emulators:exec --only firestore 'npm test'
-    let ls = spawn('firebase', ['emulators:exec', '--only', 'firestore', 'npm test']);
+    // let ls = spawn('firebase', ['emulators:exec', '--only', 'firestore', 'npm test']);
+    // https://stackoverflow.com/questions/9722407/how-do-you-install-and-run-mocha-the-node-js-testing-module-getting-mocha-co
+    let ls = spawn(`firebase emulators:exec --only firestore "npx ${MOCHA_PKG_SCRIPT}"`, {shell: true});
     ls.stdout.on('data', (data) => {
       console.log(`${cleanOutput(data)}`);
     });
     ls.stderr.on('data', (data) => {
-      console.error(`${cleanOutput(data)}`);
+      console.error(chalk.red(`${cleanOutput(data)}`));
     });
   }
 
+  if (this.options['clean:npm']) {
+    // await This.setup();
+    // firebase emulators:exec --only firestore 'npm test'
+    let ls = spawn(`${NPM_CLEAN_SCRIPT}`, {shell: true});
+    ls.stdout.on('data', (data) => {
+      console.log(`${cleanOutput(data)}`);
+    });
+    ls.stderr.on('data', (data) => {
+      console.error(chalk.red(`${cleanOutput(data)}`));
+    });
+  }
 
 };
 
@@ -175,6 +194,7 @@ Main.prototype.getRulesFile = function () {
 
 Main.prototype.setup = async function () {
   let This = this;
+  let cwd = fs.cwd();
   log(chalk.green(`\n---- RUNNING SETUP ----`));
   this.package = fs.read(`${this.firebaseProjectPath}/functions/package.json`);
   this.gitignore = fs.read(`${this.firebaseProjectPath}/functions/.gitignore`);
@@ -184,6 +204,12 @@ Main.prototype.setup = async function () {
     log(chalk.red(`Missing package.json :(`));
     return;
   }
+  // console.log('cwd', cwd, cwd.endsWith('functions'));
+  if (!cwd.endsWith('functions') && !cwd.endsWith('functions/')) {
+    log(chalk.red(`Please run ${chalk.bold('bm setup')} from the ${chalk.bold('functions')} folder. Run ${chalk.bold('cd functions')}.`));
+    return;
+  }
+
   this.package = JSON.parse(this.package);
   this.firebaseJSON = JSON.parse(this.firebaseJSON);
   this.firebaseRC = JSON.parse(this.firebaseRC);
@@ -203,6 +229,11 @@ Main.prototype.setup = async function () {
     let exists = fs.exists(`${This.firebaseProjectPath}/firebase.json`);
     return exists;
   }, fix_isFirebase);
+
+  await this.test('package.json has dependencies field', async function () {
+    return !!This.package.dependencies && !!This.package.devDependencies;
+  }, fix_deps);
+
   await this.test('using updated firebase-admin', async function () {
     let pkg = 'firebase-admin';
     let latest = semver.clean(await getPkgVersion(pkg));
@@ -224,12 +255,12 @@ Main.prototype.setup = async function () {
     return isLocal(mine) || !(semver.gt(latest, mine));
   }, fix_bem);
 
-  await this.test('using updated backend-assistant', async function () {
-    let pkg = 'backend-assistant';
-    let latest = semver.clean(await getPkgVersion(pkg));
-    let mine = (This.package.dependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
-    return isLocal(mine) || !(semver.gt(latest, mine));
-  }, fix_bea);
+  // await this.test('using updated backend-assistant', async function () {
+  //   let pkg = 'backend-assistant';
+  //   let latest = semver.clean(await getPkgVersion(pkg));
+  //   let mine = (This.package.dependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
+  //   return isLocal(mine) || !(semver.gt(latest, mine));
+  // }, fix_bea);
 
   // await this.test('using updated ultimate-jekyll-poster', async function () {
   //   let pkg = 'ultimate-jekyll-poster';
@@ -254,21 +285,10 @@ Main.prototype.setup = async function () {
 
   await this.test('using proper .runtimeconfig', async function () {
     let runtimeconfig = JSON.parse(fs.read(`${This.firebaseProjectPath}/functions/.runtimeconfig.json`) || '{}');
-
     // console.log('runtimeconfig', runtimeconfig, runtimeconfig.mailchimp);
-    return runtimeconfig.mailchimp &&
-           runtimeconfig.mailchimp.key &&
-           runtimeconfig.mailchimp.list_id &&
+    return objectsHaveSameKeys(runtimeconfig, runtimeconfigTemplate)
 
-           runtimeconfig.backend_manager &&
-           runtimeconfig.backend_manager.key &&
-
-           runtimeconfig.github &&
-           runtimeconfig.github.key &&
-           runtimeconfig.github.user &&
-           runtimeconfig.github.repo_website
-
-  }, NOFIX);
+  }, fix_runtimeConfig);
 
   await this.test('using node 10', function () {
     return This.package.engines.node.toString() == '10';
@@ -276,17 +296,14 @@ Main.prototype.setup = async function () {
 
   await this.test('has service-account.json', function () {
     let exists = fs.exists(`${This.firebaseProjectPath}/functions/service-account.json`);
-    if (!exists) {
-      log(chalk.yellow(`Please install a service account --> ` + chalk.yellow.bold(`https://console.firebase.google.com/project/${This.projectName}/settings/serviceaccounts/adminsdk`)));
-    }
     return !!exists;
-  }, NOFIX);
+  }, fix_serviceAccount);
 
   await this.test('has correct .gitignore', function () {
     return !!This.gitignore.match(bem_giRegex);
   }, fix_gitignore);
 
-  await this.test('check firebase rules in JSON', function () {
+  await this.test('firebase rules in JSON', function () {
     let firestore = _.get(This.firebaseJSON, 'firestore', {});
     return (firestore.rules == 'firestore.rules')
   }, fix_firebaseRules);
@@ -298,10 +315,15 @@ Main.prototype.setup = async function () {
     return true;
   }, NOFIX);
 
-  await this.test('has mocha package.json script', function () {
-    let script = _.get(This.package, 'scripts.test', '')
-    return script == MOCHA_PKG_SCRIPT;
-  }, fix_mochaScript);
+  // await this.test('has mocha package.json script', function () {
+  //   let script = _.get(This.package, 'scripts.test', '')
+  //   return script == MOCHA_PKG_SCRIPT;
+  // }, fix_mochaScript);
+
+  // await this.test('has clean:npm package.json script', function () {
+  //   let script = _.get(This.package, 'scripts.clean:npm', '')
+  //   return script == NPM_CLEAN_SCRIPT;
+  // }, fix_cleanNpmScript);
 
   await this.test('ignore firestore indexes file', function () {
     let firestore = _.get(This.firebaseJSON, 'firestore', {});
@@ -320,6 +342,13 @@ Main.prototype.setup = async function () {
     return (!!exists && !!containsCore && !!matchesVersion);
   }, fix_fsrules);
 
+
+  console.log('\n');
+  console.log(chalk.green(`Checks finished. Passed ${This.testCount}/${This.testTotal} tests.`));
+  if (This.testCount !== This.testTotal) {
+    console.log(chalk.yellow(`You should continue to run ${chalk.bold('bm setup')} until you pass all tests and fix all errors.`));
+  }
+
   return;
 
   await this.test('deleted firestore indexes', function () {
@@ -330,6 +359,23 @@ Main.prototype.setup = async function () {
   // console.log(This.package);
 
 };
+
+function objectsHaveSameKeys(...objects) {
+   const allKeys = objects.reduce((keys, object) => keys.concat(Object.keys(object)), []);
+   const union = new Set(allKeys);
+   return objects.every(object => union.size === Object.keys(object).length);
+}
+
+function getObjectPaths(object, parent) {
+  let keys = Object.keys(object);
+  let composite = '';
+  parent = parent || '';
+  for (var i = 0, l = keys.length; i < l; i++) {
+    let item = object[keys[i]];
+    composite += typeof item === 'object' ? getObjectPaths(item, keys[i]) : `${parent}.${keys[i]}\n`;
+  }
+  return composite;
+}
 
 Main.prototype.test = async function(name, fn, fix, args) {
   let This = this;
@@ -362,17 +408,35 @@ Main.prototype.test = async function(name, fn, fix, args) {
 // FIXES
 function NOFIX() {
   return new Promise(function(resolve, reject) {
+    log(NOFIX_TEXT);
     reject();
   });
 }
 
-function fix_mochaScript(This) {
+async function fix_runtimeConfig(This) {
   return new Promise(function(resolve, reject) {
-    _.set(This.package, 'scripts.test', MOCHA_PKG_SCRIPT);
-    fs.write(`${This.firebaseProjectPath}/functions/package.json`, JSON.stringify(This.package, null, 2) );
-    resolve();
+    log(NOFIX_TEXT);
+    log(chalk.red(`You need to run ${chalk.bold(`bm config:set`)} for each of these keys: \n${getObjectPaths(runtimeconfigTemplate)}`));
+    reject();
   });
-}
+};
+
+async function fix_serviceAccount(This) {
+  return new Promise(function(resolve, reject) {
+    log(NOFIX_TEXT);
+    log(chalk.red(`Please install a service account --> ` + chalk.yellow.bold(`https://console.firebase.google.com/project/${This.projectName}/settings/serviceaccounts/adminsdk`)));
+    reject();
+  });
+};
+
+// function fix_mochaScript(This) {
+//   return new Promise(function(resolve, reject) {
+//     _.set(This.package, 'scripts.test', MOCHA_PKG_SCRIPT);
+//     fs.write(`${This.firebaseProjectPath}/functions/package.json`, JSON.stringify(This.package, null, 2) );
+//     resolve();
+//   });
+// }
+
 function fix_node10(This) {
   return new Promise(function(resolve, reject) {
     _.set(This.package, 'engines.node', '10')
@@ -388,6 +452,16 @@ async function fix_isFirebase(This) {
   return;
 };
 
+function fix_deps(This) {
+  return new Promise(function(resolve, reject) {
+    This.package.dependencies = This.package.dependencies || {};
+    This.package.devDependencies = This.package.devDependencies || {};
+
+    fs.write(`${This.firebaseProjectPath}/functions/package.json`, JSON.stringify(This.package, null, 2) );
+    resolve();
+  });
+};
+
 async function fix_fbf(This) {
   return await installPkg('firebase-functions')
 };
@@ -397,9 +471,9 @@ async function fix_fba(This) {
 async function fix_bem(This) {
   return await installPkg('backend-manager')
 };
-async function fix_bea(This) {
-  return await installPkg('backend-assistant')
-};
+// async function fix_bea(This) {
+//   return await installPkg('backend-assistant')
+// };
 // async function fix_ujp(This) {
 //   return await installPkg('ultimate-jekyll-poster')
 // };
