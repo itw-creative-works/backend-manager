@@ -65,7 +65,8 @@ Main.prototype.process = async function (args) {
   this.testCount = 0;
   this.testTotal = 0;
   this.default = {};
-  this.default.version = `${require('../../package.json').version}`;
+  this.packageJSON = require('../../package.json');
+  this.default.version = this.packageJSON.version;
 
   for (var i = 0; i < args.length; i++) {
     this.options[args[i]] = true;
@@ -91,8 +92,8 @@ Main.prototype.process = async function (args) {
     // return await installPkg('file:../../backend-assistant');
   }
   if ((this.options.i || this.options.install) && (this.options.live || this.options.prod || this.options.production)) {
-    await installPkg('backend-manager');
-    return await installPkg('backend-assistant');
+    return await installPkg('backend-manager');
+    // return await installPkg('backend-assistant');
   }
   if (this.options.serve) {
     if (!this.options.quick && !this.options.q) {
@@ -237,23 +238,39 @@ Main.prototype.setup = async function () {
   await this.test('using updated firebase-admin', async function () {
     let pkg = 'firebase-admin';
     let latest = semver.clean(await getPkgVersion(pkg));
-    let mine = (This.package.dependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
+    let mine = cleanPackageVersion(This.package.dependencies[pkg] || '0.0.0');
+
+    let bemv = cleanPackageVersion(This.packageJSON.dependencies[pkg]);
+    bemPackageVersionWarning(pkg, bemv, latest);
+
     return !(semver.gt(latest, mine));
   }, fix_fba);
 
   await this.test('using updated firebase-functions', async function () {
     let pkg = 'firebase-functions';
     let latest = semver.clean(await getPkgVersion(pkg));
-    let mine = (This.package.dependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
+    let mine = cleanPackageVersion(This.package.dependencies[pkg] || '0.0.0');
+
+    let bemv = cleanPackageVersion(This.packageJSON.dependencies[pkg]);
+    bemPackageVersionWarning(pkg, bemv, latest);
+
     return !(semver.gt(latest, mine));
   }, fix_fbf);
 
   await this.test('using updated backend-manager', async function () {
     let pkg = 'backend-manager';
     let latest = semver.clean(await getPkgVersion(pkg));
-    let mine = (This.package.dependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
+    let mine = cleanPackageVersion(This.package.dependencies[pkg] || '0.0.0');
+
     return isLocal(mine) || !(semver.gt(latest, mine));
   }, fix_bem);
+
+  (async function() {
+    let pkg = 'backend-assistant';
+    let latest = semver.clean(await getPkgVersion(pkg));
+    let bemv = cleanPackageVersion(This.packageJSON.dependencies[pkg]);
+    bemPackageVersionWarning(pkg, bemv, latest);
+  }());
 
   // await this.test('using updated backend-assistant', async function () {
   //   let pkg = 'backend-assistant';
@@ -404,6 +421,9 @@ Main.prototype.test = async function(name, fn, fix, args) {
   });
 }
 
+function cleanPackageVersion(v) {
+  return v.replace('^', '').replace('~', '');
+}
 
 // FIXES
 function NOFIX() {
@@ -411,6 +431,12 @@ function NOFIX() {
     log(NOFIX_TEXT);
     reject();
   });
+}
+
+function bemPackageVersionWarning(package, current, latest) {
+  if (semver.gt(latest, current)) {
+    log(chalk.yellow(`${package} needs to be updated in backend-manager: ${current} => ${latest}`));
+  }
 }
 
 async function fix_runtimeConfig(This) {

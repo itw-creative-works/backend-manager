@@ -39,15 +39,13 @@ npm install backend-manager
 After installing via npm, simply paste this script simply paste this script in your `functions/index.js` file.
 ```js
 // In your functions/index.js file
-exports.backendManager = (require('backend-manager'))({
-  ref: {
-    exports: exports,
-    cors: cors,
-    functions: functions,
-    admin: admin,
-  },
-  options: {}
+const Manager = require('backend-manager');
+
+exports.Manager = Manager.init(exports, {
+  initializeApp: true
 });
+
+const {functions, admin, cors, lodash, Assistant} = Manager.libraries;
 ```
 
 ## Example CLI Usage
