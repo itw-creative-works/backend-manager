@@ -181,6 +181,12 @@ Main.prototype.process = async function (args) {
     });
   }
 
+  // if (this.options['url']) {
+  //   // await This.setup();
+  //   // firebase emulators:exec --only firestore 'npm test'
+  //   log(this.projectUrl)
+  // }
+
 };
 
 module.exports = Main;
@@ -225,7 +231,9 @@ Main.prototype.setup = async function () {
   //   return This.package.engines.node.toString() == '10';
   // }, fix_node10);
   this.projectName = this.firebaseRC.projects.default;
-  log(chalk.black(`For Firebase project:`, chalk.bold(`${this.projectName}`)));
+  this.projectUrl = `https://console.firebase.google.com/project/${this.projectName}`;
+  log(chalk.black(`Id: `, chalk.bold(`${this.projectName}`)));
+  log(chalk.black(`Url:`, chalk.bold(`${this.projectUrl}`)));
   await this.test('is a firebase project', async function () {
     let exists = fs.exists(`${This.firebaseProjectPath}/firebase.json`);
     return exists;
@@ -302,8 +310,17 @@ Main.prototype.setup = async function () {
 
   await this.test('using proper .runtimeconfig', async function () {
     let runtimeconfig = JSON.parse(fs.read(`${This.firebaseProjectPath}/functions/.runtimeconfig.json`) || '{}');
-    // console.log('runtimeconfig', runtimeconfig, runtimeconfig.mailchimp);
-    return objectsHaveSameKeys(runtimeconfig, runtimeconfigTemplate)
+    let ogPaths = getObjectPaths(runtimeconfigTemplate).split('\n');
+    let pass = true;
+    for (var i = 0, l = ogPaths.length; i < l; i++) {
+      let item = ogPaths[i];
+      if (!item) {continue}
+      pass = (_.get(runtimeconfig, item, undefined));
+      if (typeof pass === 'undefined') {
+        break;
+      }
+    }
+    return !!pass;
 
   }, fix_runtimeConfig);
 
@@ -377,11 +394,17 @@ Main.prototype.setup = async function () {
 
 };
 
-function objectsHaveSameKeys(...objects) {
-   const allKeys = objects.reduce((keys, object) => keys.concat(Object.keys(object)), []);
-   const union = new Set(allKeys);
-   return objects.every(object => union.size === Object.keys(object).length);
-}
+// https://stackoverflow.com/questions/41802259/javascript-deep-check-objects-have-same-keys
+// function objectsHaveSameKeys(...objects) {
+//   let objectPaths = getObjectPaths()
+//    // const allKeys = objects.reduce((keys, object) => keys.concat(Object.keys(object)), []);
+//    // const union = new Set(allKeys);
+//    // return objects.every(object => union.size === Object.keys(object).length);
+//
+//    // const allKeys = objects.reduce((keys, object) => keys.concat(Object.keys(object)), []);
+//    console.log('allKeys', allKeys);
+//    return false
+// }
 
 function getObjectPaths(object, parent) {
   let keys = Object.keys(object);
@@ -442,7 +465,17 @@ function bemPackageVersionWarning(package, current, latest) {
 async function fix_runtimeConfig(This) {
   return new Promise(function(resolve, reject) {
     log(NOFIX_TEXT);
-    log(chalk.red(`You need to run ${chalk.bold(`bm config:set`)} for each of these keys: \n${getObjectPaths(runtimeconfigTemplate)}`));
+    log(chalk.red(`You need to run ${chalk.bold(`bm config:set`)} for each of these keys:`));
+    let objectKeys = getObjectPaths(runtimeconfigTemplate).split('\n');
+    let theirConfig = JSON.parse(fs.read(`${This.firebaseProjectPath}/functions/.runtimeconfig.json`) || '{}');
+    for (var i = 0, l = objectKeys.length; i < l; i++) {
+      let item = objectKeys[i];
+      if (!item) {return}
+      let has = _.get(theirConfig, item, '');
+      log(chalk.red(`${item} ` + (has ? `(${has})` : '')));
+    }
+    // console.log('objectKeys', objectKeys);
+    // log(chalk.red(`You need to run ${chalk.bold(`bm config:set`)} for each of these keys: \n${getObjectPaths(runtimeconfigTemplate)}`));
     reject();
   });
 };
@@ -450,7 +483,7 @@ async function fix_runtimeConfig(This) {
 async function fix_serviceAccount(This) {
   return new Promise(function(resolve, reject) {
     log(NOFIX_TEXT);
-    log(chalk.red(`Please install a service account --> ` + chalk.yellow.bold(`https://console.firebase.google.com/project/${This.projectName}/settings/serviceaccounts/adminsdk`)));
+    log(chalk.red(`Please install a service account --> ` + chalk.yellow.red(`${This.projectUrl}/settings/serviceaccounts/adminsdk`)));
     reject();
   });
 };

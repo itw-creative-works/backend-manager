@@ -61,6 +61,8 @@ const {functions, admin, cors, lodash, Assistant} = Manager.libraries;
   * `bm i production`: Install production copies of this important module: `backend-manager`.
   * `bm deploy`: Deploy the functions of your Firebase project.
 
+  * `bm clean:npm`: Delete, clean, and reinstall npm modules.
+
 
 ## Final Words
 If you are still having difficulty, we would love for you to post a question to [the Backend Manager issues page](https://github.com/itw-creative-works/backend-manager/issues). It is much easier to answer questions that include your code and relevant files! So if you can provide them, we'd be extremely grateful (and more likely to help you find the answer!)
