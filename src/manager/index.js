@@ -1,10 +1,7 @@
+const path = require('path');
 
 function Manager(exporter, options) {
   this.libraries = {};
-}
-
-Manager.getPackage = function () {
-  return require('../../package.json');
 }
 
 Manager.init = function (exporter, options) {
@@ -15,27 +12,34 @@ Manager.init = function (exporter, options) {
   const test = './functions/test';
   const wrappers = './functions/wrappers';
 
-  // Convenience variables
-  const functions = require('firebase-functions');
-  const admin = require('firebase-admin');
-  const cors = require('cors')({ origin: true });
-  const Assistant = require('backend-assistant');
+  // Varibles
+  let assistant;
+  let config;
+
+  // Load libraries
+  self.libraries = {
+    functions: require('firebase-functions'),
+    admin: require('firebase-admin'),
+    cors: require('cors')({ origin: true }),
+    Assistant: require('backend-assistant'),
+    sentry: null,
+  };
+
+  self.package = require(path.resolve(process.cwd(), '../package.json'));
+  config = self.libraries.functions.config() || {};
+
+  assistant = new self.libraries.Assistant().init();
 
   options = options || {};
+  options.initialize = typeof options.initialize === 'undefined' ? true : options.initialize;
+  options.sentry = typeof options.sentry === 'undefined' ? true : options.sentry;
 
-  self.libraries = {
-    functions: functions,
-    admin: admin,
-    cors: cors,
-    Assistant: Assistant,
-  }
-
-  if (options.initializeApp) {
+  if (options.initialize) {
     try {
       let serviceAccount = require(`${process.cwd()}/service-account.json`);
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`
+      self.libraries.admin.initializeApp({
+        credential: self.libraries.admin.credential.cert(serviceAccount),
+        databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`,
       });
     } catch (e) {
       console.error('Failed to call .initializeApp()', e);
@@ -43,9 +47,25 @@ Manager.init = function (exporter, options) {
     // admin.firestore().settings({/* your settings... */ timestampsInSnapshots: true})
   }
 
+  if (options.sentry && config.sentry && config.sentry.dsn) {
+    self.libraries.sentry = require('@sentry/node');
+    self.libraries.sentry.init({
+      dsn: config.sentry.dsn,
+      release: `${self.package.name}@${self.package.version}`,
+      beforeSend(event, hint) {
+        console.log('---beforeSend');
+        event.tags = event.tags || {};
+        event.tags['function.name'] = assistant.meta.name;
+        event.tags['function.type'] = assistant.meta.type;
+        event.tags['environment'] = assistant.meta.environment;
+        return event;
+      },
+    });
+  }
+
   // Main functions
   exporter.bm_signUpHandler =
-  functions
+  self.libraries.functions
   .runWith({memory: '256MB', timeoutSeconds: 60})
   .https.onRequest(async (req, res) => {
     const Module = require(`${core}/signUpHandler.js`)
@@ -55,7 +75,7 @@ Manager.init = function (exporter, options) {
 
   // Admin
   exporter.bm_createPost =
-  functions
+  self.libraries.functions
   .runWith({memory: '256MB', timeoutSeconds: 60})
   .https.onRequest(async (req, res) => {
     const Module = require(`${core}/admin/createPost.js`)
@@ -63,7 +83,7 @@ Manager.init = function (exporter, options) {
     return Module.main();
   });
   exporter.bm_sendNotification =
-  functions
+  self.libraries.functions
   .runWith({memory: '1GB', timeoutSeconds: 420})
   .https.onRequest(async (req, res) => {
     const Module = require(`${core}/admin/sendNotification.js`)
@@ -71,7 +91,7 @@ Manager.init = function (exporter, options) {
     return Module.main();
   });
   exporter.bm_query =
-  functions
+  self.libraries.functions
   .runWith({memory: '256MB', timeoutSeconds: 60})
   .https.onRequest(async (req, res) => {
     const Module = require(`${core}/admin/query.js`)
@@ -81,7 +101,7 @@ Manager.init = function (exporter, options) {
 
   // Test
   exporter.bm_test_webhook =
-  functions
+  self.libraries.functions
   .runWith({memory: '256MB', timeoutSeconds: 60})
   .https.onRequest(async (req, res) => {
     const Module = require(`${test}/webhook.js`)
@@ -90,7 +110,7 @@ Manager.init = function (exporter, options) {
   });
 
   exporter.bm_test_authorize =
-  functions
+  self.libraries.functions
   .runWith({memory: '256MB', timeoutSeconds: 60})
   .https.onRequest(async (req, res) => {
     const Module = require(`${test}/authorize.js`)
@@ -99,7 +119,7 @@ Manager.init = function (exporter, options) {
   });
 
   exporter.bm_test_createTestAccounts =
-  functions
+  self.libraries.functions
   .runWith({memory: '256MB', timeoutSeconds: 60})
   .https.onRequest(async (req, res) => {
     const Module = require(`${test}/createTestAccounts.js`)
@@ -109,13 +129,14 @@ Manager.init = function (exporter, options) {
 
 };
 
-Manager.getNewAssistant = function (req, res, options) {
+Manager.getNewAssistant = function (ref, options) {
   let self = this;
+  ref = ref || {};
   options = options || {};
   return new self.libraries.Assistant().init(
   {
-    req: req,
-    res: res,
+    req: ref.req,
+    res: ref.res,
     admin: self.libraries.admin,
     functions: self.libraries.functions,
   },
@@ -124,8 +145,19 @@ Manager.getNewAssistant = function (req, res, options) {
   })
 };
 
-Manager.require = function (path) {
-  return require(path);
+Manager.require = function (p) {
+  return require(p);
 };
+
+Manager.debug = function () {
+  return {
+    throwException: function () {
+      throw new Error('TEST_ERROR');
+    },
+    throwRejection: function () {
+      Promise.reject(new Error('TEST_ERROR'));
+    }
+  }
+}
 
 module.exports = Manager;

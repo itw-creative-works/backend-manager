@@ -472,7 +472,11 @@ async function fix_runtimeConfig(This) {
       let item = objectKeys[i];
       if (!item) {return}
       let has = _.get(theirConfig, item, '');
-      log(chalk.red(`${item} ` + (has ? `(${has})` : '')));
+      if (has) {
+        log(chalk.red(`${item} (${has})`));
+      } else {
+        log(chalk.red.bold(`${item}`));
+      }
     }
     // console.log('objectKeys', objectKeys);
     // log(chalk.red(`You need to run ${chalk.bold(`bm config:set`)} for each of these keys: \n${getObjectPaths(runtimeconfigTemplate)}`));

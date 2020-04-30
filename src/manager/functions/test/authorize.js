@@ -4,7 +4,7 @@ let Module = {
     this.libraries = Manager.libraries;
     this.req = data.req;
     this.res = data.res
-    this.assistant = Manager.getNewAssistant(data.req, data.res, {accept: 'json'})
+    this.assistant = Manager.getNewAssistant({req: data.req, res: data.res}, {accept: 'json'});
 
     return this;
   },
