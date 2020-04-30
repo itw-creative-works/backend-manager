@@ -25,7 +25,10 @@ Manager.init = function (exporter, options) {
     sentry: null,
   };
 
-  self.package = require(path.resolve(process.cwd(), '../package.json'));
+  self.project = JSON.parse(process.env.FIREBASE_CONFIG)
+  // self.package = require(path.resolve(process.cwd(), '../package.json'));
+  self.package = require(path.resolve(process.cwd(), 'package.json'));
+
   config = self.libraries.functions.config() || {};
 
   assistant = new self.libraries.Assistant().init();
@@ -35,11 +38,13 @@ Manager.init = function (exporter, options) {
   options.sentry = typeof options.sentry === 'undefined' ? true : options.sentry;
 
   if (options.initialize) {
+    console.log('Initializing:', self.project);
     try {
-      let serviceAccount = require(`${process.cwd()}/service-account.json`);
       self.libraries.admin.initializeApp({
-        credential: self.libraries.admin.credential.cert(serviceAccount),
-        databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`,
+        credential: self.libraries.admin.credential.cert(
+          require(path.resolve(process.cwd(), 'service-account.json'))
+        ),
+        databaseURL: self.project.databaseURL,
       });
     } catch (e) {
       console.error('Failed to call .initializeApp()', e);
@@ -48,12 +53,12 @@ Manager.init = function (exporter, options) {
   }
 
   if (options.sentry && config.sentry && config.sentry.dsn) {
+    console.log('Setting up sentry:', `${self.project.projectId}@${self.package.version}`);
     self.libraries.sentry = require('@sentry/node');
     self.libraries.sentry.init({
       dsn: config.sentry.dsn,
-      release: `${self.package.name}@${self.package.version}`,
+      release: `${self.project.projectId}@${self.package.version}`,
       beforeSend(event, hint) {
-        console.log('---beforeSend');
         event.tags = event.tags || {};
         event.tags['function.name'] = assistant.meta.name;
         event.tags['function.type'] = assistant.meta.type;

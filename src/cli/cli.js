@@ -203,6 +203,7 @@ Main.prototype.setup = async function () {
   let This = this;
   let cwd = fs.cwd();
   log(chalk.green(`\n---- RUNNING SETUP ----`));
+  this.projectPackage = fs.read(`${this.firebaseProjectPath}/package.json`);
   this.package = fs.read(`${this.firebaseProjectPath}/functions/package.json`);
   this.gitignore = fs.read(`${this.firebaseProjectPath}/functions/.gitignore`);
   this.firebaseJSON = fs.read(`${this.firebaseProjectPath}/firebase.json`);
@@ -220,6 +221,7 @@ Main.prototype.setup = async function () {
   this.package = JSON.parse(this.package);
   this.firebaseJSON = JSON.parse(this.firebaseJSON);
   this.firebaseRC = JSON.parse(this.firebaseRC);
+  this.projectPackage = JSON.parse(this.projectPackage);
 
   This.getRulesFile();
 
@@ -239,9 +241,17 @@ Main.prototype.setup = async function () {
     return exists;
   }, fix_isFirebase);
 
-  await this.test('package.json has dependencies field', async function () {
+  await this.test('project level package.json exists', async function () {
+    return !!(This.projectPackage && This.projectPackage.version && This.projectPackage.name);
+  }, fix_projpackage);
+
+  await this.test('functions level package.json exists', async function () {
     return !!This.package.dependencies && !!This.package.devDependencies;
   }, fix_deps);
+
+  await this.test('functions level package.json has updated version', async function () {
+    return This.package.version === This.projectPackage.version;
+  }, fix_packageversion);
 
   await this.test('using updated firebase-admin', async function () {
     let pkg = 'firebase-admin';
@@ -515,10 +525,32 @@ async function fix_isFirebase(This) {
   return;
 };
 
+function fix_projpackage(This) {
+  return new Promise(function(resolve, reject) {
+    This.projectPackage = This.projectPackage || {};
+    This.projectPackage.name = This.projectPackage.name || This.projectName;
+    This.projectPackage.version = This.projectPackage.version || '0.0.1';
+    This.projectPackage.dependencies = This.projectPackage.dependencies || {};
+    This.projectPackage.devDependencies = This.projectPackage.devDependencies || {};
+
+    fs.write(`${This.firebaseProjectPath}/package.json`, JSON.stringify(This.projectPackage, null, 2) );
+    resolve();
+  });
+};
+
 function fix_deps(This) {
   return new Promise(function(resolve, reject) {
     This.package.dependencies = This.package.dependencies || {};
     This.package.devDependencies = This.package.devDependencies || {};
+
+    fs.write(`${This.firebaseProjectPath}/functions/package.json`, JSON.stringify(This.package, null, 2) );
+    resolve();
+  });
+};
+
+function fix_packageversion(This) {
+  return new Promise(function(resolve, reject) {
+    This.package.version = This.projectPackage.version;
 
     fs.write(`${This.firebaseProjectPath}/functions/package.json`, JSON.stringify(This.package, null, 2) );
     resolve();
