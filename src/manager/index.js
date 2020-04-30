@@ -3,6 +3,10 @@ function Manager(exporter, options) {
   this.libraries = {};
 }
 
+Manager.getPackage = function () {
+  return require('../../package.json');
+}
+
 Manager.init = function (exporter, options) {
   let self = this;
 
@@ -15,7 +19,6 @@ Manager.init = function (exporter, options) {
   const functions = require('firebase-functions');
   const admin = require('firebase-admin');
   const cors = require('cors')({ origin: true });
-  const lodash = require('lodash');
   const Assistant = require('backend-assistant');
 
   options = options || {};
@@ -24,7 +27,6 @@ Manager.init = function (exporter, options) {
     functions: functions,
     admin: admin,
     cors: cors,
-    lodash: lodash,
     Assistant: Assistant,
   }
 
@@ -120,6 +122,10 @@ Manager.getNewAssistant = function (req, res, options) {
   {
     accept: options.accept,
   })
+};
+
+Manager.require = function (path) {
+  return require(path);
 };
 
 module.exports = Manager;
