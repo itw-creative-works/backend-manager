@@ -38,7 +38,7 @@ Manager.init = function (exporter, options) {
   options.sentry = typeof options.sentry === 'undefined' ? true : options.sentry;
 
   if (options.initialize) {
-    console.log('Initializing:', self.project);
+    // console.log('Initializing:', self.project);
     try {
       self.libraries.admin.initializeApp({
         credential: self.libraries.admin.credential.cert(
@@ -53,7 +53,7 @@ Manager.init = function (exporter, options) {
   }
 
   if (options.sentry && config.sentry && config.sentry.dsn) {
-    console.log('Setting up sentry:', `${self.project.projectId}@${self.package.version}`);
+    // console.log('Setting up sentry:', `${self.project.projectId}@${self.package.version}`);
     self.libraries.sentry = require('@sentry/node');
     self.libraries.sentry.init({
       dsn: config.sentry.dsn,
