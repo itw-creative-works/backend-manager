@@ -14,7 +14,6 @@ Manager.init = function (exporter, options) {
 
   // Varibles
   let assistant;
-  let config;
 
   // Load libraries
   self.libraries = {
@@ -28,8 +27,7 @@ Manager.init = function (exporter, options) {
   self.project = JSON.parse(process.env.FIREBASE_CONFIG)
   // self.package = require(path.resolve(process.cwd(), '../package.json'));
   self.package = require(path.resolve(process.cwd(), 'package.json'));
-
-  config = self.libraries.functions.config() || {};
+  self.config = self.libraries.functions.config() || {};
 
   assistant = new self.libraries.Assistant().init();
 
@@ -52,11 +50,11 @@ Manager.init = function (exporter, options) {
     // admin.firestore().settings({/* your settings... */ timestampsInSnapshots: true})
   }
 
-  if (options.sentry && config.sentry && config.sentry.dsn) {
+  if (options.sentry && self.config.sentry && self.config.sentry.dsn) {
     // console.log('Setting up sentry:', `${self.project.projectId}@${self.package.version}`);
     self.libraries.sentry = require('@sentry/node');
     self.libraries.sentry.init({
-      dsn: config.sentry.dsn,
+      dsn: self.config.sentry.dsn,
       release: `${self.project.projectId}@${self.package.version}`,
       beforeSend(event, hint) {
         event.tags = event.tags || {};
