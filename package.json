@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "0.1.19",
+  "version": "0.1.20",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -28,7 +28,7 @@
   "homepage": "https://github.com/itw-creative-works/backend-manager#readme",
   "dependencies": {
     "@sentry/node": "^5.15.5",
-    "backend-assistant": "0.0.16",
+    "backend-assistant": "0.0.17",
     "chalk": "^3.0.0",
     "clear": "^0.1.0",
     "cors": "^2.8.5",
