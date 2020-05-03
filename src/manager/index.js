@@ -137,15 +137,15 @@ Manager.getNewAssistant = function (ref, options) {
   ref = ref || {};
   options = options || {};
   return new self.libraries.Assistant().init(
-  {
-    req: ref.req,
-    res: ref.res,
-    admin: self.libraries.admin,
-    functions: self.libraries.functions,
-  },
-  {
-    accept: options.accept,
-  })
+    {
+      req: ref.req,
+      res: ref.res,
+      admin: self.libraries.admin,
+      functions: self.libraries.functions,
+    },
+    {
+      accept: options.accept,
+    })
 };
 
 Manager.require = function (p) {
