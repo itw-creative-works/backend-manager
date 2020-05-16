@@ -1,7 +1,6 @@
 {
   "mailchimp": {
     "key": "da69e4758adb4839201bcda8565782d4-us16",
-    "datacenter": "us16",
     "list_id": "36774bf825"
   },
   "backend_manager": {
