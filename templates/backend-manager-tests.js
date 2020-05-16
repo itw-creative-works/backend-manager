@@ -149,4 +149,5 @@ describe("BackendManager Tests", () => {
 
     // Add a test for updating?
 
-});
+  });
+})

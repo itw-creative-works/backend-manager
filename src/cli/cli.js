@@ -57,7 +57,7 @@ function Main() {
 }
 
 Main.prototype.process = async function (args) {
-  let This = this;
+  let self = this;
   this.options = {};
   this.argv = argv;
   this.firebaseProjectPath = process.cwd();
@@ -83,7 +83,7 @@ Main.prototype.process = async function (args) {
     console.log('cwd: ', this.firebaseProjectPath);
   }
   if (this.options.setup) {
-    await This.setup();
+    await self.setup();
   }
   if ((this.options.i || this.options.install) && (this.options.local || this.options.dev || this.options.development)) {
     await uninstallPkg('backend-manager');
@@ -98,10 +98,10 @@ Main.prototype.process = async function (args) {
   if (this.options.serve) {
     if (!this.options.quick && !this.options.q) {
     }
-    await cmd_configGet(This);
-    await This.setup();
+    await cmd_configGet(self);
+    await self.setup();
 
-    let port = this.argv.port || _.get(This.argv, '_', [])[1] || '5000';
+    let port = this.argv.port || _.get(self.argv, '_', [])[1] || '5000';
     let ls = spawn(`firebase serve --port ${port}`, {shell: true});
 
     ls.stdout.on('data', (data) => {
@@ -113,30 +113,30 @@ Main.prototype.process = async function (args) {
     });
   }
   if (this.options['config:get']) {
-    return await cmd_configGet(This);
+    return await cmd_configGet(self);
   }
 
   if (this.options['config:set']) {
-    await cmd_configSet(This);
-    return await cmd_configGet(This);
+    await cmd_configSet(self);
+    return await cmd_configGet(self);
   }
 
   if (this.options['config:unset'] || this.options['config:delete']) {
-    await cmd_configUnset(This);
-    return await cmd_configGet(This);
+    await cmd_configUnset(self);
+    return await cmd_configGet(self);
   }
 
   if (this.options['rules:default'] || this.options['rules:getdefault']) {
-    This.getRulesFile();
-    console.log(This.default.firestoreRulesWhole.match(bem_fsRulesDefaultRegex)[0].replace('    ///', '///'));
+    self.getRulesFile();
+    console.log(self.default.firestoreRulesWhole.match(bem_fsRulesDefaultRegex)[0].replace('    ///', '///'));
     return;
   }
 
   if (this.options.deploy) {
-    await This.setup();
+    await self.setup();
 
     // Quick check that not using local packages
-    let deps = JSON.stringify(This.package.dependencies)
+    let deps = JSON.stringify(self.package.dependencies)
     let hasLocal = deps.includes('file:');
     if (hasLocal) {
       log(chalk.red(`Please remove local packages before deploying!`));
@@ -156,7 +156,7 @@ Main.prototype.process = async function (args) {
 
   }
   if (this.options['test']) {
-    await This.setup();
+    await self.setup();
     // firebase emulators:exec --only firestore 'npm test'
     // let ls = spawn('firebase', ['emulators:exec', '--only', 'firestore', 'npm test']);
     // https://stackoverflow.com/questions/9722407/how-do-you-install-and-run-mocha-the-node-js-testing-module-getting-mocha-co
@@ -170,7 +170,7 @@ Main.prototype.process = async function (args) {
   }
 
   if (this.options['clean:npm']) {
-    // await This.setup();
+    // await self.setup();
     // firebase emulators:exec --only firestore 'npm test'
     let ls = spawn(`${NPM_CLEAN_SCRIPT}`, {shell: true});
     ls.stdout.on('data', (data) => {
@@ -182,7 +182,7 @@ Main.prototype.process = async function (args) {
   }
 
   // if (this.options['url']) {
-  //   // await This.setup();
+  //   // await self.setup();
   //   // firebase emulators:exec --only firestore 'npm test'
   //   log(this.projectUrl)
   // }
@@ -193,14 +193,14 @@ module.exports = Main;
 
 
 Main.prototype.getRulesFile = function () {
-  let This = this;
-  this.default.firestoreRulesWhole = (fs.read(path.resolve(`${__dirname}/../../templates/firestore.rules`))).replace('=0.0.0-', `-${This.default.version}-`);
+  let self = this;
+  this.default.firestoreRulesWhole = (fs.read(path.resolve(`${__dirname}/../../templates/firestore.rules`))).replace('=0.0.0-', `-${self.default.version}-`);
   this.default.firestoreRulesCore = this.default.firestoreRulesWhole.match(bem_fsRulesRegex)[0];
 
 };
 
 Main.prototype.setup = async function () {
-  let This = this;
+  let self = this;
   let cwd = fs.cwd();
   log(chalk.green(`\n---- RUNNING SETUP ----`));
   this.projectPackage = fs.read(`${this.firebaseProjectPath}/package.json`);
@@ -223,42 +223,43 @@ Main.prototype.setup = async function () {
   this.firebaseRC = JSON.parse(this.firebaseRC);
   this.projectPackage = JSON.parse(this.projectPackage);
 
-  This.getRulesFile();
+  self.getRulesFile();
 
-  this.default.firestoreRulesVersionRegex = new RegExp(`///---version-${This.default.version}---///`)
+  this.default.firestoreRulesVersionRegex = new RegExp(`///---version-${self.default.version}---///`)
   // bem_giRegex = new RegExp(fs.read(path.resolve(`${__dirname}/../../templates/gitignore.md`)).replace(/\./g, '\\.'), 'm' )
   bem_giRegex = new RegExp(fs.read(path.resolve(`${__dirname}/../../templates/gitignore.md`)), 'm' )
   // tests
   // await this.test('using updates backend-manager-clie', function () {
-  //   return This.package.engines.node.toString() == '10';
+  //   return self.package.engines.node.toString() == '10';
   // }, fix_node10);
   this.projectName = this.firebaseRC.projects.default;
   this.projectUrl = `https://console.firebase.google.com/project/${this.projectName}`;
   log(chalk.black(`Id: `, chalk.bold(`${this.projectName}`)));
   log(chalk.black(`Url:`, chalk.bold(`${this.projectUrl}`)));
   await this.test('is a firebase project', async function () {
-    let exists = fs.exists(`${This.firebaseProjectPath}/firebase.json`);
+    let exists = fs.exists(`${self.firebaseProjectPath}/firebase.json`);
     return exists;
   }, fix_isFirebase);
 
   await this.test('project level package.json exists', async function () {
-    return !!(This.projectPackage && This.projectPackage.version && This.projectPackage.name);
+    return !!(self.projectPackage && self.projectPackage.version && self.projectPackage.name);
   }, fix_projpackage);
 
   await this.test('functions level package.json exists', async function () {
-    return !!This.package.dependencies && !!This.package.devDependencies;
+    return !!self.package.dependencies && !!self.package.devDependencies;
   }, fix_deps);
 
   await this.test('functions level package.json has updated version', async function () {
-    return This.package.version === This.projectPackage.version;
+    return self.package.version === self.projectPackage.version;
   }, fix_packageversion);
 
   await this.test('using updated firebase-admin', async function () {
     let pkg = 'firebase-admin';
-    let latest = semver.clean(await getPkgVersion(pkg));
-    let mine = cleanPackageVersion(This.package.dependencies[pkg] || '0.0.0');
+    // let latest = semver.clean(await getPkgVersion(pkg));
+    let latest = semver.clean(cleanPackageVersion(self.packageJSON.dependencies['firebase-admin']));
+    let mine = cleanPackageVersion(self.package.dependencies[pkg] || '0.0.0');
 
-    let bemv = cleanPackageVersion(This.packageJSON.dependencies[pkg]);
+    let bemv = cleanPackageVersion(self.packageJSON.dependencies[pkg]);
     bemPackageVersionWarning(pkg, bemv, latest);
 
     return !(semver.gt(latest, mine));
@@ -266,10 +267,11 @@ Main.prototype.setup = async function () {
 
   await this.test('using updated firebase-functions', async function () {
     let pkg = 'firebase-functions';
-    let latest = semver.clean(await getPkgVersion(pkg));
-    let mine = cleanPackageVersion(This.package.dependencies[pkg] || '0.0.0');
+    // let latest = semver.clean(await getPkgVersion(pkg));
+    let latest = semver.clean(cleanPackageVersion(self.packageJSON.dependencies['firebase-functions']));
+    let mine = cleanPackageVersion(self.package.dependencies[pkg] || '0.0.0');
 
-    let bemv = cleanPackageVersion(This.packageJSON.dependencies[pkg]);
+    let bemv = cleanPackageVersion(self.packageJSON.dependencies[pkg]);
     bemPackageVersionWarning(pkg, bemv, latest);
 
     return !(semver.gt(latest, mine));
@@ -278,7 +280,7 @@ Main.prototype.setup = async function () {
   await this.test('using updated backend-manager', async function () {
     let pkg = 'backend-manager';
     let latest = semver.clean(await getPkgVersion(pkg));
-    let mine = cleanPackageVersion(This.package.dependencies[pkg] || '0.0.0');
+    let mine = cleanPackageVersion(self.package.dependencies[pkg] || '0.0.0');
 
     return isLocal(mine) || !(semver.gt(latest, mine));
   }, fix_bem);
@@ -286,40 +288,40 @@ Main.prototype.setup = async function () {
   (async function() {
     let pkg = 'backend-assistant';
     let latest = semver.clean(await getPkgVersion(pkg));
-    let bemv = cleanPackageVersion(This.packageJSON.dependencies[pkg]);
+    let bemv = cleanPackageVersion(self.packageJSON.dependencies[pkg]);
     bemPackageVersionWarning(pkg, bemv, latest);
   }());
 
   // await this.test('using updated backend-assistant', async function () {
   //   let pkg = 'backend-assistant';
   //   let latest = semver.clean(await getPkgVersion(pkg));
-  //   let mine = (This.package.dependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
+  //   let mine = (self.package.dependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
   //   return isLocal(mine) || !(semver.gt(latest, mine));
   // }, fix_bea);
 
   // await this.test('using updated ultimate-jekyll-poster', async function () {
   //   let pkg = 'ultimate-jekyll-poster';
   //   let latest = semver.clean(await getPkgVersion(pkg));
-  //   let mine = (This.package.dependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
+  //   let mine = (self.package.dependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
   //   return isLocal(mine) || !(semver.gt(latest, mine));
   // }, fix_ujp);
 
   await this.test('using updated @firebase/testing', async function () {
     let pkg = '@firebase/testing';
     let latest = semver.clean(await getPkgVersion(pkg));
-    let mine = (This.package.devDependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
+    let mine = (self.package.devDependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
     return isLocal(mine) || !(semver.gt(latest, mine));
   }, fix_fbTesting);
 
   await this.test('using updated mocha', async function () {
     let pkg = 'mocha';
     let latest = semver.clean(await getPkgVersion(pkg));
-    let mine = (This.package.devDependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
+    let mine = (self.package.devDependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
     return isLocal(mine) || !(semver.gt(latest, mine));
   }, fix_mocha);
 
   await this.test('using proper .runtimeconfig', async function () {
-    let runtimeconfig = JSON.parse(fs.read(`${This.firebaseProjectPath}/functions/.runtimeconfig.json`) || '{}');
+    let runtimeconfig = JSON.parse(fs.read(`${self.firebaseProjectPath}/functions/.runtimeconfig.json`) || '{}');
     let ogPaths = getObjectPaths(runtimeconfigTemplate).split('\n');
     let pass = true;
     for (var i = 0, l = ogPaths.length; i < l; i++) {
@@ -335,50 +337,50 @@ Main.prototype.setup = async function () {
   }, fix_runtimeConfig);
 
   await this.test('using node 10', function () {
-    return This.package.engines.node.toString() == '10';
+    return self.package.engines.node.toString() == '10';
   }, fix_node10);
 
   await this.test('has service-account.json', function () {
-    let exists = fs.exists(`${This.firebaseProjectPath}/functions/service-account.json`);
+    let exists = fs.exists(`${self.firebaseProjectPath}/functions/service-account.json`);
     return !!exists;
   }, fix_serviceAccount);
 
   await this.test('has correct .gitignore', function () {
-    return !!This.gitignore.match(bem_giRegex);
+    return !!self.gitignore.match(bem_giRegex);
   }, fix_gitignore);
 
   await this.test('firebase rules in JSON', function () {
-    let firestore = _.get(This.firebaseJSON, 'firestore', {});
+    let firestore = _.get(self.firebaseJSON, 'firestore', {});
     return (firestore.rules == 'firestore.rules')
   }, fix_firebaseRules);
 
   await this.test('update backend-manager-tests.js', function () {
-    fs.write(`${This.firebaseProjectPath}/test/backend-manager-tests.js`,
+    fs.write(`${self.firebaseProjectPath}/test/backend-manager-tests.js`,
       (fs.read(path.resolve(`${__dirname}/../../templates/backend-manager-tests.js`)))
     )
     return true;
   }, NOFIX);
 
   // await this.test('has mocha package.json script', function () {
-  //   let script = _.get(This.package, 'scripts.test', '')
+  //   let script = _.get(self.package, 'scripts.test', '')
   //   return script == MOCHA_PKG_SCRIPT;
   // }, fix_mochaScript);
 
   // await this.test('has clean:npm package.json script', function () {
-  //   let script = _.get(This.package, 'scripts.clean:npm', '')
+  //   let script = _.get(self.package, 'scripts.clean:npm', '')
   //   return script == NPM_CLEAN_SCRIPT;
   // }, fix_cleanNpmScript);
 
   await this.test('ignore firestore indexes file', function () {
-    let firestore = _.get(This.firebaseJSON, 'firestore', {});
+    let firestore = _.get(self.firebaseJSON, 'firestore', {});
     return (firestore.indexes == '')
   }, fix_firebaseIndexes);
 
   await this.test('update firestore rules file', function () {
-    let exists = fs.exists(`${This.firebaseProjectPath}/firestore.rules`);
-    let contents = fs.read(`${This.firebaseProjectPath}/firestore.rules`) || '';
+    let exists = fs.exists(`${self.firebaseProjectPath}/firestore.rules`);
+    let contents = fs.read(`${self.firebaseProjectPath}/firestore.rules`) || '';
     let containsCore = contents.match(bem_fsRulesRegex);
-    let matchesVersion = contents.match(This.default.firestoreRulesVersionRegex);
+    let matchesVersion = contents.match(self.default.firestoreRulesVersionRegex);
 
     // console.log('exists', !!exists);
     // console.log('containsCore', !!containsCore);
@@ -388,19 +390,19 @@ Main.prototype.setup = async function () {
 
 
   console.log('\n');
-  console.log(chalk.green(`Checks finished. Passed ${This.testCount}/${This.testTotal} tests.`));
-  if (This.testCount !== This.testTotal) {
+  console.log(chalk.green(`Checks finished. Passed ${self.testCount}/${self.testTotal} tests.`));
+  if (self.testCount !== self.testTotal) {
     console.log(chalk.yellow(`You should continue to run ${chalk.bold('bm setup')} until you pass all tests and fix all errors.`));
   }
 
   return;
 
   await this.test('deleted firestore indexes', function () {
-    let indexes = fs.exists(`${This.firebaseProjectPath}/firestore.indexes.json`);
+    let indexes = fs.exists(`${self.firebaseProjectPath}/firestore.indexes.json`);
     return (!indexes);
   }, fix_fsindexes);
 
-  // console.log(This.package);
+  // console.log(self.package);
 
 };
 
@@ -428,22 +430,22 @@ function getObjectPaths(object, parent) {
 }
 
 Main.prototype.test = async function(name, fn, fix, args) {
-  let This = this;
+  let self = this;
   let status;
   let passed = await fn();
   return new Promise(async function(resolve, reject) {
     if (passed) {
       status = chalk.green('passed');
-      This.testCount++;
-      This.testTotal++;
+      self.testCount++;
+      self.testTotal++;
     } else {
       status = chalk.red('failed');
-      This.testTotal++;
+      self.testTotal++;
     }
-    log(chalk.black.bold(`[${This.testTotal}]`), chalk.black(`${name}:`), status);
+    log(chalk.black.bold(`[${self.testTotal}]`), chalk.black(`${name}:`), status);
     if (!passed) {
       log(chalk.yellow(`Fixing...`));
-      fix(This, args)
+      fix(self, args)
       .then(function (result) {
         log(chalk.green(`...done~!`));
         resolve();
@@ -472,12 +474,12 @@ function bemPackageVersionWarning(package, current, latest) {
   }
 }
 
-async function fix_runtimeConfig(This) {
+async function fix_runtimeConfig(self) {
   return new Promise(function(resolve, reject) {
     log(NOFIX_TEXT);
     log(chalk.red(`You need to run ${chalk.bold(`bm config:set`)} for each of these keys:`));
     let objectKeys = getObjectPaths(runtimeconfigTemplate).split('\n');
-    let theirConfig = JSON.parse(fs.read(`${This.firebaseProjectPath}/functions/.runtimeconfig.json`) || '{}');
+    let theirConfig = JSON.parse(fs.read(`${self.firebaseProjectPath}/functions/.runtimeconfig.json`) || '{}');
     for (var i = 0, l = objectKeys.length; i < l; i++) {
       let item = objectKeys[i];
       if (!item) {return}
@@ -494,132 +496,132 @@ async function fix_runtimeConfig(This) {
   });
 };
 
-async function fix_serviceAccount(This) {
+async function fix_serviceAccount(self) {
   return new Promise(function(resolve, reject) {
     log(NOFIX_TEXT);
-    log(chalk.red(`Please install a service account --> ` + chalk.yellow.red(`${This.projectUrl}/settings/serviceaccounts/adminsdk`)));
+    log(chalk.red(`Please install a service account --> ` + chalk.yellow.red(`${self.projectUrl}/settings/serviceaccounts/adminsdk`)));
     reject();
   });
 };
 
-// function fix_mochaScript(This) {
+// function fix_mochaScript(self) {
 //   return new Promise(function(resolve, reject) {
-//     _.set(This.package, 'scripts.test', MOCHA_PKG_SCRIPT);
-//     fs.write(`${This.firebaseProjectPath}/functions/package.json`, JSON.stringify(This.package, null, 2) );
+//     _.set(self.package, 'scripts.test', MOCHA_PKG_SCRIPT);
+//     fs.write(`${self.firebaseProjectPath}/functions/package.json`, JSON.stringify(self.package, null, 2) );
 //     resolve();
 //   });
 // }
 
-function fix_node10(This) {
+function fix_node10(self) {
   return new Promise(function(resolve, reject) {
-    _.set(This.package, 'engines.node', '10')
+    _.set(self.package, 'engines.node', '10')
 
-    fs.write(`${This.firebaseProjectPath}/functions/package.json`, JSON.stringify(This.package, null, 2) );
+    fs.write(`${self.firebaseProjectPath}/functions/package.json`, JSON.stringify(self.package, null, 2) );
     resolve();
   });
 };
 
-async function fix_isFirebase(This) {
-  log(chalk.red(`This is not a firebase project. Please use ${chalk.bold('firebase-init')} to set up.`));
+async function fix_isFirebase(self) {
+  log(chalk.red(`self is not a firebase project. Please use ${chalk.bold('firebase-init')} to set up.`));
   throw '';
   return;
 };
 
-function fix_projpackage(This) {
+function fix_projpackage(self) {
   return new Promise(function(resolve, reject) {
-    This.projectPackage = This.projectPackage || {};
-    This.projectPackage.name = This.projectPackage.name || This.projectName;
-    This.projectPackage.version = This.projectPackage.version || '0.0.1';
-    This.projectPackage.dependencies = This.projectPackage.dependencies || {};
-    This.projectPackage.devDependencies = This.projectPackage.devDependencies || {};
+    self.projectPackage = self.projectPackage || {};
+    self.projectPackage.name = self.projectPackage.name || self.projectName;
+    self.projectPackage.version = self.projectPackage.version || '0.0.1';
+    self.projectPackage.dependencies = self.projectPackage.dependencies || {};
+    self.projectPackage.devDependencies = self.projectPackage.devDependencies || {};
 
-    fs.write(`${This.firebaseProjectPath}/package.json`, JSON.stringify(This.projectPackage, null, 2) );
+    fs.write(`${self.firebaseProjectPath}/package.json`, JSON.stringify(self.projectPackage, null, 2) );
     resolve();
   });
 };
 
-function fix_deps(This) {
+function fix_deps(self) {
   return new Promise(function(resolve, reject) {
-    This.package.dependencies = This.package.dependencies || {};
-    This.package.devDependencies = This.package.devDependencies || {};
+    self.package.dependencies = self.package.dependencies || {};
+    self.package.devDependencies = self.package.devDependencies || {};
 
-    fs.write(`${This.firebaseProjectPath}/functions/package.json`, JSON.stringify(This.package, null, 2) );
+    fs.write(`${self.firebaseProjectPath}/functions/package.json`, JSON.stringify(self.package, null, 2) );
     resolve();
   });
 };
 
-function fix_packageversion(This) {
+function fix_packageversion(self) {
   return new Promise(function(resolve, reject) {
-    This.package.version = This.projectPackage.version;
+    self.package.version = self.projectPackage.version;
 
-    fs.write(`${This.firebaseProjectPath}/functions/package.json`, JSON.stringify(This.package, null, 2) );
+    fs.write(`${self.firebaseProjectPath}/functions/package.json`, JSON.stringify(self.package, null, 2) );
     resolve();
   });
 };
 
-async function fix_fbf(This) {
-  return await installPkg('firebase-functions')
+async function fix_fbf(self) {
+  return await installPkg('firebase-functions', `@${self.packageJSON.dependencies['firebase-functions']}`)
 };
-async function fix_fba(This) {
-  return await installPkg('firebase-admin')
+async function fix_fba(self) {
+  return await installPkg('firebase-admin', `@${self.packageJSON.dependencies['firebase-admin']}`)
 };
-async function fix_bem(This) {
+async function fix_bem(self) {
   return await installPkg('backend-manager')
 };
-// async function fix_bea(This) {
+// async function fix_bea(self) {
 //   return await installPkg('backend-assistant')
 // };
-// async function fix_ujp(This) {
+// async function fix_ujp(self) {
 //   return await installPkg('ultimate-jekyll-poster')
 // };
-async function fix_fbTesting(This) {
+async function fix_fbTesting(self) {
   return await installPkg('@firebase/testing', '', '--save-dev')
 };
-async function fix_mocha(This) {
+async function fix_mocha(self) {
   return await installPkg('mocha', '', '--save-dev')
 };
 
-function fix_gitignore(This) {
+function fix_gitignore(self) {
   return new Promise(function(resolve, reject) {
     let gi = (fs.read(path.resolve(`${__dirname}/../../templates/gitignore.md`)));
-    if (This.gitignore.match(bem_giRegexOuter)) {
-      This.gitignore = This.gitignore.replace(bem_giRegexOuter, gi);
+    if (self.gitignore.match(bem_giRegexOuter)) {
+      self.gitignore = self.gitignore.replace(bem_giRegexOuter, gi);
     } else {
-      This.gitignore = gi;
+      self.gitignore = gi;
     }
-    This.gitignore = This.gitignore.replace(/\n\s*\n$/mg, '\n')
-    // This.gitignore = `${This.gitignore}\n${gi}`.replace(/$\n/m,'');
-    // This.gitignore = This.gitignore.replace(/$\n/m,'');
-    fs.write(`${This.firebaseProjectPath}/functions/.gitignore`, This.gitignore);
+    self.gitignore = self.gitignore.replace(/\n\s*\n$/mg, '\n')
+    // self.gitignore = `${self.gitignore}\n${gi}`.replace(/$\n/m,'');
+    // self.gitignore = self.gitignore.replace(/$\n/m,'');
+    fs.write(`${self.firebaseProjectPath}/functions/.gitignore`, self.gitignore);
     resolve();
   });
 };
 
-function fix_firebaseRules(This) {
+function fix_firebaseRules(self) {
   return new Promise(function(resolve, reject) {
-    _.set(This.firebaseJSON, 'firestore.rules', "firestore.rules")
-    fs.write(`${This.firebaseProjectPath}/firebase.json`, JSON.stringify(This.firebaseJSON, null, 2));
+    _.set(self.firebaseJSON, 'firestore.rules', "firestore.rules")
+    fs.write(`${self.firebaseProjectPath}/firebase.json`, JSON.stringify(self.firebaseJSON, null, 2));
     resolve();
   });
 };
 
-function fix_firebaseIndexes(This) {
+function fix_firebaseIndexes(self) {
   return new Promise(function(resolve, reject) {
-    _.set(This.firebaseJSON, 'firestore.indexes', "")
-    fs.write(`${This.firebaseProjectPath}/firebase.json`, JSON.stringify(This.firebaseJSON, null, 2));
+    _.set(self.firebaseJSON, 'firestore.indexes', "")
+    fs.write(`${self.firebaseProjectPath}/firebase.json`, JSON.stringify(self.firebaseJSON, null, 2));
     resolve();
   });
 };
 
-function fix_fsrules(This) {
+function fix_fsrules(self) {
   return new Promise(function(resolve, reject) {
-    let path = `${This.firebaseProjectPath}/firestore.rules`;
+    let path = `${self.firebaseProjectPath}/firestore.rules`;
     let exists = fs.exists(path);
     let contents = fs.read(path) || '';
 
     if (!exists || !contents) {
       log(chalk.yellow(`Writing new firestore.rules file...`));
-      fs.write(path, This.default.firestoreRulesWhole)
+      fs.write(path, self.default.firestoreRulesWhole)
       contents = fs.read(path) || '';
     }
 
@@ -630,11 +632,11 @@ function fix_fsrules(This) {
       reject()
     }
 
-    let matchesVersion = contents.match(This.default.firestoreRulesVersionRegex);
+    let matchesVersion = contents.match(self.default.firestoreRulesVersionRegex);
     if (!matchesVersion) {
-      // console.log('replace wih', This.default.firestoreRulesCore);
-      contents = contents.replace(bem_fsRulesBackupRegex, This.default.firestoreRulesCore)
-      contents = contents.replace(bem_fsRulesRegex, This.default.firestoreRulesCore)
+      // console.log('replace wih', self.default.firestoreRulesCore);
+      contents = contents.replace(bem_fsRulesBackupRegex, self.default.firestoreRulesCore)
+      contents = contents.replace(bem_fsRulesRegex, self.default.firestoreRulesCore)
       fs.write(path, contents)
       log(chalk.yellow(`Writing core rules to firestore.rules file...`));
     }
@@ -642,9 +644,9 @@ function fix_fsrules(This) {
   });
 };
 
-function fix_fsindexes(This) {
+function fix_fsindexes(self) {
   return new Promise(function(resolve, reject) {
-    fs.remove(`${This.firebaseProjectPath}/firestore.indexes.json`)
+    fs.remove(`${self.firebaseProjectPath}/firestore.indexes.json`)
     resolve();
   });
 };
@@ -664,14 +666,14 @@ function getPkgVersion(package) {
 
 
 
-  async function cmd_configGet(This) {
+  async function cmd_configGet(self) {
     return new Promise(function(resolve, reject) {
-      let cmd = exec(`firebase functions:config:get > ${This.firebaseProjectPath}/functions/.runtimeconfig.json`, function (error, stdout, stderr) {
+      let cmd = exec(`firebase functions:config:get > ${self.firebaseProjectPath}/functions/.runtimeconfig.json`, function (error, stdout, stderr) {
         if (error) {
           console.error(error);
           reject(error);
         } else {
-          console.log(`Saving config to: ${This.firebaseProjectPath}/functions/.runtimeconfig.json`);
+          console.log(`Saving config to: ${self.firebaseProjectPath}/functions/.runtimeconfig.json`);
           console.log(stdout);
           resolve();
         }
@@ -679,7 +681,7 @@ function getPkgVersion(package) {
     });
   }
 
-  async function cmd_configSet(This) {
+  async function cmd_configSet(self) {
     return new Promise(async function(resolve, reject) {
       // console.log(this.options);
       // console.log(this.argv);
@@ -714,7 +716,7 @@ function getPkgVersion(package) {
     });
   }
 
-  async function cmd_configUnset(This) {
+  async function cmd_configUnset(self) {
     return new Promise(async function(resolve, reject) {
       // console.log(this.options);
       // console.log(this.argv);
