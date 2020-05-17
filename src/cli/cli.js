@@ -205,7 +205,7 @@ Main.prototype.setup = async function () {
   log(chalk.green(`\n---- RUNNING SETUP ----`));
   this.projectPackage = fs.read(`${this.firebaseProjectPath}/package.json`);
   this.package = fs.read(`${this.firebaseProjectPath}/functions/package.json`);
-  this.gitignore = fs.read(`${this.firebaseProjectPath}/functions/.gitignore`);
+  this.gitignore = fs.read(`${this.firebaseProjectPath}/functions/.gitignore`) || '';
   this.firebaseJSON = fs.read(`${this.firebaseProjectPath}/firebase.json`);
   this.firebaseRC = fs.read(`${this.firebaseProjectPath}/.firebaserc`);
   if (!this.package) {
@@ -346,7 +346,15 @@ Main.prototype.setup = async function () {
   }, fix_serviceAccount);
 
   await this.test('has correct .gitignore', function () {
-    return !!self.gitignore.match(bem_giRegex);
+    let match = self.gitignore.match(bem_giRegexOuter);
+    if (!match) {
+      return false;
+    } else {
+      let gitignore = fs.read(path.resolve(`${__dirname}/../../templates/gitignore.md`));
+      let file = gitignore.match(bem_giRegexOuter) ? RegExp.$1 : 'BAD1';
+      let file2 = match[0].match(bem_giRegexOuter) ? RegExp.$1 : 'BAD2';
+      return file === file2;
+    }
   }, fix_gitignore);
 
   await this.test('firebase rules in JSON', function () {
