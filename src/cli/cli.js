@@ -397,6 +397,11 @@ Main.prototype.setup = async function () {
   }, fix_fsrules);
 
 
+  if (self.package.dependencies['backend-manager'].includes('file:')) {
+    console.log('\n' + chalk.yellow(chalk.bold('Warning: ') + 'You are using the local ' + chalk.bold('backend-manager')));
+  }
+
+
   console.log('\n');
   console.log(chalk.green(`Checks finished. Passed ${self.testCount}/${self.testTotal} tests.`));
   if (self.testCount !== self.testTotal) {
