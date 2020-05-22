@@ -203,13 +203,13 @@ Main.prototype.setup = async function () {
   let self = this;
   let cwd = fs.cwd();
   log(chalk.green(`\n---- RUNNING SETUP ----`));
-  this.projectPackage = fs.read(`${this.firebaseProjectPath}/package.json`);
-  this.package = fs.read(`${this.firebaseProjectPath}/functions/package.json`);
+  this.package = fs.read(`${this.firebaseProjectPath}/functions/package.json`) || '{}';
+  this.firebaseJSON = fs.read(`${this.firebaseProjectPath}/firebase.json`) || '{}';
+  this.firebaseRC = fs.read(`${this.firebaseProjectPath}/.firebaserc`) || '{}';
+  this.projectPackage = fs.read(`${this.firebaseProjectPath}/package.json`) || '{}';
   this.gitignore = fs.read(`${this.firebaseProjectPath}/functions/.gitignore`) || '';
-  this.firebaseJSON = fs.read(`${this.firebaseProjectPath}/firebase.json`);
-  this.firebaseRC = fs.read(`${this.firebaseProjectPath}/.firebaserc`);
   if (!this.package) {
-    log(chalk.red(`Missing package.json :(`));
+    log(chalk.red(`Missing functions/package.json :(`));
     return;
   }
   // console.log('cwd', cwd, cwd.endsWith('functions'));
