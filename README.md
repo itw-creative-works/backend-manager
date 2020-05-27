@@ -1,29 +1,29 @@
-<div align="center">
+<p align="center">
   <a href="https://cdn.itwcreativeworks.com/assets/itw-creative-works/images/logo/itw-creative-works-brandmark-black-x.svg">
     <img src="https://cdn.itwcreativeworks.com/assets/itw-creative-works/images/logo/itw-creative-works-brandmark-black-x.svg">
   </a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/github/package-json/v/itw-creative-works/backend-manager.svg">
+  <br>
+  <img src="https://img.shields.io/david/itw-creative-works/backend-manager.svg">
+  <img src="https://img.shields.io/david/dev/itw-creative-works/backend-manager.svg">
+  <img src="https://img.shields.io/bundlephobia/min/backend-manager.svg">
+  <img src="https://img.shields.io/codeclimate/maintainability-percentage/itw-creative-works/backend-manager.svg">
+  <img src="https://img.shields.io/npm/dm/backend-manager.svg">
+  <img src="https://img.shields.io/node/v/backend-manager.svg">
+  <img src="https://img.shields.io/website/https/itwcreativeworks.com.svg">
+  <img src="https://img.shields.io/github/license/itw-creative-works/backend-manager.svg">
+  <img src="https://img.shields.io/github/contributors/itw-creative-works/backend-manager.svg">
+  <img src="https://img.shields.io/github/last-commit/itw-creative-works/backend-manager.svg">
   <br>
   <br>
-
-![GitHub package.json version](https://img.shields.io/github/package-json/v/itw-creative-works/backend-manager.svg)
-
-![David](https://img.shields.io/david/itw-creative-works/backend-manager.svg)
-![David](https://img.shields.io/david/dev/itw-creative-works/backend-manager.svg) <!-- ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/itw-creative-works/backend-manager.svg) -->
-![npm bundle size](https://img.shields.io/bundlephobia/min/backend-manager.svg)
-![Code Climate maintainability](https://img.shields.io/codeclimate/maintainability-percentage/itw-creative-works/backend-manager.svg)
-![npm](https://img.shields.io/npm/dm/backend-manager.svg) <!-- [![NPM total downloads](https://img.shields.io/npm/dt/backend-manager.svg?style=flat)](https://npmjs.org/package/backend-manager) -->
-![node](https://img.shields.io/node/v/backend-manager.svg)
-![Website](https://img.shields.io/website/https/itwcreativeworks.com.svg)
-![GitHub](https://img.shields.io/github/license/itw-creative-works/backend-manager.svg)
-![GitHub contributors](https://img.shields.io/github/contributors/itw-creative-works/backend-manager.svg)
-![GitHub last commit](https://img.shields.io/github/last-commit/itw-creative-works/backend-manager.svg)
-
-# Backend Manager
-**Backend Manager** is an NPM module for Firebase developers that instantly implements powerful backend features. Be sure to look at which functions it exposes before using it!
-
-[Site](https://itwcreativeworks.com) | [NPM Module](https://www.npmjs.com/package/backend-manager) | [GitHub Repo](https://github.com/itw-creative-works/backend-manager)
-
-</div>
+  <a href="https://itwcreativeworks.com">Site</a> | <a href="https://www.npmjs.com/package/backend-manager">NPM Module</a> | <a href="https://github.com/itw-creative-works/backend-manager">GitHub Repo</a>
+  <br>
+  <br>
+  <strong>Backend Manager</strong> is an NPM module for Firebase developers that instantly implements powerful backend features. Be sure to look at which functions it exposes before using it!
+</p>
 
 ## Install
 Install with npm:

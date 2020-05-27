@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "0.1.27",
+  "version": "0.1.28",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -29,7 +29,7 @@
   "dependencies": {
     "@firebase/testing": "^0.19.4",
     "@sentry/node": "^5.15.5",
-    "backend-assistant": "0.0.18",
+    "backend-assistant": "0.0.19",
     "chalk": "^3.0.0",
     "clear": "^0.1.0",
     "cors": "^2.8.5",
