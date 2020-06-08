@@ -9,36 +9,46 @@ let Module = {
     return this;
   },
   main: async function() {
-    let req = this.req;
-    let res = this.res;
-    let libraries = this.libraries;
-    let assistant = this.assistant;
     let self = this;
+    let req = self.req;
+    let res = self.res;
+    let libraries = self.libraries;
+    let assistant = self.assistant;
 
     return libraries.cors(req, res, async () => {
       let response = {
         status: 200,
+        data: {},
+        error: null,
       };
 
       let payload = self.assistant.request.data.payload || {};
-      if (!payload.title && !payload.body) {
+      if (!payload.title || !payload.body) {
         response.status = 500;
-        response.error = new Error('Not enough parameters supplied.');
-        return res.status(response.status).json(response);
+        response.error = new Error('Not enough notification parameters supplied.');
+        assistant.error(response.error, { environment: 'production' })
+        return res.status(response.status).send(response.error.message);
       }
 
       // authenticate admin!
-      let user = await assistant.authorize();
+      let user = await assistant.authenticate();
       if (!user.roles.admin) {
         response.status = 500;
-        response.error = 'Unauthenticated, admin required.';
+        response.error = new Error('Unauthenticated, admin required.');
+        assistant.error(response.error, { environment: 'production' })
+        return res.status(response.status).send(response.error.message);
       } else {
         await self.getTokens({tags: false});
       }
 
-      assistant.log(assistant.request.data, response);
-      // return 'break';
-      return res.status(response.status).json(response);
+      // assistant.log(assistant.request.data, response);
+
+      if (response.status === 200) {
+        return res.status(response.status).json(response.data);
+      } else {
+        return res.status(response.status).send(response.error.message);
+      }
+
     });
   },
   getTokens: getTokens,
@@ -81,7 +91,7 @@ function sendBatch(batch, id) {
         resolve();
       })
       .catch(function (e) {
-        console.error('Error sending batch #' + id, e);
+        self.assistant.error('Error sending batch #' + id, e, {environment: 'production'});
         // self.result.status = 'fail';
         reject(e);
       })
@@ -126,8 +136,8 @@ function getTokens(options) {
           batchLoops++;
         });
       })
-      .catch(function(error) {
-        console.error("Error querying tokens: ", error);
+      .catch(function(e) {
+        self.assistant.error('Error querying tokens: ', e, {environment: 'production'})
         reject(error);
       });
 
@@ -136,8 +146,7 @@ function getTokens(options) {
         self.assistant.log('Finished all batches.');
       })
       .catch(function(e) {
-        console.error("Error sending batches: ", e);
-        // self.result.status = 'fail';
+        self.assistant.error('Error sending batches: ', e, {environment: 'production'})
       });
     resolve();
 

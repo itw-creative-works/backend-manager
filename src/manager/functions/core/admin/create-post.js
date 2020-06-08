@@ -13,11 +13,11 @@ let Module = {
     return this;
   },
   main: async function() {
-    let req = this.req;
-    let res = this.res;
-    let libraries = this.libraries;
-    let assistant = this.assistant;
     let self = this;
+    let req = self.req;
+    let res = self.res;
+    let libraries = self.libraries;
+    let assistant = self.assistant;
 
     return libraries.cors(req, res, async () => {
       let response = {
@@ -25,12 +25,12 @@ let Module = {
       };
 
       // authenticate admin!
-      let user = await assistant.authorize();
-      let repoInfo = assistant.parseRepo(self.libraries.functions.config().github.repo_website);
+      let user = await assistant.authenticate();
+      let repoInfo = assistant.parseRepo(self.Manager.config.github.repo_website);
       if (!user.roles.admin) {
         response.status = 500;
-        response.error = 'Unauthenticated, admin required.';
-
+        response.error = new Error('Unauthenticated, admin required.');
+        assistant.error(response.error, {environment: 'production'})
       } else {
         // Poster = Poster || require('/Users/ianwiedenman/Documents/GitHub/ITW-Creative-Works/ultimate-jekyll-poster');
         Poster = Poster || require('ultimate-jekyll-poster');
@@ -42,7 +42,7 @@ let Module = {
           return new Promise(async function(resolve, reject) {
             let finalPath = poster.removeDirDot(meta.finalPath);
             let tempPath = (meta.tempPath);
-            await createFile(self.libraries.functions.config().github.user, repoInfo.user, repoInfo.name, self.libraries.functions.config().github.key, finalPath, await poster.readImage(tempPath))
+            await createFile(self.Manager.config.github.user, repoInfo.user, repoInfo.name, self.Manager.config.github.key, finalPath, await poster.readImage(tempPath))
             .catch((e) => {
               // console.log('---CAUGHT 1', e);
             })
@@ -53,17 +53,21 @@ let Module = {
         let finalPost = await poster.create(assistant.request.data);
 
         // Save post OR commit
-        await createFile(self.libraries.functions.config().github.user, repoInfo.user, repoInfo.name, self.libraries.functions.config().github.key, poster.removeDirDot(finalPost.path), finalPost.content)
+        await createFile(self.Manager.config.github.user, repoInfo.user, repoInfo.name, self.Manager.config.github.key, poster.removeDirDot(finalPost.path), finalPost.content)
         .catch((e) => {
           response.status = 500;
-          response.error = 'Failed to post: ' + e;
-          // console.log('---CAUGHT 2', e);
+          response.error = new Error('Failed to post: ' + e);
+          assistant.error(response.error, {environment: 'production'})
         })
       }
 
-      assistant.log(assistant.request.data, response);
-      // return 'break';
-      return res.status(response.status).json(response);
+      // assistant.log(assistant.request.data, response);
+
+      if (response.status === 200) {
+        return res.status(response.status).json(response.data);
+      } else {
+        return res.status(response.status).send(response.error.message);
+      }
     });
   }
 }

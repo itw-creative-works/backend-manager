@@ -1,4 +1,5 @@
 const path = require('path');
+const User = require('./helpers/user.js')
 
 function Manager(exporter, options) {
   this.libraries = {};
@@ -25,8 +26,8 @@ Manager.init = function (exporter, options) {
   };
 
   self.project = JSON.parse(process.env.FIREBASE_CONFIG)
-  // self.package = require(path.resolve(process.cwd(), '../package.json'));
-  self.package = require(path.resolve(process.cwd(), 'package.json'));
+  self.cwd = process.cwd();
+  self.package = require(path.resolve(self.cwd, 'package.json'));
   self.config = self.libraries.functions.config() || {};
 
   assistant = new self.libraries.Assistant().init();
@@ -40,7 +41,7 @@ Manager.init = function (exporter, options) {
     try {
       self.libraries.admin.initializeApp({
         credential: self.libraries.admin.credential.cert(
-          require(path.resolve(process.cwd(), 'service-account.json'))
+          require(path.resolve(self.cwd, 'service-account.json'))
         ),
         databaseURL: self.project.databaseURL,
       });
@@ -71,7 +72,7 @@ Manager.init = function (exporter, options) {
   self.libraries.functions
   .runWith({memory: '256MB', timeoutSeconds: 60})
   .https.onRequest(async (req, res) => {
-    const Module = require(`${core}/signUpHandler.js`)
+    const Module = require(`${core}/sign-up-handler.js`)
     Module.init(self, { req: req, res: res, })
     return Module.main();
   });
@@ -81,7 +82,15 @@ Manager.init = function (exporter, options) {
   self.libraries.functions
   .runWith({memory: '256MB', timeoutSeconds: 60})
   .https.onRequest(async (req, res) => {
-    const Module = require(`${core}/admin/createPost.js`)
+    const Module = require(`${core}/admin/create-post.js`)
+    Module.init(self, { req: req, res: res, })
+    return Module.main();
+  });
+  exporter.bm_getStats =
+  self.libraries.functions
+  .runWith({memory: '256MB', timeoutSeconds: 420})
+  .https.onRequest(async (req, res) => {
+    const Module = require(`${core}/admin/get-stats.js`)
     Module.init(self, { req: req, res: res, })
     return Module.main();
   });
@@ -89,7 +98,7 @@ Manager.init = function (exporter, options) {
   self.libraries.functions
   .runWith({memory: '1GB', timeoutSeconds: 420})
   .https.onRequest(async (req, res) => {
-    const Module = require(`${core}/admin/sendNotification.js`)
+    const Module = require(`${core}/admin/send-notification.js`)
     Module.init(self, { req: req, res: res, })
     return Module.main();
   });
@@ -102,21 +111,30 @@ Manager.init = function (exporter, options) {
     return Module.main();
   });
 
-  // Test
-  exporter.bm_test_webhook =
+  // Events
+  exporter.bm_authOnCreate =
   self.libraries.functions
   .runWith({memory: '256MB', timeoutSeconds: 60})
-  .https.onRequest(async (req, res) => {
-    const Module = require(`${test}/webhook.js`)
-    Module.init(self, { req: req, res: res, })
+  .auth.user().onCreate(async (user) => {
+    const Module = require(`${core}/events/auth/on-delete.js`)
+    Module.init(self, { user: user })
+    return Module.main();
+  });
+  exporter.bm_authOnDelete =
+  self.libraries.functions
+  .runWith({memory: '256MB', timeoutSeconds: 60})
+  .auth.user().onDelete(async (user) => {
+    const Module = require(`${core}/events/auth/on-delete.js`)
+    Module.init(self, { user: user })
     return Module.main();
   });
 
-  exporter.bm_test_authorize =
+  // Test
+  exporter.bm_test_authenticate =
   self.libraries.functions
   .runWith({memory: '256MB', timeoutSeconds: 60})
   .https.onRequest(async (req, res) => {
-    const Module = require(`${test}/authorize.js`)
+    const Module = require(`${test}/authenticate.js`)
     Module.init(self, { req: req, res: res, })
     return Module.main();
   });
@@ -125,7 +143,16 @@ Manager.init = function (exporter, options) {
   self.libraries.functions
   .runWith({memory: '256MB', timeoutSeconds: 60})
   .https.onRequest(async (req, res) => {
-    const Module = require(`${test}/createTestAccounts.js`)
+    const Module = require(`${test}/create-test-accounts.js`)
+    Module.init(self, { req: req, res: res, })
+    return Module.main();
+  });
+
+  exporter.bm_test_webhook =
+  self.libraries.functions
+  .runWith({memory: '256MB', timeoutSeconds: 60})
+  .https.onRequest(async (req, res) => {
+    const Module = require(`${test}/webhook.js`)
     Module.init(self, { req: req, res: res, })
     return Module.main();
   });
@@ -146,6 +173,10 @@ Manager.getNewAssistant = function (ref, options) {
     {
       accept: options.accept,
     })
+};
+
+Manager.User = function (options) {
+  return User(options);
 };
 
 Manager.require = function (p) {

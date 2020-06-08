@@ -1,25 +1,30 @@
-let uuid4;
+let Module = {
+  init: async function (Manager, data) {
+    this.Manager = Manager;
+    this.libraries = Manager.libraries;
+    this.req = data.req;
+    this.res = data.res
+    this.assistant = Manager.getNewAssistant({req: data.req, res: data.res});
 
-module.exports = {
-  main: async function(ref, req, res, options) {
-    return ref.cors(req, res, async () => {
-      let assistant = new ref.Assistant();
-      assistant.init({
-        ref: {
-          req: req,
-          res: res,
-          admin: ref.admin,
-          functions: ref.functions,
-        },
-        accept: 'json',
-      });
+    return this;
+  },
+  main: async function() {
+    let self = this;
+    let uuid4;
+    let req = self.req;
+    let res = self.res;
+    let libraries = self.libraries;
+    let assistant = self.assistant;
+    
+    return libraries.cors(req, res, async () => {
+      let assistant = self.assistant;
 
       let response = {
         status: 200,
         data: {}
       }
 
-      await createUser('_test.admin@test.com', '_test.admin', {roles: {admin: true}})
+      // await createUser('_test.admin@test.com', '_test.admin', {roles: {admin: true}})
       try {
         response.data = {
           regular: await createUser('_test.admin@test.com', '_test.admin', {roles: {admin: true}}),
@@ -44,7 +49,7 @@ module.exports = {
       async function deleteUser(uid) {
         let currentUid;
         return new Promise(async function(resolve, reject) {
-          // await ref.admin.auth().getUserByEmail(email)
+          // await libraries.admin.auth().getUserByEmail(email)
           // .then(function(userRecord) {
           //   // See the UserRecord reference doc for the contents of userRecord.
           //   currentUid = userRecord.toJSON().uid;
@@ -54,7 +59,7 @@ module.exports = {
           //   // assistant.log('Error fetching user data:', error);
           // });
 
-          await ref.admin.auth().deleteUser(uid)
+          await libraries.admin.auth().deleteUser(uid)
           .then(function() {
             // assistant.log('Successfully deleted user', currentUid);
             resolve();
@@ -75,7 +80,7 @@ module.exports = {
         let result = {};
         return new Promise(async function(resolve, reject) {
           await deleteUser(uid);
-          ref.admin.auth().createUser({
+          libraries.admin.auth().createUser({
             uid: uid,
             email: email,
             password: options.password,
@@ -88,15 +93,28 @@ module.exports = {
               password: options.password
             };
 
-            ref.admin.firestore().doc(`users/${uid}`)
-            .set(
-              {
-                roles: options.roles,
-              },
-              {
-                merge: true
-              }
-            )
+            let SignUpHandler = require('../core/sign-up-handler.js');
+            SignUpHandler.init(Manager, {
+              req: req,
+              res: res,
+            })
+            SignUpHandler.signUp({
+              timestamp: assistant.meta.startTime.timestamp,
+              timestampUNIX: assistant.meta.startTime.timestampUNIX,
+              uid: uid,
+              email: email,
+              roles: options.roles,
+            })
+
+            // libraries.admin.firestore().doc(`users/${uid}`)
+            // .set(
+            //   {
+            //     roles: options.roles,
+            //   },
+            //   {
+            //     merge: true
+            //   }
+            // )
             .then(function(data) {
               assistant.log('Successfully created new user:', uid);
               resolve(result);
@@ -117,6 +135,7 @@ module.exports = {
 
   },
   other: async function () {
-    return 'PENIS'
+
   }
 }
+module.exports = Module;

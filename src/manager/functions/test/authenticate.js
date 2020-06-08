@@ -9,13 +9,15 @@ let Module = {
     return this;
   },
   main: async function() {
-    let req = this.req;
-    let res = this.res;
-    let libraries = this.libraries;
-    let assistant = this.assistant;
+    let self = this;
+    let req = self.req;
+    let res = self.res;
+    let libraries = self.libraries;
+    let assistant = self.assistant;
+    
     return libraries.cors(req, res, async () => {
       assistant.log('Request:', assistant.request.data);
-      let user = await assistant.authorize();
+      let user = await assistant.authenticate();
       assistant.log('Result user:', user);
       return res.status(200).json({status: 200, user: user });
     });
