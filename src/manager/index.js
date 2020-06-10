@@ -1,5 +1,6 @@
 const path = require('path');
-const User = require('./helpers/user.js')
+let User;
+let Analytics;
 
 function Manager(exporter, options) {
   this.libraries = {};
@@ -16,6 +17,11 @@ Manager.init = function (exporter, options) {
   // Varibles
   let assistant;
 
+  // Set options defaults
+  options = options || {};
+  options.initialize = typeof options.initialize === 'undefined' ? true : options.initialize;
+  options.sentry = typeof options.sentry === 'undefined' ? true : options.sentry;
+
   // Load libraries
   self.libraries = {
     functions: require('firebase-functions'),
@@ -25,6 +31,8 @@ Manager.init = function (exporter, options) {
     sentry: null,
   };
 
+  // Set properties
+  self.options = options;
   self.project = JSON.parse(process.env.FIREBASE_CONFIG)
   self.cwd = process.cwd();
   self.package = require(path.resolve(self.cwd, 'package.json'));
@@ -32,11 +40,8 @@ Manager.init = function (exporter, options) {
 
   assistant = new self.libraries.Assistant().init();
 
-  options = options || {};
-  options.initialize = typeof options.initialize === 'undefined' ? true : options.initialize;
-  options.sentry = typeof options.sentry === 'undefined' ? true : options.sentry;
-
-  if (options.initialize) {
+  // Setup options features
+  if (self.options.initialize) {
     // console.log('Initializing:', self.project);
     try {
       self.libraries.admin.initializeApp({
@@ -51,7 +56,7 @@ Manager.init = function (exporter, options) {
     // admin.firestore().settings({/* your settings... */ timestampsInSnapshots: true})
   }
 
-  if (options.sentry && self.config.sentry && self.config.sentry.dsn) {
+  if (self.options.sentry && self.config.sentry && self.config.sentry.dsn) {
     // console.log('Setting up sentry:', `${self.project.projectId}@${self.package.version}`);
     self.libraries.sentry = require('@sentry/node');
     self.libraries.sentry.init({
@@ -68,11 +73,20 @@ Manager.init = function (exporter, options) {
   }
 
   // Main functions
+  exporter.bm_deleteUser =
+  self.libraries.functions
+  .runWith({memory: '256MB', timeoutSeconds: 60})
+  .https.onRequest(async (req, res) => {
+    const Module = require(`${core}/actions/delete-user.js`)
+    Module.init(self, { req: req, res: res, })
+    return Module.main();
+  });
+
   exporter.bm_signUpHandler =
   self.libraries.functions
   .runWith({memory: '256MB', timeoutSeconds: 60})
   .https.onRequest(async (req, res) => {
-    const Module = require(`${core}/sign-up-handler.js`)
+    const Module = require(`${core}/actions/sign-up-handler.js`)
     Module.init(self, { req: req, res: res, })
     return Module.main();
   });
@@ -116,7 +130,7 @@ Manager.init = function (exporter, options) {
   self.libraries.functions
   .runWith({memory: '256MB', timeoutSeconds: 60})
   .auth.user().onCreate(async (user) => {
-    const Module = require(`${core}/events/auth/on-delete.js`)
+    const Module = require(`${core}/events/auth/on-create.js`)
     Module.init(self, { user: user })
     return Module.main();
   });
@@ -176,7 +190,13 @@ Manager.getNewAssistant = function (ref, options) {
 };
 
 Manager.User = function (options) {
-  return User(options);
+  User = User || require('./helpers/user.js');
+  return new User(options);
+};
+
+Manager.Analytics = function (options) {
+  Analytics = Analytics || require('./helpers/analytics.js');
+  return new Analytics(Manager, options);
 };
 
 Manager.require = function (p) {

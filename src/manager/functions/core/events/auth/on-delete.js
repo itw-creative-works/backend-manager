@@ -13,7 +13,14 @@ let Module = {
     let libraries = self.libraries;
     let assistant = self.assistant;
 
-    let stats = libraries.admin.firestore().doc(`meta/stats`);
+    let analytics = new self.Manager.Analytics({
+      uuid: user.auth.uid,
+    });
+    analytics.event({
+      category: 'engagement',
+      action: 'deleteuser',
+      // label: 'regular',
+    });
 
     // Add user record
     await libraries.admin.firestore().doc(`users/${user.uid}`)
@@ -31,7 +38,7 @@ let Module = {
         assistant.error(e);
       })
 
-    assistant.log('User deleted:', user, {environment: 'production'});
+    assistant.log('User deleted:', user);
   },
 }
 

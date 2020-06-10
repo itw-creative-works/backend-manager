@@ -24,11 +24,23 @@ let Module = {
         status: 200,
       };
 
+      let repoInfo = assistant.parseRepo(self.Manager.config.github.repo_website);
+
       // authenticate admin!
       let user = await assistant.authenticate();
-      let repoInfo = assistant.parseRepo(self.Manager.config.github.repo_website);
+
+      // Analytics
+      let analytics = new self.Manager.Analytics({
+        uuid: user.auth.uid,
+      });
+      analytics.event({
+        category: 'admin',
+        action: 'createpost',
+        // label: '',
+      });
+
       if (!user.roles.admin) {
-        response.status = 500;
+        response.status = 401;
         response.error = new Error('Unauthenticated, admin required.');
         assistant.error(response.error, {environment: 'production'})
       } else {
@@ -55,7 +67,7 @@ let Module = {
         // Save post OR commit
         await createFile(self.Manager.config.github.user, repoInfo.user, repoInfo.name, self.Manager.config.github.key, poster.removeDirDot(finalPost.path), finalPost.content)
         .catch((e) => {
-          response.status = 500;
+          response.status = 400;
           response.error = new Error('Failed to post: ' + e);
           assistant.error(response.error, {environment: 'production'})
         })

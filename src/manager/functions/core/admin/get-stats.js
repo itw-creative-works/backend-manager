@@ -24,8 +24,19 @@ let Module = {
 
       // authenticate admin!
       let user = await assistant.authenticate();
+
+      // Analytics
+      let analytics = new self.Manager.Analytics({
+        uuid: user.auth.uid,
+      });
+      analytics.event({
+        category: 'admin',
+        action: 'getstats',
+        // label: '',
+      });
+
       if (!user.roles.admin) {
-        response.status = 500;
+        response.status = 401;
         response.error = new Error('Unauthenticated, admin required.');
         assistant.error(response.error, {environment: 'production'})
       } else {
@@ -69,7 +80,7 @@ let Module = {
 
       // response.data = data;
 
-      assistant.log('response', response);
+      // assistant.log('response', response);
 
       if (response.status === 200) {
         return res.status(response.status).json(response.data);

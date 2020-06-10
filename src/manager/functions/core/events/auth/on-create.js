@@ -20,8 +20,17 @@ let Module = {
       }
     });
 
+    let analytics = new self.Manager.Analytics({
+      uuid: user.auth.uid,
+    });
+    analytics.event({
+      category: 'engagement',
+      action: 'signup',
+      label: 'regular',
+    });
+
     // Add user record
-    await libraries.admin.firestore().doc(`users/${newUser.auth.uid}`)
+    await libraries.admin.firestore().doc(`users/${newUser.properties.auth.uid}`)
       .set(newUser.properties)
       .catch(e => {
         assistant.error(e);
@@ -36,7 +45,7 @@ let Module = {
         assistant.error(e);
       })
 
-    assistant.log('User created:', user, {environment: 'production'});
+    assistant.log('User created:', user);
   },
 }
 

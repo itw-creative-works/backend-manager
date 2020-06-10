@@ -1,5 +1,5 @@
 const _ = require('lodash');
-const uuidv4 = require('uuid').v4;
+const uuid4 = require('uuid').v4;
 const shortid = require('shortid');
 const powertools = require('node-powertools');
 
@@ -58,7 +58,7 @@ function User(options) {
       },
     },
     api: {
-      privateKey: _.get(options, 'api.privateKey', `api_${uuidv4()}`),
+      privateKey: _.get(options, 'api.privateKey', `api_${uuid4()}`),
     },
   }
 

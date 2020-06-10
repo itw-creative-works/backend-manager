@@ -23,17 +23,29 @@ let Module = {
       };
 
       let payload = self.assistant.request.data.payload || {};
+
+      // authenticate admin!
+      let user = await assistant.authenticate();
+
+      // Analytics
+      let analytics = new self.Manager.Analytics({
+        uuid: user.auth.uid,
+      });
+      analytics.event({
+        category: 'admin',
+        action: 'sendnotification',
+        // label: '',
+      });
+
       if (!payload.title || !payload.body) {
-        response.status = 500;
+        response.status = 400;
         response.error = new Error('Not enough notification parameters supplied.');
         assistant.error(response.error, { environment: 'production' })
         return res.status(response.status).send(response.error.message);
       }
 
-      // authenticate admin!
-      let user = await assistant.authenticate();
       if (!user.roles.admin) {
-        response.status = 500;
+        response.status = 401;
         response.error = new Error('Unauthenticated, admin required.');
         assistant.error(response.error, { environment: 'production' })
         return res.status(response.status).send(response.error.message);

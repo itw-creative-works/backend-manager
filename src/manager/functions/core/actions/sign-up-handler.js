@@ -1,6 +1,3 @@
-let uuid4;
-let shortid;
-let Mailchimp;
 let fetch;
 const _ = require('lodash');
 
@@ -30,7 +27,6 @@ let Module = {
       let user = await assistant.authenticate();
 
       if (!user.authenticated) {
-        // console.log('--ERROR 1');
         response.status = 401;
         response.error = new Error('Account does not exist in Auth.');
       } else {
@@ -60,13 +56,13 @@ let Module = {
           }
         })
         .catch(function (e) {
-          response.status = 500;
+          response.status = 400;
           response.error = e;
-          assistant.error('Failed to signup:', e);
+          assistant.error('Failed to signup:', response.error);
         })
       }
 
-      assistant.log(assistant.request.data, response);
+      // assistant.log(assistant.request.data, response);
 
       if (response.status === 200) {
         return res.status(response.status).json(response.data);
@@ -106,7 +102,7 @@ let Module = {
       // Merge the payload and the default user object
       finalPayload = _.defaultsDeep({}, existingUser, user.properties)
 
-      self.assistant.log('finalPayload', finalPayload);
+      // self.assistant.log('finalPayload', finalPayload);
 
       self.updateReferral({
         affiliateCode: _.get(payload, 'affiliate.referredBy', null),

@@ -15,7 +15,7 @@ let Module = {
     let res = self.res;
     let libraries = self.libraries;
     let assistant = self.assistant;
-    
+
     return libraries.cors(req, res, async () => {
       let assistant = self.assistant;
 
@@ -28,7 +28,7 @@ let Module = {
       try {
         response.data = {
           regular: await createUser('_test.admin@test.com', '_test.admin', {roles: {admin: true}}),
-          admin: await createUser('_test.regular@test.com', '_test.regular', {roles: {}, password: 'qweqwe'}),
+          admin: await createUser('_test.regular@test.com', '_test.regular', {roles: {}, password: '123123'}),
         }
       } catch (e) {
         response.status = 500;
@@ -93,28 +93,19 @@ let Module = {
               password: options.password
             };
 
-            let SignUpHandler = require('../core/sign-up-handler.js');
+            let SignUpHandler = require('../core/actions/sign-up-handler.js');
             SignUpHandler.init(Manager, {
               req: req,
               res: res,
             })
+
             SignUpHandler.signUp({
-              timestamp: assistant.meta.startTime.timestamp,
-              timestampUNIX: assistant.meta.startTime.timestampUNIX,
-              uid: uid,
-              email: email,
+              auth: {
+                uid: uid,
+                email: email,
+              },
               roles: options.roles,
             })
-
-            // libraries.admin.firestore().doc(`users/${uid}`)
-            // .set(
-            //   {
-            //     roles: options.roles,
-            //   },
-            //   {
-            //     merge: true
-            //   }
-            // )
             .then(function(data) {
               assistant.log('Successfully created new user:', uid);
               resolve(result);

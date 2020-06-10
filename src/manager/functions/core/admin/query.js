@@ -28,8 +28,18 @@ let Module = {
       // authenticate admin!
       let user = await assistant.authenticate();
 
+      // Analytics
+      let analytics = new self.Manager.Analytics({
+        uuid: user.auth.uid,
+      });
+      analytics.event({
+        category: 'admin',
+        action: 'query',
+        // label: '',
+      });
+
       if (!user.roles.admin) {
-        response.status = 500;
+        response.status = 401;
         response.error = new Error('Unauthenticated, admin required.');
         assistant.error(response.error, {environment: 'production'})
       } else {
@@ -50,14 +60,13 @@ let Module = {
           })
           .catch((e) => {
             response.error = e;
-            response.status = 500;
+            response.status = 400;
             assistant.error(response.error, {environment: 'production'})
           })
 
       }
 
       // assistant.log(assistant.request.data, response);
-      assistant.log('FINAL', response.status);
 
       if (response.status === 200) {
         return res.status(response.status).json(response.data);
