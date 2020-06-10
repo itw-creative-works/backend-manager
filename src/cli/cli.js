@@ -399,10 +399,10 @@ Main.prototype.setup = async function () {
 
   if (self.package.dependencies['backend-manager'].includes('file:')) {
     console.log('\n' + chalk.yellow(chalk.bold('Warning: ') + 'You are using the local ' + chalk.bold('backend-manager')));
+  } else {
+    console.log('\n');
   }
 
-
-  console.log('\n');
   console.log(chalk.green(`Checks finished. Passed ${self.testCount}/${self.testTotal} tests.`));
   if (self.testCount !== self.testTotal) {
     console.log(chalk.yellow(`You should continue to run ${chalk.bold('bm setup')} until you pass all tests and fix all errors.`));
@@ -410,10 +410,10 @@ Main.prototype.setup = async function () {
 
   return;
 
-  await this.test('deleted firestore indexes', function () {
-    let indexes = fs.exists(`${self.firebaseProjectPath}/firestore.indexes.json`);
-    return (!indexes);
-  }, fix_fsindexes);
+  // await this.test('deleted firestore indexes', function () {
+  //   let indexes = fs.exists(`${self.firebaseProjectPath}/firestore.indexes.json`);
+  //   return (!indexes);
+  // }, fix_fsindexes);
 
   // console.log(self.package);
 
