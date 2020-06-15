@@ -14,7 +14,7 @@ let Module = {
     let assistant = self.assistant;
 
     let analytics = new self.Manager.Analytics({
-      uuid: user.auth.uid,
+      uuid: user.uid,
     });
     analytics.event({
       category: 'engagement',

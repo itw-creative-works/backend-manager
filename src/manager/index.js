@@ -189,6 +189,22 @@ Manager.getNewAssistant = function (ref, options) {
     })
 };
 
+Manager.Assistant = function (ref, options) {
+  let self = this;
+  ref = ref || {};
+  options = options || {};
+  return new self.libraries.Assistant().init(
+    {
+      req: ref.req,
+      res: ref.res,
+      admin: self.libraries.admin,
+      functions: self.libraries.functions,
+    },
+    {
+      accept: options.accept,
+    })
+};
+
 Manager.User = function (options) {
   User = User || require('./helpers/user.js');
   return new User(options);
