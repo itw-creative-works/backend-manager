@@ -2,16 +2,16 @@ let Module = {
   init: async function (Manager, data) {
     this.Manager = Manager;
     this.libraries = Manager.libraries;
+    this.assistant = Manager.Assistant();
     this.user = data.user
-    this.assistant = Manager.getNewAssistant();
 
     return this;
   },
   main: async function() {
     let self = this;
-    let user = self.user;
     let libraries = self.libraries;
     let assistant = self.assistant;
+    let user = self.user;
 
     let newUser = new self.Manager.User({
       auth: {

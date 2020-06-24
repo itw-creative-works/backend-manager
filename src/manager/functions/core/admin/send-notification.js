@@ -2,18 +2,18 @@ let Module = {
   init: async function (Manager, data) {
     this.Manager = Manager;
     this.libraries = Manager.libraries;
+    this.assistant = Manager.Assistant({req: data.req, res: data.res})
     this.req = data.req;
     this.res = data.res
-    this.assistant = Manager.getNewAssistant({req: data.req, res: data.res})
 
     return this;
   },
   main: async function() {
     let self = this;
-    let req = self.req;
-    let res = self.res;
     let libraries = self.libraries;
     let assistant = self.assistant;
+    let req = self.req;
+    let res = self.res;
 
     return libraries.cors(req, res, async () => {
       let response = {

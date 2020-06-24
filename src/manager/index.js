@@ -138,6 +138,7 @@ Manager.init = function (exporter, options) {
     Module.init(self, { user: user })
     return Module.main();
   });
+
   exporter.bm_authOnDelete =
   self.libraries.functions
   .runWith({memory: '256MB', timeoutSeconds: 60})
@@ -146,6 +147,18 @@ Manager.init = function (exporter, options) {
     Module.init(self, { user: user })
     return Module.main();
   });
+
+  exports.bm_subOnWrite =
+  self.libraries.functions
+  .runWith({memory: '256MB', timeoutSeconds: 60})
+  .firestore
+  .document('notifications/subscriptions/all/{token}')
+  .onWrite((change, context) => {
+    const Module = require(`${core}/events/firestore/on-subscription.js`)
+    Module.init(self, { change: change, context: context, })
+    return Module.main();
+  });
+
 
   // Test
   exporter.bm_test_authenticate =
