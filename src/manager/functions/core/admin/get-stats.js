@@ -94,8 +94,9 @@ let Module = {
     return new Promise(async function(resolve, reject) {
       let stats = self.libraries.admin.firestore().doc(`meta/stats`);
 
-      if (!data || !data.users || !data.users.total) {
-        let usersTotal;
+      if (!data || !data.users || !data.users.total || !data.subscriptions || !data.subscriptions.total) {
+        let usersTotal = 0;
+        let subscriptionsTotal = 0;
         await self.getAllUsers()
           .then(r => {
             usersTotal = r.length
@@ -105,11 +106,23 @@ let Module = {
             response.error = new Error(`Failed fixing stats: ${e.message}`);
             self.assistant.error(response.error, {environment: 'production'});
           })
+        await self.getAllSubscriptions()
+          .then(r => {
+            subscriptionsTotal = r
+          })
+          .catch(e => {
+            response.status = 500;
+            response.error = new Error(`Failed fixing stats: ${e.message}`);
+            self.assistant.error(response.error, {environment: 'production'});
+          })
         await stats
           .set({
             users: {
-              total: usersTotal
-            }
+              total: usersTotal,
+            },
+            subscriptions: {
+              total: subscriptionsTotal,
+            },
           }, { merge: true })
           .catch(function (e) {
             return reject(e);
@@ -160,6 +173,19 @@ let Module = {
         return reject(e);
       })
       return resolve(self.users);
+    });
+  },
+  getAllSubscriptions: function () {
+    let self = this;
+    return new Promise(async function(resolve, reject) {
+      await admin.firestore().collection('notifications/subscriptions/all')
+      .get()
+      .then(function(querySnapshot) {
+        return resolve(querySnapshot.size)
+      })
+      .catch(function(e) {
+        return reject(e)
+      });
     });
   }
 }
