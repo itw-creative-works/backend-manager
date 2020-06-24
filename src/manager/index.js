@@ -63,6 +63,10 @@ Manager.init = function (exporter, options) {
       dsn: self.config.sentry.dsn,
       release: `${self.project.projectId}@${self.package.version}`,
       beforeSend(event, hint) {
+        if (assistant.meta.environment === 'development') {
+          assistant.error('Skipping Sentry because DEV')
+          return null;
+        }
         event.tags = event.tags || {};
         event.tags['function.name'] = assistant.meta.name;
         event.tags['function.type'] = assistant.meta.type;

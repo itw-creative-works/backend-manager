@@ -23,6 +23,17 @@ let Module = {
     let analytics = new self.Manager.Analytics({
       uuid: user.uid,
     });
+
+
+    // Don't save if anonymous
+    if (user.providerData.length < 1) {
+      return;
+    } else if (user.providerData.filter(function (item) {
+      return item.providerId === 'anonymous';
+    }).length > 0) {
+      return;
+    }
+
     analytics.event({
       category: 'engagement',
       action: 'signup',
@@ -31,7 +42,7 @@ let Module = {
 
     // Add user record
     await libraries.admin.firestore().doc(`users/${newUser.properties.auth.uid}`)
-      .set(newUser.properties)
+      .set(newUser.properties, {merge: true})
       .catch(e => {
         assistant.error(e);
       })

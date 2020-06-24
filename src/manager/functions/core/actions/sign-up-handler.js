@@ -113,11 +113,7 @@ let Module = {
       })
 
       self.libraries.admin.firestore().doc(`users/${payload.auth.uid}`)
-      .set(finalPayload,
-        {
-          merge: true
-        }
-      )
+      .set(finalPayload, { merge: true })
       .then(function(data) {
         response.status = 200;
         response.data = {created: true};
