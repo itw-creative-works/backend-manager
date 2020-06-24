@@ -24,7 +24,6 @@ let Module = {
       uuid: user.uid,
     });
 
-
     // Don't save if anonymous
     if (user.providerData.length < 1) {
       return;
