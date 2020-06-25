@@ -20,9 +20,7 @@ let Module = {
       }
     });
 
-    let analytics = new self.Manager.Analytics({
-      uuid: user.uid,
-    });
+    let analytics;
 
     // Don't save if anonymous
     if (user.providerData.length < 1) {
@@ -33,7 +31,10 @@ let Module = {
       return;
     }
 
-    analytics.event({
+    analytics = new self.Manager.Analytics({
+      uuid: user.uid,
+    })
+    .event({
       category: 'engagement',
       action: 'signup',
       label: 'regular',

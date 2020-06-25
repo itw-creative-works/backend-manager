@@ -17,11 +17,17 @@ function Analytics(Manager, options) {
     return self;
   }
 
-  self.user = ua(analyticsId, self.uuid); // https://analytics.google.com/analytics/web/#/report-home/a104885300w228822596p215709578
+  self.user = ua(analyticsId, self.uuid, {
+    strictCidFormat: false,
+    // country: 'Russia',
+  }); // https://analytics.google.com/analytics/web/#/report-home/a104885300w228822596p215709578
+  if (self.uuid) {
+    self.user.set('uid', self.uuid);
+  }
+  // self.user.set('country', 'Russia');
   self.user.set('ds', 'app');
-  self.version = self.Manager.package.version;
 
-  self.SERVER_UUID = '00000000-0000-0000-0000-000000000000';
+  self.version = self.Manager.package.version;
 
   self.initialized = true;
   return self;

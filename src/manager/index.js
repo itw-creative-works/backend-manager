@@ -2,9 +2,13 @@ const path = require('path');
 let User;
 let Analytics;
 
+
 function Manager(exporter, options) {
   this.libraries = {};
 }
+
+// Constants
+Manager.SERVER_UUID = '11111111-1111-1111-1111-111111111111';
 
 Manager.init = function (exporter, options) {
   let self = this;

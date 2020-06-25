@@ -1,3 +1,4 @@
+let _;
 let Module = {
   init: async function (Manager, data) {
     this.Manager = Manager;
@@ -15,32 +16,55 @@ let Module = {
     let change = self.change;
     let context = self.context;
 
+    let analytics;
+    _ = self.Manager.require('lodash');
+
+    // Delete event
     if (change.after.data == undefined) {
-      // Deleted: data before but no data after
       await libraries.admin.firestore().doc(`meta/stats`)
         .update({
           'subscriptions.total': libraries.admin.firestore.FieldValue.increment(-1),
         })
+        .then(r => {
+          analytics = new self.Manager.Analytics({
+            uuid: _.get(change.before.data, 'link.user.data.uid', undefined),
+          })
+          .event({
+            category: 'engagement',
+            action: 'notification-unsubscribe',
+            // label: 'regular',
+          });
+        })
         .catch(e => {
           assistant.error(e, {environment: 'production'});
         })
-      // console.log('Deleted');
+
+        // change.before.data
+
+    // Update event
     } else if (change.before.data && change.after.data) {
-      // Updated: data before and data after
-      // console.log('Update');
+      // ...
+    // Create event
     } else if (!change.before.data && change.after.data) {
-      // Created: no data before but data after
-      // console.log('Created');
       await libraries.admin.firestore().doc(`meta/stats`)
         .update({
           'subscriptions.total': libraries.admin.firestore.FieldValue.increment(1),
+        })
+        .then(r => {
+          analytics = new self.Manager.Analytics({
+            uuid: _.get(change.after.data, 'link.user.data.uid', undefined),
+          })
+          .event({
+            category: 'engagement',
+            action: 'notification-subscribe',
+            // label: 'regular',
+          });
         })
         .catch(e => {
           assistant.error(e, {environment: 'production'});
         })
     }
 
-    // assistant.log('User created:', user);
   },
 }
 

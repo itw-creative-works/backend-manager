@@ -30,10 +30,10 @@ let Module = {
       // Analytics
       let analytics = new self.Manager.Analytics({
         uuid: user.auth.uid,
-      });
-      analytics.event({
+      })
+      .event({
         category: 'admin',
-        action: 'sendnotification',
+        action: 'send-notification',
         // label: '',
       });
 
