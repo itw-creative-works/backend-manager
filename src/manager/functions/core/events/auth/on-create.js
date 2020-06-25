@@ -34,7 +34,8 @@ let Module = {
     analytics = new self.Manager.Analytics({
       uuid: user.uid,
     })
-    .event({
+
+    analytics.event({
       category: 'engagement',
       action: 'signup',
       label: 'regular',

@@ -29,7 +29,8 @@ let Module = {
           analytics = new self.Manager.Analytics({
             uuid: _.get(change.before.data, 'link.user.data.uid', undefined),
           })
-          .event({
+
+          analytics.event({
             category: 'engagement',
             action: 'notification-unsubscribe',
             // label: 'regular',
@@ -54,7 +55,8 @@ let Module = {
           analytics = new self.Manager.Analytics({
             uuid: _.get(change.after.data, 'link.user.data.uid', undefined),
           })
-          .event({
+
+          analytics.event({
             category: 'engagement',
             action: 'notification-subscribe',
             // label: 'regular',

@@ -32,7 +32,8 @@ let Module = {
       let analytics = new self.Manager.Analytics({
         uuid: user.auth.uid,
       })
-      .event({
+
+      analytics.event({
         category: 'admin',
         action: 'query',
         // label: '',
