@@ -194,22 +194,6 @@ Manager.init = function (exporter, options) {
 
 };
 
-Manager.getNewAssistant = function (ref, options) {
-  let self = this;
-  ref = ref || {};
-  options = options || {};
-  return new self.libraries.Assistant().init(
-    {
-      req: ref.req,
-      res: ref.res,
-      admin: self.libraries.admin,
-      functions: self.libraries.functions,
-    },
-    {
-      accept: options.accept,
-    })
-};
-
 Manager.Assistant = function (ref, options) {
   let self = this;
   ref = ref || {};
