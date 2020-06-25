@@ -21,6 +21,8 @@ function Analytics(Manager, options) {
   self.user.set('ds', 'app');
   self.version = self.Manager.package.version;
 
+  self.SERVER_UUID = '00000000-0000-0000-0000-000000000000';
+
   self.initialized = true;
   return self;
 }
