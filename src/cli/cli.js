@@ -12,7 +12,7 @@ const chalk = require('chalk');
 const _ = require('lodash');
 const log = console.log;
 let NpmApi = require('npm-api');
-const semver = require("semver");
+const semver = require('semver');
 let inquirer = require('inquirer');
 const { spawn } = require('child_process');
 const clear = require('clear');
@@ -306,19 +306,19 @@ Main.prototype.setup = async function () {
   //   return isLocal(mine) || !(semver.gt(latest, mine));
   // }, fix_ujp);
 
-  await this.test('using updated @firebase/testing', async function () {
-    let pkg = '@firebase/testing';
-    let latest = semver.clean(await getPkgVersion(pkg));
-    let mine = (self.package.devDependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
-    return isLocal(mine) || !(semver.gt(latest, mine));
-  }, fix_fbTesting);
+  // await this.test('using updated @firebase/testing', async function () {
+  //   let pkg = '@firebase/testing';
+  //   let latest = semver.clean(await getPkgVersion(pkg));
+  //   let mine = (self.package.devDependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
+  //   return isLocal(mine) || !(semver.gt(latest, mine));
+  // }, fix_fbTesting);
 
-  await this.test('using updated mocha', async function () {
-    let pkg = 'mocha';
-    let latest = semver.clean(await getPkgVersion(pkg));
-    let mine = (self.package.devDependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
-    return isLocal(mine) || !(semver.gt(latest, mine));
-  }, fix_mocha);
+  // await this.test('using updated mocha', async function () {
+  //   let pkg = 'mocha';
+  //   let latest = semver.clean(await getPkgVersion(pkg));
+  //   let mine = (self.package.devDependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
+  //   return isLocal(mine) || !(semver.gt(latest, mine));
+  // }, fix_mocha);
 
   await this.test('using proper .runtimeconfig', async function () {
     let runtimeconfig = JSON.parse(fs.read(`${self.firebaseProjectPath}/functions/.runtimeconfig.json`) || '{}');
@@ -587,12 +587,12 @@ async function fix_bem(self) {
 // async function fix_ujp(self) {
 //   return await installPkg('ultimate-jekyll-poster')
 // };
-async function fix_fbTesting(self) {
-  return await installPkg('@firebase/testing', '', '--save-dev')
-};
-async function fix_mocha(self) {
-  return await installPkg('mocha', '', '--save-dev')
-};
+// async function fix_fbTesting(self) {
+//   return await installPkg('@firebase/testing', '', '--save-dev')
+// };
+// async function fix_mocha(self) {
+//   return await installPkg('mocha', '', '--save-dev')
+// };
 
 function fix_gitignore(self) {
   return new Promise(function(resolve, reject) {
