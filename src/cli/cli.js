@@ -362,6 +362,11 @@ Main.prototype.setup = async function () {
     return (firestore.rules == 'firestore.rules')
   }, fix_firebaseRules);
 
+  await this.test('hosting is set to dedicated folder in JSON', function () {
+    let hosting = _.get(self.firebaseJSON, 'hosting', {});
+    return (hosting.public && (hosting.public === 'public' || hosting.public !== '.'))
+  }, fix_firebaseHosting);
+
   await this.test('update backend-manager-tests.js', function () {
     fs.write(`${self.firebaseProjectPath}/test/backend-manager-tests.js`,
       (fs.read(path.resolve(`${__dirname}/../../templates/backend-manager-tests.js`)))
@@ -613,6 +618,14 @@ function fix_gitignore(self) {
 function fix_firebaseRules(self) {
   return new Promise(function(resolve, reject) {
     _.set(self.firebaseJSON, 'firestore.rules', "firestore.rules")
+    fs.write(`${self.firebaseProjectPath}/firebase.json`, JSON.stringify(self.firebaseJSON, null, 2));
+    resolve();
+  });
+};
+
+function fix_firebaseHosting(self) {
+  return new Promise(function(resolve, reject) {
+    _.set(self.firebaseJSON, 'hosting.public', 'public')
     fs.write(`${self.firebaseProjectPath}/firebase.json`, JSON.stringify(self.firebaseJSON, null, 2));
     resolve();
   });

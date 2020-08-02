@@ -1,11 +1,11 @@
 {
   "name": "backend-manager",
-  "version": "0.1.44",
+  "version": "0.1.48",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
-    "bem": "bin/bem",
-    "bm": "bin/bem"
+    "bem": "./bin/bem",
+    "bm": "./bin/bem"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",

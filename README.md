@@ -26,9 +26,10 @@
 </p>
 
 ## Install
-Install with npm:
+<!-- First, install the global command line utility with npm: -->
+First, install the package via npm:
 ```shell
-npm install backend-manager
+npm i backend-manager
 ```
 
 ## Features
@@ -56,6 +57,7 @@ bm setup
 Your project will not be checked for errors and any tips and fixes will be provided to you!
 
 ## Example CLI Usage
+Note: you may have to run cli commands with `npx bm <command>` if you install this package locally.
   * `bm v`: Check version of backend-manager.
   * `bm setup`: Runs some checks and sets up your Firebase project.
 
