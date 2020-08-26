@@ -228,10 +228,8 @@ Main.prototype.setup = async function () {
   this.default.firestoreRulesVersionRegex = new RegExp(`///---version-${self.default.version}---///`)
   // bem_giRegex = new RegExp(fs.read(path.resolve(`${__dirname}/../../templates/gitignore.md`)).replace(/\./g, '\\.'), 'm' )
   bem_giRegex = new RegExp(fs.read(path.resolve(`${__dirname}/../../templates/gitignore.md`)), 'm' )
+
   // tests
-  // await this.test('using updates backend-manager-clie', function () {
-  //   return self.package.engines.node.toString() == '10';
-  // }, fix_node10);
   this.projectName = this.firebaseRC.projects.default;
   this.projectUrl = `https://console.firebase.google.com/project/${this.projectName}`;
   log(chalk.black(`Id: `, chalk.bold(`${this.projectName}`)));
@@ -336,9 +334,9 @@ Main.prototype.setup = async function () {
 
   }, fix_runtimeConfig);
 
-  await this.test('using node 10', function () {
-    return self.package.engines.node.toString() == '10';
-  }, fix_node10);
+  await this.test('using node 12', function () {
+    return self.package.engines.node.toString() === '12.x.x';
+  }, fix_nodeVersion);
 
   await this.test('has service-account.json', function () {
     let exists = fs.exists(`${self.firebaseProjectPath}/functions/service-account.json`);
@@ -530,9 +528,9 @@ async function fix_serviceAccount(self) {
 //   });
 // }
 
-function fix_node10(self) {
+function fix_nodeVersion(self) {
   return new Promise(function(resolve, reject) {
-    _.set(self.package, 'engines.node', '10')
+    _.set(self.package, 'engines.node', '12.x.x')
 
     fs.write(`${self.firebaseProjectPath}/functions/package.json`, JSON.stringify(self.package, null, 2) );
     resolve();
