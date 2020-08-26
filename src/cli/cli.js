@@ -335,7 +335,7 @@ Main.prototype.setup = async function () {
   }, fix_runtimeConfig);
 
   await this.test('using node 12', function () {
-    return self.package.engines.node.toString() === '12.x.x';
+    return self.package.engines.node.toString() === '12';
   }, fix_nodeVersion);
 
   await this.test('has service-account.json', function () {
@@ -530,7 +530,7 @@ async function fix_serviceAccount(self) {
 
 function fix_nodeVersion(self) {
   return new Promise(function(resolve, reject) {
-    _.set(self.package, 'engines.node', '12.x.x')
+    _.set(self.package, 'engines.node', '12')
 
     fs.write(`${self.firebaseProjectPath}/functions/package.json`, JSON.stringify(self.package, null, 2) );
     resolve();
