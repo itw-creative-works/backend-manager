@@ -355,10 +355,15 @@ Main.prototype.setup = async function () {
     }
   }, fix_gitignore);
 
-  await this.test('firebase rules in JSON', function () {
+  await this.test('firestore rules in JSON', function () {
     let firestore = _.get(self.firebaseJSON, 'firestore', {});
     return (firestore.rules == 'firestore.rules')
-  }, fix_firebaseRules);
+  }, fix_firestoreRules);
+
+  await this.test('realtime rules in JSON', function () {
+    let firestore = _.get(self.firebaseJSON, 'database', {});
+    return (firestore.rules == 'security.rules.json')
+  }, fix_realtimeRules);
 
   await this.test('hosting is set to dedicated folder in JSON', function () {
     let hosting = _.get(self.firebaseJSON, 'hosting', {});
@@ -613,9 +618,17 @@ function fix_gitignore(self) {
   });
 };
 
-function fix_firebaseRules(self) {
+function fix_firestoreRules(self) {
   return new Promise(function(resolve, reject) {
-    _.set(self.firebaseJSON, 'firestore.rules', "firestore.rules")
+    _.set(self.firebaseJSON, 'firestore.rules', 'firestore.rules')
+    fs.write(`${self.firebaseProjectPath}/firebase.json`, JSON.stringify(self.firebaseJSON, null, 2));
+    resolve();
+  });
+};
+
+function fix_realtimeRules(self) {
+  return new Promise(function(resolve, reject) {
+    _.set(self.firebaseJSON, 'database.rules', 'security.rules.json')
     fs.write(`${self.firebaseProjectPath}/firebase.json`, JSON.stringify(self.firebaseJSON, null, 2));
     resolve();
   });
