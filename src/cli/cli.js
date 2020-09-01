@@ -87,11 +87,12 @@ Main.prototype.process = async function (args) {
   }
   if ((this.options.i || this.options.install) && (this.options.local || this.options.dev || this.options.development)) {
     await uninstallPkg('backend-manager');
-    return await installPkg('file:../../backend-manager');
+    return await installPkg('file:../../../ITW-Creative-Works/backend-manager');
     // await uninstallPkg('backend-assistant');
     // return await installPkg('file:../../backend-assistant');
   }
   if ((this.options.i || this.options.install) && (this.options.live || this.options.prod || this.options.production)) {
+    await uninstallPkg('backend-manager');
     return await installPkg('backend-manager');
     // return await installPkg('backend-assistant');
   }
@@ -357,12 +358,12 @@ Main.prototype.setup = async function () {
 
   await this.test('firestore rules in JSON', function () {
     let firestore = _.get(self.firebaseJSON, 'firestore', {});
-    return (firestore.rules == 'firestore.rules')
+    return (firestore.rules === 'firestore.rules')
   }, fix_firestoreRules);
 
   await this.test('realtime rules in JSON', function () {
     let firestore = _.get(self.firebaseJSON, 'database', {});
-    return (firestore.rules == 'security.rules.json')
+    return (firestore.rules === 'security.rules.json')
   }, fix_realtimeRules);
 
   await this.test('hosting is set to dedicated folder in JSON', function () {
@@ -379,17 +380,17 @@ Main.prototype.setup = async function () {
 
   // await this.test('has mocha package.json script', function () {
   //   let script = _.get(self.package, 'scripts.test', '')
-  //   return script == MOCHA_PKG_SCRIPT;
+  //   return script === MOCHA_PKG_SCRIPT;
   // }, fix_mochaScript);
 
   // await this.test('has clean:npm package.json script', function () {
   //   let script = _.get(self.package, 'scripts.clean:npm', '')
-  //   return script == NPM_CLEAN_SCRIPT;
+  //   return script === NPM_CLEAN_SCRIPT;
   // }, fix_cleanNpmScript);
 
   await this.test('ignore firestore indexes file', function () {
     let firestore = _.get(self.firebaseJSON, 'firestore', {});
-    return (firestore.indexes == '')
+    return (firestore.indexes === '')
   }, fix_firebaseIndexes);
 
   await this.test('update firestore rules file', function () {
@@ -402,7 +403,12 @@ Main.prototype.setup = async function () {
     // console.log('containsCore', !!containsCore);
     // console.log('matchesVersion', !!matchesVersion);
     return (!!exists && !!containsCore && !!matchesVersion);
-  }, fix_fsrules);
+  }, fix_firestoreRulesFile);
+
+  await this.test('update realtime rules file', function () {
+    let exists = fs.exists(`${self.firebaseProjectPath}/security.rules.json`);
+    return (!!exists);
+  }, fix_realtimeRulesFile);
 
 
   if (self.package.dependencies['backend-manager'].includes('file:')) {
@@ -650,7 +656,7 @@ function fix_firebaseIndexes(self) {
   });
 };
 
-function fix_fsrules(self) {
+function fix_firestoreRulesFile(self) {
   return new Promise(function(resolve, reject) {
     let path = `${self.firebaseProjectPath}/firestore.rules`;
     let exists = fs.exists(path);
@@ -677,6 +683,22 @@ function fix_fsrules(self) {
       fs.write(path, contents)
       log(chalk.yellow(`Writing core rules to firestore.rules file...`));
     }
+    resolve();
+  });
+};
+
+function fix_realtimeRulesFile(self) {
+  return new Promise(function(resolve, reject) {
+    let filePath = `${self.firebaseProjectPath}/security.rules.json`;
+    let exists = fs.exists(filePath);
+    let contents = fs.read(filePath) || '';
+
+    if (!exists) {
+      log(chalk.yellow(`Writing new security.rules.json file...`));
+      fs.write(filePath, fs.read(path.resolve(`${__dirname}/../../templates/security.rules.json`)))
+      contents = fs.read(filePath) || '';
+    }
+
     resolve();
   });
 };
@@ -807,7 +829,7 @@ function installPkg(name, version, type) {
 
   if (!type) {
     t = ''
-  } else if (type == 'dev' || type == '--save-dev') {
+  } else if (type === 'dev' || type === '--save-dev') {
     t = ' --save-dev';
   }
 
