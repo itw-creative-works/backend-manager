@@ -19,24 +19,25 @@ let Module = {
     let req = self.req;
     let res = self.res;
 
+    let response = {
+      status: 200,
+    };
+
+    // authenticate admin!
+    let user = await assistant.authenticate();
+
+    // Analytics
+    let analytics = self.Manager.Analytics({
+      uuid: user.auth.uid,
+    });
+
+    analytics.event({
+      category: 'admin',
+      action: 'post-created',
+      // label: '',
+    });
+    
     return libraries.cors(req, res, async () => {
-      let response = {
-        status: 200,
-      };
-
-      // authenticate admin!
-      let user = await assistant.authenticate();
-
-      // Analytics
-      let analytics = self.Manager.Analytics({
-        uuid: user.auth.uid,
-      });
-
-      analytics.event({
-        category: 'admin',
-        action: 'post-created',
-        // label: '',
-      });
 
       if (!user.roles.admin) {
         response.status = 401;

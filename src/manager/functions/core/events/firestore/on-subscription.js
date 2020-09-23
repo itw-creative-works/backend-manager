@@ -1,4 +1,3 @@
-let _;
 let Module = {
   init: async function (Manager, data) {
     this.Manager = Manager;
@@ -16,8 +15,9 @@ let Module = {
     let change = self.change;
     let context = self.context;
 
+    let _ = self.Manager.require('lodash');
+
     let analytics;
-    _ = self.Manager.require('lodash');
 
     // Delete event
     if (change.after.data == undefined) {
@@ -39,8 +39,6 @@ let Module = {
         .catch(e => {
           assistant.error(e, {environment: 'production'});
         })
-
-        // change.before.data
 
     // Update event
     } else if (change.before.data && change.after.data) {

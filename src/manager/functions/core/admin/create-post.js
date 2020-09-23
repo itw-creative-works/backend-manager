@@ -19,26 +19,27 @@ let Module = {
     let req = self.req;
     let res = self.res;
 
+    let response = {
+      status: 200,
+    };
+
+    // authenticate admin!
+    let user = await assistant.authenticate();
+
+    // Analytics
+    let analytics = self.Manager.Analytics({
+      uuid: user.auth.uid,
+    })
+
+    analytics.event({
+      category: 'admin',
+      action: 'create-post',
+      // label: '',
+    });
+
+    let repoInfo = assistant.parseRepo(self.Manager.config.github.repo_website);
+    
     return libraries.cors(req, res, async () => {
-      let response = {
-        status: 200,
-      };
-
-      let repoInfo = assistant.parseRepo(self.Manager.config.github.repo_website);
-
-      // authenticate admin!
-      let user = await assistant.authenticate();
-
-      // Analytics
-      let analytics = self.Manager.Analytics({
-        uuid: user.auth.uid,
-      })
-
-      analytics.event({
-        category: 'admin',
-        action: 'create-post',
-        // label: '',
-      });
 
       if (!user.roles.admin) {
         response.status = 401;

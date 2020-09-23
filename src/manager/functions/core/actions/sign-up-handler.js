@@ -80,7 +80,7 @@ let Module = {
     return new Promise(async function(resolve, reject) {
       let existingUser = {};
       let finalPayload = {};
-      let user = new self.Manager.User(payload);
+      let user = self.Manager.User(payload);
 
       if (!_.get(payload, 'auth.uid', null) || !_.get(payload, 'auth.email', null)) {
         return reject(new Error('Cannot create user without UID and email.'))

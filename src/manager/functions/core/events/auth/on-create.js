@@ -13,14 +13,22 @@ let Module = {
     let assistant = self.assistant;
     let user = self.user;
 
-    let newUser = new self.Manager.User({
+    let newUser = self.Manager.User({
       auth: {
         uid: user.uid,
         email: user.email,
       }
     });
 
-    let analytics;
+    let analytics = self.Manager.Analytics({
+      uuid: user.uid,
+    })
+
+    analytics.event({
+      category: 'engagement',
+      action: 'signup',
+      label: item.providerId,
+    });
 
     // Don't save if anonymous
     if (user.providerData.length < 1) {
@@ -30,16 +38,6 @@ let Module = {
     }).length > 0) {
       return;
     }
-
-    analytics = self.Manager.Analytics({
-      uuid: user.uid,
-    })
-
-    analytics.event({
-      category: 'engagement',
-      action: 'signup',
-      label: 'regular',
-    });
 
     // Add user record
     await libraries.admin.firestore().doc(`users/${newUser.properties.auth.uid}`)

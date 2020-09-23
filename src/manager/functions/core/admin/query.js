@@ -18,27 +18,27 @@ let Module = {
     let req = self.req;
     let res = self.res;
 
+    let response = {
+      status: 200,
+      data: {},
+      error: null,
+    };
+
+    // authenticate admin!
+    let user = await assistant.authenticate();
+
+    // Analytics
+    let analytics = self.Manager.Analytics({
+      uuid: user.auth.uid,
+    })
+
+    analytics.event({
+      category: 'admin',
+      action: 'query',
+      // label: '',
+    });
+    
     return libraries.cors(req, res, async () => {
-      let response = {
-        status: 200,
-        data: {},
-        error: null,
-      };
-
-      // authenticate admin!
-      let user = await assistant.authenticate();
-
-      // Analytics
-      let analytics = self.Manager.Analytics({
-        uuid: user.auth.uid,
-      })
-
-      analytics.event({
-        category: 'admin',
-        action: 'query',
-        // label: '',
-      });
-
       if (!user.roles.admin) {
         response.status = 401;
         response.error = new Error('Unauthenticated, admin required.');
