@@ -13,7 +13,7 @@ let Module = {
     let assistant = self.assistant;
     let user = self.user;
 
-    let analytics = new self.Manager.Analytics({
+    let analytics = self.Manager.Analytics({
       uuid: user.uid,
     })
 

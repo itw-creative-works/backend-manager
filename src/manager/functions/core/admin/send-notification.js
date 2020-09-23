@@ -28,7 +28,7 @@ let Module = {
       let user = await assistant.authenticate();
 
       // Analytics
-      let analytics = new self.Manager.Analytics({
+      let analytics = self.Manager.Analytics({
         uuid: user.auth.uid,
       })
 

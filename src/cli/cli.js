@@ -15,7 +15,6 @@ let NpmApi = require('npm-api');
 const semver = require('semver');
 let inquirer = require('inquirer');
 const { spawn } = require('child_process');
-const clear = require('clear');
 let argv = require('yargs').argv;
 // const JSON5 = require('json5');
 
@@ -77,7 +76,9 @@ Main.prototype.process = async function (args) {
     console.log(`Backend manager is version: ${this.default.version}`);
   }
   if (this.options.clear) {
-    clear();
+    process.stdout.write("\u001b[3J\u001b[2J\u001b[1J");
+    console.clear();
+    process.stdout.write("\u001b[3J\u001b[2J\u001b[1J");
   }
   if (this.options.cwd) {
     console.log('cwd: ', this.firebaseProjectPath);

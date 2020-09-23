@@ -26,7 +26,7 @@ let Module = {
           'subscriptions.total': libraries.admin.firestore.FieldValue.increment(-1),
         })
         .then(r => {
-          analytics = new self.Manager.Analytics({
+          analytics = self.Manager.Analytics({
             uuid: _.get(change.before.data, 'link.user.data.uid', undefined),
           })
 
@@ -52,7 +52,7 @@ let Module = {
           'subscriptions.total': libraries.admin.firestore.FieldValue.increment(1),
         })
         .then(r => {
-          analytics = new self.Manager.Analytics({
+          analytics = self.Manager.Analytics({
             uuid: _.get(change.after.data, 'link.user.data.uid', undefined),
           })
 

@@ -6,26 +6,40 @@ let uuidv5;
 function Analytics(Manager, options) {
   let self = this;
   self.Manager = Manager;
-  let analyticsId = get(self.Manager, 'config.google_analytics.id', undefined);
+  const analyticsId = get(self.Manager, 'config.google_analytics.id', undefined);
+  const request = self.Manager._inner || {};
 
   options = options || {};
-  self.uuid = options.uuid && options.uuid.match(uuidRegex) ? options.uuid : self.generateId(options.uuid);
+  self.uuid = options.uuid || request.ip || self.Manager.SERVER_UUID;
+  self.uuid = self.uuid.match(uuidRegex) ? self.uuid : self.generateId(self.uuid);
   self.initialized = false;
 
   if (!analyticsId) {
-    console.log('Not initializing becuase missing', analyticsId);
+    console.log('Not initializing because missing analyticsId', analyticsId);
     return self;
   }
 
   self.user = ua(analyticsId, self.uuid, {
-    strictCidFormat: false,
-    // country: 'Russia',
-  }); // https://analytics.google.com/analytics/web/#/report-home/a104885300w228822596p215709578
+    strictCidFormat: false, // https://analytics.google.com/analytics/web/#/report-home/a104885300w228822596p215709578
+  });
+  self.user.set('ds', 'app');
+
+  // https://developers.google.com/analytics/devguides/collection/protocol/v1/parameters#sc
   if (self.uuid) {
     self.user.set('uid', self.uuid);
   }
-  // self.user.set('country', 'Russia');
-  self.user.set('ds', 'app');
+  if (request.ip) {
+    self.user.set('uip', request.ip);
+  }
+  if (request.country) {
+    self.user.set('geoid', request.country);
+  }
+  if (request.userAgent) {
+    self.user.set('ua', request.userAgent);
+  }
+  if (request.referrer) {
+    self.user.set('dr', request.referrer);
+  }
 
   self.version = self.Manager.package.version;
 
@@ -46,6 +60,9 @@ Analytics.prototype.event = function (options) {
   options = options || {};
 
   if (!self.initialized) {
+    return this;
+  } else if (self.Manager.assistant.meta.environment === 'development') {
+    console.log('Skipping Analytics.event() because in development', self.uuid, options);
     return this;
   }
 

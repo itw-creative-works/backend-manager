@@ -40,13 +40,11 @@ npm i backend-manager
 After installing via npm, simply paste this script in your Firebase `functions/index.js` file.
 ```js
 // In your functions/index.js file
-const Manager = require('backend-manager');
-
-exports.Manager = Manager.init(exports, {
+const Manager = (new (require('backend-manager'))).init(exports, {
   initializeApp: true
 });
 
-const {functions, admin, cors, lodash, Assistant} = Manager.libraries;
+const { functions, admin, cors, Assistant } = Manager.libraries;
 ```
 
 Next, run the setup command to allow `backend-manager` to configure your Firebase project with best practices and help keep your dependencies up to date!

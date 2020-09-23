@@ -31,7 +31,7 @@ let Module = {
       return;
     }
 
-    analytics = new self.Manager.Analytics({
+    analytics = self.Manager.Analytics({
       uuid: user.uid,
     })
 

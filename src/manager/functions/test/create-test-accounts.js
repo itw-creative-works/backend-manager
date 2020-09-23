@@ -16,6 +16,19 @@ let Module = {
     let libraries = self.libraries;
     let assistant = self.assistant;
 
+    let user = await assistant.authenticate();
+
+    // Analytics
+    let analytics = self.Manager.Analytics({
+      uuid: user.auth.uid,
+    });
+
+    analytics.event({
+      category: 'admin',
+      action: 'create-test-accounts',
+      // label: '',
+    });
+
     return libraries.cors(req, res, async () => {
       let assistant = self.assistant;
 
@@ -85,7 +98,7 @@ let Module = {
             email: email,
             password: options.password,
           })
-          .then(async function(user) {
+          .then(async function(updatedUser) {
             // See the UserRecord reference doc for the contents of userRecord.
             result = {
               uid: uid,
