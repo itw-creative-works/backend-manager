@@ -75,6 +75,8 @@ Main.prototype.process = async function (args) {
   if (this.options.v || this.options.version || this.options['-v'] || this.options['-version']) {
     console.log(`Backend manager is version: ${this.default.version}`);
   }
+
+  // https://gist.github.com/timneutkens/f2933558b8739bbf09104fb27c5c9664
   if (this.options.clear) {
     process.stdout.write("\u001b[3J\u001b[2J\u001b[1J");
     console.clear();
