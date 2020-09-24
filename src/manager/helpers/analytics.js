@@ -74,7 +74,7 @@ Analytics.prototype.event = function (options) {
     // dp: options.path || window.location.href,
   }).send();
 
-  return this;
+  return self;
 };
 
 module.exports = Analytics;
