@@ -2,15 +2,33 @@ let fetch;
 let Poster;
 let pathApi;
 let os;
+let JSON5;
 let Module = {
   init: async function (Manager, data) {
-    this.Manager = Manager;
-    this.libraries = Manager.libraries;
-    this.assistant = Manager.Assistant({req: data.req, res: data.res});
-    this.req = data.req;
-    this.res = data.res;
+    const self = this;
+    self.Manager = Manager;
+    self.libraries = Manager.libraries;
 
-    return this;
+    // This needs to be uniquely processed because IFTTT FUCKIN SUCKS
+    JSON5 = Manager.require('json5');
+    try {
+      data.req.body = JSON5.parse(decodeURIComponent(data.req.body.content));
+    } catch (e) {
+      assistant.error('Failed to JSON5.parse() and decodeURIComponent() the body.', e, {environment: 'production'})
+    }
+
+    self.assistant = Manager.Assistant({req: data.req, res: data.res});
+    self.req = data.req;
+    self.res = data.res;
+
+    // console.log('self.assistant.request.data 111', self.assistant.request.data);
+    // const keys = Object.keys(self.assistant.request.data);
+    // keys.forEach((key, i) => {
+    //   self.assistant.request.data[key] = decodeURIComponent(self.assistant.request.data[key]);
+    // });
+    // console.log('self.assistant.request.data 222', self.assistant.request.data);
+
+    return self;
   },
   main: async function() {
     let self = this;
@@ -29,14 +47,13 @@ let Module = {
     // Analytics
     let analytics = self.Manager.Analytics({
       uuid: user.auth.uid,
-    });
-
-    analytics.event({
+    })
+    .event({
       category: 'admin',
       action: 'post-created',
       // label: '',
     });
-    
+
     return libraries.cors(req, res, async () => {
 
       if (!user.roles.admin) {

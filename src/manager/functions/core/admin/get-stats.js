@@ -28,12 +28,11 @@ let Module = {
     let analytics = self.Manager.Analytics({
       uuid: user.auth.uid,
     })
-
-    analytics.event({
+    .event({
       category: 'admin',
       action: 'get-stats',
       // label: '',
-    });    
+    });
 
     return libraries.cors(req, res, async () => {
       if (!user.roles.admin) {

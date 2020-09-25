@@ -31,13 +31,12 @@ let Module = {
     let analytics = self.Manager.Analytics({
       uuid: user.auth.uid,
     })
-
-    analytics.event({
+    .event({
       category: 'admin',
       action: 'query',
       // label: '',
     });
-    
+
     return libraries.cors(req, res, async () => {
       if (!user.roles.admin) {
         response.status = 401;

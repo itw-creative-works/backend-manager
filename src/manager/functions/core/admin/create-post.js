@@ -30,15 +30,14 @@ let Module = {
     let analytics = self.Manager.Analytics({
       uuid: user.auth.uid,
     })
-
-    analytics.event({
+    .event({
       category: 'admin',
       action: 'create-post',
       // label: '',
     });
 
     let repoInfo = assistant.parseRepo(self.Manager.config.github.repo_website);
-    
+
     return libraries.cors(req, res, async () => {
 
       if (!user.roles.admin) {

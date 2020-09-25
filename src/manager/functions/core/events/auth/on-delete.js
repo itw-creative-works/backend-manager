@@ -16,8 +16,7 @@ let Module = {
     let analytics = self.Manager.Analytics({
       uuid: user.uid,
     })
-
-    analytics.event({
+    .event({
       category: 'engagement',
       action: 'user-delete',
       // label: 'regular',

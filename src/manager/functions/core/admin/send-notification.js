@@ -28,8 +28,7 @@ let Module = {
     let analytics = self.Manager.Analytics({
       uuid: user.auth.uid,
     })
-
-    analytics.event({
+    .event({
       category: 'admin',
       action: 'send-notification',
       // label: '',

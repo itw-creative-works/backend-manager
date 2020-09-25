@@ -21,9 +21,8 @@ let Module = {
     // Analytics
     let analytics = self.Manager.Analytics({
       uuid: user.auth.uid,
-    });
-
-    analytics.event({
+    })
+    .event({
       category: 'admin',
       action: 'create-test-accounts',
       // label: '',

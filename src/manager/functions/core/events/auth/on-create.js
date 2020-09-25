@@ -23,8 +23,7 @@ let Module = {
     let analytics = self.Manager.Analytics({
       uuid: user.uid,
     })
-
-    analytics.event({
+    .event({
       category: 'engagement',
       action: 'signup',
       label: item.providerId,
