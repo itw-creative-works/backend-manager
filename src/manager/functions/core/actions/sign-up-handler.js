@@ -43,8 +43,8 @@ let Module = {
           response.data = result;
           if (assistant.request.data.newsletterSignUp) {
             await addToMCList(
-              self.Manager.config.mailchimp.key,
-              self.Manager.config.mailchimp.list_id,
+              _.get(self.Manager.config, 'mailchimp.key'),
+              _.get(self.Manager.config, 'mailchimp.list_id'),
               user.auth.email,
             )
             .then(function (res) {
@@ -100,9 +100,7 @@ let Module = {
       }
 
       // Merge the payload and the default user object
-      finalPayload = _.defaultsDeep({}, existingUser, user.properties)
-
-      // self.assistant.log('finalPayload', finalPayload);
+      finalPayload = _.merge({}, existingUser, user.properties)
 
       self.updateReferral({
         affiliateCode: _.get(payload, 'affiliate.referredBy', null),

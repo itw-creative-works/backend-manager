@@ -50,7 +50,7 @@ let Module = {
       }
 
 
-      if (assistant.meta.environment == 'development') {
+      if (assistant.meta.environment === 'development') {
         assistant.log(response);
         return res.status(response.status).json(response);
       } else {

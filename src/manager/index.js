@@ -1,5 +1,6 @@
 // Libraries
 const path = require('path');
+const merge = require('lodash/merge');
 // let User;
 // let Analytics;
 
@@ -48,12 +49,15 @@ Manager.prototype.init = function (exporter, options) {
 
   // Set properties
   self.options = options;
-  self.project = JSON.parse(process.env.FIREBASE_CONFIG)
+  self.project = JSON.parse(process.env.FIREBASE_CONFIG);
   self.cwd = process.cwd();
   self.package = require(path.resolve(self.cwd, 'package.json'));
-  self.config = self.libraries.functions.config() || {};
+  self.config = merge(
+    require(path.resolve(self.cwd, 'backend-manager-config.json')),
+    self.libraries.functions.config()
+  );
 
-  self.assistant = new self.libraries.Assistant().init();
+  self.assistant = self.Assistant().init();
 
   // Setup options features
   if (self.options.initialize) {
@@ -183,11 +187,11 @@ Manager.prototype.init = function (exporter, options) {
     });
   });
 
-  exporter.bm_postCreated =
+  exporter.bm_createPostHandler =
   self.libraries.functions
   .runWith({memory: '256MB', timeoutSeconds: 60})
   .https.onRequest(async (req, res) => {
-    const Module = require(`${core}/admin/post-created.js`);
+    const Module = require(`${core}/actions/create-post-handler.js`);
     Module.init(self, { req: req, res: res, });
 
     return self._preProcess(Module)

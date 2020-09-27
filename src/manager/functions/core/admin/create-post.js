@@ -2,6 +2,7 @@ let fetch;
 let Poster;
 let pathApi;
 let os;
+const { get } = require('lodash');
 let Module = {
   init: async function (Manager, data) {
     this.Manager = Manager;
@@ -36,7 +37,7 @@ let Module = {
       // label: '',
     });
 
-    let repoInfo = assistant.parseRepo(self.Manager.config.github.repo_website);
+    let repoInfo = assistant.parseRepo(get(self.Manager.config, 'github.repo_website'));
 
     return libraries.cors(req, res, async () => {
 
@@ -55,7 +56,7 @@ let Module = {
           return new Promise(async function(resolve, reject) {
             let finalPath = poster.removeDirDot(meta.finalPath);
             let tempPath = (meta.tempPath);
-            await createFile(self.Manager.config.github.user, repoInfo.user, repoInfo.name, self.Manager.config.github.key, finalPath, await poster.readImage(tempPath))
+            await createFile(get(self.Manager.config, 'github.user'), repoInfo.user, repoInfo.name, get(self.Manager.config, 'github.key'), finalPath, await poster.readImage(tempPath))
             .catch((e) => {
               // console.log('---CAUGHT 1', e);
             })
@@ -66,7 +67,7 @@ let Module = {
         let finalPost = await poster.create(assistant.request.data);
 
         // Save post OR commit
-        await createFile(self.Manager.config.github.user, repoInfo.user, repoInfo.name, self.Manager.config.github.key, poster.removeDirDot(finalPost.path), finalPost.content)
+        await createFile(get(self.Manager.config, 'github.user'), repoInfo.user, repoInfo.name, get(self.Manager.config, 'github.key'), poster.removeDirDot(finalPost.path), finalPost.content)
         .catch((e) => {
           response.status = 400;
           response.error = new Error('Failed to post: ' + e);
@@ -99,7 +100,7 @@ async function createFile(user, repoUser, repoName, key, path, contents) {
     try {
 
       // let pathGet = `https://api.github.com/repos/iwiedenm/ultimate-jekyll/git/trees/template:${encodeURIComponent(path_noExt)}`;
-      let branch = (repoName == 'ultimate-jekyll') ? 'template' : 'master';
+      let branch = (repoName === 'ultimate-jekyll') ? 'template' : 'master';
 
       let pathGet = `https://api.github.com/repos/${repoUser}/${repoName}/git/trees/${branch}:${encodeURIComponent(pathApi.dirname(path))}`;
       await makeRequest({
@@ -119,7 +120,7 @@ async function createFile(user, repoUser, repoName, key, path, contents) {
         // sha = resp.sha;
         sha = resp.tree.find(function (element) {
           // console.log('checiing', element.path, fileParsed.base);
-          return element.path == fileParsed.base;
+          return element.path === fileParsed.base;
         });
         sha = sha.sha;
       });

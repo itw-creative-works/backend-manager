@@ -49,6 +49,7 @@ let MOCHA_PKG_SCRIPT = 'mocha ../test/ --recursive --timeout=10000';
 let NPM_CLEAN_SCRIPT = 'rm -fr node_modules && rm -fr package-lock.json && npm cache clean --force && npm install && npm rb';
 let NOFIX_TEXT = chalk.red(`There is no automatic fix for this check.`);
 let runtimeconfigTemplate = JSON.parse((fs.read(path.resolve(`${__dirname}/../../templates/runtimeconfig.json`))) || '{}');
+let bemConfigTemplate = JSON.parse((fs.read(path.resolve(`${__dirname}/../../templates/backend-manager-config.json`))) || '{}');
 
 
 
@@ -338,6 +339,22 @@ Main.prototype.setup = async function () {
 
   }, fix_runtimeConfig);
 
+  await this.test('using proper backend-manager-config.json', async function () {
+    let bemConfig = JSON.parse(fs.read(`${self.firebaseProjectPath}/functions/backend-manager-config.json`) || '{}');
+    let ogPaths = getObjectPaths(bemConfigTemplate).split('\n');
+    let pass = true;
+    for (var i = 0, l = ogPaths.length; i < l; i++) {
+      let item = ogPaths[i];
+      if (!item) {continue}
+      pass = (_.get(bemConfig, item, undefined));
+      if (typeof pass === 'undefined') {
+        break;
+      }
+    }
+    return !!pass;
+
+  }, fix_bemConfig);
+
   await this.test('using node 12', function () {
     return self.package.engines.node.toString() === '12';
   }, fix_nodeVersion);
@@ -510,6 +527,31 @@ async function fix_runtimeConfig(self) {
     log(chalk.red(`You need to run ${chalk.bold(`bm config:set`)} for each of these keys:`));
     let objectKeys = getObjectPaths(runtimeconfigTemplate).split('\n');
     let theirConfig = JSON.parse(fs.read(`${self.firebaseProjectPath}/functions/.runtimeconfig.json`) || '{}');
+    for (var i = 0, l = objectKeys.length; i < l; i++) {
+      let item = objectKeys[i];
+      if (!item) {return}
+      let has = _.get(theirConfig, item, '');
+      if (has) {
+        log(chalk.red(`${item} (${has})`));
+      } else {
+        log(chalk.red.bold(`${item}`));
+      }
+    }
+    // console.log('objectKeys', objectKeys);
+    // log(chalk.red(`You need to run ${chalk.bold(`bm config:set`)} for each of these keys: \n${getObjectPaths(runtimeconfigTemplate)}`));
+    reject();
+  });
+};
+
+async function fix_bemConfig(self) {
+  return new Promise(function(resolve, reject) {
+    log(NOFIX_TEXT);
+    log(chalk.red(`You need to open backend-manager-config.json and set each of these keys:`));
+    let objectKeys = getObjectPaths(bemConfigTemplate).split('\n');
+    let theirConfig = JSON.parse(fs.read(`${self.firebaseProjectPath}/functions/backend-manager-config.json`) || '{}');
+    if (Object.keys(theirConfig).length < 1) {
+      fs.write(`${self.firebaseProjectPath}/functions/backend-manager-config.json`, bemConfigTemplate)
+    }
     for (var i = 0, l = objectKeys.length; i < l; i++) {
       let item = objectKeys[i];
       if (!item) {return}
