@@ -4,7 +4,7 @@ let os;
 // let JSON5;
 const fetch = require('node-fetch');
 const Mailchimp = require('mailchimp-api-v3');
-const { get } = require('lodash');
+const { get, merge } = require('lodash');
 
 let Module = {
   init: async function (Manager, data) {
@@ -52,6 +52,37 @@ let Module = {
         assistant.error(response.error, {environment: 'production'})
       } else {
         mailchimp = new Mailchimp(get(self.Manager.config, 'mailchimp.key', ''));
+        await fetch(`https://us-central1-${self.Manager.project.projectId}.cloudfunctions.net/bm_sendNotification`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(merge({}, {
+              payload: {
+                title: 'New blog post!',
+                click_action: assistant.request.data.url,
+                body: `"${assistant.request.data.title}" was just published on our blog. It's a great read and we think you'll enjoy the content!`,
+                icon: assistant.request.data.imageUrl,
+              }
+            },
+            assistant.request.data
+          )),
+        })
+        .then(res => {
+          if (res.status >= 200 && res.status < 300) {
+            res.json()
+            .then(function (data) {
+              assistant.log('Push notification response', data)
+            })
+          } else {
+            return res.text()
+            .then(function (data) {
+              throw new Error(data || res.statusTest || 'Unknown error.')
+            })
+          }
+        })
+        .catch(e => {
+          assistant.error('Failed to send push notification', e);
+        })
+        return res.send('DONE');
         await mailchimp.post(`/campaigns`, {
           "type": "regular",
         	"recipients": {
