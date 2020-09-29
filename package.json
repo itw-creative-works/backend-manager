@@ -27,7 +27,7 @@
   },
   "homepage": "https://itwcreativeworks.com",
   "dependencies": {
-    "@firebase/rules-unit-testing": "^1.0.3",
+    "@firebase/rules-unit-testing": "^1.0.4",
     "@sentry/node": "^5.24.2",
     "backend-assistant": "0.0.28",
     "chalk": "^4.1.0",
