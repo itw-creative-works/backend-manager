@@ -31,9 +31,10 @@ function Analytics(Manager, options) {
   if (request.ip) {
     self.user.set('uip', request.ip);
   }
-  if (request.country) {
-    self.user.set('geoid', request.country);
-  }
+  // Disabled this 10/8/2020 because uip provides more accurate locationing
+  // if (request.country) {
+  //   self.user.set('geoid', request.country);
+  // }
   if (request.userAgent) {
     self.user.set('ua', request.userAgent);
   }
