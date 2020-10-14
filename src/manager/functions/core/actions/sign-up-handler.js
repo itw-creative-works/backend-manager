@@ -18,14 +18,14 @@ let Module = {
     let req = self.req;
     let res = self.res;
 
+    let response = {
+      status: 200,
+      data: {},
+    };
+
+    let user = await assistant.authenticate();
+
     return libraries.cors(req, res, async () => {
-      let response = {
-        status: 200,
-        data: {},
-      };
-
-      let user = await assistant.authenticate();
-
       if (!user.authenticated) {
         response.status = 401;
         response.error = new Error('Account does not exist in Auth.');

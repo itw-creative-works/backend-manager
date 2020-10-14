@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -27,8 +27,8 @@
   },
   "homepage": "https://itwcreativeworks.com",
   "dependencies": {
-    "@firebase/rules-unit-testing": "^1.0.6",
-    "@sentry/node": "^5.25.0",
+    "@firebase/rules-unit-testing": "^1.0.7",
+    "@sentry/node": "^5.26.0",
     "backend-assistant": "0.0.28",
     "chalk": "^4.1.0",
     "cors": "^2.8.5",

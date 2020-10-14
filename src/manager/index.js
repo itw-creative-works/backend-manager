@@ -202,6 +202,21 @@ Manager.prototype.init = function (exporter, options) {
     });
   });
 
+  exporter.bm_generateUuid =
+  self.libraries.functions
+  .runWith({memory: '256MB', timeoutSeconds: 60})
+  .https.onRequest(async (req, res) => {
+    const Module = require(`${core}/actions/generate-uuid.js`);
+    Module.init(self, { req: req, res: res, });
+
+    return self._preProcess(Module)
+    .then(r => Module.main())
+    .catch(e => {
+      self.assistant.error(e);
+      return res.status(500).send(e.message);
+    });
+  });
+
 
   // Events
   exporter.bm_authOnCreate =
