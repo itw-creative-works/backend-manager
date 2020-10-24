@@ -31,17 +31,17 @@ function Analytics(Manager, options) {
     self.user.set('uid', self.uuid);
   }
   if (request.ip) {
-    self.user.set('uip', request.ip);
+    self.user.set('uip', encodeURIComponent(request.ip));
   }
   // Disabled this 10/8/2020 because uip provides more accurate locationing
   // if (request.country) {
   //   self.user.set('geoid', request.country);
   // }
   if (request.userAgent) {
-    self.user.set('ua', request.userAgent);
+    self.user.set('ua', encodeURIComponent(request.userAgent));
   }
   if (request.referrer) {
-    self.user.set('dr', request.referrer);
+    self.user.set('dr', encodeURIComponent(request.referrer));
   }
 
   if (self.pageview) {
