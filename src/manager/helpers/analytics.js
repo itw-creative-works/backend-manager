@@ -12,6 +12,8 @@ function Analytics(Manager, options) {
   options = options || {};
   self.uuid = options.uuid || request.ip || self.Manager.SERVER_UUID;
   self.uuid = self.uuid.match(uuidRegex) ? self.uuid : self.generateId(self.uuid);
+  self.debug = typeof options.debug === 'undefined' ? (self.Manager.assistant.meta.environment === 'development') : options.debug;
+  self.pageview = typeof options.pageview === 'undefined' ? true : options.pageview;
   self.initialized = false;
 
   if (!analyticsId) {
@@ -42,6 +44,15 @@ function Analytics(Manager, options) {
     self.user.set('dr', request.referrer);
   }
 
+  if (self.pageview) {
+    self.user.pageview({
+      dp: request.name,
+      // dl: 'https://test.com',
+      dh: request.name,
+      dt: request.name,
+    }).send();
+  }
+
   self.version = self.Manager.package.version;
 
   self.initialized = true;
@@ -62,7 +73,7 @@ Analytics.prototype.event = function (options) {
 
   if (!self.initialized) {
     return this;
-  } else if (self.Manager.assistant.meta.environment === 'development') {
+  } else if (self.debug) {
     console.log('Skipping Analytics.event() because in development', self.uuid, options);
     return this;
   }

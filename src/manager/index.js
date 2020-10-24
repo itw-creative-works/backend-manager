@@ -370,10 +370,12 @@ Manager.prototype.Assistant = function(ref, options) {
   }, {
     accept: options.accept,
   })
+  console.log('ass', ass);
   self._inner.ip = self._inner.ip || ass.request.ip;
   self._inner.country = self._inner.country || ass.request.country;
   self._inner.referrer = self._inner.referrer || ass.request.referrer;
   self._inner.userAgent = self._inner.userAgent || ass.request.userAgent;
+  self._inner.name = self._inner.name || ass.meta.name;
   return ass;
 };
 
