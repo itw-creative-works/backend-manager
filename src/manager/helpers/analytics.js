@@ -31,6 +31,7 @@ function Analytics(Manager, options) {
     self.user.set('uid', self.uuid);
   }
   if (request.ip) {
+    // self.user.set('uip', encodeURIComponent('103.113.3.242' || request.ip));
     self.user.set('uip', encodeURIComponent(request.ip));
   }
   // Disabled this 10/8/2020 because uip provides more accurate locationing
@@ -38,9 +39,11 @@ function Analytics(Manager, options) {
   //   self.user.set('geoid', request.country);
   // }
   if (request.userAgent) {
+    // self.user.set('ua', encodeURIComponent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.80 Safari/537.36' || request.userAgent));
     self.user.set('ua', encodeURIComponent(request.userAgent));
   }
   if (request.referrer) {
+    // self.user.set('dr', encodeURIComponent('https://test.com' || request.referrer));
     self.user.set('dr', encodeURIComponent(request.referrer));
   }
 
