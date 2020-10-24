@@ -373,7 +373,7 @@ Manager.prototype.Assistant = function(ref, options) {
   self._inner.ip = !self._inner.ip || self._inner.ip === '127.0.0.1' ? ass.request.ip : self._inner.ip;
   self._inner.country = self._inner.country || ass.request.country;
   self._inner.referrer = self._inner.referrer || ass.request.referrer;
-  self._inner.userAgent = self._inner.userAgent || ass.request.userAgent;
+  self._inner.userAgent = !self._inner.userAgent || self._inner.userAgent === 'empty' ? ass.request.userAgent : self._inner.userAgent;
   self._inner.name = self._inner.name || ass.meta.name;
   // if (ref.req) {
   //   console.log('ref.req.headers', ref.req.headers);
