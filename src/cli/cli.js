@@ -16,7 +16,7 @@ const semver = require('semver');
 let inquirer = require('inquirer');
 const { spawn } = require('child_process');
 let argv = require('yargs').argv;
-// const JSON5 = require('json5');
+const JSON5 = require('json5');
 
 // function parseArgumentsIntoOptions(rawArgs) {
 //   const args = arg(
@@ -50,8 +50,7 @@ let NPM_CLEAN_SCRIPT = 'rm -fr node_modules && rm -fr package-lock.json && npm c
 let NOFIX_TEXT = chalk.red(`There is no automatic fix for this check.`);
 let runtimeconfigTemplate = JSON.parse((fs.read(path.resolve(`${__dirname}/../../templates/runtimeconfig.json`))) || '{}');
 let bemConfigTemplate = JSON.parse((fs.read(path.resolve(`${__dirname}/../../templates/backend-manager-config.json`))) || '{}');
-
-
+let CLI_CONFIG = JSON5.parse((fs.read(path.resolve(`${__dirname}/config.json`))) || '{}');
 
 function Main() {
 }
@@ -245,8 +244,21 @@ Main.prototype.setup = async function () {
   }, fix_isFirebase);
 
   await this.test('.nvmrc file has poper version', async function () {
-    return !!self.package.dependencies && !!self.package.devDependencies;
+    // return !!self.package.dependencies && !!self.package.devDependencies;
+    // let gitignore = fs.read(path.resolve(`${__dirname}/../../templates/gitignore.md`));
+    let nvmrc = fs.read(`${self.firebaseProjectPath}/functions/.nvmrc`) || '';
+    return nvmrc === `v${CLI_CONFIG.node}/*`
+
   }, fix_nvmrc);
+
+  await this.test(`using node ${CLI_CONFIG.node}`, function () {
+    let processMajor = parseInt(process.versions.node.split('.')[0]);
+    let engineMajor = parseInt(self.package.engines.node.split('.')[0]);
+    if (processMajor < engineMajor) {
+      throw new Error(`Please use Node.js version ${CLI_CONFIG.node} with this project. You can run: nvm use`)
+    }
+    return self.package.engines.node.toString() === CLI_CONFIG.node && processMajor >= engineMajor;
+  }, fix_nodeVersion);
 
   await this.test('project level package.json exists', async function () {
     return !!(self.projectPackage && self.projectPackage.version && self.projectPackage.name);
@@ -358,10 +370,6 @@ Main.prototype.setup = async function () {
     return !!pass;
 
   }, fix_bemConfig);
-
-  await this.test('using node 12', function () {
-    return self.package.engines.node.toString() === '12';
-  }, fix_nodeVersion);
 
   await this.test('has service-account.json', function () {
     let exists = fs.exists(`${self.firebaseProjectPath}/functions/service-account.json`);
@@ -593,6 +601,14 @@ function fix_nodeVersion(self) {
     _.set(self.package, 'engines.node', '12')
 
     fs.write(`${self.firebaseProjectPath}/functions/package.json`, JSON.stringify(self.package, null, 2) );
+    resolve();
+  });
+};
+
+function fix_nvmrc(self) {
+  return new Promise(function(resolve, reject) {
+
+    fs.write(`${self.firebaseProjectPath}/functions/.nvmrc`, `v${CLI_CONFIG.node}/*`);
     resolve();
   });
 };
