@@ -244,6 +244,10 @@ Main.prototype.setup = async function () {
     return exists;
   }, fix_isFirebase);
 
+  await this.test('.nvmrc file has poper version', async function () {
+    return !!self.package.dependencies && !!self.package.devDependencies;
+  }, fix_nvmrc);
+
   await this.test('project level package.json exists', async function () {
     return !!(self.projectPackage && self.projectPackage.version && self.projectPackage.name);
   }, fix_projpackage);

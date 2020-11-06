@@ -6,14 +6,19 @@ let uuidv5;
 function Analytics(Manager, options) {
   let self = this;
   self.Manager = Manager;
+
   const analyticsId = get(self.Manager, 'config.google_analytics.id', undefined);
   const request = self.Manager._inner || {};
 
+  // Fix optios
   options = options || {};
+
+  // Set properties
   self.uuid = options.uuid || request.ip || self.Manager.SERVER_UUID;
   self.uuid = self.uuid.match(uuidRegex) ? self.uuid : self.generateId(self.uuid);
   self.debug = typeof options.debug === 'undefined' ? (self.Manager.assistant.meta.environment === 'development') : options.debug;
   self.pageview = typeof options.pageview === 'undefined' ? true : options.pageview;
+  self.version = self.Manager.package.version;
   self.initialized = false;
 
   if (!analyticsId) {
@@ -33,16 +38,14 @@ function Analytics(Manager, options) {
   if (request.ip) {
     self.user.set('uip', encodeURIComponent(request.ip));
   }
-  // Disabled this 10/8/2020 because uip provides more accurate locationing
-  // if (request.country) {
-  //   self.user.set('geoid', request.country);
-  // }
   if (request.userAgent) {
     self.user.set('ua', encodeURIComponent(request.userAgent));
   }
   if (request.referrer) {
     self.user.set('dr', encodeURIComponent(request.referrer));
   }
+
+  self.initialized = true;
 
   if (self.pageview) {
     self.user.pageview({
@@ -53,9 +56,6 @@ function Analytics(Manager, options) {
     }).send();
   }
 
-  self.version = self.Manager.package.version;
-
-  self.initialized = true;
   return self;
 }
 
