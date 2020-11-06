@@ -254,8 +254,9 @@ Main.prototype.setup = async function () {
   await this.test(`using node ${CLI_CONFIG.node}`, function () {
     let processMajor = parseInt(process.versions.node.split('.')[0]);
     let engineMajor = parseInt(self.package.engines.node.split('.')[0]);
+    return new Error(`Please use Node.js version ${CLI_CONFIG.node} with this project. You can run: nvm use`)
     if (processMajor < engineMajor) {
-      throw new Error(`Please use Node.js version ${CLI_CONFIG.node} with this project. You can run: nvm use`)
+      return new Error(`Please use Node.js version ${CLI_CONFIG.node} with this project. You can run: nvm use`)
     }
     return self.package.engines.node.toString() === CLI_CONFIG.node && processMajor >= engineMajor;
   }, fix_nodeVersion);
@@ -493,7 +494,10 @@ Main.prototype.test = async function(name, fn, fix, args) {
   let status;
   let passed = await fn();
   return new Promise(async function(resolve, reject) {
-    if (passed) {
+    if (passed instanceof Error) {
+      log(chalk.red(passed));
+      process.exit(0);
+    } else if (passed) {
       status = chalk.green('passed');
       self.testCount++;
       self.testTotal++;

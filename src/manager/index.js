@@ -362,7 +362,7 @@ Manager.prototype.Assistant = function(ref, options) {
   let self = this;
   ref = ref || {};
   options = options || {};
-  let ass = (new self.libraries.Assistant()).init({
+  return (new self.libraries.Assistant()).init({
     req: ref.req,
     res: ref.res,
     admin: self.libraries.admin,
@@ -379,8 +379,6 @@ Manager.prototype.Assistant = function(ref, options) {
   //   console.log('ref.req.headers', ref.req.headers);
   // }
   // console.log('self._inner', self._inner);
-
-  return ass;
 };
 
 Manager.prototype.User = function (options) {

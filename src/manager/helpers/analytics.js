@@ -14,7 +14,7 @@ function Analytics(Manager, options) {
   options = options || {};
 
   // Set properties
-  self._assistant = options.assistant || {};
+  self._assistant = options.assistant || Manager.Assistant();
   self._request = {
     ip: get(assistant, 'request.ip', '127.0.0.1'),
     country: get(assistant, 'request.country', ''),
