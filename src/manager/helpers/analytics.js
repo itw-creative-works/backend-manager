@@ -6,54 +6,54 @@ let uuidv5;
 function Analytics(Manager, options) {
   let self = this;
   self.Manager = Manager;
+  self._request = self.Manager._inner || {};
 
   const analyticsId = get(self.Manager, 'config.google_analytics.id', undefined);
-  const request = self.Manager._inner || {};
 
   // Fix optios
   options = options || {};
 
   // Set properties
-  self.uuid = options.uuid || request.ip || self.Manager.SERVER_UUID;
-  self.uuid = self.uuid.match(uuidRegex) ? self.uuid : self.generateId(self.uuid);
-  self.debug = typeof options.debug === 'undefined' ? (self.Manager.assistant.meta.environment === 'development') : options.debug;
-  self.pageview = typeof options.pageview === 'undefined' ? true : options.pageview;
-  self.version = self.Manager.package.version;
-  self.initialized = false;
+  self._uuid = options.uuid || self._request.ip || self.Manager.SERVER_UUID;
+  self._uuid = self._uuid.match(uuidRegex) ? self._uuid : self.generateId(self._uuid);
+  self._debug = typeof options.debug === 'undefined' ? (self.Manager.assistant.meta.environment === 'development') : options.debug;
+  self._pageview = typeof options.pageview === 'undefined' ? true : options.pageview;
+  self._version = self.Manager.package.version;
+  self._initialized = false;
 
   if (!analyticsId) {
     console.log('Not initializing because missing analyticsId', analyticsId);
     return self;
   }
 
-  self.user = ua(analyticsId, self.uuid, {
+  self.user = ua(analyticsId, self._uuid, {
     strictCidFormat: false, // https://analytics.google.com/analytics/web/#/report-home/a104885300w228822596p215709578
   });
   self.user.set('ds', 'app');
 
   // https://developers.google.com/analytics/devguides/collection/protocol/v1/parameters#sc
-  if (self.uuid) {
-    self.user.set('uid', self.uuid);
+  if (self._uuid) {
+    self.user.set('uid', self._uuid);
   }
-  if (request.ip) {
-    self.user.set('uip', encodeURIComponent(request.ip));
+  if (self._request.ip) {
+    self.user.set('uip', encodeURIComponent(self._request.ip));
   }
-  if (request.userAgent) {
-    self.user.set('ua', encodeURIComponent(request.userAgent));
+  if (self._request.userAgent) {
+    self.user.set('ua', encodeURIComponent(self._request.userAgent));
   }
-  if (request.referrer) {
-    self.user.set('dr', encodeURIComponent(request.referrer));
+  if (self._request.referrer) {
+    self.user.set('dr', encodeURIComponent(self._request.referrer));
   }
 
-  self.initialized = true;
+  self._initialized = true;
 
-  if (self.pageview) {
-    self.user.pageview({
-      dp: request.name,
-      // dl: 'https://test.com',
-      dh: request.name,
-      dt: request.name,
-    }).send();
+  if (self._pageview) {
+    self.pageview({
+      path: self._request.name,
+      location: self._request.name,
+      host: self._request.name,
+      title: self._request.name,
+    })
   }
 
   return self;
@@ -67,14 +67,43 @@ Analytics.prototype.generateId = function (id) {
   return id && namespace ? uuidv5(id, namespace) : undefined;
 };
 
+Analytics.prototype.pageview = function (options) {
+  let self = this;
+  options = options || {};
+  options.path = options.path || self._request.name;
+  options.location = options.location || self._request.name;
+  options.host = options.host || self._request.name;
+  options.title = options.title || self._request.name;
+
+  if (!self._initialized) {
+    return self;
+  } else if (self._debug) {
+    console.log('Skipping Analytics.pageview() because in development', self._uuid, options);
+  }
+
+  self.user.pageview({
+    dp: options.path,
+    dl: options.location,
+    dh: options.host,
+    dt: options.title,
+  }).send();
+
+  return self;
+};
+
 Analytics.prototype.event = function (options) {
   let self = this;
   options = options || {};
+  options.category = options.category;
+  options.action = options.action;
+  options.label = options.label;
+  options.value = options.value;
+  options.path = options.path || self._request.name;
 
-  if (!self.initialized) {
+  if (!self._initialized) {
     return this;
-  } else if (self.debug) {
-    console.log('Skipping Analytics.event() because in development', self.uuid, options);
+  } else if (self._debug) {
+    console.log('Skipping Analytics.event() because in development', self._uuid, options);
     return this;
   }
 
