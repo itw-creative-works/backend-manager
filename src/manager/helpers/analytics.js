@@ -3,6 +3,10 @@ const get = require('lodash/get');
 const uuidRegex = /[0-9a-fA-F]{8}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{4}\-[0-9a-fA-F]{12}/;
 let uuidv5;
 
+const BLACKLISTED_USER_AGENTS = new RegExp([
+  /(node-fetch)/,
+].map(r => r.source).join(''));
+
 function Analytics(Manager, options) {
   let self = this;
   self.Manager = Manager;
@@ -22,6 +26,8 @@ function Analytics(Manager, options) {
     userAgent: get(self._assistant, 'request.userAgent', ''),
     name: get(self._assistant, 'meta.name', ''),
   }
+
+  self._request.userAgent = self._request.userAgent.match(BLACKLISTED_USER_AGENTS) ? '' : self._request.userAgent;
 
   self._uuid = options.uuid || self._request.ip || self.Manager.SERVER_UUID;
   self._uuid = self._uuid.match(uuidRegex) ? self._uuid : self.generateId(self._uuid);
