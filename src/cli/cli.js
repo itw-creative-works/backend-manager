@@ -243,7 +243,7 @@ Main.prototype.setup = async function () {
     return exists;
   }, fix_isFirebase);
 
-  await this.test('.nvmrc file has poper version', async function () {
+  await this.test('.nvmrc file has proper version', async function () {
     // return !!self.package.dependencies && !!self.package.devDependencies;
     // let gitignore = fs.read(path.resolve(`${__dirname}/../../templates/gitignore.md`));
     let nvmrc = fs.read(`${self.firebaseProjectPath}/functions/.nvmrc`) || '';
