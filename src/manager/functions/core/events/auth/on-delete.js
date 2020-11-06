@@ -14,6 +14,7 @@ let Module = {
     let user = self.user;
 
     let analytics = self.Manager.Analytics({
+      assistant: assistant,
       uuid: user.uid,
     })
     .event({

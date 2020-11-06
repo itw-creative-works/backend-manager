@@ -27,6 +27,7 @@ let Module = {
         })
         .then(r => {
           analytics = self.Manager.Analytics({
+            assistant: assistant,
             uuid: _.get(change.before.data, 'link.user.data.uid', undefined),
           })
           .event({
@@ -50,6 +51,7 @@ let Module = {
         })
         .then(r => {
           analytics = self.Manager.Analytics({
+            assistant: assistant,
             uuid: _.get(change.after.data, 'link.user.data.uid', undefined),
           })
           .event({

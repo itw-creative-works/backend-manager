@@ -26,6 +26,7 @@ let Module = {
 
     // Analytics
     let analytics = self.Manager.Analytics({
+      assistant: assistant,
       uuid: user.auth.uid,
     })
     .event({

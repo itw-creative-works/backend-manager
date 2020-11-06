@@ -21,6 +21,7 @@ let Module = {
     });
 
     let analytics = self.Manager.Analytics({
+      assistant: assistant,
       uuid: user.uid,
     })
     .event({
