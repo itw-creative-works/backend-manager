@@ -6,7 +6,7 @@ let uuidv5;
 function Analytics(Manager, options) {
   let self = this;
   self.Manager = Manager;
-  self._request = self.Manager._inner || {};
+  // self._request = self.Manager._inner || {};
 
   const analyticsId = get(self.Manager, 'config.google_analytics.id', undefined);
 
@@ -14,6 +14,15 @@ function Analytics(Manager, options) {
   options = options || {};
 
   // Set properties
+  self._assistant = options.assistant || {};
+  self._request = {
+    ip: get(assistant, 'request.ip', '127.0.0.1'),
+    country: get(assistant, 'request.country', ''),
+    referrer: get(assistant, 'request.referrer', ''),
+    userAgent: get(assistant, 'request.userAgent', ''),
+    name: get(assistant, 'meta.name', ''),
+  }
+
   self._uuid = options.uuid || self._request.ip || self.Manager.SERVER_UUID;
   self._uuid = self._uuid.match(uuidRegex) ? self._uuid : self.generateId(self._uuid);
   self._debug = typeof options.debug === 'undefined' ? (self.Manager.assistant.meta.environment === 'development') : options.debug;
