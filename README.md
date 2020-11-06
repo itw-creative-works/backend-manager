@@ -49,26 +49,26 @@ const { functions, admin, cors, Assistant } = Manager.libraries;
 
 Next, run the setup command to allow `backend-manager` to configure your Firebase project with best practices and help keep your dependencies up to date!
 ```shell
-bm setup
+npx bm setup
 ```
 
 Your project will not be checked for errors and any tips and fixes will be provided to you!
 
 ## Example CLI Usage
 Note: you may have to run cli commands with `npx bm <command>` if you install this package locally.
-  * `bm v`: Check version of backend-manager.
-  * `bm setup`: Runs some checks and sets up your Firebase project.
+  * `npx bm v`: Check version of backend-manager.
+  * `npx bm setup`: Runs some checks and sets up your Firebase project.
 
-  * `bm config:get`: Save Firebase config to your project.
-  * `bm config:set`: Start an interface for setting a config value. You'll be prompted for the `path` and `value`.
-  * `bm config:delete`: Start an interface for deleting a config value. You'll be prompted for the `path`.
-  * `bm serve <port>`: Serve your Firebase project, defaults to port 5000.
-  * `bm test`: Run Firebase test `.js` files in the `./test` directory.
-  * `bm i local`: Install local copies of this important module: `backend-manager`.
-  * `bm i production`: Install production copies of this important module: `backend-manager`.
-  * `bm deploy`: Deploy the functions of your Firebase project.
+  * `npx bm config:get`: Save Firebase config to your project.
+  * `npx bm config:set`: Start an interface for setting a config value. You'll be prompted for the `path` and `value`.
+  * `npx bm config:delete`: Start an interface for deleting a config value. You'll be prompted for the `path`.
+  * `npx bm serve <port>`: Serve your Firebase project, defaults to port 5000.
+  * `npx bm test`: Run Firebase test `.js` files in the `./test` directory.
+  * `npx bm i local`: Install local copies of this important module: `backend-manager`.
+  * `npx bm i production`: Install production copies of this important module: `backend-manager`.
+  * `npx bm deploy`: Deploy the functions of your Firebase project.
 
-  * `bm clean:npm`: Delete, clean, and reinstall npm modules.
+  * `npx bm clean:npm`: Delete, clean, and reinstall npm modules.
 
 
 ## Final Words
