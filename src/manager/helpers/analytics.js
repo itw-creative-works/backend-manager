@@ -16,11 +16,11 @@ function Analytics(Manager, options) {
   // Set properties
   self._assistant = options.assistant || Manager.Assistant();
   self._request = {
-    ip: get(assistant, 'request.ip', '127.0.0.1'),
-    country: get(assistant, 'request.country', ''),
-    referrer: get(assistant, 'request.referrer', ''),
-    userAgent: get(assistant, 'request.userAgent', ''),
-    name: get(assistant, 'meta.name', ''),
+    ip: get(self._assistant, 'request.ip', '127.0.0.1'),
+    country: get(self._assistant, 'request.country', ''),
+    referrer: get(self._assistant, 'request.referrer', ''),
+    userAgent: get(self._assistant, 'request.userAgent', ''),
+    name: get(self._assistant, 'meta.name', ''),
   }
 
   self._uuid = options.uuid || self._request.ip || self.Manager.SERVER_UUID;
