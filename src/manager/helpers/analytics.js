@@ -94,6 +94,7 @@ Analytics.prototype.pageview = function (options) {
     return self;
   } else if (self._debug) {
     console.log('Skipping Analytics.pageview() because in development', self._uuid, options);
+    return self;
   }
 
   self.user.pageview({
@@ -116,10 +117,10 @@ Analytics.prototype.event = function (options) {
   options.path = options.path || self._request.name;
 
   if (!self._initialized) {
-    return this;
+    return self;
   } else if (self._debug) {
     console.log('Skipping Analytics.event() because in development', self._uuid, options);
-    return this;
+    return self;
   }
 
   self.user.event({

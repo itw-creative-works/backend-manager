@@ -2,6 +2,8 @@ const _ = require('lodash');
 const uuid4 = require('uuid').v4;
 const shortid = require('shortid');
 const powertools = require('node-powertools');
+const UIDGenerator = require('uid-generator');
+const uidgen = new UIDGenerator(256);
 
 function User(options) {
   let self = this;
@@ -13,8 +15,9 @@ function User(options) {
 
   self.properties = {
     auth: {
-      uid: _.get(options, 'auth.uid', undefined),
-      email: _.get(options, 'auth.email', undefined),
+      uid: _.get(options, 'auth.uid', null),
+      email: _.get(options, 'auth.email', null),
+      temporary: _.get(options, 'auth.temporary', false),
     },
     roles: {
       admin: _.get(options, 'roles.admin', false),
@@ -58,7 +61,8 @@ function User(options) {
       },
     },
     api: {
-      privateKey: _.get(options, 'api.privateKey', `api_${uuid4()}`),
+      clientId: _.get(options, 'api.clientId', `${uuid4()}`),
+      privateKey: _.get(options, 'api.privateKey', `${uidgen.generateSync()}`),
     },
   }
 
