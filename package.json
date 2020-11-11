@@ -28,7 +28,7 @@
   "homepage": "https://itwcreativeworks.com",
   "dependencies": {
     "@firebase/rules-unit-testing": "^1.1.0",
-    "@google-cloud/storage": "^5.4.0",
+    "@google-cloud/storage": "^5.5.0",
     "@sentry/node": "^5.27.3",
     "backend-assistant": "0.0.30",
     "busboy": "^0.3.1",
