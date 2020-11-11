@@ -4,6 +4,7 @@
     "url": "https://example.com",
     "email": "support@example.com",
     "wordmark": "https://example.com/wordmark.png",
+    "brandmark": "https://example.com/wordmark.png",
     "combomark": "https://example.com/combomark.png"
   },
   "mailchimp": {
