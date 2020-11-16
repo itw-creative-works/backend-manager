@@ -1,6 +1,8 @@
 // Libraries
+require('firebase-functions/lib/logger/compat');
 const path = require('path');
 const merge = require('lodash/merge');
+// const { debug, log, error, warn } = require('firebase-functions/lib/logger');
 // let User;
 // let Analytics;
 
