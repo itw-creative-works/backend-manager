@@ -26,6 +26,7 @@ function User(options) {
     },
     plan: {
       id: _.get(options, 'plan.id', 'basic'), // intro | basic | advanced | premium
+      devices: _.get(options, 'plan.devices', 1),
       expires: {
         timestamp: oldDate,
         timestampUNIX: oldDateUNIX,
@@ -37,7 +38,7 @@ function User(options) {
       //   }
       // },
       payment: {
-        method: null, // paypal | stripe | chargebee, etc
+        processor: _.get(options, 'plan.payment.processor', null), // paypal | stripe | chargebee, etc
         // data: {
         //   // Data from payment processor like
         // }
