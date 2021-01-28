@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -28,8 +28,8 @@
   "homepage": "https://itwcreativeworks.com",
   "dependencies": {
     "@firebase/rules-unit-testing": "^1.1.9",
-    "@google-cloud/storage": "^5.7.2",
-    "@sentry/node": "^6.0.1",
+    "@google-cloud/storage": "^5.7.3",
+    "@sentry/node": "^6.0.2",
     "backend-assistant": "0.0.33",
     "busboy": "^0.3.1",
     "chalk": "^4.1.0",

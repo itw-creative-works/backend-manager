@@ -1,5 +1,4 @@
 // Libraries
-require('firebase-functions/lib/logger/compat');
 const path = require('path');
 const merge = require('lodash/merge');
 // const { debug, log, error, warn } = require('firebase-functions/lib/logger');
@@ -60,6 +59,11 @@ Manager.prototype.init = function (exporter, options) {
   );
 
   self.assistant = self.Assistant().init();
+
+  // Use the working Firebase logger that they disabled for whatever reason
+  if (self.assistant.meta.environment !== 'development') {
+    require('firebase-functions/lib/logger/compat');
+  }
 
   // Setup options features
   if (self.options.initialize) {
