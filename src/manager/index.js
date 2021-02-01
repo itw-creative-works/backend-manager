@@ -148,6 +148,21 @@ Manager.prototype.init = function (exporter, options) {
     });
   });
 
+  exporter.bm_firestoreWrite =
+  self.libraries.functions
+  .runWith({memory: '256MB', timeoutSeconds: 60})
+  .https.onRequest(async (req, res) => {
+    const Module = require(`${core}/admin/firestore-write.js`);
+    Module.init(self, { req: req, res: res, });
+
+    return self._preProcess(Module)
+    .then(r => Module.main())
+    .catch(e => {
+      self.assistant.error(e);
+      return res.status(500).send(e.message);
+    });
+  });
+
   exporter.bm_getStats =
   self.libraries.functions
   .runWith({memory: '256MB', timeoutSeconds: 420})
