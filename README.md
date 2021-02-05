@@ -52,7 +52,7 @@ Next, run the setup command to allow `backend-manager` to configure your Firebas
 npx bm setup
 ```
 
-Your project will not be checked for errors and any tips and fixes will be provided to you!
+Your project will be checked for errors and any tips and fixes will be provided to you!
 
 ## Example CLI Usage
 Note: you may have to run cli commands with `npx bm <command>` if you install this package locally.

@@ -28,8 +28,8 @@ function User(settings, options) {
     plan: {
       id: _.get(settings, 'plan.id', 'basic'), // intro | basic | advanced | premium
       expires: {
-        timestamp: oldDate,
-        timestampUNIX: oldDateUNIX,
+        timestamp: _.get(settings, 'plan.expires.timestamp', oldDate),
+        timestampUNIX: _.get(settings, 'plan.expires.timestampUNIX', oldDateUNIX),
       },
       limits: {
         devices: _.get(settings, 'plan.limits.devices', 1),
