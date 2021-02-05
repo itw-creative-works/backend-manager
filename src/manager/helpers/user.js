@@ -5,8 +5,9 @@ const powertools = require('node-powertools');
 const UIDGenerator = require('uid-generator');
 const uidgen = new UIDGenerator(256);
 
-function User(options) {
+function User(settings, options) {
   let self = this;
+  settings = settings || {};
   options = options || {};
   let now = powertools.timestamp(new Date(), {output: 'string'});
   let nowUNIX = powertools.timestamp(now, {output: 'unix'});
@@ -15,59 +16,82 @@ function User(options) {
 
   self.properties = {
     auth: {
-      uid: _.get(options, 'auth.uid', null),
-      email: _.get(options, 'auth.email', null),
-      temporary: _.get(options, 'auth.temporary', false),
+      uid: _.get(settings, 'auth.uid', null),
+      email: _.get(settings, 'auth.email', null),
+      temporary: _.get(settings, 'auth.temporary', false),
     },
     roles: {
-      admin: _.get(options, 'roles.admin', false),
-      betaTester: _.get(options, 'roles.betaTester', false),
-      developer: _.get(options, 'roles.developer', false),
+      admin: _.get(settings, 'roles.admin', false),
+      betaTester: _.get(settings, 'roles.betaTester', false),
+      developer: _.get(settings, 'roles.developer', false),
     },
     plan: {
-      id: _.get(options, 'plan.id', 'basic'), // intro | basic | advanced | premium
-      devices: _.get(options, 'plan.devices', 1),
+      id: _.get(settings, 'plan.id', 'basic'), // intro | basic | advanced | premium
       expires: {
         timestamp: oldDate,
         timestampUNIX: oldDateUNIX,
       },
-      // enterprise: {
-      //   limits: {
-      //     // ...
-      //     // accounts: 0,
-      //   }
-      // },
+      limits: {
+        devices: _.get(settings, 'plan.limits.devices', 1),
+      },
       payment: {
-        processor: _.get(options, 'plan.payment.processor', null), // paypal | stripe | chargebee, etc
-        // data: {
-        //   // Data from payment processor like
-        // }
+        processor: _.get(settings, 'plan.payment.processor', null), // paypal | stripe | chargebee, etc
+        orderId: _.get(settings, 'plan.payment.orderId', null), // xxx-xxx-xxx
+        resourceId: _.get(settings, 'plan.payment.resourceId', null), // x-xxxxxx
+        startDate: {
+          timestamp: _.get(settings, 'plan.payment.data.timestamp', now), // x-xxxxxx
+          timestampUNIX: _.get(settings, 'plan.payment.data.timestampUNIX', nowUNIX), // x-xxxxxx
+        }
       }
     },
     affiliate: {
-      code: _.get(options, 'affiliate.code', shortid.generate()),
+      code: _.get(settings, 'affiliate.code', shortid.generate()),
       referrals: {
 
       },
-      referredBy: _.get(options, 'affiliate.referredBy', null),
+      referredBy: _.get(settings, 'affiliate.referredBy', null),
     },
     activity: {
       lastActivity: {
-        timestamp: _.get(options, 'activity.lastActivity.timestamp', now),
-        timestampUNIX: _.get(options, 'activity.lastActivity.timestampUNIX', nowUNIX),
+        timestamp: _.get(settings, 'activity.lastActivity.timestamp', now),
+        timestampUNIX: _.get(settings, 'activity.lastActivity.timestampUNIX', nowUNIX),
       },
       created: {
-        timestamp: _.get(options, 'activity.lastActivity.timestamp', now),
-        timestampUNIX: _.get(options, 'activity.lastActivity.timestampUNIX', nowUNIX),
+        timestamp: _.get(settings, 'activity.lastActivity.timestamp', now),
+        timestampUNIX: _.get(settings, 'activity.lastActivity.timestampUNIX', nowUNIX),
       },
     },
     api: {
-      clientId: _.get(options, 'api.clientId', `${uuid4()}`),
-      privateKey: _.get(options, 'api.privateKey', `${uidgen.generateSync()}`),
+      clientId: _.get(settings, 'api.clientId', `${uuid4()}`),
+      privateKey: _.get(settings, 'api.privateKey', `${uidgen.generateSync()}`),
     },
   }
 
+  if (options.prune) {
+    self.properties = pruneObject(obj);
+  }
+
   return self;
+}
+
+
+// https://stackoverflow.com/a/26202058/7305269
+function pruneObject(obj) {
+  return function prune(current) {
+    _.forOwn(current, function (value, key) {
+      if (_.isUndefined(value) || _.isNull(value) || _.isNaN(value) ||
+        (_.isObject(value) && _.isEmpty(prune(value)))) {
+
+        delete current[key];
+      }
+    });
+    // remove any leftover undefined values from the delete
+    // operation on an array
+    if (_.isArray(current)) _.pull(current, undefined);
+
+    return current;
+
+  }(_.cloneDeep(obj));  // Do not modify the original object, create a clone instead
 }
 
 module.exports = User;
