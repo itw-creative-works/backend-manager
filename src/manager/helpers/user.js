@@ -68,7 +68,7 @@ function User(settings, options) {
   }
 
   if (options.prune) {
-    self.properties = pruneObject(obj);
+    self.properties = pruneObject(self.properties);
   }
 
   return self;
