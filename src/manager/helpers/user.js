@@ -14,25 +14,27 @@ function User(settings, options) {
   let oldDate = powertools.timestamp(new Date('1999/01/01'), {output: 'string'})
   let oldDateUNIX = powertools.timestamp(oldDate, {output: 'unix'});
 
+  const useDefaults = typeof options.defaults === 'undefined' ? true : options.defaults;
+
   self.properties = {
     auth: {
       uid: _.get(settings, 'auth.uid', null),
       email: _.get(settings, 'auth.email', null),
-      temporary: _.get(settings, 'auth.temporary', false),
+      temporary: _.get(settings, 'auth.temporary', useDefaults ? false : null),
     },
     roles: {
-      admin: _.get(settings, 'roles.admin', false),
-      betaTester: _.get(settings, 'roles.betaTester', false),
-      developer: _.get(settings, 'roles.developer', false),
+      admin: _.get(settings, 'roles.admin', useDefaults ? false : null),
+      betaTester: _.get(settings, 'roles.betaTester', useDefaults ? false : null),
+      developer: _.get(settings, 'roles.developer', useDefaults ? false : null),
     },
     plan: {
-      id: _.get(settings, 'plan.id', 'basic'), // intro | basic | advanced | premium
+      id: _.get(settings, 'plan.id', useDefaults ? 'basic' : null), // intro | basic | advanced | premium
       expires: {
-        timestamp: _.get(settings, 'plan.expires.timestamp', oldDate),
-        timestampUNIX: _.get(settings, 'plan.expires.timestampUNIX', oldDateUNIX),
+        timestamp: _.get(settings, 'plan.expires.timestamp', useDefaults ? oldDate : null),
+        timestampUNIX: _.get(settings, 'plan.expires.timestampUNIX', useDefaults ? oldDateUNIX : null),
       },
       limits: {
-        devices: _.get(settings, 'plan.limits.devices', 1),
+        devices: _.get(settings, 'plan.limits.devices', useDefaults ? 1 : null),
       },
       payment: {
         processor: _.get(settings, 'plan.payment.processor', null), // paypal | stripe | chargebee, etc
@@ -40,31 +42,31 @@ function User(settings, options) {
         resourceId: _.get(settings, 'plan.payment.resourceId', null), // x-xxxxxx
         frequency: _.get(settings, 'plan.payment.frequency', null), // monthly || annually
         startDate: {
-          timestamp: _.get(settings, 'plan.payment.startDate.timestamp', now), // x-xxxxxx
-          timestampUNIX: _.get(settings, 'plan.payment.startDate.timestampUNIX', nowUNIX), // x-xxxxxx
+          timestamp: _.get(settings, 'plan.payment.startDate.timestamp', useDefaults ? now : null), // x-xxxxxx
+          timestampUNIX: _.get(settings, 'plan.payment.startDate.timestampUNIX', useDefaults ? nowUNIX : null), // x-xxxxxx
         }
       }
     },
     affiliate: {
-      code: _.get(settings, 'affiliate.code', shortid.generate()),
+      code: _.get(settings, 'affiliate.code', useDefaults ? shortid.generate() : null),
       referrals: {
 
       },
-      referredBy: _.get(settings, 'affiliate.referredBy', null),
+      referrer: _.get(settings, 'affiliate.referrer', null),
     },
     activity: {
       lastActivity: {
-        timestamp: _.get(settings, 'activity.lastActivity.timestamp', now),
-        timestampUNIX: _.get(settings, 'activity.lastActivity.timestampUNIX', nowUNIX),
+        timestamp: _.get(settings, 'activity.lastActivity.timestamp', useDefaults ? now : null),
+        timestampUNIX: _.get(settings, 'activity.lastActivity.timestampUNIX', useDefaults ? nowUNIX : null),
       },
       created: {
-        timestamp: _.get(settings, 'activity.lastActivity.timestamp', now),
-        timestampUNIX: _.get(settings, 'activity.lastActivity.timestampUNIX', nowUNIX),
+        timestamp: _.get(settings, 'activity.lastActivity.timestamp', useDefaults ? now : null),
+        timestampUNIX: _.get(settings, 'activity.lastActivity.timestampUNIX', useDefaults ? nowUNIX : null),
       },
     },
     api: {
-      clientId: _.get(settings, 'api.clientId', `${uuid4()}`),
-      privateKey: _.get(settings, 'api.privateKey', `${uidgen.generateSync()}`),
+      clientId: _.get(settings, 'api.clientId', useDefaults ? `${uuid4()}` : null),
+      privateKey: _.get(settings, 'api.privateKey', useDefaults ? `${uidgen.generateSync()}` : null),
     },
   }
 
