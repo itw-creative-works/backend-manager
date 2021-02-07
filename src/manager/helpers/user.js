@@ -38,6 +38,7 @@ function User(settings, options) {
         processor: _.get(settings, 'plan.payment.processor', null), // paypal | stripe | chargebee, etc
         orderId: _.get(settings, 'plan.payment.orderId', null), // xxx-xxx-xxx
         resourceId: _.get(settings, 'plan.payment.resourceId', null), // x-xxxxxx
+        frequency: _.get(settings, 'plan.payment.frequency', null), // monthly || annually
         startDate: {
           timestamp: _.get(settings, 'plan.payment.startDate.timestamp', now), // x-xxxxxx
           timestampUNIX: _.get(settings, 'plan.payment.startDate.timestampUNIX', nowUNIX), // x-xxxxxx
