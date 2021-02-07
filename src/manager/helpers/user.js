@@ -39,8 +39,8 @@ function User(settings, options) {
         orderId: _.get(settings, 'plan.payment.orderId', null), // xxx-xxx-xxx
         resourceId: _.get(settings, 'plan.payment.resourceId', null), // x-xxxxxx
         startDate: {
-          timestamp: _.get(settings, 'plan.payment.data.timestamp', now), // x-xxxxxx
-          timestampUNIX: _.get(settings, 'plan.payment.data.timestampUNIX', nowUNIX), // x-xxxxxx
+          timestamp: _.get(settings, 'plan.payment.startDate.timestamp', now), // x-xxxxxx
+          timestampUNIX: _.get(settings, 'plan.payment.startDate.timestampUNIX', nowUNIX), // x-xxxxxx
         }
       }
     },
