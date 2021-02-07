@@ -402,15 +402,15 @@ Manager.prototype.Assistant = function(ref, options) {
   // console.log('self._inner', self._inner);
 };
 
-Manager.prototype.User = function (options) {
+Manager.prototype.User = function () {
   this.libraries.User = this.libraries.User || require('./helpers/user.js');
-  return new this.libraries.User(options);
+  return new this.libraries.User(...arguments);
 };
 
-Manager.prototype.Analytics = function (options) {
+Manager.prototype.Analytics = function () {
   let self = this;
   this.libraries.Analytics = this.libraries.Analytics || require('./helpers/analytics.js');
-  return new this.libraries.Analytics(self, options);
+  return new this.libraries.Analytics(self, ...arguments);
 };
 
 Manager.prototype.require = function (p) {
