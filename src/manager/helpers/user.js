@@ -60,8 +60,8 @@ function User(settings, options) {
         timestampUNIX: _.get(settings, 'activity.lastActivity.timestampUNIX', useDefaults ? nowUNIX : null),
       },
       created: {
-        timestamp: _.get(settings, 'activity.lastActivity.timestamp', useDefaults ? now : null),
-        timestampUNIX: _.get(settings, 'activity.lastActivity.timestampUNIX', useDefaults ? nowUNIX : null),
+        timestamp: _.get(settings, 'activity.created.timestamp', useDefaults ? now : null),
+        timestampUNIX: _.get(settings, 'activity.created.timestampUNIX', useDefaults ? nowUNIX : null),
       },
     },
     api: {

@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "1.1.21",
+  "version": "1.1.22",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -29,7 +29,7 @@
   "dependencies": {
     "@firebase/rules-unit-testing": "^1.2.4",
     "@google-cloud/storage": "^5.8.1",
-    "@sentry/node": "^6.2.1",
+    "@sentry/node": "^6.2.2",
     "backend-assistant": "0.0.35",
     "busboy": "^0.3.1",
     "chalk": "^4.1.0",
@@ -45,7 +45,7 @@
     "mocha": "^8.3.1",
     "node-fetch": "^2.6.1",
     "node-powertools": "0.0.9",
-    "npm": "^7.6.2",
+    "npm": "^7.6.3",
     "npm-api": "^1.0.1",
     "pushid": "^1.0.0",
     "semver": "^7.3.4",
