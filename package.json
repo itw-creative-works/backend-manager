@@ -43,7 +43,7 @@
     "json5": "^2.2.0",
     "lodash": "^4.17.21",
     "mailchimp-api-v3": "^1.14.0",
-    "mocha": "^8.3.1",
+    "mocha": "^8.3.2",
     "node-fetch": "^2.6.1",
     "node-powertools": "0.0.9",
     "npm": "^7.6.3",
