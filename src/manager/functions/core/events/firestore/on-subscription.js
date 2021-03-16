@@ -35,6 +35,7 @@ let Module = {
             action: 'notification-unsubscribe',
             // label: 'regular',
           });
+          assistant.log('Notification subscription deleted:', change.before.data, {environment: 'production'});
         })
         .catch(e => {
           assistant.error(e, {environment: 'production'});
@@ -59,6 +60,8 @@ let Module = {
             action: 'notification-subscribe',
             // label: 'regular',
           });
+
+          assistant.log('Notification subscription created:', change.after.data, {environment: 'production'});
         })
         .catch(e => {
           assistant.error(e, {environment: 'production'});

@@ -39,7 +39,7 @@ let Module = {
         assistant.error(e);
       })
 
-    assistant.log('User deleted:', user);
+    assistant.log('User deleted:', user, {environment: 'production'});
   },
 }
 

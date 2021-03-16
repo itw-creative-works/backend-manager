@@ -112,7 +112,7 @@ Manager.prototype.init = function (exporter, options) {
     return self._preProcess(Module)
     .then(r => Module.main())
     .catch(e => {
-      self.assistant.error(e);
+      self.assistant.error(e, {environment: 'production'});
       return res.status(500).send(e.message);
     });
   });
@@ -127,7 +127,7 @@ Manager.prototype.init = function (exporter, options) {
     return self._preProcess(Module)
     .then(r => Module.main())
     .catch(e => {
-      self.assistant.error(e);
+      self.assistant.error(e, {environment: 'production'});
       return res.status(500).send(e.message);
     });
   });
@@ -143,7 +143,7 @@ Manager.prototype.init = function (exporter, options) {
     return self._preProcess(Module)
     .then(r => Module.main())
     .catch(e => {
-      self.assistant.error(e);
+      self.assistant.error(e, {environment: 'production'});
       return res.status(500).send(e.message);
     });
   });
@@ -158,7 +158,7 @@ Manager.prototype.init = function (exporter, options) {
     return self._preProcess(Module)
     .then(r => Module.main())
     .catch(e => {
-      self.assistant.error(e);
+      self.assistant.error(e, {environment: 'production'});
       return res.status(500).send(e.message);
     });
   });
@@ -173,7 +173,7 @@ Manager.prototype.init = function (exporter, options) {
     return self._preProcess(Module)
     .then(r => Module.main())
     .catch(e => {
-      self.assistant.error(e);
+      self.assistant.error(e, {environment: 'production'});
       return res.status(500).send(e.message);
     });
   });
@@ -188,7 +188,7 @@ Manager.prototype.init = function (exporter, options) {
     return self._preProcess(Module)
     .then(r => Module.main())
     .catch(e => {
-      self.assistant.error(e);
+      self.assistant.error(e, {environment: 'production'});
       return res.status(500).send(e.message);
     });
   });
@@ -203,7 +203,7 @@ Manager.prototype.init = function (exporter, options) {
     return self._preProcess(Module)
     .then(r => Module.main())
     .catch(e => {
-      self.assistant.error(e);
+      self.assistant.error(e, {environment: 'production'});
       return res.status(500).send(e.message);
     });
   });
@@ -218,7 +218,7 @@ Manager.prototype.init = function (exporter, options) {
     return self._preProcess(Module)
     .then(r => Module.main())
     .catch(e => {
-      self.assistant.error(e);
+      self.assistant.error(e, {environment: 'production'});
       return res.status(500).send(e.message);
     });
   });
@@ -233,7 +233,7 @@ Manager.prototype.init = function (exporter, options) {
     return self._preProcess(Module)
     .then(r => Module.main())
     .catch(e => {
-      self.assistant.error(e);
+      self.assistant.error(e, {environment: 'production'});
       return res.status(500).send(e.message);
     });
   });
@@ -250,7 +250,7 @@ Manager.prototype.init = function (exporter, options) {
     return self._preProcess(Module)
     .then(r => Module.main())
     .catch(e => {
-      self.assistant.error(e);
+      self.assistant.error(e, {environment: 'production'});
     });
   });
 
@@ -264,7 +264,7 @@ Manager.prototype.init = function (exporter, options) {
     return self._preProcess(Module)
     .then(r => Module.main())
     .catch(e => {
-      self.assistant.error(e);
+      self.assistant.error(e, {environment: 'production'});
     });
   });
 
@@ -280,7 +280,7 @@ Manager.prototype.init = function (exporter, options) {
     return self._preProcess(Module)
     .then(r => Module.main())
     .catch(e => {
-      self.assistant.error(e);
+      self.assistant.error(e, {environment: 'production'});
     });
   });
 
@@ -296,7 +296,7 @@ Manager.prototype.init = function (exporter, options) {
     return self._preProcess(Module)
     .then(r => Module.main())
     .catch(e => {
-      self.assistant.error(e);
+      self.assistant.error(e, {environment: 'production'});
       return res.status(500).send(e.message);
     });
   });
@@ -311,7 +311,7 @@ Manager.prototype.init = function (exporter, options) {
     return self._preProcess(Module)
     .then(r => Module.main())
     .catch(e => {
-      self.assistant.error(e);
+      self.assistant.error(e, {environment: 'production'});
       return res.status(500).send(e.message);
     });
   });
@@ -326,7 +326,7 @@ Manager.prototype.init = function (exporter, options) {
     return self._preProcess(Module)
     .then(r => Module.main())
     .catch(e => {
-      self.assistant.error(e);
+      self.assistant.error(e, {environment: 'production'});
       return res.status(500).send(e.message);
     });
   });

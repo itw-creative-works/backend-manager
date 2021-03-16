@@ -24,18 +24,18 @@ let Module = {
       assistant: assistant,
       uuid: user.uid,
     })
-    .event({
-      category: 'engagement',
-      action: 'signup',
-      label: item.providerId,
-    });
 
     // Don't save if anonymous
-    if (user.providerData.length < 1) {
-      return;
-    } else if (user.providerData.filter(function (item) {
-      return item.providerId === 'anonymous';
-    }).length > 0) {
+    if (user.providerData.filter(function (item) {
+      if (item.providerId !== 'anonymous') {
+        analytics.event({
+          category: 'engagement',
+          action: 'signup',
+          label: item.providerId,
+        });
+        return true
+      }
+    }).length < 1) {
       return;
     }
 
@@ -55,7 +55,7 @@ let Module = {
         assistant.error(e);
       })
 
-    assistant.log('User created:', user);
+    assistant.log('User created:', user, {environment: 'production'});
   },
 }
 
