@@ -19,8 +19,27 @@ let Module = {
 
     let analytics;
 
+    let dataBefore = change.before.data();
+    let dataAfter = change.after.data();
+    let eventType;
+    if (dataAfter == undefined) {
+      eventType = 'delete';
+    } else if (dataBefore && dataAfter) {
+      eventType = 'update';
+    } else if (!dataBefore && dataAfter) {
+      eventType = 'create';
+    }
+
+    assistant.log('Notification subscription write:', {
+      after: dataAfter,
+      before: dataBefore,
+      eventType: eventType,
+      resource: context.resource,
+      params: context.params,
+    }, {environment: 'production'});
+
     // Delete event
-    if (change.after.data == undefined) {
+    if (eventType === 'delete') {
       await libraries.admin.firestore().doc(`meta/stats`)
         .update({
           'subscriptions.total': libraries.admin.firestore.FieldValue.increment(-1),
@@ -28,24 +47,25 @@ let Module = {
         .then(r => {
           analytics = self.Manager.Analytics({
             assistant: assistant,
-            uuid: _.get(change.before.data, 'link.user.data.uid', undefined),
+            uuid: _.get(dataBefore, 'link.user.data.uid', undefined),
           })
           .event({
             category: 'engagement',
             action: 'notification-unsubscribe',
             // label: 'regular',
           });
-          assistant.log('Notification subscription deleted:', change.before.data, {environment: 'production'});
+          assistant.log('Notification subscription deleted:', dataBefore, {environment: 'production'});
         })
         .catch(e => {
           assistant.error(e, {environment: 'production'});
         })
 
     // Update event
-    } else if (change.before.data && change.after.data) {
+  } else if (eventType === 'update') {
       // ...
+
     // Create event
-    } else if (!change.before.data && change.after.data) {
+  } else if (eventType === 'create') {
       await libraries.admin.firestore().doc(`meta/stats`)
         .update({
           'subscriptions.total': libraries.admin.firestore.FieldValue.increment(1),
@@ -53,7 +73,7 @@ let Module = {
         .then(r => {
           analytics = self.Manager.Analytics({
             assistant: assistant,
-            uuid: _.get(change.after.data, 'link.user.data.uid', undefined),
+            uuid: _.get(dataAfter, 'link.user.data.uid', undefined),
           })
           .event({
             category: 'engagement',
@@ -61,7 +81,7 @@ let Module = {
             // label: 'regular',
           });
 
-          assistant.log('Notification subscription created:', change.after.data, {environment: 'production'});
+          assistant.log('Notification subscription created:', dataAfter, {environment: 'production'});
         })
         .catch(e => {
           assistant.error(e, {environment: 'production'});
