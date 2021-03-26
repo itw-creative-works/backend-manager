@@ -83,6 +83,7 @@ Manager.prototype.init = function (exporter, options) {
 
   if (self.options.sentry && self.config.sentry && self.config.sentry.dsn) {
     // console.log('Setting up sentry:', `${self.project.projectId}@${self.package.version}`);
+    // console.log('self.config.sentry.dsn', self.config.sentry.dsn);
     self.libraries.sentry = require('@sentry/node');
     self.libraries.sentry.init({
       dsn: self.config.sentry.dsn,
@@ -388,6 +389,7 @@ Manager.prototype.Assistant = function(ref, options) {
     res: ref.res,
     admin: self.libraries.admin,
     functions: self.libraries.functions,
+    Manager: self,
   }, {
     accept: options.accept,
   })
