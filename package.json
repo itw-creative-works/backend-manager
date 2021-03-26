@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "1.1.37",
+  "version": "1.1.38",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -48,7 +48,7 @@
     "node-powertools": "0.0.9",
     "npm": "^7.7.3",
     "npm-api": "^1.0.1",
-    "paypal-server-api": "0.0.3",
+    "paypal-server-api": "0.0.4",
     "pushid": "^1.0.0",
     "semver": "^7.3.5",
     "shortid": "^2.2.16",
