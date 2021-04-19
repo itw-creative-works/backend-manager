@@ -103,6 +103,21 @@ Manager.prototype.init = function (exporter, options) {
   }
 
   // Main functions
+  exporter.bm_api =
+  self.libraries.functions
+  .runWith({memory: '256MB', timeoutSeconds: 60})
+  .https.onRequest(async (req, res) => {
+    const Module = require(`${core}/actions/api.js`);
+    Module.init(self, { req: req, res: res, });
+
+    return self._preProcess(Module)
+    .then(r => Module.main())
+    .catch(e => {
+      self.assistant.error(e, {environment: 'production'});
+      return res.status(500).send(e.message);
+    });
+  });
+
   exporter.bm_deleteUser =
   self.libraries.functions
   .runWith({memory: '256MB', timeoutSeconds: 60})
