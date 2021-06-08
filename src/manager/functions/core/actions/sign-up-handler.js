@@ -67,7 +67,7 @@ let Module = {
       if (response.status === 200) {
         return res.status(response.status).json(response.data);
       } else {
-        console.error('Failed user=', user);
+        console.error('Failed', assistant.request.data, user);
         return res.status(response.status).send(response.error.message);
       }
     });
