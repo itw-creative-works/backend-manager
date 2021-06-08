@@ -17,6 +17,7 @@ let inquirer = require('inquirer');
 const { spawn } = require('child_process');
 let argv = require('yargs').argv;
 const JSON5 = require('json5');
+const fetch = require('node-fetch');
 
 // function parseArgumentsIntoOptions(rawArgs) {
 //   const args = arg(
@@ -210,6 +211,7 @@ Main.prototype.setup = async function () {
   this.package = fs.read(`${this.firebaseProjectPath}/functions/package.json`) || '{}';
   this.firebaseJSON = fs.read(`${this.firebaseProjectPath}/firebase.json`) || '{}';
   this.firebaseRC = fs.read(`${this.firebaseProjectPath}/.firebaserc`) || '{}';
+  this.runtimeConfigJSON = fs.read(`${this.firebaseProjectPath}/functions/.runtimeconfig.json`) || '{}';
   this.projectPackage = fs.read(`${this.firebaseProjectPath}/package.json`) || '{}';
   this.gitignore = fs.read(`${this.firebaseProjectPath}/functions/.gitignore`) || '';
   if (!this.package) {
@@ -225,6 +227,7 @@ Main.prototype.setup = async function () {
   this.package = JSON.parse(this.package);
   this.firebaseJSON = JSON.parse(this.firebaseJSON);
   this.firebaseRC = JSON.parse(this.firebaseRC);
+  this.runtimeConfigJSON = JSON.parse(this.runtimeConfigJSON);
   this.projectPackage = JSON.parse(this.projectPackage);
 
   self.getRulesFile();
@@ -447,6 +450,42 @@ Main.prototype.setup = async function () {
     console.log('\n' + chalk.yellow(chalk.bold('Warning: ') + 'You are using the local ' + chalk.bold('backend-manager')));
   } else {
     console.log('\n');
+  }
+
+
+  const prepareStatsURL = `https://us-central1-${_.get(this.firebaseRC, 'projects.default')}.cloudfunctions.net/bm_getStats?authenticationToken=${_.get(this.runtimeConfigJSON, 'backend_manager.key')}`;
+  // const prepareStatsURL = `https://us-central1-${_.get(this.firebaseRC, 'projects.default')}.cloudfunctions.net/bm_getStats?authenticationToken=undefined`;
+  const statsFetchResult = await fetch(prepareStatsURL, {
+    method: 'post',
+    timeout: 3000,
+  })
+  .then(async (res) => {
+    if (!res.ok) {
+      return res.text()
+        .then(data => {
+          throw new Error(data || res.statusText || 'Unknown error.');
+        })
+        .catch(e => e)
+    } else {
+      return res.text()
+      .then(data => {
+        try {
+          return JSON5.parse(data);
+        } catch (e) {
+          return e;
+        }
+      })
+    }
+  })
+  .catch(e => e);
+
+  if (statsFetchResult instanceof Error) {
+    if (!statsFetchResult.message.includes('network timeout')) {
+      console.log(chalk.yellow(`Ran into error while fetching stats endpoint`, statsFetchResult));
+    }
+  } else {
+    // console.log(chalk.green(`Stats fetched/created properly.`, JSON.stringify(statsFetchResult)));
+    console.log(chalk.green(`Stats fetched/created properly.`));
   }
 
   console.log(chalk.green(`Checks finished. Passed ${self.testCount}/${self.testTotal} tests.`));

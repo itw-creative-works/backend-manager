@@ -67,7 +67,7 @@ let Module = {
       if (response.status === 200) {
         return res.status(response.status).json(response.data);
       } else {
-        console.error('Failed', assistant.request.data, user);
+        assistant.error('Failed to signup:', assistant.request.data, user, {environment: 'production'});
         return res.status(response.status).send(response.error.message);
       }
     });

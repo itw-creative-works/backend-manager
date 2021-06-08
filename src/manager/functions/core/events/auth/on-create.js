@@ -43,7 +43,7 @@ let Module = {
     await libraries.admin.firestore().doc(`users/${newUser.properties.auth.uid}`)
       .set(newUser.properties, {merge: true})
       .catch(e => {
-        assistant.error(e);
+        assistant.error(e, {environment: 'production'});
       })
 
     // Update user count
@@ -52,7 +52,7 @@ let Module = {
         'users.total': libraries.admin.firestore.FieldValue.increment(1),
       })
       .catch(e => {
-        assistant.error(e);
+        assistant.error(e, {environment: 'production'});
       })
 
     assistant.log('User created:', user, {environment: 'production'});
