@@ -27,7 +27,10 @@ Manager.prototype.init = function (exporter, options) {
   // Set options defaults
   options = options || {};
   options.initialize = typeof options.initialize === 'undefined' ? true : options.initialize;
+  options.setupFunctions = typeof options.setupFunctions === 'undefined' ? true : options.setupFunctions;
   options.sentry = typeof options.sentry === 'undefined' ? true : options.sentry;
+  options.firebaseConfig = options.firebaseConfig;
+  options.useFirebaseLogger = typeof options.useFirebaseLogger === 'undefined' ? true : options.useFirebaseLogger;
 
   // Load libraries
   self.libraries = {
@@ -50,7 +53,7 @@ Manager.prototype.init = function (exporter, options) {
 
   // Set properties
   self.options = options;
-  self.project = JSON.parse(process.env.FIREBASE_CONFIG);
+  self.project = options.firebaseConfig || JSON.parse(process.env.FIREBASE_CONFIG);
   self.cwd = process.cwd();
   self.package = require(path.resolve(self.cwd, 'package.json'));
   self.config = merge(
@@ -61,7 +64,7 @@ Manager.prototype.init = function (exporter, options) {
   self.assistant = self.Assistant().init();
 
   // Use the working Firebase logger that they disabled for whatever reason
-  if (self.assistant.meta.environment !== 'development') {
+  if (self.assistant.meta.environment !== 'development' && options.useFirebaseLogger) {
     require('firebase-functions/lib/logger/compat');
   }
 
@@ -103,249 +106,251 @@ Manager.prototype.init = function (exporter, options) {
   }
 
   // Main functions
-  exporter.bm_api =
-  self.libraries.functions
-  .runWith({memory: '256MB', timeoutSeconds: 60})
-  .https.onRequest(async (req, res) => {
-    const Module = require(`${core}/actions/api.js`);
-    Module.init(self, { req: req, res: res, });
+  if (options.setupFunctions) {
+    exporter.bm_api =
+    self.libraries.functions
+    .runWith({memory: '256MB', timeoutSeconds: 60})
+    .https.onRequest(async (req, res) => {
+      const Module = require(`${core}/actions/api.js`);
+      Module.init(self, { req: req, res: res, });
 
-    return self._preProcess(Module)
-    .then(r => Module.main())
-    .catch(e => {
-      self.assistant.error(e, {environment: 'production'});
-      return res.status(500).send(e.message);
+      return self._preProcess(Module)
+      .then(r => Module.main())
+      .catch(e => {
+        self.assistant.error(e, {environment: 'production'});
+        return res.status(500).send(e.message);
+      });
     });
-  });
 
-  exporter.bm_deleteUser =
-  self.libraries.functions
-  .runWith({memory: '256MB', timeoutSeconds: 60})
-  .https.onRequest(async (req, res) => {
-    const Module = require(`${core}/actions/delete-user.js`);
-    Module.init(self, { req: req, res: res, });
+    exporter.bm_deleteUser =
+    self.libraries.functions
+    .runWith({memory: '256MB', timeoutSeconds: 60})
+    .https.onRequest(async (req, res) => {
+      const Module = require(`${core}/actions/delete-user.js`);
+      Module.init(self, { req: req, res: res, });
 
-    return self._preProcess(Module)
-    .then(r => Module.main())
-    .catch(e => {
-      self.assistant.error(e, {environment: 'production'});
-      return res.status(500).send(e.message);
+      return self._preProcess(Module)
+      .then(r => Module.main())
+      .catch(e => {
+        self.assistant.error(e, {environment: 'production'});
+        return res.status(500).send(e.message);
+      });
     });
-  });
 
-  exporter.bm_signUpHandler =
-  self.libraries.functions
-  .runWith({memory: '256MB', timeoutSeconds: 60})
-  .https.onRequest(async (req, res) => {
-    const Module = require(`${core}/actions/sign-up-handler.js`);
-    Module.init(self, { req: req, res: res, });
+    exporter.bm_signUpHandler =
+    self.libraries.functions
+    .runWith({memory: '256MB', timeoutSeconds: 60})
+    .https.onRequest(async (req, res) => {
+      const Module = require(`${core}/actions/sign-up-handler.js`);
+      Module.init(self, { req: req, res: res, });
 
-    return self._preProcess(Module)
-    .then(r => Module.main())
-    .catch(e => {
-      self.assistant.error(e, {environment: 'production'});
-      return res.status(500).send(e.message);
+      return self._preProcess(Module)
+      .then(r => Module.main())
+      .catch(e => {
+        self.assistant.error(e, {environment: 'production'});
+        return res.status(500).send(e.message);
+      });
     });
-  });
 
-  // Admin
-  exporter.bm_createPost =
-  self.libraries.functions
-  .runWith({memory: '256MB', timeoutSeconds: 60})
-  .https.onRequest(async (req, res) => {
-    const Module = require(`${core}/admin/create-post.js`);
-    Module.init(self, { req: req, res: res, });
+    // Admin
+    exporter.bm_createPost =
+    self.libraries.functions
+    .runWith({memory: '256MB', timeoutSeconds: 60})
+    .https.onRequest(async (req, res) => {
+      const Module = require(`${core}/admin/create-post.js`);
+      Module.init(self, { req: req, res: res, });
 
-    return self._preProcess(Module)
-    .then(r => Module.main())
-    .catch(e => {
-      self.assistant.error(e, {environment: 'production'});
-      return res.status(500).send(e.message);
+      return self._preProcess(Module)
+      .then(r => Module.main())
+      .catch(e => {
+        self.assistant.error(e, {environment: 'production'});
+        return res.status(500).send(e.message);
+      });
     });
-  });
 
-  exporter.bm_firestoreWrite =
-  self.libraries.functions
-  .runWith({memory: '256MB', timeoutSeconds: 60})
-  .https.onRequest(async (req, res) => {
-    const Module = require(`${core}/admin/firestore-write.js`);
-    Module.init(self, { req: req, res: res, });
+    exporter.bm_firestoreWrite =
+    self.libraries.functions
+    .runWith({memory: '256MB', timeoutSeconds: 60})
+    .https.onRequest(async (req, res) => {
+      const Module = require(`${core}/admin/firestore-write.js`);
+      Module.init(self, { req: req, res: res, });
 
-    return self._preProcess(Module)
-    .then(r => Module.main())
-    .catch(e => {
-      self.assistant.error(e, {environment: 'production'});
-      return res.status(500).send(e.message);
+      return self._preProcess(Module)
+      .then(r => Module.main())
+      .catch(e => {
+        self.assistant.error(e, {environment: 'production'});
+        return res.status(500).send(e.message);
+      });
     });
-  });
 
-  exporter.bm_getStats =
-  self.libraries.functions
-  .runWith({memory: '256MB', timeoutSeconds: 420})
-  .https.onRequest(async (req, res) => {
-    const Module = require(`${core}/admin/get-stats.js`);
-    Module.init(self, { req: req, res: res, });
+    exporter.bm_getStats =
+    self.libraries.functions
+    .runWith({memory: '256MB', timeoutSeconds: 420})
+    .https.onRequest(async (req, res) => {
+      const Module = require(`${core}/admin/get-stats.js`);
+      Module.init(self, { req: req, res: res, });
 
-    return self._preProcess(Module)
-    .then(r => Module.main())
-    .catch(e => {
-      self.assistant.error(e, {environment: 'production'});
-      return res.status(500).send(e.message);
+      return self._preProcess(Module)
+      .then(r => Module.main())
+      .catch(e => {
+        self.assistant.error(e, {environment: 'production'});
+        return res.status(500).send(e.message);
+      });
     });
-  });
 
-  exporter.bm_sendNotification =
-  self.libraries.functions
-  .runWith({memory: '1GB', timeoutSeconds: 420})
-  .https.onRequest(async (req, res) => {
-    const Module = require(`${core}/admin/send-notification.js`);
-    Module.init(self, { req: req, res: res, });
+    exporter.bm_sendNotification =
+    self.libraries.functions
+    .runWith({memory: '1GB', timeoutSeconds: 420})
+    .https.onRequest(async (req, res) => {
+      const Module = require(`${core}/admin/send-notification.js`);
+      Module.init(self, { req: req, res: res, });
 
-    return self._preProcess(Module)
-    .then(r => Module.main())
-    .catch(e => {
-      self.assistant.error(e, {environment: 'production'});
-      return res.status(500).send(e.message);
+      return self._preProcess(Module)
+      .then(r => Module.main())
+      .catch(e => {
+        self.assistant.error(e, {environment: 'production'});
+        return res.status(500).send(e.message);
+      });
     });
-  });
 
-  exporter.bm_query =
-  self.libraries.functions
-  .runWith({memory: '256MB', timeoutSeconds: 60})
-  .https.onRequest(async (req, res) => {
-    const Module = require(`${core}/admin/query.js`);
-    Module.init(self, { req: req, res: res, });
+    exporter.bm_query =
+    self.libraries.functions
+    .runWith({memory: '256MB', timeoutSeconds: 60})
+    .https.onRequest(async (req, res) => {
+      const Module = require(`${core}/admin/query.js`);
+      Module.init(self, { req: req, res: res, });
 
-    return self._preProcess(Module)
-    .then(r => Module.main())
-    .catch(e => {
-      self.assistant.error(e, {environment: 'production'});
-      return res.status(500).send(e.message);
+      return self._preProcess(Module)
+      .then(r => Module.main())
+      .catch(e => {
+        self.assistant.error(e, {environment: 'production'});
+        return res.status(500).send(e.message);
+      });
     });
-  });
 
-  exporter.bm_createPostHandler =
-  self.libraries.functions
-  .runWith({memory: '256MB', timeoutSeconds: 60})
-  .https.onRequest(async (req, res) => {
-    const Module = require(`${core}/actions/create-post-handler.js`);
-    Module.init(self, { req: req, res: res, });
+    exporter.bm_createPostHandler =
+    self.libraries.functions
+    .runWith({memory: '256MB', timeoutSeconds: 60})
+    .https.onRequest(async (req, res) => {
+      const Module = require(`${core}/actions/create-post-handler.js`);
+      Module.init(self, { req: req, res: res, });
 
-    return self._preProcess(Module)
-    .then(r => Module.main())
-    .catch(e => {
-      self.assistant.error(e, {environment: 'production'});
-      return res.status(500).send(e.message);
+      return self._preProcess(Module)
+      .then(r => Module.main())
+      .catch(e => {
+        self.assistant.error(e, {environment: 'production'});
+        return res.status(500).send(e.message);
+      });
     });
-  });
 
-  exporter.bm_generateUuid =
-  self.libraries.functions
-  .runWith({memory: '256MB', timeoutSeconds: 60})
-  .https.onRequest(async (req, res) => {
-    const Module = require(`${core}/actions/generate-uuid.js`);
-    Module.init(self, { req: req, res: res, });
+    exporter.bm_generateUuid =
+    self.libraries.functions
+    .runWith({memory: '256MB', timeoutSeconds: 60})
+    .https.onRequest(async (req, res) => {
+      const Module = require(`${core}/actions/generate-uuid.js`);
+      Module.init(self, { req: req, res: res, });
 
-    return self._preProcess(Module)
-    .then(r => Module.main())
-    .catch(e => {
-      self.assistant.error(e, {environment: 'production'});
-      return res.status(500).send(e.message);
+      return self._preProcess(Module)
+      .then(r => Module.main())
+      .catch(e => {
+        self.assistant.error(e, {environment: 'production'});
+        return res.status(500).send(e.message);
+      });
     });
-  });
 
 
-  // Events
-  exporter.bm_authOnCreate =
-  self.libraries.functions
-  .runWith({memory: '256MB', timeoutSeconds: 60})
-  .auth.user().onCreate(async (user) => {
-    const Module = require(`${core}/events/auth/on-create.js`);
-    Module.init(self, { user: user });
+    // Events
+    exporter.bm_authOnCreate =
+    self.libraries.functions
+    .runWith({memory: '256MB', timeoutSeconds: 60})
+    .auth.user().onCreate(async (user) => {
+      const Module = require(`${core}/events/auth/on-create.js`);
+      Module.init(self, { user: user });
 
-    return self._preProcess(Module)
-    .then(r => Module.main())
-    .catch(e => {
-      self.assistant.error(e, {environment: 'production'});
+      return self._preProcess(Module)
+      .then(r => Module.main())
+      .catch(e => {
+        self.assistant.error(e, {environment: 'production'});
+      });
     });
-  });
 
-  exporter.bm_authOnDelete =
-  self.libraries.functions
-  .runWith({memory: '256MB', timeoutSeconds: 60})
-  .auth.user().onDelete(async (user) => {
-    const Module = require(`${core}/events/auth/on-delete.js`);
-    Module.init(self, { user: user });
+    exporter.bm_authOnDelete =
+    self.libraries.functions
+    .runWith({memory: '256MB', timeoutSeconds: 60})
+    .auth.user().onDelete(async (user) => {
+      const Module = require(`${core}/events/auth/on-delete.js`);
+      Module.init(self, { user: user });
 
-    return self._preProcess(Module)
-    .then(r => Module.main())
-    .catch(e => {
-      self.assistant.error(e, {environment: 'production'});
+      return self._preProcess(Module)
+      .then(r => Module.main())
+      .catch(e => {
+        self.assistant.error(e, {environment: 'production'});
+      });
     });
-  });
 
-  exporter.bm_subOnWrite =
-  self.libraries.functions
-  .runWith({memory: '256MB', timeoutSeconds: 60})
-  .firestore
-  .document('notifications/subscriptions/all/{token}')
-  .onWrite(async (change, context) => {
-    const Module = require(`${core}/events/firestore/on-subscription.js`);
-    Module.init(self, { change: change, context: context, });
+    exporter.bm_subOnWrite =
+    self.libraries.functions
+    .runWith({memory: '256MB', timeoutSeconds: 60})
+    .firestore
+    .document('notifications/subscriptions/all/{token}')
+    .onWrite(async (change, context) => {
+      const Module = require(`${core}/events/firestore/on-subscription.js`);
+      Module.init(self, { change: change, context: context, });
 
-    return self._preProcess(Module)
-    .then(r => Module.main())
-    .catch(e => {
-      self.assistant.error(e, {environment: 'production'});
+      return self._preProcess(Module)
+      .then(r => Module.main())
+      .catch(e => {
+        self.assistant.error(e, {environment: 'production'});
+      });
     });
-  });
 
 
-  // Test
-  exporter.bm_test_authenticate =
-  self.libraries.functions
-  .runWith({memory: '256MB', timeoutSeconds: 60})
-  .https.onRequest(async (req, res) => {
-    const Module = require(`${test}/authenticate.js`);
-    Module.init(self, { req: req, res: res, });
+    // Test
+    exporter.bm_test_authenticate =
+    self.libraries.functions
+    .runWith({memory: '256MB', timeoutSeconds: 60})
+    .https.onRequest(async (req, res) => {
+      const Module = require(`${test}/authenticate.js`);
+      Module.init(self, { req: req, res: res, });
 
-    return self._preProcess(Module)
-    .then(r => Module.main())
-    .catch(e => {
-      self.assistant.error(e, {environment: 'production'});
-      return res.status(500).send(e.message);
+      return self._preProcess(Module)
+      .then(r => Module.main())
+      .catch(e => {
+        self.assistant.error(e, {environment: 'production'});
+        return res.status(500).send(e.message);
+      });
     });
-  });
 
-  exporter.bm_test_createTestAccounts =
-  self.libraries.functions
-  .runWith({memory: '256MB', timeoutSeconds: 60})
-  .https.onRequest(async (req, res) => {
-    const Module = require(`${test}/create-test-accounts.js`);
-    Module.init(self, { req: req, res: res, });
+    exporter.bm_test_createTestAccounts =
+    self.libraries.functions
+    .runWith({memory: '256MB', timeoutSeconds: 60})
+    .https.onRequest(async (req, res) => {
+      const Module = require(`${test}/create-test-accounts.js`);
+      Module.init(self, { req: req, res: res, });
 
-    return self._preProcess(Module)
-    .then(r => Module.main())
-    .catch(e => {
-      self.assistant.error(e, {environment: 'production'});
-      return res.status(500).send(e.message);
+      return self._preProcess(Module)
+      .then(r => Module.main())
+      .catch(e => {
+        self.assistant.error(e, {environment: 'production'});
+        return res.status(500).send(e.message);
+      });
     });
-  });
 
-  exporter.bm_test_webhook =
-  self.libraries.functions
-  .runWith({memory: '256MB', timeoutSeconds: 60})
-  .https.onRequest(async (req, res) => {
-    const Module = require(`${test}/webhook.js`);
-    Module.init(self, { req: req, res: res, });
+    exporter.bm_test_webhook =
+    self.libraries.functions
+    .runWith({memory: '256MB', timeoutSeconds: 60})
+    .https.onRequest(async (req, res) => {
+      const Module = require(`${test}/webhook.js`);
+      Module.init(self, { req: req, res: res, });
 
-    return self._preProcess(Module)
-    .then(r => Module.main())
-    .catch(e => {
-      self.assistant.error(e, {environment: 'production'});
-      return res.status(500).send(e.message);
+      return self._preProcess(Module)
+      .then(r => Module.main())
+      .catch(e => {
+        self.assistant.error(e, {environment: 'production'});
+        return res.status(500).send(e.message);
+      });
     });
-  });
+  }
 
   return self;
 };
@@ -405,9 +410,18 @@ Manager.prototype.Assistant = function(ref, options) {
     admin: self.libraries.admin,
     functions: self.libraries.functions,
     Manager: self,
-  }, {
-    accept: options.accept,
-  })
+  }, options)
+  // return (new self.libraries.Assistant()).init({
+  //   req: ref.req,
+  //   res: ref.res,
+  //   admin: self.libraries.admin,
+  //   functions: self.libraries.functions,
+  //   Manager: self,
+  // }, {
+  //   accept: options.accept,
+  //   functionName: options.functionName,
+  //   functionType: options.functionType,
+  // })
   // self._inner.ip = (!self._inner.ip || self._inner.ip === '127.0.0.1') ? ass.request.ip : self._inner.ip;
   // self._inner.country = self._inner.country || ass.request.country;
   // self._inner.referrer = self._inner.referrer || ass.request.referrer;
