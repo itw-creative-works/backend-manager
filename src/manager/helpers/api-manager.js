@@ -191,9 +191,19 @@ ApiManager.prototype.incrementUserStat = function (user, stat, amount) {
 ApiManager.prototype.validateOfficialRequest = async function (assistant, apiUser) {
   const self = this
   let data = assistant.request.data;
-  let isOfficial = self.options.officialAPIKeys.includes(data.apiKey);
+  let multipartData;
   assistant.ref.Manager.libraries.hcaptcha = assistant.ref.Manager.libraries.hcaptcha || assistant.ref.Manager.require('hcaptcha');
   const hcaptcha = assistant.ref.Manager.libraries.hcaptcha;
+
+
+  const contentSize = parseInt(_.get(assistant.ref.req.headers, 'content-length', '0'));
+  const contentType = _.get(assistant.ref.req.headers, 'content-type', '');
+  const requestType = !contentType || contentType.includes('application/json') ? 'json' : 'form';
+
+  if (requestType !== 'json') {
+    multipartData = await assistant.parseMultipartFormData();
+    data = multipartData.fields;
+  }
 
   if (self.options.officialAPIKeys.includes(data.apiKey)) {
       const captchaResult = await hcaptcha.verify(process.env.HCAPTCHA_SECRET, data['h-captcha-response'])
