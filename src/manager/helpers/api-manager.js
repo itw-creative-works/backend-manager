@@ -195,14 +195,14 @@ ApiManager.prototype.validateOfficialRequest = async function (assistant, apiUse
   assistant.ref.Manager.libraries.hcaptcha = assistant.ref.Manager.libraries.hcaptcha || assistant.ref.Manager.require('hcaptcha');
   const hcaptcha = assistant.ref.Manager.libraries.hcaptcha;
 
-
-  const contentSize = parseInt(get(assistant.ref.req.headers, 'content-length', '0'));
   const contentType = get(assistant.ref.req.headers, 'content-type', '');
   const requestType = !contentType || contentType.includes('application/json') ? 'json' : 'form';
 
+  // console.log('----requestType', requestType);
   if (requestType !== 'json') {
     multipartData = await assistant.parseMultipartFormData();
     data = multipartData.fields;
+    // console.log('----multipartData', multipartData);
   }
 
   if (self.options.officialAPIKeys.includes(data.apiKey)) {
