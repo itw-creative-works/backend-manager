@@ -17,7 +17,7 @@ function Manager(exporter, options) {
 }
 
 Manager.prototype.init = function (exporter, options) {
-  let self = this;
+  const self = this;
 
   // Paths
   const core = './functions/core';
@@ -352,12 +352,21 @@ Manager.prototype.init = function (exporter, options) {
     });
   }
 
+  // Set dotenv
+  // if (self.assistant.meta.environment === 'development') {
+    try {
+      require('dotenv').config();
+    } catch (e) {
+      console.error('Failed to set up environemtn variables from .env file');
+    }
+  // }
+
   return self;
 };
 
 // HELPERS
 Manager.prototype._preProcess = function (mod) {
-  let self = this;
+  const self = this;
   const name = mod.assistant.meta.name;
   return new Promise(async function(resolve, reject) {
     if (self.handlers && self.handlers[name]) {
@@ -387,7 +396,7 @@ Manager.prototype._preProcess = function (mod) {
 };
 
 // Manager.prototype.Assistant = function(ref, options) {
-//   let self = this;
+//   const self = this;
 //   ref = ref || {};
 //   options = options || {};
 //   return (new self.libraries.Assistant()).init({
@@ -401,7 +410,7 @@ Manager.prototype._preProcess = function (mod) {
 // };
 
 Manager.prototype.Assistant = function(ref, options) {
-  let self = this;
+  const self = this;
   ref = ref || {};
   options = options || {};
   return (new self.libraries.Assistant()).init({
@@ -439,9 +448,15 @@ Manager.prototype.User = function () {
 };
 
 Manager.prototype.Analytics = function () {
-  let self = this;
+  const self = this;
   this.libraries.Analytics = this.libraries.Analytics || require('./helpers/analytics.js');
   return new this.libraries.Analytics(self, ...arguments);
+};
+
+Manager.ApiManager = function () {
+  const self = this;
+  this.libraries.ApiManager = this.libraries.ApiManager || require('./helpers/api-manager.js');
+  return new this.libraries.ApiManager(self, ...arguments);
 };
 
 Manager.prototype.require = function (p) {
