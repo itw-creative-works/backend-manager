@@ -23,7 +23,9 @@ function ApiManager() {
   self.options = {
     planData: {},
     maxUsersStored: 10000,
-    refetchInterval: 60
+    refetchInterval: 60,
+    resetInterval: 60 * 24,
+    officialAPIKeys: [],
   };
   self.userList = [];
   self.initialized = false;
@@ -38,6 +40,7 @@ ApiManager.prototype.init = function (options) {
   options.maxUsersStored = options.maxUsersStored || 10000;
   options.refetchInterval = options.refetchInterval || 60;
   options.resetInterval = options.resetInterval || (60 * 24);
+  options.officialAPIKeys = options.officialAPIKeys || [];
 
   self.options = options;
 
@@ -162,6 +165,7 @@ ApiManager.prototype.getUser = async function (assistant) {
 };
 
 ApiManager.prototype.getUserStat = function (user, stat, def) {
+  const self = this;
   if (!user || !stat) {
     throw new Error('<user> and <stat> required')
   }
@@ -172,6 +176,7 @@ ApiManager.prototype.getUserStat = function (user, stat, def) {
 }
 
 ApiManager.prototype.incrementUserStat = function (user, stat, amount) {
+  const self = this;
   if (!user || !stat) {
     throw new Error('<user> and <stat> required')
   }
@@ -179,6 +184,43 @@ ApiManager.prototype.incrementUserStat = function (user, stat, amount) {
   return {
     current: get(user, `_stats.${stat}`, 0),
     limit: get(user, `plan.limits.${stat}`, 0),
+  }
+}
+
+
+ApiManager.prototype.validateOfficialRequest = async function (assistant, apiUser) {
+  const self = this
+  let data = assistant.request.data;
+  let isOfficial = self.options.officialAPIKeys.includes(data.apiKey);
+  assistant.ref.Manager.libraries.hcaptcha = assistant.ref.Manager.libraries.hcaptcha || assistant.ref.Manager.require('hcaptcha');
+  const hcaptcha = assistant.ref.Manager.libraries.hcaptcha;
+  if (data.apiKey === officialKey) {
+      const captchaResult = await hcaptcha.verify(process.env.HCAPTCHA_SECRET, data['h-captcha-response'])
+        .then((data) => data)
+        .catch((e) => e);
+      if (!captchaResult || captchaResult instanceof Error || !captchaResult.success) {
+        // console.log(`Cap`);
+        assistant.ref.res.status(400).send(new Error(`Captcha verification failed.`).message);
+        return {
+          ok: false,
+          official: true,
+          verified: false,
+        }
+      } else {
+        ApiManager.incrementUserStat(apiUser, 'requests', -1);
+        return {
+          ok: true,
+          official: true,
+          verified: true,
+        }
+      }
+      // workingUser.requestsCurrent--;
+  } else {
+    return {
+      ok: true,
+      official: false,
+      verified: true,
+    }
   }
 }
 
