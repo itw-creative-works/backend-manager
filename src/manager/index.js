@@ -453,7 +453,7 @@ Manager.prototype.Analytics = function () {
   return new this.libraries.Analytics(self, ...arguments);
 };
 
-Manager.ApiManager = function () {
+Manager.prototype.ApiManager = function () {
   const self = this;
   this.libraries.ApiManager = this.libraries.ApiManager || require('./helpers/api-manager.js');
   return new this.libraries.ApiManager(self, ...arguments);
