@@ -194,7 +194,7 @@ ApiManager.prototype.validateOfficialRequest = async function (assistant, apiUse
   let isOfficial = self.options.officialAPIKeys.includes(data.apiKey);
   assistant.ref.Manager.libraries.hcaptcha = assistant.ref.Manager.libraries.hcaptcha || assistant.ref.Manager.require('hcaptcha');
   const hcaptcha = assistant.ref.Manager.libraries.hcaptcha;
-  
+
   if (self.options.officialAPIKeys.includes(data.apiKey)) {
       const captchaResult = await hcaptcha.verify(process.env.HCAPTCHA_SECRET, data['h-captcha-response'])
         .then((data) => data)
@@ -208,7 +208,7 @@ ApiManager.prototype.validateOfficialRequest = async function (assistant, apiUse
           verified: false,
         }
       } else {
-        ApiManager.incrementUserStat(apiUser, 'requests', -1);
+        self.incrementUserStat(apiUser, 'requests', -1);
         return {
           ok: true,
           official: true,
