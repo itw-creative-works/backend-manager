@@ -63,6 +63,8 @@ Manager.prototype.init = function (exporter, options) {
 
   self.assistant = self.Assistant().init();
 
+  process.env.ENVIRONMENT = !process.env.ENVIRONMENT ? self.assistant.meta.environment : process.env.ENVIRONMENT;
+
   // Use the working Firebase logger that they disabled for whatever reason
   if (self.assistant.meta.environment !== 'development' && options.useFirebaseLogger) {
     require('firebase-functions/lib/logger/compat');
