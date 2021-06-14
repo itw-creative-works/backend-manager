@@ -196,8 +196,8 @@ ApiManager.prototype.validateOfficialRequest = async function (assistant, apiUse
   const hcaptcha = assistant.ref.Manager.libraries.hcaptcha;
 
 
-  const contentSize = parseInt(_.get(assistant.ref.req.headers, 'content-length', '0'));
-  const contentType = _.get(assistant.ref.req.headers, 'content-type', '');
+  const contentSize = parseInt(get(assistant.ref.req.headers, 'content-length', '0'));
+  const contentType = get(assistant.ref.req.headers, 'content-type', '');
   const requestType = !contentType || contentType.includes('application/json') ? 'json' : 'form';
 
   if (requestType !== 'json') {
