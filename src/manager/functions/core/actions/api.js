@@ -34,12 +34,14 @@ let Module = {
       }
       if (command === 'create-custom-token') {
         await self.createCustomToken(payload).catch(e => e);
+      } else if (command === 'delete-user') {
+        await self.deleteUser(payload).catch(e => e);
       } else {
         response.status = 401;
         response.error = new Error(`Improper command supplied: ${command}`);
       }
 
-      self.assistant.log('Api', payload, {environment: 'production'})
+      self.assistant.log('Api payload', payload, {environment: 'production'})
 
       if (response.status === 200) {
         return res.status(response.status).json(response.data);
@@ -68,7 +70,33 @@ let Module = {
         payload.response.error = new Error('User not authenticated.');
         return reject(payload.response.error);
       }
+    });
+  },
+  deleteUser: async function (payload) {
+    const self = this;
 
+    return new Promise(async function(resolve, reject) {
+      if (payload.user.authenticated) {
+        const planExpireDate = new Date(_.get(payload.user, 'plan.expires.timestamp', 0));
+        if (planExpireDate >= new Date()) {
+          payload.response.status = 401;
+          payload.response.error = new Error(`Failed to delete user: There is an active paid subscription on this account. Please cancel it first and then try deleting the account again.`);
+          return reject(payload.response.error);
+        }
+        await self.libraries.admin.auth().deleteUser(payload.user.auth.uid)
+        .then(() => {
+          return resolve(payload);
+        })
+        .catch(e => {
+          payload.response.status = 401;
+          payload.response.error = new Error(`Failed to delete user: ${e}`);
+          return reject(payload.response.error);
+        })
+      } else {
+        payload.response.status = 401;
+        payload.response.error = new Error('User not authenticated.');
+        return reject(payload.response.error);
+      }
     });
   },
 }
