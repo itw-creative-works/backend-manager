@@ -36,6 +36,8 @@ let Module = {
         await self.createCustomToken(payload).catch(e => e);
       } else if (command === 'delete-user') {
         await self.deleteUser(payload).catch(e => e);
+      } else if (command === 'payment-processor') {
+        await self.paymentProcessor(payload).catch(e => e);
       } else {
         response.status = 401;
         response.error = new Error(`Improper command supplied: ${command}`);
@@ -97,6 +99,36 @@ let Module = {
         payload.response.error = new Error('User not authenticated.');
         return reject(payload.response.error);
       }
+    });
+  },
+  paymentProcessor: async function (payload) {
+    const self = this;
+
+    return new Promise(async function(resolve, reject) {
+      const productId = _.get(payload, 'data.payload.payload.payload.details.productIdGlobal');
+      if (!productId) {
+        return reject(new Error('No productId'))
+      }
+      const processorPath = `${process.cwd()}/payment-processors/${productId}.js`
+      let processor;
+      // console.log('---processorPath', processorPath);
+      try {
+        processor = new (require(processorPath));
+        processor.Manager = self.Manager;
+      } catch (e) {
+        self.assistant.error('Error loading processor', e)
+        return resolve()
+      }
+
+      await processor.process(payload.data.payload.payload)
+      .then(result => {
+        return resolve(result);
+      })
+      .catch(e => {
+        self.Manager.libraries.sentry.captureException(e);
+        console.error(`Payment processor @ "${processorPath}" failed`, e);
+        return reject(e);
+      })
     });
   },
 }
