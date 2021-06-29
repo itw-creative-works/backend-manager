@@ -116,7 +116,7 @@ let Module = {
         processor = new (require(processorPath));
         processor.Manager = self.Manager;
       } catch (e) {
-        self.assistant.error('Error loading processor', e, {environment: 'production'})
+        self.assistant.error('Error loading processor', processorPath, e, {environment: 'production'})
         return resolve()
       }
 
