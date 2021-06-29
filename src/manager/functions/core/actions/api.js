@@ -33,11 +33,11 @@ let Module = {
         user: user,
       }
       if (command === 'create-custom-token') {
-        await self.createCustomToken(payload).catch(e => e);
+        await self.createCustomToken(payload).catch(e => {self.assistant.log(e, {environment: 'production'})});
       } else if (command === 'delete-user') {
-        await self.deleteUser(payload).catch(e => e);
+        await self.deleteUser(payload).catch(e => {self.assistant.log(e, {environment: 'production'})});
       } else if (command === 'payment-processor') {
-        await self.paymentProcessor(payload).catch(e => e);
+        await self.paymentProcessor(payload).catch(e => {self.assistant.log(e, {environment: 'production'})});
       } else {
         response.status = 401;
         response.error = new Error(`Improper command supplied: ${command}`);
@@ -105,7 +105,7 @@ let Module = {
     const self = this;
 
     return new Promise(async function(resolve, reject) {
-      const productId = _.get(payload, 'data.payload.payload.payload.details.productIdGlobal');
+      const productId = _.get(payload, 'data.payload.payload.details.productIdGlobal');
       if (!productId) {
         return reject(new Error('No productId'))
       }
@@ -120,7 +120,7 @@ let Module = {
         return resolve()
       }
 
-      await processor.process(payload.data.payload.payload)
+      await processor.process(payload.data.payload)
       .then(result => {
         return resolve(result);
       })
