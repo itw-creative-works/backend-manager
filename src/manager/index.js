@@ -1,6 +1,6 @@
 // Libraries
 const path = require('path');
-const merge = require('lodash/merge');
+const { get, merge } = require('lodash');
 // const { debug, log, error, warn } = require('firebase-functions/lib/logger');
 // let User;
 // let Analytics;
@@ -86,12 +86,13 @@ Manager.prototype.init = function (exporter, options) {
     // admin.firestore().settings({/* your settings... */ timestampsInSnapshots: true})
   }
 
-  if (self.options.sentry && self.config.sentry && self.config.sentry.dsn) {
+  if (self.options.sentry) {
     // console.log('Setting up sentry:', `${self.project.projectId}@${self.package.version}`);
     // console.log('self.config.sentry.dsn', self.config.sentry.dsn);
+    const sentryDSN = get(self.config, 'sentry.dsn', '');
     self.libraries.sentry = require('@sentry/node');
     self.libraries.sentry.init({
-      dsn: self.config.sentry.dsn,
+      dsn: sentryDSN,
       release: `${self.project.projectId}@${self.package.version}`,
       beforeSend(event, hint) {
         if (self.assistant.meta.environment === 'development') {
@@ -359,7 +360,7 @@ Manager.prototype.init = function (exporter, options) {
     try {
       require('dotenv').config();
     } catch (e) {
-      console.error('Failed to set up environemtn variables from .env file');
+      console.error('Failed to set up environment variables from .env file');
     }
   // }
 
