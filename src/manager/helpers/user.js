@@ -49,9 +49,7 @@ function User(settings, options) {
     },
     affiliate: {
       code: _.get(settings, 'affiliate.code', useDefaults ? shortid.generate() : null),
-      referrals: {
-
-      },
+      referrals: [],
       referrer: _.get(settings, 'affiliate.referrer', null),
     },
     activity: {
