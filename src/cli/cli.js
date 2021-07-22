@@ -126,7 +126,7 @@ Main.prototype.process = async function (args) {
     return await cmd_configGet(self);
   }
 
-  if (this.options['config:unset'] || this.options['config:delete']) {
+  if (this.options['config:unset'] || this.options['config:delete'] || this.options['config:remove']) {
     await cmd_configUnset(self);
     return await cmd_configGet(self);
   }
@@ -869,12 +869,22 @@ function getPkgVersion(package) {
           // Use user feedback for... whatever!!
           // console.log('answer', answers);
           log(chalk.yellow(`Saving...`));
-          let cmd = exec(`firebase functions:config:set ${answers.path}="${answers.value}"`, function (error, stdout, stderr) {
+          let newPath = answers.path;
+          let isInvalid = false;
+          if (newPath !== newPath.toLowerCase()) {
+            isInvalid = true;
+            newPath = newPath.replace(/([A-Z])/g, '_$1').trim().toLowerCase();
+          }
+          let cmd = exec(`firebase functions:config:set ${newPath}="${answers.value}"`, function (error, stdout, stderr) {
             if (error) {
               console.error(error);
               reject();
             } else {
               console.log(stdout);
+              if (isInvalid) {
+                log(chalk.red(`!!! Your path contained an invalid uppercase character`));
+                log(chalk.red(`!!! It was set to: ${chalk.bold(newPath)}`));
+              }
               resolve();
             }
           });
