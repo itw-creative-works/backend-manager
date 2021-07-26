@@ -122,6 +122,7 @@ let Module = {
 
       await processor.process(payload.data.payload)
       .then(result => {
+        payload.response.data = result;
         return resolve(result);
       })
       .catch(e => {
