@@ -38,6 +38,8 @@ let Module = {
         await self.deleteUser(payload).catch(e => {self.assistant.log(e, {environment: 'production'})});
       } else if (command === 'payment-processor') {
         await self.paymentProcessor(payload).catch(e => {self.assistant.log(e, {environment: 'production'})});
+      } else if (command === 'sign-out-all-sessions') {
+        await self.signOutAllSessions(payload).catch(e => {self.assistant.log(e, {environment: 'production'})});
       } else {
         response.status = 401;
         response.error = new Error(`Improper command supplied: ${command}`);
@@ -130,6 +132,58 @@ let Module = {
         console.error(`Payment processor @ "${processorPath}" failed`, e);
         return reject(e);
       })
+    });
+  },
+  signOutAllSessions: async function (payload) {
+    const self = this;
+    const powertools = self.Manager.require('node-powertools')
+    return new Promise(async function(resolve, reject) {
+      const uid = _.get(payload.user, 'auth.uid', null);
+      if (payload.user.authenticated && uid) {
+
+        await self.libraries.admin.database().ref(`gatherings/online`)
+        .orderByChild('uid')
+        .equalTo(uid)
+        .once('value')
+        .then(async snap => {
+          const data = snap.val();
+          const keys = Object.keys(data || {});
+          for (var i = 0; i < keys.length; i++) {
+            const key = keys[i];
+            self.assistant.log(`Signing out: ${key}`, {environment: 'production'});
+            await self.libraries.admin.database().ref(`gatherings/online/${key}/command`).set('signout').catch(e => self.assistant.error(`Failed to signout ${key}`, e))
+            await powertools.wait(3000);
+            await self.libraries.admin.database().ref(`gatherings/online/${key}`).remove().catch(e => self.assistant.error(`Failed to delete ${key}`, e))
+          }
+        })
+        .catch(e => {
+          console.error('Gathering query error', e);
+        })
+
+        await self.libraries.admin
+          .auth()
+          .revokeRefreshTokens(uid)
+          .then(() => {
+            self.assistant.error('Signed user out of all sessions', payload.user.auth.uid, {environment: 'production'})
+            payload.data = {message: `Successfully signed ${payload.user.auth.uid} out of all sessions`}
+            return resolve(payload.data);
+          })
+          .catch(e => {
+            payload.response.status = 500;
+            payload.response.error = e;
+          })
+
+        if (payload.response.status >= 200 && payload.response.status < 300) {
+          return resolve(payload.response.data);
+        } else {
+          return reject(payload.response.error);
+        }
+      } else {
+        payload.response.status = 401;
+        payload.response.error = new Error('User not authenticated.');
+        return reject(payload.response.error);
+      }
+
     });
   },
 }
