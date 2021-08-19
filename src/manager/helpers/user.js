@@ -44,7 +44,8 @@ function User(settings, options) {
         startDate: {
           timestamp: _.get(settings, 'plan.payment.startDate.timestamp', useDefaults ? now : null), // x-xxxxxx
           timestampUNIX: _.get(settings, 'plan.payment.startDate.timestampUNIX', useDefaults ? nowUNIX : null), // x-xxxxxx
-        }
+        },
+        active: _.get(settings, 'plan.payment.active', useDefaults ? false : null), // true | false
       }
     },
     affiliate: {
