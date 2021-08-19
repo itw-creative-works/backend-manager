@@ -81,12 +81,19 @@ let Module = {
 
     return new Promise(async function(resolve, reject) {
       if (payload.user.authenticated) {
-        const planExpireDate = new Date(_.get(payload.user, 'plan.expires.timestamp', 0));
-        if (planExpireDate >= new Date()) {
+        // const planExpireDate = new Date(_.get(payload.user, 'plan.expires.timestamp', 0));
+        // if (planExpireDate >= new Date()) {
+        //   payload.response.status = 401;
+        //   payload.response.error = new Error(`Failed to delete user: There is an active paid subscription on this account. Please cancel it first and then try deleting the account again.`);
+        //   return reject(payload.response.error);
+        // }
+        const isPlanActive = _.get(payload.user, 'plan.payment.active', null);
+        if (isPlanActive === true) {
           payload.response.status = 401;
           payload.response.error = new Error(`Failed to delete user: There is an active paid subscription on this account. Please cancel it first and then try deleting the account again.`);
           return reject(payload.response.error);
         }
+
         await self.libraries.admin.auth().deleteUser(payload.user.auth.uid)
         .then(() => {
           return resolve(payload);
