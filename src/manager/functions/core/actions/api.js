@@ -86,7 +86,7 @@ let Module = {
     return new Promise(async function(resolve, reject) {
       if (payload.user.authenticated || payload.user.roles.admin) {
 
-        console.log('---payload.data.payload', payload.data.payload);
+        // console.log('---payload.data.payload', payload.data.payload);
 
         payload.data.payload.path = `${payload.data.payload.path || ''}`;
         payload.data.payload.document = payload.data.payload.document || {};
