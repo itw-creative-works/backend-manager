@@ -36,6 +36,10 @@ let Module = {
         await self.createCustomToken(payload).catch(e => {self.assistant.log(e, {environment: 'production'})});
       } else if (command === 'delete-user') {
         await self.deleteUser(payload).catch(e => {self.assistant.log(e, {environment: 'production'})});
+      } else if (command === 'firestore-write') {
+        await self.firestoreWrite(payload).catch(e => {self.assistant.log(e, {environment: 'production'})});
+      } else if (command === 'firestore-read') {
+        await self.firestoreRead(payload).catch(e => {self.assistant.log(e, {environment: 'production'})});
       } else if (command === 'payment-processor') {
         await self.paymentProcessor(payload).catch(e => {self.assistant.log(e, {environment: 'production'})});
       } else if (command === 'sign-out-all-sessions') {
@@ -58,7 +62,7 @@ let Module = {
     const self = this;
 
     return new Promise(async function(resolve, reject) {
-      if (payload.user.authenticated) {
+      if (payload.user.authenticated || payload.user.roles.admin) {
         await self.libraries.admin.auth().createCustomToken(payload.user.auth.uid)
         .then(token => {
           payload.response.data.token = token;
@@ -76,11 +80,83 @@ let Module = {
       }
     });
   },
+  firestoreRead: async function (payload) {
+    const self = this;
+
+    return new Promise(async function(resolve, reject) {
+      if (payload.user.authenticated || payload.user.roles.admin) {
+
+        console.log('---payload.data.payload', payload.data.payload);
+
+        payload.data.payload.path = `${payload.data.payload.path || ''}`;
+        payload.data.payload.document = payload.data.payload.document || {};
+        payload.data.payload.options = payload.data.payload.options || { merge: true };
+
+
+        if (!payload.data.payload.path) {
+          payload.response.status = 401;
+          payload.response.error = new Error('Path parameter required');
+          return reject(payload);
+        } else {
+          await self.libraries.admin.firestore().doc(payload.data.payload.path)
+          .get()
+          .then(doc => {
+            payload.response.data = doc.data();
+            return resolve(payload.response.data);
+          })
+          .catch(e => {
+            payload.response.status = 500;
+            payload.response.error = e;
+            return reject(payload);
+          })
+        }
+
+      } else {
+        payload.response.status = 401;
+        payload.response.error = new Error('User not authenticated.');
+        return reject(payload.response.error);
+      }
+    });
+  },
+  firestoreWrite: async function (payload) {
+    const self = this;
+
+    return new Promise(async function(resolve, reject) {
+      if (payload.user.authenticated || payload.user.roles.admin) {
+
+        payload.data.payload.path = `${payload.data.payload.path || ''}`;
+        payload.data.payload.document = payload.data.payload.document || {};
+        payload.data.payload.options = payload.data.payload.options || { merge: true };
+
+        if (!payload.data.payload.path) {
+          payload.response.status = 401;
+          payload.response.error = new Error('Path parameter required');
+          return reject(payload);
+        } else {
+          await self.libraries.admin.firestore().doc(payload.data.payload.path)
+          .set(payload.data.payload.document, payload.data.payload.options)
+          .then(r => {
+            return resolve(payload);
+          })
+          .catch(e => {
+            payload.response.status = 500;
+            payload.response.error = e;
+            return reject(payload);
+          })
+        }
+
+      } else {
+        payload.response.status = 401;
+        payload.response.error = new Error('User not authenticated.');
+        return reject(payload.response.error);
+      }
+    });
+  },
   deleteUser: async function (payload) {
     const self = this;
 
     return new Promise(async function(resolve, reject) {
-      if (payload.user.authenticated) {
+      if (payload.user.authenticated || payload.user.roles.admin) {
         // const planExpireDate = new Date(_.get(payload.user, 'plan.expires.timestamp', 0));
         // if (planExpireDate >= new Date()) {
         //   payload.response.status = 401;
@@ -146,7 +222,7 @@ let Module = {
     const powertools = self.Manager.require('node-powertools')
     return new Promise(async function(resolve, reject) {
       const uid = _.get(payload.user, 'auth.uid', null);
-      if (payload.user.authenticated && uid) {
+      if (payload.user.authenticated || payload.user.roles.admin && uid) {
 
         await self.libraries.admin.database().ref(`gatherings/online`)
         .orderByChild('uid')
