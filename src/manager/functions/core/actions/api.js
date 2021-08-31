@@ -44,6 +44,8 @@ let Module = {
         await self.paymentProcessor(payload).catch(e => {self.assistant.log(e, {environment: 'production'})});
       } else if (command === 'sign-out-all-sessions') {
         await self.signOutAllSessions(payload).catch(e => {self.assistant.log(e, {environment: 'production'})});
+      } else if (command === 'get-user-subscription-info') {
+        await self.getUserSubscriptionInfo(payload).catch(e => {self.assistant.log(e, {environment: 'production'})});
       } else {
         response.status = 401;
         response.error = new Error(`Improper command supplied: ${command}`);
@@ -267,6 +269,65 @@ let Module = {
         return reject(payload.response.error);
       }
 
+    });
+  },
+  getUserSubscriptionInfo: async function (payload) {
+    const self = this;
+    const uid = _.get(payload, 'data.payload.uid', null)
+
+    return new Promise(async function(resolve, reject) {
+      // console.log('----payload.data', payload.data);
+
+      if (!uid) {
+        payload.response.status = 401;
+        payload.response.error = new Error(`Improper uid supplied: ${uid}`);
+        return reject(payload);
+      }
+
+      await self.libraries.admin.firestore().doc(`users/${uid}`)
+      .get()
+      .then(doc => {
+        const data = doc.data();
+        if (!data) {
+          payload.response.status = 401;
+          payload.response.error = new Error(`Cannot find user with uid: ${uid}`);
+          return reject(payload.response.data);
+        } else {
+          payload.response.data = {
+            plan: {
+              id: data.plan.id,
+              payment: {
+                active: data.plan.payment.active,
+              },
+            }
+          }
+          return resolve(payload.response.data);
+        }
+
+      })
+      .catch(e => {
+        payload.response.status = 500;
+        payload.response.error = e;
+        return reject(payload);
+      })
+      //
+      //
+      // const isPlanActive = _.get(payload.user, 'plan.payment.active', null);
+      // if (isPlanActive === true) {
+      //   payload.response.status = 401;
+      //   payload.response.error = new Error(`Failed to delete user: There is an active paid subscription on this account. Please cancel it first and then try deleting the account again.`);
+      //   return reject(payload.response.error);
+      // }
+      //
+      // await self.libraries.admin.auth().deleteUser(payload.user.auth.uid)
+      // .then(() => {
+      //   return resolve(payload);
+      // })
+      // .catch(e => {
+      //   payload.response.status = 401;
+      //   payload.response.error = new Error(`Failed to delete user: ${e}`);
+      //   return reject(payload.response.error);
+      // })
     });
   },
 }
