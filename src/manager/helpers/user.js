@@ -73,6 +73,28 @@ function User(settings, options) {
     self.properties = pruneObject(self.properties);
   }
 
+  self.resolve = function (options) {
+    options = options || {};
+    options.defaultPlan = options.defaultPlan || 'basic';
+    const planId = _.get(self.properties, 'plan.id', options.defaultPlan);
+    const premiumExpire = _.get(self.properties, 'plan.expires.timestamp', 0);
+
+    let difference = ((new Date(premiumExpire).getTime() - new Date().getTime())/(24*3600*1000));
+    // console.log('---difference', difference);
+    if (difference <= -1) {
+      _.set(self.properties, 'plan.id', options.defaultPlan);
+      // console.log('---REVERTED TO BASIC BECAUSE EXPIRED');
+    } else {
+      // console.log('---ITS FINE');
+    }
+    return self;
+  }
+
+  self.merge = function (userObject) {
+    self.properties = _.merge({}, self.properties, userObject)
+    return self;
+  }
+
   return self;
 }
 
