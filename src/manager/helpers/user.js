@@ -46,6 +46,16 @@ function User(settings, options) {
           timestampUNIX: _.get(settings, 'plan.payment.startDate.timestampUNIX', useDefaults ? nowUNIX : null), // x-xxxxxx
         },
         active: _.get(settings, 'plan.payment.active', useDefaults ? false : null), // true | false
+        updatedBy: {
+          event: {
+            name: _.get(settings, 'plan.payment.updatedBy.event.name', null), // x-xxxxxx
+            id: _.get(settings, 'plan.payment.updatedBy.event.id', null), // x-xxxxxx
+          },
+          date: {
+            timestamp: _.get(settings, 'plan.payment.updatedBy.date.timestamp', useDefaults ? now : null), // x-xxxxxx
+            timestampUNIX: _.get(settings, 'plan.payment.updatedBy.date.timestampUNIX', useDefaults ? nowUNIX : null), // x-xxxxxx
+          },
+        },
       }
     },
     affiliate: {
