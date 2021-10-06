@@ -22,20 +22,20 @@ let Module = {
       data: {},
     };
 
-    let user = await assistant.authenticate();
-
-    // Analytics
-    let analytics = self.Manager.Analytics({
-      assistant: assistant,
-      uuid: user.auth.uid,
-    })
-    .event({
-      category: 'admin',
-      action: 'generate-uuid',
-      // label: '',
-    });
-
     return libraries.cors(req, res, async () => {
+      let user = await assistant.authenticate();
+
+      // Analytics
+      let analytics = self.Manager.Analytics({
+        assistant: assistant,
+        uuid: user.auth.uid,
+      })
+      .event({
+        category: 'admin',
+        action: 'generate-uuid',
+        // label: '',
+      });
+            
       const namespace = assistant.request.data.namespace || self.Manager.config.backend_manager.namespace;
       assistant.request.data.version = `${assistant.request.data.version || '5'}`.replace('v', '');
       assistant.request.data.name = assistant.request.data.name || assistant.request.data.input;
@@ -49,7 +49,7 @@ let Module = {
         response.data.uuid = uuid.v4();
       }
 
-      assistant.log(assistant.request.data, response);
+      assistant.log('UUID Generated', assistant.request.data, response, {environment: 'production'});
 
       if (response.status === 200) {
         return res.status(response.status).json(response.data);

@@ -29,23 +29,22 @@ let Module = {
       status: 200,
     };
 
-    // authenticate admin!
-    let user = await assistant.authenticate();
-
-    // Analytics
-    let analytics = self.Manager.Analytics({
-      assistant: assistant,
-      uuid: user.auth.uid,
-    })
-    .event({
-      category: 'admin',
-      action: 'post-created',
-      // label: '',
-    });
-
-    assistant.log('Creating campagin with data', assistant.request.data)
-
     return libraries.cors(req, res, async () => {
+      // authenticate admin!
+      let user = await assistant.authenticate();
+
+      // Analytics
+      let analytics = self.Manager.Analytics({
+        assistant: assistant,
+        uuid: user.auth.uid,
+      })
+      .event({
+        category: 'admin',
+        action: 'post-created',
+        // label: '',
+      });
+
+      assistant.log('Creating campagin with data', assistant.request.data)      
 
       if (!user.roles.admin) {
         response.status = 401;

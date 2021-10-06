@@ -21,23 +21,23 @@ let Module = {
       error: null,
     };
 
-    // authenticate admin!
-    let user = await assistant.authenticate();
-
-    // Analytics
-    let analytics = self.Manager.Analytics({
-      assistant: assistant,
-      uuid: user.auth.uid,
-    })
-    .event({
-      category: 'admin',
-      action: 'send-notification',
-      // label: '',
-    });
-
-    let payload = self.assistant.request.data.payload || {};
-
     return libraries.cors(req, res, async () => {
+      // authenticate admin!
+      let user = await assistant.authenticate();
+
+      // Analytics
+      let analytics = self.Manager.Analytics({
+        assistant: assistant,
+        uuid: user.auth.uid,
+      })
+      .event({
+        category: 'admin',
+        action: 'send-notification',
+        // label: '',
+      });
+
+      let payload = self.assistant.request.data.payload || {};
+            
       if (!payload.title || !payload.body) {
         response.status = 400;
         response.error = new Error('Not enough notification parameters supplied.');
@@ -54,7 +54,7 @@ let Module = {
         await self.getTokens({tags: false});
       }
 
-      // assistant.log(assistant.request.data, response);
+      assistant.log('Notification', assistant.request.data, response, {environment: 'production'});
 
       if (response.status === 200) {
         return res.status(response.status).json(response.data);

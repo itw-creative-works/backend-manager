@@ -24,24 +24,23 @@ let Module = {
       status: 200,
     };
 
-    // authenticate admin!
-    let user = await assistant.authenticate();
-
-    // Analytics
-    let analytics = self.Manager.Analytics({
-      assistant: assistant,
-      uuid: user.auth.uid,
-    })
-    .event({
-      category: 'admin',
-      action: 'create-post',
-      // label: '',
-    });
-
-    let repoInfo = assistant.parseRepo(get(self.Manager.config, 'github.repo_website'));
-
     return libraries.cors(req, res, async () => {
+      // authenticate admin!
+      let user = await assistant.authenticate();
 
+      // Analytics
+      let analytics = self.Manager.Analytics({
+        assistant: assistant,
+        uuid: user.auth.uid,
+      })
+      .event({
+        category: 'admin',
+        action: 'create-post',
+        // label: '',
+      });
+
+      let repoInfo = assistant.parseRepo(get(self.Manager.config, 'github.repo_website'));
+      
       if (!user.roles.admin) {
         response.status = 401;
         response.error = new Error('Unauthenticated, admin required.');
@@ -76,7 +75,7 @@ let Module = {
         })
       }
 
-      // assistant.log(assistant.request.data, response);
+      assistant.log('Post', assistant.request.data, response, {environment: 'production'});
 
       if (response.status === 200) {
         return res.status(response.status).json(response.data);

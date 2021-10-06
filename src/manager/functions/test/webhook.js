@@ -15,20 +15,20 @@ let Module = {
     let libraries = self.libraries;
     let assistant = self.assistant;
 
-    let user = await assistant.authenticate();
-
-    // Analytics
-    let analytics = self.Manager.Analytics({
-      assistant: assistant,
-      uuid: user.auth.uid,
-    })
-    .event({
-      category: 'admin',
-      action: 'webhook-test',
-      // label: '',
-    });
-
     return libraries.cors(req, res, async () => {
+      let user = await assistant.authenticate();
+
+      // Analytics
+      let analytics = self.Manager.Analytics({
+        assistant: assistant,
+        uuid: user.auth.uid,
+      })
+      .event({
+        category: 'admin',
+        action: 'webhook-test',
+        // label: '',
+      });
+
       assistant.log(assistant.request);
       return res.status(200).json({status: 200, request: assistant.request.data});
     });

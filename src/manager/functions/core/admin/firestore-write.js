@@ -22,20 +22,20 @@ let Module = {
       data: {},
     };
 
-    let user = await assistant.authenticate();
-
-    // Analytics
-    let analytics = self.Manager.Analytics({
-      assistant: assistant,
-      uuid: user.auth.uid,
-    })
-    .event({
-      category: 'admin',
-      action: 'firestore-write',
-      // label: '',
-    });
-
     return libraries.cors(req, res, async () => {
+      let user = await assistant.authenticate();
+
+      // Analytics
+      let analytics = self.Manager.Analytics({
+        assistant: assistant,
+        uuid: user.auth.uid,
+      })
+      .event({
+        category: 'admin',
+        action: 'firestore-write',
+        // label: '',
+      });
+            
       options.path = `${options.path || ''}`;
       options.document = options.document || {};
       options.options = options.options || { merge: true };
@@ -43,13 +43,15 @@ let Module = {
       if (!user.roles.admin) {
         response.status = 401;
         response.error = new Error('Unauthenticated, admin required.');
-        assistant.error(response.error, {environment: 'production'})
       } else if (!options.path) {
         response.status = 401;
         response.error = new Error('Path parameter required');
       } else {
         await admin.firestore().doc(options.path)
         .set(options.document, options.options)
+        .then(r => {
+          assistant.log(`Wrote to ${options.path}:`, options.document, options.options, {environment: 'production'})
+        })
         .catch(e => {
           response.status = 500;
           response.error = e;
@@ -59,6 +61,7 @@ let Module = {
       if (response.status === 200) {
         return res.status(response.status).json(response.data);
       } else {
+        assistant.error(response.error, {environment: 'production'})
         return res.status(response.status).send(response.error.message);
       }
     });

@@ -23,9 +23,10 @@ let Module = {
       data: {},
     };
 
-    let user = await assistant.authenticate();
 
     return libraries.cors(req, res, async () => {
+      let user = await assistant.authenticate();
+      
       if (!user.authenticated) {
         response.status = 401;
         response.error = new Error('Account does not exist in Auth.');
@@ -62,7 +63,7 @@ let Module = {
         })
       }
 
-      // assistant.log(assistant.request.data, response);
+      assistant.log('Signup handler:', assistant.request.data, response, {environment: 'production'});
 
       if (response.status === 200) {
         return res.status(response.status).json(response.data);

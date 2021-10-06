@@ -21,21 +21,21 @@ let Module = {
       error: null,
     };
 
-    // authenticate admin!
-    let user = await assistant.authenticate();
-
-    // Analytics
-    let analytics = self.Manager.Analytics({
-      assistant: assistant,
-      uuid: user.auth.uid,
-    })
-    .event({
-      category: 'admin',
-      action: 'get-stats',
-      // label: '',
-    });
-
     return libraries.cors(req, res, async () => {
+      // authenticate admin!
+      let user = await assistant.authenticate();
+
+      // Analytics
+      let analytics = self.Manager.Analytics({
+        assistant: assistant,
+        uuid: user.auth.uid,
+      })
+      .event({
+        category: 'admin',
+        action: 'get-stats',
+        // label: '',
+      });
+            
       if (!user.roles.admin) {
         response.status = 401;
         response.error = new Error('Unauthenticated, admin required.');
@@ -81,7 +81,7 @@ let Module = {
 
       // response.data = data;
 
-      // assistant.log('response', response);
+      assistant.log('Stats', assistant.request.data, response, {environment: 'production'});
 
       if (response.status === 200) {
         return res.status(response.status).json(response.data);

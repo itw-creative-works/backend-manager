@@ -23,9 +23,9 @@ let Module = {
       data: {},
     };
 
-    let user = await assistant.authenticate();
-
     return libraries.cors(req, res, async () => {
+      let user = await assistant.authenticate();
+      
       const command = assistant.request.data.command;
       const payload = {
         response: response,

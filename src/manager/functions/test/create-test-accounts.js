@@ -16,20 +16,20 @@ let Module = {
     let libraries = self.libraries;
     let assistant = self.assistant;
 
-    let user = await assistant.authenticate();
-
-    // Analytics
-    let analytics = self.Manager.Analytics({
-      assistant: assistant,
-      uuid: user.auth.uid,
-    })
-    .event({
-      category: 'admin',
-      action: 'create-test-accounts',
-      // label: '',
-    });
-
     return libraries.cors(req, res, async () => {
+      let user = await assistant.authenticate();
+
+      // Analytics
+      let analytics = self.Manager.Analytics({
+        assistant: assistant,
+        uuid: user.auth.uid,
+      })
+      .event({
+        category: 'admin',
+        action: 'create-test-accounts',
+        // label: '',
+      });
+            
       let assistant = self.assistant;
 
       let response = {
