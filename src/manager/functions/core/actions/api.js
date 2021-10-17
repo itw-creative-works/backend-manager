@@ -25,7 +25,7 @@ let Module = {
 
     return libraries.cors(req, res, async () => {
       let user = await assistant.authenticate();
-      
+
       const command = assistant.request.data.command;
       const payload = {
         response: response,
@@ -51,7 +51,7 @@ let Module = {
         response.error = new Error(`Improper command supplied: ${command}`);
       }
 
-      self.assistant.log('Api payload', payload, {environment: 'production'})
+      self.assistant.log('Api payload', {object: payload, string: JSON.stringify(payload)}, {environment: 'production'})
 
       if (response.status === 200) {
         return res.status(response.status).json(response.data);
@@ -224,8 +224,8 @@ let Module = {
     const powertools = self.Manager.require('node-powertools')
     return new Promise(async function(resolve, reject) {
       const uid = _.get(payload.user, 'auth.uid', null);
-      if (payload.user.authenticated || payload.user.roles.admin && uid) {
 
+      if (payload.user.authenticated || payload.user.roles.admin && uid) {
         await self.libraries.admin.database().ref(`gatherings/online`)
         .orderByChild('uid')
         .equalTo(uid)
@@ -249,7 +249,7 @@ let Module = {
           .auth()
           .revokeRefreshTokens(uid)
           .then(() => {
-            self.assistant.error('Signed user out of all sessions', payload.user.auth.uid, {environment: 'production'})
+            self.assistant.log('Signed user out of all sessions', payload.user.auth.uid, {environment: 'production'})
             payload.data = {message: `Successfully signed ${payload.user.auth.uid} out of all sessions`}
             return resolve(payload.data);
           })
