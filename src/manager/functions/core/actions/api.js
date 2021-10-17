@@ -32,20 +32,23 @@ let Module = {
         data: assistant.request.data,
         user: user,
       }
+
+      self.assistant.log('Executing', command, {environment: 'production'})
+
       if (command === 'create-custom-token') {
-        await self.createCustomToken(payload).catch(e => {self.assistant.log(e, {environment: 'production'})});
+        await self.createCustomToken(payload).catch(e => {self.assistant.error(e, {environment: 'production'})});
       } else if (command === 'delete-user') {
-        await self.deleteUser(payload).catch(e => {self.assistant.log(e, {environment: 'production'})});
+        await self.deleteUser(payload).catch(e => {self.assistant.error(e, {environment: 'production'})});
       } else if (command === 'firestore-write') {
-        await self.firestoreWrite(payload).catch(e => {self.assistant.log(e, {environment: 'production'})});
+        await self.firestoreWrite(payload).catch(e => {self.assistant.error(e, {environment: 'production'})});
       } else if (command === 'firestore-read') {
-        await self.firestoreRead(payload).catch(e => {self.assistant.log(e, {environment: 'production'})});
+        await self.firestoreRead(payload).catch(e => {self.assistant.error(e, {environment: 'production'})});
       } else if (command === 'payment-processor') {
-        await self.paymentProcessor(payload).catch(e => {self.assistant.log(e, {environment: 'production'})});
+        await self.paymentProcessor(payload).catch(e => {self.assistant.error(e, {environment: 'production'})});
       } else if (command === 'sign-out-all-sessions') {
-        await self.signOutAllSessions(payload).catch(e => {self.assistant.log(e, {environment: 'production'})});
+        await self.signOutAllSessions(payload).catch(e => {self.assistant.error(e, {environment: 'production'})});
       } else if (command === 'get-user-subscription-info') {
-        await self.getUserSubscriptionInfo(payload).catch(e => {self.assistant.log(e, {environment: 'production'})});
+        await self.getUserSubscriptionInfo(payload).catch(e => {self.assistant.error(e, {environment: 'production'})});
       } else {
         response.status = 401;
         response.error = new Error(`Improper command supplied: ${command}`);
