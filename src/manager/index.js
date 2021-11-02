@@ -29,8 +29,11 @@ Manager.prototype.init = function (exporter, options) {
   options.initialize = typeof options.initialize === 'undefined' ? true : options.initialize;
   options.setupFunctions = typeof options.setupFunctions === 'undefined' ? true : options.setupFunctions;
   options.sentry = typeof options.sentry === 'undefined' ? true : options.sentry;
+  options.reportErrorsInDev = typeof options.reportErrorsInDev === 'undefined' ? false : options.reportErrorsInDev;
   options.firebaseConfig = options.firebaseConfig;
   options.useFirebaseLogger = typeof options.useFirebaseLogger === 'undefined' ? true : options.useFirebaseLogger;
+  options.serviceAccountPath = typeof options.serviceAccountPath === 'undefined' ? 'service-account.json' : options.serviceAccountPath;
+  options.uniqueAppName = options.uniqueAppName || undefined;
 
   // Load libraries
   self.libraries = {
@@ -74,12 +77,13 @@ Manager.prototype.init = function (exporter, options) {
   if (self.options.initialize) {
     // console.log('Initializing:', self.project);
     try {
-      self.libraries.admin.initializeApp({
+      // console.log('----self.project.databaseURL', self.project.databaseURL);
+      self.libraries.admin = self.libraries.admin.initializeApp({
         credential: self.libraries.admin.credential.cert(
-          require(path.resolve(self.cwd, 'service-account.json'))
+          require(path.resolve(self.cwd, options.serviceAccountPath))
         ),
         databaseURL: self.project.databaseURL,
-      });
+      }, options.uniqueAppName);
     } catch (e) {
       console.error('Failed to call .initializeApp()', e);
     }
@@ -95,7 +99,7 @@ Manager.prototype.init = function (exporter, options) {
       dsn: sentryDSN,
       release: `${self.project.projectId}@${self.package.version}`,
       beforeSend(event, hint) {
-        if (self.assistant.meta.environment === 'development') {
+        if (self.assistant.meta.environment === 'development' && !self.options.reportErrorsInDev) {
           self.assistant.error('Skipping Sentry because DEV')
           return null;
         }
