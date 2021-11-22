@@ -35,10 +35,11 @@ let Module = {
         action: 'firestore-write',
         // label: '',
       });
-            
+
       options.path = `${options.path || ''}`;
       options.document = options.document || {};
-      options.options = options.options || { merge: true };
+      options.options = options.options || {};
+      options.options.merge = typeof options.options.merge === 'undefined' ? true : options.options.merge;
 
       if (!user.roles.admin) {
         response.status = 401;
