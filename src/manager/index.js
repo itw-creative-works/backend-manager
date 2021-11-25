@@ -78,7 +78,7 @@ Manager.prototype.init = function (exporter, options) {
     // console.log('Initializing:', self.project);
     try {
       // console.log('----self.project.databaseURL', self.project.databaseURL);
-      self.libraries.admin = self.libraries.admin.initializeApp({
+      self.libraries.initializedAdmin = self.libraries.admin.initializeApp({
         credential: self.libraries.admin.credential.cert(
           require(path.resolve(self.cwd, options.serviceAccountPath))
         ),
