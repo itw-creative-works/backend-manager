@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "1.1.103",
+  "version": "1.1.104",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -31,7 +31,7 @@
     "@google-cloud/storage": "^5.16.0",
     "@sendgrid/mail": "^7.6.0",
     "@sentry/node": "^6.15.0",
-    "backend-assistant": "^0.0.55",
+    "backend-assistant": "^0.0.56",
     "busboy": "^0.3.1",
     "chalk": "^4.1.2",
     "cors": "^2.8.5",
