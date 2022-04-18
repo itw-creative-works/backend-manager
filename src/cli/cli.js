@@ -466,10 +466,13 @@ Main.prototype.setup = async function () {
   }
 
 
-  const prepareStatsURL = `https://us-central1-${_.get(this.firebaseRC, 'projects.default')}.cloudfunctions.net/bm_getStats?authenticationToken=${_.get(this.runtimeConfigJSON, 'backend_manager.key')}`;
-  // const prepareStatsURL = `https://us-central1-${_.get(this.firebaseRC, 'projects.default')}.cloudfunctions.net/bm_getStats?authenticationToken=undefined`;
+  const prepareStatsURL = `https://us-central1-${_.get(this.firebaseRC, 'projects.default')}.cloudfunctions.net/bm_api?authenticationToken=${_.get(this.runtimeConfigJSON, 'backend_manager.key')}`;
+  // const prepareStatsURL = `https://us-central1-${_.get(this.firebaseRC, 'projects.default')}.cloudfunctions.net/bm_api?authenticationToken=undefined`;
   const statsFetchResult = await fetch(prepareStatsURL, {
     method: 'post',
+    body: JSON.stringify({
+      command: 'admin:get-stats',
+    }),
     timeout: 3000,
   })
   .then(async (res) => {
@@ -707,12 +710,12 @@ function fix_packageversion(self) {
 };
 
 async function fix_fbf(self) {
-  console.log('----FIX FBF'); return Promise.resolve();
-  // return await installPkg('firebase-functions', `@${self.packageJSON.dependencies['firebase-functions']}`)
+  // console.log('----FIX FBF'); return Promise.resolve();
+  return await installPkg('firebase-functions', `@${self.packageJSON.dependencies['firebase-functions']}`)
 };
 async function fix_fba(self) {
-  console.log('----FIX FBA'); return Promise.resolve();
-  // return await installPkg('firebase-admin', `@${self.packageJSON.dependencies['firebase-admin']}`)
+  // console.log('----FIX FBA'); return Promise.resolve();
+  return await installPkg('firebase-admin', `@${self.packageJSON.dependencies['firebase-admin']}`)
 };
 async function fix_bem(self) {
   return await installPkg('backend-manager')
