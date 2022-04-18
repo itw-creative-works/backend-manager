@@ -280,11 +280,15 @@ Main.prototype.setup = async function () {
     // let latest = semver.clean(await getPkgVersion(pkg));
     let latest = semver.clean(cleanPackageVersion(self.packageJSON.dependencies['firebase-admin']));
     let mine = cleanPackageVersion(self.package.dependencies[pkg] || '0.0.0');
-
+    const majorVersionMismatch = ((semver.major(latest) > semver.major(mine)));
     let bemv = cleanPackageVersion(self.packageJSON.dependencies[pkg]);
     bemPackageVersionWarning(pkg, bemv, latest);
 
-    return !(semver.gt(latest, mine));
+    if (majorVersionMismatch) {
+      console.log(chalk.red(`Version ${chalk.bold(latest)} of ${chalk.bold(pkg)} available but you must install this manually because it is a major update.`));
+    }
+
+    return !(semver.gt(latest, mine)) || majorVersionMismatch;
   }, fix_fba);
 
   await this.test('using updated firebase-functions', async function () {
@@ -292,19 +296,28 @@ Main.prototype.setup = async function () {
     // let latest = semver.clean(await getPkgVersion(pkg));
     let latest = semver.clean(cleanPackageVersion(self.packageJSON.dependencies['firebase-functions']));
     let mine = cleanPackageVersion(self.package.dependencies[pkg] || '0.0.0');
-
+    const majorVersionMismatch = ((semver.major(latest) > semver.major(mine)));
     let bemv = cleanPackageVersion(self.packageJSON.dependencies[pkg]);
     bemPackageVersionWarning(pkg, bemv, latest);
 
-    return !(semver.gt(latest, mine));
+    if (majorVersionMismatch) {
+      console.log(chalk.red(`Version ${chalk.bold(latest)} of ${chalk.bold(pkg)} available but you must install this manually because it is a major update.`));
+    }
+
+    return !(semver.gt(latest, mine)) || majorVersionMismatch;
   }, fix_fbf);
 
   await this.test('using updated backend-manager', async function () {
     let pkg = 'backend-manager';
     let latest = semver.clean(await getPkgVersion(pkg));
     let mine = cleanPackageVersion(self.package.dependencies[pkg] || '0.0.0');
+    const majorVersionMismatch = !isLocal(mine) && ((semver.major(latest) > semver.major(mine)));
 
-    return isLocal(mine) || !(semver.gt(latest, mine));
+    if (majorVersionMismatch) {
+      console.log(chalk.red(`Version ${chalk.bold(latest)} of ${chalk.bold(pkg)} available but you must install this manually because it is a major update.`));
+    }
+
+    return isLocal(mine) || !(semver.gt(latest, mine)) || majorVersionMismatch;
   }, fix_bem);
 
   (async function() {
@@ -694,10 +707,12 @@ function fix_packageversion(self) {
 };
 
 async function fix_fbf(self) {
-  return await installPkg('firebase-functions', `@${self.packageJSON.dependencies['firebase-functions']}`)
+  console.log('----FIX FBF'); return Promise.resolve();
+  // return await installPkg('firebase-functions', `@${self.packageJSON.dependencies['firebase-functions']}`)
 };
 async function fix_fba(self) {
-  return await installPkg('firebase-admin', `@${self.packageJSON.dependencies['firebase-admin']}`)
+  console.log('----FIX FBA'); return Promise.resolve();
+  // return await installPkg('firebase-admin', `@${self.packageJSON.dependencies['firebase-admin']}`)
 };
 async function fix_bem(self) {
   return await installPkg('backend-manager')

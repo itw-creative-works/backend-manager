@@ -40,7 +40,7 @@ let Module = {
       });
 
       let repoInfo = assistant.parseRepo(get(self.Manager.config, 'github.repo_website'));
-      
+
       if (!user.roles.admin) {
         response.status = 401;
         response.error = new Error('Unauthenticated, admin required.');
