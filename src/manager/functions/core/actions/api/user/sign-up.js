@@ -7,6 +7,7 @@ function Module() {
 
 Module.prototype.init = async function (s, payload) {
   const self = this;
+  self.Api = s;
   self.Manager = s.Manager;
   self.libraries = s.Manager.libraries;
   self.assistant = s.Manager.assistant;
@@ -22,61 +23,40 @@ Module.prototype.main = function () {
   const payload = self.payload;
 
   return new Promise(async function(resolve, reject) {
-    let user = null;
-    if (payload.user.roles.admin && payload.data.payload.uid) {
-      await self.libraries.admin.firestore().doc(`users/${payload.data.payload.uid}`)
-      .get()
-      .then(async function (doc) {
-        const data = doc.data();
-        if (data) {
-          user = data;
-        } else {
-          throw new Error('User does not exist')
-        }
-      })
-      .catch(function (e) {
-        user = e;
-      })
-    } else if (payload.user.authenticated) {
-      user = payload.user;
-    }
-
-    if (user instanceof Error) {
-      return reject(assistant.errorManager(user, {code: 400, sentry: false, send: false, log: false}).error)
-    } else if (!user) {
-      return reject(assistant.errorManager(`Admin or authenticated user required.`, {code: 401, sentry: false, send: false, log: false}).error)
-    } else {
-
-      await self.signUp({
-        auth: {
-          uid: _.get(user, 'auth.uid', null),
-          email: _.get(user, 'auth.email', null),
-        },
-        affiliate: {
-          referrer: _.get(payload.data.payload, 'affiliateCode', null),
-        },
-      })
-      .then(async function (result) {
-        if (_.get(payload.data.payload, 'newsletterSignUp', false)) {
-          await addToMCList(
-            _.get(Manager.config, 'mailchimp.key'),
-            _.get(Manager.config, 'mailchimp.list_id'),
-            _.get(user, 'auth.email', null),
-          )
-          .then(function (res) {
-            assistant.log('Sucessfully added user to MC list.')
-          })
-          .catch(function (e) {
-            assistant.log('Failed to add user to MC list.', e)
-          })
-        }
-        return resolve({data: result});
-      })
-      .catch(function (e) {
-        return reject(assistant.errorManager(`Failed to sign up: ${e}`, {code: 500, sentry: false, send: false, log: false}).error)
-      })
-
-    }
+    self.Api.resolveUser({adminRequired: true})
+    .then(async (user) => {
+        await self.signUp({
+          auth: {
+            uid: _.get(user, 'auth.uid', null),
+            email: _.get(user, 'auth.email', null),
+          },
+          affiliate: {
+            referrer: _.get(payload.data.payload, 'affiliateCode', null),
+          },
+        })
+        .then(async function (result) {
+          if (_.get(payload.data.payload, 'newsletterSignUp', false)) {
+            await addToMCList(
+              _.get(Manager.config, 'mailchimp.key'),
+              _.get(Manager.config, 'mailchimp.list_id'),
+              _.get(user, 'auth.email', null),
+            )
+            .then(function (res) {
+              assistant.log('Sucessfully added user to MC list.')
+            })
+            .catch(function (e) {
+              assistant.log('Failed to add user to MC list.', e)
+            })
+          }
+          return resolve({data: result});
+        })
+        .catch(function (e) {
+          return reject(assistant.errorManager(`Failed to sign up: ${e}`, {code: 500, sentry: false, send: false, log: false}).error)
+        })
+    })
+    .catch(e => {
+      return reject(e);
+    })
 
   });
 

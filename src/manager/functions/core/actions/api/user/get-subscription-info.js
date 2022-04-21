@@ -6,6 +6,7 @@ function Module() {
 
 Module.prototype.init = async function (s, payload) {
   const self = this;
+  self.Api = s;
   self.Manager = s.Manager;
   self.libraries = s.Manager.libraries;
   self.assistant = s.Manager.assistant;
@@ -21,30 +22,8 @@ Module.prototype.main = function () {
   const payload = self.payload;
 
   return new Promise(async function(resolve, reject) {
-    let user = null;
-    if (payload.user.roles.admin && payload.data.payload.uid) {
-      await self.libraries.admin.firestore().doc(`users/${payload.data.payload.uid}`)
-      .get()
-      .then(async function (doc) {
-        const data = doc.data();
-        if (data) {
-          user = data;
-        } else {
-          throw new Error('User does not exist')
-        }
-      })
-      .catch(function (e) {
-        user = e;
-      })
-    } else if (payload.user.authenticated) {
-      user = payload.user;
-    }
-
-    if (user instanceof Error) {
-      return reject(assistant.errorManager(user, {code: 400, sentry: false, send: false, log: false}).error)
-    } else if (!user) {
-      return reject(assistant.errorManager(`Admin or authenticated user required.`, {code: 401, sentry: false, send: false, log: false}).error)
-    } else {
+    self.Api.resolveUser({adminRequired: false})
+    .then(async (user) => {
       const result = {
         plan: {
           id: _.get(user, 'plan.id', 'unknown'),
@@ -54,9 +33,11 @@ Module.prototype.main = function () {
         }
       }
       return resolve({data: result});
-    }
+    })
+    .catch(e => {
+      return reject(e);
+    })
   });
-
 };
 
 

@@ -1,4 +1,5 @@
 const path = require('path');
+const _ = require('lodash');
 
 function Module() {
 
@@ -11,6 +12,15 @@ Module.prototype.init = function (Manager, data) {
   self.assistant = Manager.Assistant({req: data.req, res: data.res})
   self.req = data.req;
   self.res = data.res;
+  self.payload = {
+    response: {
+      status: 200,
+      data: {},
+      error: null,
+    },
+    data: {},
+    user: {},
+  };
 
   return self;
 }
@@ -23,56 +33,50 @@ Module.prototype.main = function() {
   const res = self.res;
 
   return libraries.cors(req, res, async () => {
-    const response = {
-      status: 200,
-      data: {},
-      error: null,
-    };
-    const user = await assistant.authenticate();
-    const command = resolveCommand(assistant.request.data.command);
-    const commandPath = './' + path.join('./api/', `${command.replace(/\.\.\//g, '').replace(/\:/, '/')}.js`);
-    const payload = {
-      response: response,
-      data: assistant.request.data,
-      user: user,
-    }
+    self.payload.data = assistant.request.data;
+    self.payload.user = await assistant.authenticate();
 
-    self.assistant.log(`Executing: ${command}`, payload, JSON.stringify(payload), {environment: 'production'})
+    const command = self.resolveCommand(self.payload.data.command);
+    const commandPath = './' + path.join('./api/', `${command.replace(/\.\.\//g, '').replace(/\:/, '/')}.js`);
+
+    self.assistant.log(`Executing: ${command}`, self.payload, JSON.stringify(self.payload), {environment: 'production'})
 
     try {
       const lib = new (require(commandPath))();
       try {
-        await lib.init(self, payload);
+        await lib.init(self, self.payload);
         await lib.main()
         .then(r => {
-          response.status = r.status || 200;
-          response.data = r.data || {};
+          self.payload.response.status = r.status || 200;
+          self.payload.response.data = r.data || {};
         })
         .catch(e => {
-          response.status = e.code || 500;
-          response.error = e || new Error('Unknown error occured');
+          self.payload.response.status = e.code || 500;
+          self.payload.response.error = e || new Error('Unknown error occured');
         })
       } catch (e) {
-        response.status = 500;
-        response.error = e || new Error('Unknown error occured');
+        self.payload.response.status = 500;
+        self.payload.response.error = e || new Error('Unknown error occured');
       }
     } catch (e) {
-      response.status = 400;
-      response.error = new Error(`Improper command supplied: ${command}`);
+      self.payload.response.status = 400;
+      self.payload.response.error = new Error(`Improper command supplied: ${command}`);
       assistant.log('Dev error log', e)
     }
 
-    if (response.status === 200) {
-      return res.status(response.status).json(response.data);
+    if (self.payload.response.status === 200) {
+      return res.status(self.payload.response.status).json(self.payload.response.data);
     } else {
-      console.error(`Error executing ${command} @ ${commandPath}`, response.error)
-      // return res.status(response.status).send(response.error.message);
-      return res.status(response.status).send(`${response.error}`);
+      console.error(`Error executing ${command} @ ${commandPath}`, self.payload.response.error)
+      // return res.status(self.payload.response.status).send(self.payload.response.error.message);
+      return res.status(self.payload.response.status).send(`${self.payload.response.error}`);
     }
   });
 }
 
-function resolveCommand(command) {
+Module.prototype.resolveCommand = function (command) {
+  const self = this;
+
   // Start
   if (false) {
 
@@ -127,5 +131,48 @@ function resolveCommand(command) {
 
   return command;
 }
+
+Module.prototype.resolveUser = function (options) {
+  const self = this;
+  return new Promise(async function(resolve, reject) {
+    let user = null;
+
+    options = options || {};
+    options.uid = typeof options.uid !== 'undefined' ? options.uid : self.payload.data.payload.uid;
+    options.admin = typeof options.admin !== 'undefined' ? options.admin : self.payload.user.roles.admin;
+    options.adminRequired = typeof options.adminRequired !== 'undefined' ? options.adminRequired : true;
+
+    if (options.uid) {
+      if (options.adminRequired && !options.admin) {
+        user = self.assistant.errorManager('Admin required', {code: 401, sentry: false, send: false, log: false}).error;
+      } else {
+        await self.libraries.admin.firestore().doc(`users/${options.uid}`)
+        .get()
+        .then(async function (doc) {
+          const data = doc.data();
+          if (data) {
+            user = data;
+          } else {
+            user = self.assistant.errorManager(`User does not exist: ${options.uid}`, {code: 400, sentry: false, send: false, log: false}).error;
+          }
+        })
+        .catch(function (e) {
+          user = self.assistant.errorManager(e, {code: 500, sentry: false, send: false, log: false}).error;
+        })
+      }
+    } else if (self.payload.user.authenticated) {
+      user = self.payload.user;
+    }
+
+    if (user instanceof Error) {
+      return reject(user);
+    } else if (!user) {
+      return reject(self.assistant.errorManager('Unable to resolve user', {code: 500, sentry: false, send: false, log: false}).error);
+    } else {
+      return resolve(user);
+    }
+
+  });
+};
 
 module.exports = Module;

@@ -6,6 +6,7 @@ function Module() {
 
 Module.prototype.init = async function (s, payload) {
   const self = this;
+  self.Api = s;
   self.Manager = s.Manager;
   self.libraries = s.Manager.libraries;
   self.assistant = s.Manager.assistant;
@@ -21,30 +22,8 @@ Module.prototype.main = function () {
   const payload = self.payload;
 
   return new Promise(async function(resolve, reject) {
-    let user = null;
-    if (payload.user.roles.admin && payload.data.payload.uid) {
-      await self.libraries.admin.firestore().doc(`users/${payload.data.payload.uid}`)
-      .get()
-      .then(async function (doc) {
-        const data = doc.data();
-        if (data) {
-          user = data;
-        } else {
-          throw new Error('User does not exist')
-        }
-      })
-      .catch(function (e) {
-        user = e;
-      })
-    } else if (payload.user.authenticated) {
-      user = payload.user;
-    }
-
-    if (user instanceof Error) {
-      return reject(assistant.errorManager(user, {code: 400, sentry: false, send: false, log: false}).error)
-    } else if (!user) {
-      return reject(assistant.errorManager(`Admin or authenticated user required.`, {code: 401, sentry: false, send: false, log: false}).error)
-    } else {
+    self.Api.resolveUser({adminRequired: true})
+    .then(async (user) => {
       // const planExpireDate = new Date(_.get(payload.user, 'plan.expires.timestamp', 0));
       // if (planExpireDate >= new Date()) {
       //   payload.response.status = 401;
@@ -63,8 +42,10 @@ Module.prototype.main = function () {
       .catch(e => {
         return reject(assistant.errorManager(`Failed to delete user: ${e}`, {code: 400, sentry: false, send: false, log: false}).error)
       })
-    }
-
+    })
+    .catch(e => {
+      return reject(e);
+    })
   });
 
 };

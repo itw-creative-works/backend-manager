@@ -9,6 +9,7 @@ function Module() {
 
 Module.prototype.init = async function (s, payload) {
   const self = this;
+  self.Api = s;
   self.Manager = s.Manager;
   self.libraries = s.Manager.libraries;
   self.assistant = s.assistant;

@@ -4,6 +4,7 @@ function Module() {
 
 Module.prototype.init = async function (s, payload) {
   const self = this;
+  self.Api = s;
   self.Manager = s.Manager;
   self.libraries = s.Manager.libraries;
   self.assistant = s.Manager.assistant;
@@ -23,6 +24,14 @@ Module.prototype.main = function () {
     if (!payload.user.roles.admin) {
       return reject(assistant.errorManager(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
     }
+
+    // self.Api.resolveUser({adminRequired: false})
+    // .then(async (user) => {
+    //
+    // })
+    // .catch(e => {
+    //   return reject(e);
+    // })
 
     return resolve({data: {success: true}});
 
