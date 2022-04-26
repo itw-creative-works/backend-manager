@@ -40,7 +40,7 @@ Module.prototype.main = function () {
 
     assistant.log('UUID Generated', payload.data.payload, result, {environment: 'production'});
 
-    return resolve({data: {uuid: result}});
+    return resolve({data: {uuid: result, timestamp: new Date().toISOString()}});
 
   });
 
