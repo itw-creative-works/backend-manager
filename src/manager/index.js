@@ -57,7 +57,7 @@ Manager.prototype.init = function (exporter, options) {
   self.options = options;
   self.project = options.firebaseConfig || JSON.parse(process.env.FIREBASE_CONFIG);
   self.cwd = process.cwd();
-  self.package = require(path.resolve(self.cwd, 'package.json'));
+  self.package = resolveProjectPackage();
   self.config = merge(
     require(path.resolve(self.cwd, 'backend-manager-config.json')),
     self.libraries.functions.config()
@@ -462,6 +462,16 @@ Manager.prototype.debug = function () {
       Promise.reject(new Error('TEST_ERROR'));
     }
   }
+}
+
+function resolveProjectPackage() {
+  try {
+    return require(path.resolve(process.cwd(), 'functions', 'package.json'));
+  } catch (e) {}
+
+  try {
+    return require(path.resolve(process.cwd(), 'package.json'));
+  } catch (e) {}
 }
 
 module.exports = Manager;

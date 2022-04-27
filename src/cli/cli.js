@@ -273,8 +273,8 @@ Main.prototype.setup = async function () {
   // }, fix_projpackage);
 
   await this.test('functions level package.json exists', async function () {
-    return !!self.package && !!self.package.dependencies && !!self.package.devDependencies;
-  }, fix_deps);
+    return !!self.package && !!self.package.dependencies && !!self.package.devDependencies && !!self.package.version;
+  }, fix_functionspackage);
 
   // await this.test('functions level package.json has updated version', async function () {
   //   return self.package.version === self.projectPackage.version;
@@ -695,10 +695,11 @@ function fix_projpackage(self) {
   });
 };
 
-function fix_deps(self) {
+function fix_functionspackage(self) {
   return new Promise(function(resolve, reject) {
     self.package.dependencies = self.package.dependencies || {};
     self.package.devDependencies = self.package.devDependencies || {};
+    self.package.version = self.package.version || '0.0.1';
 
     fs.write(`${self.firebaseProjectPath}/functions/package.json`, JSON.stringify(self.package, null, 2) );
     resolve();
