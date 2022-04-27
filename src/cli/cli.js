@@ -241,6 +241,11 @@ Main.prototype.setup = async function () {
   this.projectUrl = `https://console.firebase.google.com/project/${this.projectName}`;
   log(chalk.black(`Id: `, chalk.bold(`${this.projectName}`)));
   log(chalk.black(`Url:`, chalk.bold(`${this.projectUrl}`)));
+
+  if (!self.package || !self.package.engines || !self.package.engines.node) {
+    throw new Error('Missing <engines.node> in package.json')
+  }
+
   await this.test('is a firebase project', async function () {
     let exists = fs.exists(`${self.firebaseProjectPath}/firebase.json`);
     return exists;
@@ -263,17 +268,17 @@ Main.prototype.setup = async function () {
     return self.package.engines.node.toString() === CLI_CONFIG.node && processMajor >= engineMajor;
   }, fix_nodeVersion);
 
-  await this.test('project level package.json exists', async function () {
-    return !!(self.projectPackage && self.projectPackage.version && self.projectPackage.name);
-  }, fix_projpackage);
+  // await this.test('project level package.json exists', async function () {
+  //   return !!(self.projectPackage && self.projectPackage.version && self.projectPackage.name);
+  // }, fix_projpackage);
 
   await this.test('functions level package.json exists', async function () {
-    return !!self.package.dependencies && !!self.package.devDependencies;
+    return !!self.package && !!self.package.dependencies && !!self.package.devDependencies;
   }, fix_deps);
 
-  await this.test('functions level package.json has updated version', async function () {
-    return self.package.version === self.projectPackage.version;
-  }, fix_packageversion);
+  // await this.test('functions level package.json has updated version', async function () {
+  //   return self.package.version === self.projectPackage.version;
+  // }, fix_packageversion);
 
   await this.test('using updated firebase-admin', async function () {
     let pkg = 'firebase-admin';
@@ -656,7 +661,7 @@ async function fix_serviceAccount(self) {
 
 function fix_nodeVersion(self) {
   return new Promise(function(resolve, reject) {
-    _.set(self.package, 'engines.node', '12')
+    _.set(self.package, 'engines.node', CLI_CONFIG.node)
 
     fs.write(`${self.firebaseProjectPath}/functions/package.json`, JSON.stringify(self.package, null, 2) );
     resolve();
