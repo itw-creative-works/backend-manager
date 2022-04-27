@@ -36,10 +36,13 @@ Module.prototype.main = function () {
       }
     } else if (payload.data.payload.version === '4') {
       result = uuid.v4();
+    } else {
+      return reject(assistant.errorManager(`v${payload.data.payload.version} is not a valid version.`, {code: 400, sentry: false, send: false, log: false}).error)
     }
 
     assistant.log('UUID Generated', payload.data.payload, result, {environment: 'production'});
 
+    // Return the timestamp so electron-manager can save an http request >:)
     return resolve({data: {uuid: result, timestamp: new Date().toISOString()}});
 
   });
