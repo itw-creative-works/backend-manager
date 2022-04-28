@@ -87,6 +87,7 @@ Main.prototype.process = async function (args) {
     console.log('cwd: ', this.firebaseProjectPath);
   }
   if (this.options.setup) {
+    await cmd_configGet(self).catch(e => log(chalk.red(`Failed to run config:get`)));
     await self.setup();
   }
   if ((this.options.i || this.options.install) && (this.options.local || this.options.dev || this.options.development)) {
@@ -863,7 +864,7 @@ function getPkgVersion(package) {
           console.error(error);
           reject(error);
         } else {
-          console.log(`Saving config to: ${self.firebaseProjectPath}/functions/.runtimeconfig.json`);
+          console.log(chalk.green(`Saving config to: ${self.firebaseProjectPath}/functions/.runtimeconfig.json`));
           console.log(stdout);
           resolve();
         }
@@ -871,48 +872,80 @@ function getPkgVersion(package) {
     });
   }
 
-  async function cmd_configSet(self) {
+  async function cmd_configSet(self, newPath, newValue) {
     return new Promise(async function(resolve, reject) {
       // console.log(this.options);
       // console.log(this.argv);
-      await inquirer
-        .prompt([
-          /* Pass your questions in here */
-          {
-            type: 'input',
-            name: 'path',
-            default: 'service.key'
-          },
-          {
-            type: 'input',
-            name: 'value',
-            default: '123-abc'
-          }
-        ])
-        .then(answers => {
-          // Use user feedback for... whatever!!
-          // console.log('answer', answers);
-          log(chalk.yellow(`Saving...`));
-          let newPath = answers.path;
-          let isInvalid = false;
-          if (newPath !== newPath.toLowerCase()) {
-            isInvalid = true;
-            newPath = newPath.replace(/([A-Z])/g, '_$1').trim().toLowerCase();
-          }
-          let cmd = exec(`firebase functions:config:set ${newPath}="${answers.value}"`, function (error, stdout, stderr) {
-            if (error) {
-              console.error(error);
-              reject();
-            } else {
-              console.log(stdout);
-              if (isInvalid) {
-                log(chalk.red(`!!! Your path contained an invalid uppercase character`));
-                log(chalk.red(`!!! It was set to: ${chalk.bold(newPath)}`));
-              }
-              resolve();
+      newPath = newPath || await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'path',
+          default: 'service.key'
+        }
+      ]).then(answers => answers.path)
+
+      try {
+        const object = JSON5.parse(newPath)
+        try {
+          if (typeof object === 'object') {
+            const keyify = (obj, prefix = '') =>
+              Object.keys(obj).reduce((res, el) => {
+                if( Array.isArray(obj[el]) ) {
+                  return res;
+                } else if( typeof obj[el] === 'object' && obj[el] !== null ) {
+                  return [...res, ...keyify(obj[el], prefix + el + '.')];
+                }
+                return [...res, prefix + el];
+              }, []);
+            const pathArray = keyify(object);
+            for (var i = 0; i < pathArray.length; i++) {
+              const pathName = pathArray[i];
+              const pathValue = _.get(object, pathName);
+              // console.log(chalk.blue(`Setting object: ${chalk.bold(pathName)} = ${chalk.bold(pathValue)}`));
+              console.log(chalk.blue(`Setting object: ${chalk.bold(pathName)}`));
+              await cmd_configSet(self, pathName, pathValue)
+              .catch(e => {
+                log(chalk.red(`Failed to save object path: ${e}`));
+              })
             }
-          });
-        });
+            return resolve();
+          }
+        } catch (e) {
+          log(chalk.red(`Failed to save object: ${e}`));
+          return reject(e)
+        }
+      } catch (e) {
+      }
+
+      newValue = newValue || await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'value',
+          default: '123-abc'
+        }
+      ]).then(answers => answers.value)
+
+      let isInvalid = false;
+      if (newPath !== newPath.toLowerCase()) {
+        isInvalid = true;
+        newPath = newPath.replace(/([A-Z])/g, '_$1').trim().toLowerCase();
+      }
+      log(chalk.yellow(`Saving to ${chalk.bold(newPath)}...`));
+      let cmd = exec(`firebase functions:config:set ${newPath}="${newValue}"`, function (error, stdout, stderr) {
+        if (error) {
+          log(chalk.red(`Failed to save ${chalk.bold(newPath)}: ${error}`));
+          reject(error);
+        } else {
+          console.log(stdout);
+          if (isInvalid) {
+            log(chalk.red(`!!! Your path contained an invalid uppercase character`));
+            log(chalk.red(`!!! It was set to: ${chalk.bold(newPath)}`));
+          } else {
+            log(chalk.green(`Successfully saved to ${chalk.bold(newPath)}`));
+          }
+          resolve();
+        }
+      });
     });
   }
 
@@ -932,13 +965,14 @@ function getPkgVersion(package) {
         .then(answers => {
           // Use user feedback for... whatever!!
           // console.log('answer', answers);
-          log(chalk.yellow(`Saving...`));
+          log(chalk.yellow(`Deleting ${chalk.bold(answers.path)}...`));
           let cmd = exec(`firebase functions:config:unset ${answers.path}`, function (error, stdout, stderr) {
             if (error) {
-              console.error(error);
-              reject();
+              log(chalk.red(`Failed to delete ${chalk.bold(answers.path)}: ${error}`));
+              reject(error);
             } else {
               console.log(stdout);
+              log(chalk.green(`Successfully deleted ${chalk.bold(answers.path)}`));
               resolve();
             }
           });
