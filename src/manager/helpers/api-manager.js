@@ -1,4 +1,5 @@
 const moment = require('moment');
+const fetch = require('node-fetch');
 const uuidv5 = require('uuid').v5;
 const { get, set, merge } = require('lodash');
 
@@ -18,10 +19,12 @@ let sampleUser = {
   }
 }
 
-function ApiManager() {
+function ApiManager(m) {
   const self = this;
+  self.Manager = m;
   self.options = {
-    planData: {},
+    appId: '',
+    plans: {},
     maxUsersStored: 10000,
     refetchInterval: 60,
     resetInterval: 60 * 24,
@@ -33,20 +36,54 @@ function ApiManager() {
 
 ApiManager.prototype.init = function (options) {
   const self = this;
-  options = options || {};
-  options.planData = options.planData || {};
-  options.planData.basic = options.planData.basic || {requests: 93};
+  return new Promise(async function(resolve, reject) {
+    options = options || {};
+    options.app = options.app || '';
+    options.plans = options.plans || {};
 
-  options.maxUsersStored = options.maxUsersStored || 10000;
-  options.refetchInterval = options.refetchInterval || 60;
-  options.resetInterval = options.resetInterval || (60 * 24);
-  options.officialAPIKeys = options.officialAPIKeys || [];
+    // await self.Manager.libraries.admin.firestore
+    // options.plans.basic = options.plans.basic || {requests: 93};
 
-  self.options = options;
+    options.maxUsersStored = options.maxUsersStored || 10000;
+    options.refetchInterval = options.refetchInterval || 60;
+    options.resetInterval = options.resetInterval || (60 * 24);
+    options.officialAPIKeys = options.officialAPIKeys || [];
 
-  self.initialized = true;
+    await fetch('https://us-central1-itw-creative-works.cloudfunctions.net/getApp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: options.app,
+      }),
+    })
+    .then(res => {
+      res.text()
+      .then(text => {
+        if (res.ok) {
+          const data = JSON.parse(text);
 
-  return self;
+          options.plans = {};
+
+          Object.keys(data.products)
+          .forEach((id, i) => {
+            const product = data.products[id]
+            options.plans[product.planId] = {}
+            options.plans[product.planId].limits = product.limits || {};
+          });
+
+          self.options = options;
+          self.initialized = true;
+
+          return resolve(self);
+        } else {
+          throw new Error(text || res.statusText || 'Unknown error.')
+        }
+      })
+    })
+    .catch(e => {
+      return reject(e)
+    })
+  });
 };
 
 ApiManager.prototype._createNewUser = function (authenticatedUser, planId, persistentData, isRefetch) {
@@ -61,7 +98,7 @@ ApiManager.prototype._createNewUser = function (authenticatedUser, planId, persi
     plan: {
       id: planId,
       limits: {
-        requests: get(authenticatedUser, 'plan.limits.requests', get(self.options, `planData.${planId}.limits.requests`, 93)),
+        requests: get(authenticatedUser, 'plan.limits.requests', get(self.options, `plans.${planId}.limits.requests`, 93)),
       }
     },
     authenticated: authenticatedUser.authenticated,
