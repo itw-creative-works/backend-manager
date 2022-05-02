@@ -48,6 +48,7 @@ ApiManager.prototype.init = function (options) {
     options.refetchInterval = options.refetchInterval || 60;
     options.resetInterval = options.resetInterval || (60 * 24);
     options.officialAPIKeys = options.officialAPIKeys || [];
+    options.whitelistedAPIKeys = options.whitelistedAPIKeys || [];
 
     await fetch('https://us-central1-itw-creative-works.cloudfunctions.net/getApp', {
       method: 'POST',
@@ -86,7 +87,7 @@ ApiManager.prototype.init = function (options) {
   });
 };
 
-ApiManager.prototype._createNewUser = function (authenticatedUser, planId, persistentData, isRefetch) {
+ApiManager.prototype._createNewUser = function (authenticatedUser, planId, persistentData, isRefetch, apiKey) {
   const self = this;
   persistentData = persistentData || {};
   persistentData._meta = persistentData._meta || {};
@@ -110,7 +111,8 @@ ApiManager.prototype._createNewUser = function (authenticatedUser, planId, persi
     _meta: {
       lastStatsReset: new Date(),
       lastUserFetch: new Date(),
-    }
+    },
+    _providedAPIKey: apiKey,
   }
   // console.log('-----MIN', moment().diff(moment(persistentData._meta.lastStatsReset), 'minutes', true), self.options.resetInterval);
   if (moment().diff(moment(persistentData._meta.lastStatsReset), 'minutes', true) < self.options.resetInterval) {
@@ -182,14 +184,14 @@ ApiManager.prototype.getUser = async function (assistant) {
       if (moment().diff(moment(existingUser._meta.lastUserFetch), 'minutes', true) > self.options.refetchInterval) {
         // console.log('----REFETCHING');
         self.userList = self.userList.filter(user => user.auth.uid !== workingUID)
-        existingUser = self._createNewUser(authenticatedUser, planId, persistentData, true);
+        existingUser = self._createNewUser(authenticatedUser, planId, persistentData, true, apiKey);
         existingUser.auth.uid = workingUID;
         self.userList = self.userList.concat(existingUser);
       }
       newUser = existingUser
     } else {
       // console.log('---actually doesnt exist making new user');
-      newUser = self._createNewUser(authenticatedUser, planId, persistentData)
+      newUser = self._createNewUser(authenticatedUser, planId, persistentData, false, apiKey)
       newUser.auth.uid = workingUID;
       self.userList = self.userList.concat(newUser);
     }
@@ -201,15 +203,24 @@ ApiManager.prototype.getUser = async function (assistant) {
 
 };
 
+function _getUserStat(self, user, stat, def) {
+  const isWhitelistedAPIKey = self.options.whitelistedAPIKeys.includes(
+    get(user, `api.privateKey`, get(user, `_providedAPIKey`))
+  );
+  // console.log('----user', user);
+  // console.log('----isWhitelistedAPIKey', isWhitelistedAPIKey);
+  return {
+    current: !isWhitelistedAPIKey ? get(user, `_stats.${stat}`, typeof def !== 'undefined' ? def : 0) : 0,
+    limit: !isWhitelistedAPIKey ? get(user, `plan.limits.${stat}`, typeof def !== 'undefined' ? def : 0) : Infinity,
+  }
+}
+
 ApiManager.prototype.getUserStat = function (user, stat, def) {
   const self = this;
   if (!user || !stat) {
     throw new Error('<user> and <stat> required')
   }
-  return {
-    current: get(user, `_stats.${stat}`, def || 0),
-    limit: get(user, `plan.limits.${stat}`, def || 0),
-  }
+  return _getUserStat(self, user, stat, def);
 }
 
 ApiManager.prototype.incrementUserStat = function (user, stat, amount) {
@@ -218,10 +229,7 @@ ApiManager.prototype.incrementUserStat = function (user, stat, amount) {
     throw new Error('<user> and <stat> required')
   }
   set(user, `_stats.${stat}`, get(user, `_stats.${stat}`, 0) + amount)
-  return {
-    current: get(user, `_stats.${stat}`, 0),
-    limit: get(user, `plan.limits.${stat}`, 0),
-  }
+  return _getUserStat(self, user, stat, 0);
 }
 
 
