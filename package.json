@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "2.0.19",
+  "version": "2.0.20",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {

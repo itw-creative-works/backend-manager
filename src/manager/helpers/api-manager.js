@@ -13,9 +13,11 @@ let sampleUser = {
     }
   },
   authenticated: false,
-  _meta: {
-    lastStatsReset: new Date(),
-    lastUserFetch: new Date(),
+  _APIManager: {
+    meta: {
+      lastStatsReset: new Date(),
+      lastUserFetch: new Date(),
+    }
   }
 }
 
@@ -42,7 +44,7 @@ ApiManager.prototype.init = function (options) {
     options.plans = options.plans || {};
 
     // await self.Manager.libraries.admin.firestore
-    // options.plans.basic = options.plans.basic || {requests: 93};
+    // options.plans.basic = options.plans.basic || {requests: 100};
 
     options.maxUsersStored = options.maxUsersStored || 10000;
     options.refetchInterval = options.refetchInterval || 60;
@@ -89,9 +91,18 @@ ApiManager.prototype.init = function (options) {
 
 ApiManager.prototype._createNewUser = function (authenticatedUser, planId, persistentData, isRefetch, apiKey) {
   const self = this;
+  const _APIManager_default = {
+    stats: {
+      requests: 0,
+    },
+    meta: {
+      lastStatsReset: new Date(),
+      lastUserFetch: new Date(),
+    },
+    providedAPIKey: apiKey,
+  }
   persistentData = persistentData || {};
-  persistentData._meta = persistentData._meta || {};
-  persistentData._stats = persistentData._stats || {};
+  persistentData._APIManager = persistentData._APIManager || merge({}, _APIManager_default);
 
   let newUser = {
     api: get(authenticatedUser, 'api', {}),
@@ -99,36 +110,43 @@ ApiManager.prototype._createNewUser = function (authenticatedUser, planId, persi
     plan: {
       id: planId,
       limits: {
-        requests: get(authenticatedUser, 'plan.limits.requests', get(self.options, `plans.${planId}.limits.requests`, 93)),
       }
     },
     authenticated: authenticatedUser.authenticated,
     ip: authenticatedUser.ip,
     country: authenticatedUser.country,
-    _stats: {
-      requests: 0,
-    },
-    _meta: {
-      lastStatsReset: new Date(),
-      lastUserFetch: new Date(),
-    },
-    _providedAPIKey: apiKey,
+    _APIManager: merge({}, _APIManager_default),
   }
-  // console.log('-----MIN', moment().diff(moment(persistentData._meta.lastStatsReset), 'minutes', true), self.options.resetInterval);
-  if (moment().diff(moment(persistentData._meta.lastStatsReset), 'minutes', true) < self.options.resetInterval) {
-    newUser._meta.lastStatsReset = persistentData._meta.lastStatsReset || newUser._meta.lastStatsReset;
-    newUser._meta.lastUserFetch = persistentData._meta.lastUserFetch || newUser._meta.lastUserFetch;
-    Object.keys(persistentData._stats)
+
+  // Setup newUser
+  const currentPlan = get(self.options, `plans.${planId}.limits`, {})
+  Object.keys(currentPlan)
+  .forEach((id, i) => {
+    // console.log('----id', id);
+    // console.log('======currentPlan[id]', currentPlan[id]);
+    newUser.plan.limits[id] = get(authenticatedUser, `plan.limits.${id}`, currentPlan[id])
+    // const product = data.products[id]
+    // options.plans[product.planId] = {}
+    // options.plans[product.planId].limits = product.limits || {};
+  });
+
+
+
+  // console.log('-----MIN', moment().diff(moment(persistentData._APIManager.meta.lastStatsReset), 'minutes', true), self.options.resetInterval);
+  if (moment().diff(moment(persistentData._APIManager.meta.lastStatsReset), 'minutes', true) < self.options.resetInterval) {
+    newUser._APIManager.meta.lastStatsReset = persistentData._APIManager.meta.lastStatsReset || newUser._APIManager.meta.lastStatsReset;
+    newUser._APIManager.meta.lastUserFetch = persistentData._APIManager.meta.lastUserFetch || newUser._APIManager.meta.lastUserFetch;
+    Object.keys(persistentData._APIManager.stats)
     .forEach((key, i) => {
-      newUser._stats[key] = persistentData._stats[key];
+      newUser._APIManager.stats[key] = persistentData._APIManager.stats[key];
     });
   } else {
     // console.log('---RESSET INTERVAL REACHED');
-    newUser._meta.lastUserFetch = persistentData._meta.lastUserFetch;
+    newUser._APIManager.meta.lastUserFetch = persistentData._APIManager.meta.lastUserFetch;
   }
 
   if (isRefetch) {
-    newUser._meta.lastUserFetch = new Date();
+    newUser._APIManager.meta.lastUserFetch = new Date();
   }
 
   return newUser;
@@ -145,14 +163,14 @@ ApiManager.prototype.getUser = async function (assistant) {
   if (apiKey) {
     newUser = self.userList.filter(user => user.api.privateKey === apiKey);
     if (newUser[0]) {
-      if (newUser.length > 1 || moment().diff(moment(newUser[0]._meta.lastUserFetch), 'minutes', true) > self.options.refetchInterval) {
+      if (newUser.length > 1 || moment().diff(moment(newUser[0]._APIManager.meta.lastUserFetch), 'minutes', true) > self.options.refetchInterval) {
         // console.log('----REFETCHING');
-        persistentData = {set: true, _stats: merge({}, newUser[0]._stats), _meta: merge({}, newUser[0]._meta)};
+        persistentData = {set: true, _APIManager: merge({}, newUser[0]._APIManager)};
 
         self.userList = self.userList.filter(user => user.api.privateKey !== apiKey)
         newUser = null;
       } else {
-        persistentData = {set: true, _stats: merge({}, newUser[0]._stats), _meta: merge({}, newUser[0]._meta)};
+        persistentData = {set: true, _APIManager: merge({}, newUser[0]._APIManager)};
 
         newUser = newUser[0];
       }
@@ -178,10 +196,10 @@ ApiManager.prototype.getUser = async function (assistant) {
     let existingUser = self.userList.find(user => user.auth.uid === workingUID);
     if (existingUser) {
       // console.log('---actually does exist so setting');
-      // console.log('----1111 MIN lastUserFetch', moment().diff(moment(existingUser._meta.lastUserFetch), 'minutes', true), self.options.refetchInterval);
-      persistentData = !persistentData.set ? {set: true, _stats: merge({}, existingUser._stats), _meta: merge({}, existingUser._meta)} : persistentData;
+      // console.log('----1111 MIN lastUserFetch', moment().diff(moment(existingUser._APIManager.meta.lastUserFetch), 'minutes', true), self.options.refetchInterval);
+      persistentData = !persistentData.set ? {set: true, _APIManager: merge({}, existingUser._APIManager)} : persistentData;
       // console.log('----persistentData 2', persistentData);
-      if (moment().diff(moment(existingUser._meta.lastUserFetch), 'minutes', true) > self.options.refetchInterval) {
+      if (moment().diff(moment(existingUser._APIManager.meta.lastUserFetch), 'minutes', true) > self.options.refetchInterval) {
         // console.log('----REFETCHING');
         self.userList = self.userList.filter(user => user.auth.uid !== workingUID)
         existingUser = self._createNewUser(authenticatedUser, planId, persistentData, true, apiKey);
@@ -205,17 +223,40 @@ ApiManager.prototype.getUser = async function (assistant) {
 
 function _getUserStat(self, user, stat, def) {
   const isWhitelistedAPIKey = self.options.whitelistedAPIKeys.includes(
-    get(user, `api.privateKey`, get(user, `_providedAPIKey`))
+    get(user, `api.privateKey`, get(user, `_APIManager.providedAPIKey`))
   );
   // console.log('----user', user);
   // console.log('----isWhitelistedAPIKey', isWhitelistedAPIKey);
   return {
-    current: !isWhitelistedAPIKey ? get(user, `_stats.${stat}`, typeof def !== 'undefined' ? def : 0) : 0,
+    current: !isWhitelistedAPIKey ? get(user, `_APIManager.stats.${stat}`, typeof def !== 'undefined' ? def : 0) : 0,
     limit: !isWhitelistedAPIKey ? get(user, `plan.limits.${stat}`, typeof def !== 'undefined' ? def : 0) : Infinity,
   }
 }
 
-ApiManager.prototype.getUserStat = function (user, stat, def) {
+ApiManager.prototype.isUserOverStat = function (user, stat, def, frame) {
+  const self = this;
+  if (!user || !stat) {
+    throw new Error('<user> and <stat> required')
+  }
+  const result = self.getUserStat(user, stat, def);
+  frame = frame || 'daily';
+  let limit = result.limit;
+  // console.log('---result', result);
+  // console.log('---typeof result.current', typeof result.current);
+  // console.log('----limit', limit);
+  if (typeof result.limit === 'number') {
+    if (frame === 'daily') {
+      limit = Math.floor(result.limit / 31);
+    }
+    // console.log('----limit', limit);
+    // console.log('-----result.current < limit', result.current < limit);
+    return limit >= result.current;
+  }
+
+  return false;
+}
+
+ApiManager.prototype.getUserStat = function (user, stat, def, ) {
   const self = this;
   if (!user || !stat) {
     throw new Error('<user> and <stat> required')
@@ -228,7 +269,7 @@ ApiManager.prototype.incrementUserStat = function (user, stat, amount) {
   if (!user || !stat) {
     throw new Error('<user> and <stat> required')
   }
-  set(user, `_stats.${stat}`, get(user, `_stats.${stat}`, 0) + amount)
+  set(user, `_APIManager.stats.${stat}`, get(user, `_APIManager.stats.${stat}`, 0) + amount)
   return _getUserStat(self, user, stat, 0);
 }
 
