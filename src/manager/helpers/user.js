@@ -11,7 +11,7 @@ function User(settings, options) {
   options = options || {};
   let now = powertools.timestamp(new Date(), {output: 'string'});
   let nowUNIX = powertools.timestamp(now, {output: 'unix'});
-  let oldDate = powertools.timestamp(new Date('1999/01/01'), {output: 'string'})
+  let oldDate = powertools.timestamp(new Date(0), {output: 'string'})
   let oldDateUNIX = powertools.timestamp(oldDate, {output: 'unix'});
 
   const useDefaults = typeof options.defaults === 'undefined' ? true : options.defaults;
@@ -34,7 +34,7 @@ function User(settings, options) {
         timestampUNIX: _.get(settings, 'plan.expires.timestampUNIX', useDefaults ? oldDateUNIX : null),
       },
       limits: {
-        devices: _.get(settings, 'plan.limits.devices', useDefaults ? 1 : null),
+        // devices: _.get(settings, 'plan.limits.devices', null),
       },
       payment: {
         processor: _.get(settings, 'plan.payment.processor', null), // paypal | stripe | chargebee, etc
