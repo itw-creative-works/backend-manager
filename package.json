@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "2.0.21",
+  "version": "2.0.23",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -57,6 +57,7 @@
     "ultimate-jekyll-poster": "^0.0.10",
     "universal-analytics": "^0.5.3",
     "uuid": "^8.3.2",
+    "wonderful-fetch": "^0.0.3",
     "yargs": "^17.4.1"
   },
   "files": [

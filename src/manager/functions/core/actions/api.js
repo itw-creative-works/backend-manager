@@ -36,19 +36,18 @@ Module.prototype.main = function() {
     self.payload.data = assistant.request.data;
     self.payload.user = await assistant.authenticate();
 
-    const command = self.resolveCommand(self.payload.data.command);
-    const commandPath = './' + path.join('./api/', `${command.replace(/\.\.\//g, '').replace(/\:/, '/')}.js`);
+    const resolved = self.resolveCommand(self.payload.data.command);
 
-    self.assistant.log(`Executing: ${command}`, self.payload, JSON.stringify(self.payload), {environment: 'production'})
+    self.assistant.log(`Executing: ${resolved.command}`, self.payload, JSON.stringify(self.payload), {environment: 'production'})
 
-    try {
-      const lib = new (require(commandPath))();
+    await self.import(resolved.command)
+    .then(async lib => {
       try {
-        await lib.init(self, self.payload);
+        // Call main function
         await lib.main()
-        .then(r => {
-          self.payload.response.status = r.status || 200;
-          self.payload.response.data = r.data || {};
+        .then(result => {
+          self.payload.response.status = result.status || 200;
+          self.payload.response.data = result.data || {};
         })
         .catch(e => {
           self.payload.response.status = e.code || 500;
@@ -58,19 +57,56 @@ Module.prototype.main = function() {
         self.payload.response.status = 500;
         self.payload.response.error = e || new Error('Unknown error occured');
       }
-    } catch (e) {
+    })
+    .catch(e => {
       self.payload.response.status = 400;
-      self.payload.response.error = new Error(`Improper command supplied: ${command}`);
-      assistant.log('Dev error log', e)
-    }
+      self.payload.response.error = new Error(`Failed to import: ${e}`);
+    })
 
     if (self.payload.response.status === 200) {
       return res.status(self.payload.response.status).json(self.payload.response.data);
     } else {
-      console.error(`Error executing ${command} @ ${commandPath}`, self.payload.response.error)
+      console.error(`Error executing ${self.payload.data.command} => ${resolved.command} @ ${resolved.path}`, self.payload.response.error)
       // return res.status(self.payload.response.status).send(self.payload.response.error.message);
       return res.status(self.payload.response.status).send(`${self.payload.response.error}`);
     }
+  });
+}
+
+Module.prototype.import = function (command, payload, user, response) {
+  const self = this;
+
+  return new Promise(function(resolve, reject) {
+    const resolved = self.resolveCommand(command);
+
+    try {
+      const lib = new (require(resolved.path))();
+
+      // Initialize
+      lib.Api = self;
+      lib.Manager = self.Manager;
+      lib.libraries = self.Manager.libraries;
+      lib.assistant = self.assistant;
+      lib.payload = _.cloneDeep({
+        data: {
+          payload: payload ? payload : self.payload.data.payload,
+        },
+        user: user ? user : self.payload.user,
+        response: response ? response : self.payload.response,
+      });
+
+      // lib.payload = {};
+      //
+      // // Set payload and user if it's provided
+      // lib.payload.data.payload = payload ? _.cloneDeep(payload) : lib.payload.data.payload;
+      // lib.payload.user = user ? _.cloneDeep(user) : lib.payload.user;
+      // lib.payload.response = response ? _.cloneDeep(response) : lib.payload.response;
+
+      return resolve(lib);
+    } catch (e) {
+      return reject(e);
+    }
+
   });
 }
 
@@ -116,6 +152,10 @@ Module.prototype.resolveCommand = function (command) {
   } else if (command === 'admin:payment-processor' || command === 'payment-processor') { // rename: admin:payment-processor
     command = 'admin:payment-processor';
 
+  // Special
+  } else if (command === 'special:setup-electron-manager-client' || command === 'setup-electron-manager-client') {
+    command = 'special:setup-electron-manager-client';
+
   // Test
   } else if (command === 'test:authenticate' || command === 'authenticate') {
     command = 'test:authenticate';
@@ -126,10 +166,13 @@ Module.prototype.resolveCommand = function (command) {
 
   // End
   } else {
-    command = '';
+    command = 'error:error';
   }
 
-  return command;
+  return {
+    command: command,
+    path: './' + path.join('./api/', `${command.replace(/\.\.\//g, '').replace(/\:/, '/')}.js`),
+  };
 }
 
 Module.prototype.resolveUser = function (options) {

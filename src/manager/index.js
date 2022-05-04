@@ -90,13 +90,14 @@ Manager.prototype.init = function (exporter, options) {
   }
 
   if (self.options.sentry) {
-    // console.log('Setting up sentry:', `${self.project.projectId}@${self.package.version}`);
-    // console.log('self.config.sentry.dsn', self.config.sentry.dsn);
+    const sentryRelease = `${self.config.app.id || self.project.projectId}@${self.package.version}`;
     const sentryDSN = get(self.config, 'sentry.dsn', '');
+    // console.log('Sentry', sentryRelease, sentryDSN);
+
     self.libraries.sentry = require('@sentry/node');
     self.libraries.sentry.init({
       dsn: sentryDSN,
-      release: `${self.project.projectId}@${self.package.version}`,
+      release: sentryRelease,
       beforeSend(event, hint) {
         if (self.assistant.meta.environment === 'development' && !self.options.reportErrorsInDev) {
           self.assistant.error('Skipping Sentry because DEV')

@@ -4,20 +4,10 @@ function Module() {
 
 }
 
-Module.prototype.init = async function (s, payload) {
-  const self = this;
-  self.Api = s;
-  self.Manager = s.Manager;
-  self.libraries = s.Manager.libraries;
-  self.assistant = s.Manager.assistant;
-  self.payload = payload;
-
-  return self;
-};
-
 Module.prototype.main = function () {
   const self = this;
   const Manager = self.Manager;
+  const Api = self.Api;
   const assistant = self.assistant;
   const payload = self.payload;
 
@@ -42,8 +32,7 @@ Module.prototype.main = function () {
 
     assistant.log('UUID Generated', payload.data.payload, result, {environment: 'production'});
 
-    // Return the timestamp so electron-manager can save an http request >:)
-    return resolve({data: {uuid: result, timestamp: new Date().toISOString()}});
+    return resolve({data: {uuid: result}});
 
   });
 

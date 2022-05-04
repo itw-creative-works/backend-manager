@@ -1,4 +1,7 @@
 {
+  "app": {
+    "id": "my-app"
+  },
   "brand": {
     "name": "My Brand",
     "url": "https://example.com",

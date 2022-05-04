@@ -208,7 +208,7 @@ Main.prototype.getRulesFile = function () {
 Main.prototype.setup = async function () {
   let self = this;
   let cwd = fs.cwd();
-  log(chalk.green(`\n---- RUNNING SETUP ----`));
+  log(chalk.green(`\n---- RUNNING v${this.default.version} SETUP ----`));
   this.package = fs.read(`${this.firebaseProjectPath}/functions/package.json`) || '{}';
   this.firebaseJSON = fs.read(`${this.firebaseProjectPath}/firebase.json`) || '{}';
   this.firebaseRC = fs.read(`${this.firebaseProjectPath}/.firebaserc`) || '{}';
@@ -385,7 +385,7 @@ Main.prototype.setup = async function () {
       let item = ogPaths[i];
       if (!item) {continue}
       pass = (_.get(bemConfig, item, undefined));
-      if (typeof pass === 'undefined') {
+      if (typeof pass === 'undefined' || typeof pass === '') {
         break;
       }
     }
