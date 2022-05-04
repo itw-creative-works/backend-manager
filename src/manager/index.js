@@ -33,6 +33,8 @@ Manager.prototype.init = function (exporter, options) {
   options.useFirebaseLogger = typeof options.useFirebaseLogger === 'undefined' ? true : options.useFirebaseLogger;
   options.serviceAccountPath = typeof options.serviceAccountPath === 'undefined' ? 'service-account.json' : options.serviceAccountPath;
   options.uniqueAppName = options.uniqueAppName || undefined;
+  options.assistant = options.assistant || {};
+  // options.assistant.optionsLogString = options.assistant.optionsLogString || undefined;
 
   // Load libraries
   self.libraries = {
@@ -63,7 +65,7 @@ Manager.prototype.init = function (exporter, options) {
     self.libraries.functions.config()
   );
 
-  self.assistant = self.Assistant().init();
+  self.assistant = self.Assistant().init(undefined, options.assistant);
 
   process.env.ENVIRONMENT = !process.env.ENVIRONMENT ? self.assistant.meta.environment : process.env.ENVIRONMENT;
 
