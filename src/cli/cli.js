@@ -582,6 +582,17 @@ Main.prototype.setup = async function () {
     console.log(chalk.yellow(`You should continue to run ${chalk.bold('npx bm setup')} until you pass all tests and fix all errors.`));
   }
 
+  // Notify parent that finished with test results
+  if (process.send) {
+    process.send({
+      sender: 'electron-manager',
+      command: 'setup:complete',
+      payload: {
+        passed: self.testCount === self.testTotal,
+      }
+    });
+  }
+
   return;
 
 };
