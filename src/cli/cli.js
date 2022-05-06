@@ -454,7 +454,7 @@ Main.prototype.setup = async function () {
     const equal = _.isEqual(liveIndexes, localIndexes);
 
     if (localIndexes_exists && !equal) {
-      console.log(chalk.red(`Run ${chalk.bold('npx bm indexes:get')} to overwrite the local Firestore indexes with the live ones.`));
+      console.log(chalk.red(`Run ${chalk.bold('npx bm indexes:get')} to overwrite Firestore's local indexes with the live indexes.`));
     }
 
     jetpack.remove(`${self.firebaseProjectPath}/${tempPath}`)
