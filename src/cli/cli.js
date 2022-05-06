@@ -120,7 +120,7 @@ Main.prototype.process = async function (args) {
   }
 
   if (this.options['firestore:indexes:get'] || this.options['firestore:indexes'] || this.options['indexes:get']) {
-    return await cmd_indexesGet(self);
+    return await cmd_indexesGet(self, undefined, true);
   }
 
   if (this.options['functions:config:get'] || this.options['config:get']) {
