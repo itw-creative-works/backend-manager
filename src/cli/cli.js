@@ -57,57 +57,57 @@ function Main() {
 }
 
 Main.prototype.process = async function (args) {
-  let self = this;
-  this.options = {};
-  this.argv = argv;
-  this.firebaseProjectPath = process.cwd();
-  this.firebaseProjectPath = this.firebaseProjectPath.match(/\/functions$/) ? this.firebaseProjectPath.replace(/\/functions$/, '') : this.firebaseProjectPath;
-  this.testCount = 0;
-  this.testTotal = 0;
-  this.default = {};
-  this.packageJSON = require('../../package.json');
-  this.default.version = this.packageJSON.version;
+  const self = this;
+  self.options = {};
+  self.argv = argv;
+  self.firebaseProjectPath = process.cwd();
+  self.firebaseProjectPath = self.firebaseProjectPath.match(/\/functions$/) ? self.firebaseProjectPath.replace(/\/functions$/, '') : self.firebaseProjectPath;
+  self.testCount = 0;
+  self.testTotal = 0;
+  self.default = {};
+  self.packageJSON = require('../../package.json');
+  self.default.version = self.packageJSON.version;
 
   for (var i = 0; i < args.length; i++) {
-    this.options[args[i]] = true;
+    self.options[args[i]] = true;
   }
   // console.log(args);
   // console.log(options);
-  if (this.options.v || this.options.version || this.options['-v'] || this.options['-version']) {
-    console.log(`Backend manager is version: ${this.default.version}`);
+  if (self.options.v || self.options.version || self.options['-v'] || self.options['-version']) {
+    console.log(`Backend manager is version: ${self.default.version}`);
   }
 
   // https://gist.github.com/timneutkens/f2933558b8739bbf09104fb27c5c9664
-  if (this.options.clear) {
+  if (self.options.clear) {
     process.stdout.write("\u001b[3J\u001b[2J\u001b[1J");
     console.clear();
     process.stdout.write("\u001b[3J\u001b[2J\u001b[1J");
   }
-  if (this.options.cwd) {
-    console.log('cwd: ', this.firebaseProjectPath);
+  if (self.options.cwd) {
+    console.log('cwd: ', self.firebaseProjectPath);
   }
-  if (this.options.setup) {
+  if (self.options.setup) {
     await cmd_configGet(self).catch(e => log(chalk.red(`Failed to run config:get`)));
     await self.setup();
   }
-  if ((this.options.i || this.options.install) && (this.options.local || this.options.dev || this.options.development)) {
+  if ((self.options.i || self.options.install) && (self.options.local || self.options.dev || self.options.development)) {
     await uninstallPkg('backend-manager');
     return await installPkg('file:../../../ITW-Creative-Works/backend-manager');
     // await uninstallPkg('backend-assistant');
     // return await installPkg('file:../../backend-assistant');
   }
-  if ((this.options.i || this.options.install) && (this.options.live || this.options.prod || this.options.production)) {
+  if ((self.options.i || self.options.install) && (self.options.live || self.options.prod || self.options.production)) {
     await uninstallPkg('backend-manager');
     return await installPkg('backend-manager');
     // return await installPkg('backend-assistant');
   }
-  if (this.options.serve) {
-    if (!this.options.quick && !this.options.q) {
+  if (self.options.serve) {
+    if (!self.options.quick && !self.options.q) {
     }
     await cmd_configGet(self);
     await self.setup();
 
-    let port = this.argv.port || _.get(self.argv, '_', [])[1] || '5000';
+    let port = self.argv.port || _.get(self.argv, '_', [])[1] || '5000';
     let ls = spawn(`firebase serve --port ${port}`, {shell: true});
 
     ls.stdout.on('data', (data) => {
@@ -119,31 +119,31 @@ Main.prototype.process = async function (args) {
     });
   }
 
-  if (this.options['firestore:indexes:get'] || this.options['firestore:indexes'] || this.options['indexes:get']) {
+  if (self.options['firestore:indexes:get'] || self.options['firestore:indexes'] || self.options['indexes:get']) {
     return await cmd_indexesGet(self, undefined, true);
   }
 
-  if (this.options['functions:config:get'] || this.options['config:get']) {
+  if (self.options['functions:config:get'] || self.options['config:get']) {
     return await cmd_configGet(self);
   }
 
-  if (this.options['functions:config:set'] || this.options['config:set']) {
+  if (self.options['functions:config:set'] || self.options['config:set']) {
     await cmd_configSet(self);
     return await cmd_configGet(self);
   }
 
-  if (this.options['functions:config:unset'] || this.options['config:unset'] || this.options['config:delete'] || this.options['config:remove']) {
+  if (self.options['functions:config:unset'] || self.options['config:unset'] || self.options['config:delete'] || self.options['config:remove']) {
     await cmd_configUnset(self);
     return await cmd_configGet(self);
   }
 
-  if (this.options['rules:default'] || this.options['rules:getdefault']) {
+  if (self.options['rules:default'] || self.options['rules:getdefault']) {
     self.getRulesFile();
     console.log(self.default.firestoreRulesWhole.match(bem_fsRulesDefaultRegex)[0].replace('    ///', '///'));
     return;
   }
 
-  if (this.options.deploy) {
+  if (self.options.deploy) {
     await self.setup();
 
     // Quick check that not using local packages
@@ -166,7 +166,7 @@ Main.prototype.process = async function (args) {
     });
 
   }
-  if (this.options['test']) {
+  if (self.options['test']) {
     await self.setup();
     // firebase emulators:exec --only firestore 'npm test'
     // let ls = spawn('firebase', ['emulators:exec', '--only', 'firestore', 'npm test']);
@@ -180,7 +180,7 @@ Main.prototype.process = async function (args) {
     });
   }
 
-  if (this.options['clean:npm']) {
+  if (self.options['clean:npm']) {
     // await self.setup();
     // firebase emulators:exec --only firestore 'npm test'
     let ls = spawn(`${NPM_CLEAN_SCRIPT}`, {shell: true});
@@ -192,10 +192,10 @@ Main.prototype.process = async function (args) {
     });
   }
 
-  // if (this.options['url']) {
+  // if (self.options['url']) {
   //   // await self.setup();
   //   // firebase emulators:exec --only firestore 'npm test'
-  //   log(this.projectUrl)
+  //   log(self.projectUrl)
   // }
 
 };
@@ -204,23 +204,25 @@ module.exports = Main;
 
 
 Main.prototype.getRulesFile = function () {
-  let self = this;
-  this.default.firestoreRulesWhole = (jetpack.read(path.resolve(`${__dirname}/../../templates/firestore.rules`))).replace('=0.0.0-', `-${self.default.version}-`);
-  this.default.firestoreRulesCore = this.default.firestoreRulesWhole.match(bem_fsRulesRegex)[0];
+  const self = this;
+  self.default.firestoreRulesWhole = (jetpack.read(path.resolve(`${__dirname}/../../templates/firestore.rules`))).replace('=0.0.0-', `-${self.default.version}-`);
+  self.default.firestoreRulesCore = self.default.firestoreRulesWhole.match(bem_fsRulesRegex)[0];
 
 };
 
 Main.prototype.setup = async function () {
-  let self = this;
+  const self = this;
   let cwd = jetpack.cwd();
-  log(chalk.green(`\n---- RUNNING SETUP v${this.default.version} ----`));
-  this.package = jetpack.read(`${this.firebaseProjectPath}/functions/package.json`) || '{}';
-  this.firebaseJSON = jetpack.read(`${this.firebaseProjectPath}/firebase.json`) || '{}';
-  this.firebaseRC = jetpack.read(`${this.firebaseProjectPath}/.firebaserc`) || '{}';
-  this.runtimeConfigJSON = jetpack.read(`${this.firebaseProjectPath}/functions/.runtimeconfig.json`) || '{}';
-  this.projectPackage = jetpack.read(`${this.firebaseProjectPath}/package.json`) || '{}';
-  this.gitignore = jetpack.read(`${this.firebaseProjectPath}/functions/.gitignore`) || '';
-  if (!this.package) {
+  log(chalk.green(`\n---- RUNNING SETUP v${self.default.version} ----`));
+  self.package = jetpack.read(`${self.firebaseProjectPath}/functions/package.json`) || '{}';
+  self.firebaseJSON = jetpack.read(`${self.firebaseProjectPath}/firebase.json`) || '{}';
+  self.firebaseRC = jetpack.read(`${self.firebaseProjectPath}/.firebaserc`) || '{}';
+  self.runtimeConfigJSON = jetpack.read(`${self.firebaseProjectPath}/functions/.runtimeconfig.json`) || '{}';
+  self.remoteconfigJSON = jetpack.read(`${self.firebaseProjectPath}/remoteconfig.template.json`) || '{}';
+  self.projectPackage = jetpack.read(`${self.firebaseProjectPath}/package.json`) || '{}';
+
+  self.gitignore = jetpack.read(`${self.firebaseProjectPath}/functions/.gitignore`) || '';
+  if (!self.package) {
     log(chalk.red(`Missing functions/package.json :(`));
     return;
   }
@@ -230,34 +232,37 @@ Main.prototype.setup = async function () {
     return;
   }
 
-  this.package = JSON.parse(this.package);
-  this.firebaseJSON = JSON.parse(this.firebaseJSON);
-  this.firebaseRC = JSON.parse(this.firebaseRC);
-  this.runtimeConfigJSON = JSON.parse(this.runtimeConfigJSON);
-  this.projectPackage = JSON.parse(this.projectPackage);
+  self.package = JSON.parse(self.package);
+  self.firebaseJSON = JSON.parse(self.firebaseJSON);
+  self.firebaseRC = JSON.parse(self.firebaseRC);
+  self.runtimeConfigJSON = JSON.parse(self.runtimeConfigJSON);
+  self.remoteconfigJSON = JSON.parse(self.remoteconfigJSON);
+  self.projectPackage = JSON.parse(self.projectPackage);
+
+  self.remoteconfigJSONExists = Object.keys(self.remoteconfigJSON).length > 0;
 
   self.getRulesFile();
 
-  this.default.firestoreRulesVersionRegex = new RegExp(`///---version-${self.default.version}---///`)
+  self.default.firestoreRulesVersionRegex = new RegExp(`///---version-${self.default.version}---///`)
   // bem_giRegex = new RegExp(jetpack.read(path.resolve(`${__dirname}/../../templates/gitignore.md`)).replace(/\./g, '\\.'), 'm' )
   bem_giRegex = new RegExp(jetpack.read(path.resolve(`${__dirname}/../../templates/gitignore.md`)), 'm' )
 
   // tests
-  this.projectName = this.firebaseRC.projects.default;
-  this.projectUrl = `https://console.firebase.google.com/project/${this.projectName}`;
-  log(chalk.black(`Id: `, chalk.bold(`${this.projectName}`)));
-  log(chalk.black(`Url:`, chalk.bold(`${this.projectUrl}`)));
+  self.projectName = self.firebaseRC.projects.default;
+  self.projectUrl = `https://console.firebase.google.com/project/${self.projectName}`;
+  log(chalk.black(`Id: `, chalk.bold(`${self.projectName}`)));
+  log(chalk.black(`Url:`, chalk.bold(`${self.projectUrl}`)));
 
   if (!self.package || !self.package.engines || !self.package.engines.node) {
     throw new Error('Missing <engines.node> in package.json')
   }
 
-  await this.test('is a firebase project', async function () {
+  await self.test('is a firebase project', async function () {
     let exists = jetpack.exists(`${self.firebaseProjectPath}/firebase.json`);
     return exists;
   }, fix_isFirebase);
 
-  await this.test('.nvmrc file has proper version', async function () {
+  await self.test('.nvmrc file has proper version', async function () {
     // return !!self.package.dependencies && !!self.package.devDependencies;
     // let gitignore = jetpack.read(path.resolve(`${__dirname}/../../templates/gitignore.md`));
     let nvmrc = jetpack.read(`${self.firebaseProjectPath}/functions/.nvmrc`) || '';
@@ -265,7 +270,7 @@ Main.prototype.setup = async function () {
 
   }, fix_nvmrc);
 
-  await this.test(`using node ${CLI_CONFIG.node}`, function () {
+  await self.test(`using node ${CLI_CONFIG.node}`, function () {
     let processMajor = parseInt(process.versions.node.split('.')[0]);
     let engineMajor = parseInt(self.package.engines.node.split('.')[0]);
     if (processMajor < engineMajor) {
@@ -274,19 +279,19 @@ Main.prototype.setup = async function () {
     return self.package.engines.node.toString() === CLI_CONFIG.node && processMajor >= engineMajor;
   }, fix_nodeVersion);
 
-  // await this.test('project level package.json exists', async function () {
+  // await self.test('project level package.json exists', async function () {
   //   return !!(self.projectPackage && self.projectPackage.version && self.projectPackage.name);
   // }, fix_projpackage);
 
-  await this.test('functions level package.json exists', async function () {
+  await self.test('functions level package.json exists', async function () {
     return !!self.package && !!self.package.dependencies && !!self.package.devDependencies && !!self.package.version;
   }, fix_functionspackage);
 
-  // await this.test('functions level package.json has updated version', async function () {
+  // await self.test('functions level package.json has updated version', async function () {
   //   return self.package.version === self.projectPackage.version;
   // }, fix_packageversion);
 
-  await this.test('using updated firebase-admin', async function () {
+  await self.test('using updated firebase-admin', async function () {
     let pkg = 'firebase-admin';
     // let latest = semver.clean(await getPkgVersion(pkg));
     let latest = semver.clean(cleanPackageVersion(self.packageJSON.dependencies['firebase-admin']));
@@ -302,7 +307,7 @@ Main.prototype.setup = async function () {
     return !(semver.gt(latest, mine)) || majorVersionMismatch;
   }, fix_fba);
 
-  await this.test('using updated firebase-functions', async function () {
+  await self.test('using updated firebase-functions', async function () {
     let pkg = 'firebase-functions';
     // let latest = semver.clean(await getPkgVersion(pkg));
     let latest = semver.clean(cleanPackageVersion(self.packageJSON.dependencies['firebase-functions']));
@@ -318,7 +323,7 @@ Main.prototype.setup = async function () {
     return !(semver.gt(latest, mine)) || majorVersionMismatch;
   }, fix_fbf);
 
-  await this.test('using updated backend-manager', async function () {
+  await self.test('using updated backend-manager', async function () {
     let pkg = 'backend-manager';
     let latest = semver.clean(await getPkgVersion(pkg));
     let mine = cleanPackageVersion(self.package.dependencies[pkg] || '0.0.0');
@@ -338,35 +343,35 @@ Main.prototype.setup = async function () {
     bemPackageVersionWarning(pkg, bemv, latest);
   }());
 
-  // await this.test('using updated backend-assistant', async function () {
+  // await self.test('using updated backend-assistant', async function () {
   //   let pkg = 'backend-assistant';
   //   let latest = semver.clean(await getPkgVersion(pkg));
   //   let mine = (self.package.dependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
   //   return isLocal(mine) || !(semver.gt(latest, mine));
   // }, fix_bea);
 
-  // await this.test('using updated ultimate-jekyll-poster', async function () {
+  // await self.test('using updated ultimate-jekyll-poster', async function () {
   //   let pkg = 'ultimate-jekyll-poster';
   //   let latest = semver.clean(await getPkgVersion(pkg));
   //   let mine = (self.package.dependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
   //   return isLocal(mine) || !(semver.gt(latest, mine));
   // }, fix_ujp);
 
-  // await this.test('using updated @firebase/testing', async function () {
+  // await self.test('using updated @firebase/testing', async function () {
   //   let pkg = '@firebase/testing';
   //   let latest = semver.clean(await getPkgVersion(pkg));
   //   let mine = (self.package.devDependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
   //   return isLocal(mine) || !(semver.gt(latest, mine));
   // }, fix_fbTesting);
 
-  // await this.test('using updated mocha', async function () {
+  // await self.test('using updated mocha', async function () {
   //   let pkg = 'mocha';
   //   let latest = semver.clean(await getPkgVersion(pkg));
   //   let mine = (self.package.devDependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
   //   return isLocal(mine) || !(semver.gt(latest, mine));
   // }, fix_mocha);
 
-  await this.test('using proper .runtimeconfig', async function () {
+  await self.test('using proper .runtimeconfig', async function () {
     let runtimeconfig = JSON.parse(jetpack.read(`${self.firebaseProjectPath}/functions/.runtimeconfig.json`) || '{}');
     let ogPaths = getObjectPaths(runtimeconfigTemplate).split('\n');
     let pass = true;
@@ -382,7 +387,7 @@ Main.prototype.setup = async function () {
 
   }, fix_runtimeConfig);
 
-  await this.test('using proper backend-manager-config.json', async function () {
+  await self.test('using proper backend-manager-config.json', async function () {
     let bemConfig = JSON.parse(jetpack.read(`${self.firebaseProjectPath}/functions/backend-manager-config.json`) || '{}');
     let ogPaths = getObjectPaths(bemConfigTemplate).split('\n');
     let pass = true;
@@ -398,12 +403,12 @@ Main.prototype.setup = async function () {
 
   }, fix_bemConfig);
 
-  await this.test('has service-account.json', function () {
+  await self.test('has service-account.json', function () {
     let exists = jetpack.exists(`${self.firebaseProjectPath}/functions/service-account.json`);
     return !!exists;
   }, fix_serviceAccount);
 
-  await this.test('has correct .gitignore', function () {
+  await self.test('has correct .gitignore', function () {
     let match = self.gitignore.match(bem_giRegexOuter);
     if (!match) {
       return false;
@@ -417,32 +422,37 @@ Main.prototype.setup = async function () {
 
 
   // Check firebase.json fields
-  await this.test('firestore rules in JSON', function () {
+  await self.test('firestore rules in JSON', function () {
     const firestore = _.get(self.firebaseJSON, 'firestore', {});
     return (firestore.rules === 'firestore.rules')
   }, fix_firestoreRules);
 
-  await this.test('firestore indexes in JSON', function () {
+  await self.test('firestore indexes in JSON', function () {
     let firestore = _.get(self.firebaseJSON, 'firestore', {});
     return (firestore.indexes === 'firestore.indexes.json')
   }, fix_firestoreIndexes);
 
-  await this.test('realtime rules in JSON', function () {
+  await self.test('realtime rules in JSON', function () {
     const database = _.get(self.firebaseJSON, 'database', {});
     return (database.rules === 'database.rules.json')
   }, fix_realtimeRules);
 
-  await this.test('storage rules in JSON', function () {
+  await self.test('storage rules in JSON', function () {
     const storage = _.get(self.firebaseJSON, 'storage', {});
     return (storage.rules === 'storage.rules')
   }, fix_storageRules);
 
-  await this.test('remoteconfig template in JSON', function () {
+  await self.test('remoteconfig template in JSON', function () {
     const remoteconfig = _.get(self.firebaseJSON, 'remoteconfig', {});
-    return (remoteconfig.template === 'remoteconfig.template.json')
+
+    if (self.remoteconfigJSONExists) {
+      return (remoteconfig.template === 'remoteconfig.template.json')
+    } else {
+      return (remoteconfig.template === '')
+    }
   }, fix_remoteconfigTemplate);
 
-  await this.test('firestore indexes synced', async function () {
+  await self.test('firestore indexes synced', async function () {
     const tempPath = '_firestore.indexes.json'
     const liveIndexes = await cmd_indexesGet(self, tempPath, false);
 
@@ -454,7 +464,10 @@ Main.prototype.setup = async function () {
     const equal = _.isEqual(liveIndexes, localIndexes);
 
     if (localIndexes_exists && !equal) {
-      console.log(chalk.red(`Run ${chalk.bold('npx bm indexes:get')} to overwrite Firestore's local indexes with the live indexes.`));
+      console.log(chalk.red(`To fix this...`));
+      console.log(chalk.red(`  - ${chalk.bold('npx bm indexes:get')} to overwrite Firestore's local indexes with the live indexes`));
+      console.log(chalk.red('  OR'));
+      console.log(chalk.red(`  - ${chalk.bold('firebase deploy --only firestore:indexes')} to replace the live indexes.`));
     }
 
     jetpack.remove(`${self.firebaseProjectPath}/${tempPath}`)
@@ -464,7 +477,7 @@ Main.prototype.setup = async function () {
 
 
   // Update actual files
-  await this.test('update firestore rules file', function () {
+  await self.test('update firestore rules file', function () {
     let exists = jetpack.exists(`${self.firebaseProjectPath}/firestore.rules`);
     let contents = jetpack.read(`${self.firebaseProjectPath}/firestore.rules`) || '';
     let containsCore = contents.match(bem_fsRulesRegex);
@@ -473,45 +486,45 @@ Main.prototype.setup = async function () {
     return (!!exists && !!containsCore && !!matchesVersion);
   }, fix_firestoreRulesFile);
 
-  await this.test('update firestore indexes file', function () {
+  await self.test('update firestore indexes file', function () {
     let exists = jetpack.exists(`${self.firebaseProjectPath}/firestore.indexes.json`);
     return (!!exists);
   }, fix_firestoreIndexesFile);
 
-  await this.test('update realtime rules file', function () {
+  await self.test('update realtime rules file', function () {
     let exists = jetpack.exists(`${self.firebaseProjectPath}/database.rules.json`);
     return (!!exists);
   }, fix_realtimeRulesFile);
 
-  await this.test('update storage rules file', function () {
+  await self.test('update storage rules file', function () {
     let exists = jetpack.exists(`${self.firebaseProjectPath}/storage.rules`);
     return (!!exists);
   }, fix_storageRulesFile);
 
-  await this.test('update remoteconfig template file', function () {
+  await self.test('update remoteconfig template file', function () {
     let exists = jetpack.exists(`${self.firebaseProjectPath}/remoteconfig.template.json`);
     return (!!exists);
   }, fix_remoteconfigTemplateFile);
 
   // Hosting
-  await this.test('hosting is set to dedicated folder in JSON', function () {
+  await self.test('hosting is set to dedicated folder in JSON', function () {
     let hosting = _.get(self.firebaseJSON, 'hosting', {});
     return (hosting.public && (hosting.public === 'public' || hosting.public !== '.'))
   }, fix_firebaseHosting);
 
-  await this.test('update backend-manager-tests.js', function () {
+  await self.test('update backend-manager-tests.js', function () {
     jetpack.write(`${self.firebaseProjectPath}/test/backend-manager-tests.js`,
       (jetpack.read(path.resolve(`${__dirname}/../../templates/backend-manager-tests.js`)))
     )
     return true;
   }, NOFIX);
 
-  // await this.test('has mocha package.json script', function () {
+  // await self.test('has mocha package.json script', function () {
   //   let script = _.get(self.package, 'scripts.test', '')
   //   return script === MOCHA_PKG_SCRIPT;
   // }, fix_mochaScript);
 
-  // await this.test('has clean:npm package.json script', function () {
+  // await self.test('has clean:npm package.json script', function () {
   //   let script = _.get(self.package, 'scripts.clean:npm', '')
   //   return script === NPM_CLEAN_SCRIPT;
   // }, fix_cleanNpmScript);
@@ -526,8 +539,8 @@ Main.prototype.setup = async function () {
   }
 
 
-  const prepareStatsURL = `https://us-central1-${_.get(this.firebaseRC, 'projects.default')}.cloudfunctions.net/bm_api?authenticationToken=${_.get(this.runtimeConfigJSON, 'backend_manager.key')}`;
-  // const prepareStatsURL = `https://us-central1-${_.get(this.firebaseRC, 'projects.default')}.cloudfunctions.net/bm_api?authenticationToken=undefined`;
+  const prepareStatsURL = `https://us-central1-${_.get(self.firebaseRC, 'projects.default')}.cloudfunctions.net/bm_api?authenticationToken=${_.get(self.runtimeConfigJSON, 'backend_manager.key')}`;
+  // const prepareStatsURL = `https://us-central1-${_.get(self.firebaseRC, 'projects.default')}.cloudfunctions.net/bm_api?authenticationToken=undefined`;
   const statsFetchResult = await fetch(prepareStatsURL, {
     method: 'post',
     body: JSON.stringify({
@@ -597,7 +610,7 @@ function getObjectPaths(object, parent) {
 }
 
 Main.prototype.test = async function(name, fn, fix, args) {
-  let self = this;
+  const self = this;
   let status;
   let passed = await fn();
   return new Promise(async function(resolve, reject) {
@@ -842,7 +855,7 @@ function fix_storageRules(self) {
 
 function fix_remoteconfigTemplate(self) {
   return new Promise(function(resolve, reject) {
-    _.set(self.firebaseJSON, 'remoteconfig.template', 'remoteconfig.template.json')
+    _.set(self.firebaseJSON, 'remoteconfig.template', self.remoteconfigJSONExists ? 'remoteconfig.template.json' : '')
     jetpack.write(`${self.firebaseProjectPath}/firebase.json`, JSON.stringify(self.firebaseJSON, null, 2));
     resolve();
   });
@@ -1022,8 +1035,8 @@ async function cmd_configGet(self, filePath) {
 
 async function cmd_configSet(self, newPath, newValue) {
   return new Promise(async function(resolve, reject) {
-    // console.log(this.options);
-    // console.log(this.argv);
+    // console.log(self.options);
+    // console.log(self.argv);
     newPath = newPath || await inquirer.prompt([
       {
         type: 'input',
@@ -1099,8 +1112,8 @@ async function cmd_configSet(self, newPath, newValue) {
 
 async function cmd_configUnset(self) {
   return new Promise(async function(resolve, reject) {
-    // console.log(this.options);
-    // console.log(this.argv);
+    // console.log(self.options);
+    // console.log(self.argv);
     await inquirer
       .prompt([
         /* Pass your questions in here */
