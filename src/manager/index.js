@@ -7,13 +7,15 @@ const { get, merge } = require('lodash');
 
 
 function Manager(exporter, options) {
+  const self = this;
   // Constants
-  this.SERVER_UUID = '11111111-1111-1111-1111-111111111111';
+  self.SERVER_UUID = '11111111-1111-1111-1111-111111111111';
 
   // Modable
-  this.libraries = {};
-  this.handlers = {};
-  return this;
+  self.libraries = {};
+  self.handlers = {};
+
+  return self;
 }
 
 Manager.prototype.init = function (exporter, options) {
@@ -92,7 +94,7 @@ Manager.prototype.init = function (exporter, options) {
   }
 
   if (self.options.sentry) {
-    const sentryRelease = `${self.config.app.id || self.project.projectId}@${self.package.version}`;
+    const sentryRelease = `${get(self.config, 'app.id') || self.project.projectId}@${self.package.version}`;
     const sentryDSN = get(self.config, 'sentry.dsn', '');
     // console.log('Sentry', sentryRelease, sentryDSN);
 

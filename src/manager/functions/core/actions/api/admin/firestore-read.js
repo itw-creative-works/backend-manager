@@ -11,7 +11,7 @@ Module.prototype.main = function () {
 
   return new Promise(async function(resolve, reject) {
 
-    if (payload.user.authenticated || payload.user.roles.admin) {
+    if (payload.user.roles.admin) {
 
       // console.log('---payload.data.payload', payload.data.payload);
 

@@ -1,0 +1,31 @@
+{
+  "rules": {
+    "gatherings": {
+      ".read": false,
+      ".write": false,
+			"online": {
+        ".read": "auth.uid != null && query.equalTo == auth.uid",
+        ".write": false,
+        ".indexOn": ["uid"],
+        "$uid": {
+          ".read": "
+          	// Allowed if user is signed in AND is the owner of the doc
+          	(auth != null && auth.uid == data.child('uid').val())
+          ",
+          ".write": "
+          	// Allowed if the user is signed in AND is the owner of the existing doc
+          	(auth != null && auth.uid == data.child('uid').val())
+          	// Allowed if the user is signed in AND is the owner of the new doc
+          	|| (auth != null && auth.uid == newData.child('uid').val())
+          	// Allowed if it's a delete
+          	|| (!newData.exists())
+						// Allowed if the existing doc has no owner
+          	|| (data.child('uid').val() == '')
+          	// Allowed if the new doc has no owner
+          	|| (newData.child('uid').val() == '')
+          ",
+      	}
+      }
+    }
+  }
+}

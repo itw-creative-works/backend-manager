@@ -6,7 +6,7 @@
 // https://github.com/sitepoint-editors/ginit
 
 let exec = require('child_process').exec;
-const fs = require('fs-jetpack');
+const jetpack = require('fs-jetpack');
 const path = require('path');
 const chalk = require('chalk');
 const _ = require('lodash');
@@ -49,9 +49,9 @@ let bem_fsRulesBackupRegex = /({{\s*?backend-manager\s*?}})/sgm;
 let MOCHA_PKG_SCRIPT = 'mocha ../test/ --recursive --timeout=10000';
 let NPM_CLEAN_SCRIPT = 'rm -fr node_modules && rm -fr package-lock.json && npm cache clean --force && npm install && npm rb';
 let NOFIX_TEXT = chalk.red(`There is no automatic fix for this check.`);
-let runtimeconfigTemplate = JSON.parse((fs.read(path.resolve(`${__dirname}/../../templates/runtimeconfig.json`))) || '{}');
-let bemConfigTemplate = JSON.parse((fs.read(path.resolve(`${__dirname}/../../templates/backend-manager-config.json`))) || '{}');
-let CLI_CONFIG = JSON5.parse((fs.read(path.resolve(`${__dirname}/config.json`))) || '{}');
+let runtimeconfigTemplate = JSON.parse((jetpack.read(path.resolve(`${__dirname}/../../templates/runtimeconfig.json`))) || '{}');
+let bemConfigTemplate = JSON.parse((jetpack.read(path.resolve(`${__dirname}/../../templates/backend-manager-config.json`))) || '{}');
+let CLI_CONFIG = JSON5.parse((jetpack.read(path.resolve(`${__dirname}/config.json`))) || '{}');
 
 function Main() {
 }
@@ -118,16 +118,21 @@ Main.prototype.process = async function (args) {
       // ls = null;
     });
   }
-  if (this.options['config:get']) {
+
+  if (this.options['firestore:indexes:get'] || this.options['firestore:indexes'] || this.options['indexes:get']) {
+    return await cmd_indexesGet(self);
+  }
+
+  if (this.options['functions:config:get'] || this.options['config:get']) {
     return await cmd_configGet(self);
   }
 
-  if (this.options['config:set']) {
+  if (this.options['functions:config:set'] || this.options['config:set']) {
     await cmd_configSet(self);
     return await cmd_configGet(self);
   }
 
-  if (this.options['config:unset'] || this.options['config:delete'] || this.options['config:remove']) {
+  if (this.options['functions:config:unset'] || this.options['config:unset'] || this.options['config:delete'] || this.options['config:remove']) {
     await cmd_configUnset(self);
     return await cmd_configGet(self);
   }
@@ -200,28 +205,28 @@ module.exports = Main;
 
 Main.prototype.getRulesFile = function () {
   let self = this;
-  this.default.firestoreRulesWhole = (fs.read(path.resolve(`${__dirname}/../../templates/firestore.rules`))).replace('=0.0.0-', `-${self.default.version}-`);
+  this.default.firestoreRulesWhole = (jetpack.read(path.resolve(`${__dirname}/../../templates/firestore.rules`))).replace('=0.0.0-', `-${self.default.version}-`);
   this.default.firestoreRulesCore = this.default.firestoreRulesWhole.match(bem_fsRulesRegex)[0];
 
 };
 
 Main.prototype.setup = async function () {
   let self = this;
-  let cwd = fs.cwd();
-  log(chalk.green(`\n---- RUNNING v${this.default.version} SETUP ----`));
-  this.package = fs.read(`${this.firebaseProjectPath}/functions/package.json`) || '{}';
-  this.firebaseJSON = fs.read(`${this.firebaseProjectPath}/firebase.json`) || '{}';
-  this.firebaseRC = fs.read(`${this.firebaseProjectPath}/.firebaserc`) || '{}';
-  this.runtimeConfigJSON = fs.read(`${this.firebaseProjectPath}/functions/.runtimeconfig.json`) || '{}';
-  this.projectPackage = fs.read(`${this.firebaseProjectPath}/package.json`) || '{}';
-  this.gitignore = fs.read(`${this.firebaseProjectPath}/functions/.gitignore`) || '';
+  let cwd = jetpack.cwd();
+  log(chalk.green(`\n---- RUNNING SETUP v${this.default.version} ----`));
+  this.package = jetpack.read(`${this.firebaseProjectPath}/functions/package.json`) || '{}';
+  this.firebaseJSON = jetpack.read(`${this.firebaseProjectPath}/firebase.json`) || '{}';
+  this.firebaseRC = jetpack.read(`${this.firebaseProjectPath}/.firebaserc`) || '{}';
+  this.runtimeConfigJSON = jetpack.read(`${this.firebaseProjectPath}/functions/.runtimeconfig.json`) || '{}';
+  this.projectPackage = jetpack.read(`${this.firebaseProjectPath}/package.json`) || '{}';
+  this.gitignore = jetpack.read(`${this.firebaseProjectPath}/functions/.gitignore`) || '';
   if (!this.package) {
     log(chalk.red(`Missing functions/package.json :(`));
     return;
   }
   // console.log('cwd', cwd, cwd.endsWith('functions'));
   if (!cwd.endsWith('functions') && !cwd.endsWith('functions/')) {
-    log(chalk.red(`Please run ${chalk.bold('bm setup')} from the ${chalk.bold('functions')} folder. Run ${chalk.bold('cd functions')}.`));
+    log(chalk.red(`Please run ${chalk.bold('npx bm setup')} from the ${chalk.bold('functions')} folder. Run ${chalk.bold('cd functions')}.`));
     return;
   }
 
@@ -234,8 +239,8 @@ Main.prototype.setup = async function () {
   self.getRulesFile();
 
   this.default.firestoreRulesVersionRegex = new RegExp(`///---version-${self.default.version}---///`)
-  // bem_giRegex = new RegExp(fs.read(path.resolve(`${__dirname}/../../templates/gitignore.md`)).replace(/\./g, '\\.'), 'm' )
-  bem_giRegex = new RegExp(fs.read(path.resolve(`${__dirname}/../../templates/gitignore.md`)), 'm' )
+  // bem_giRegex = new RegExp(jetpack.read(path.resolve(`${__dirname}/../../templates/gitignore.md`)).replace(/\./g, '\\.'), 'm' )
+  bem_giRegex = new RegExp(jetpack.read(path.resolve(`${__dirname}/../../templates/gitignore.md`)), 'm' )
 
   // tests
   this.projectName = this.firebaseRC.projects.default;
@@ -248,14 +253,14 @@ Main.prototype.setup = async function () {
   }
 
   await this.test('is a firebase project', async function () {
-    let exists = fs.exists(`${self.firebaseProjectPath}/firebase.json`);
+    let exists = jetpack.exists(`${self.firebaseProjectPath}/firebase.json`);
     return exists;
   }, fix_isFirebase);
 
   await this.test('.nvmrc file has proper version', async function () {
     // return !!self.package.dependencies && !!self.package.devDependencies;
-    // let gitignore = fs.read(path.resolve(`${__dirname}/../../templates/gitignore.md`));
-    let nvmrc = fs.read(`${self.firebaseProjectPath}/functions/.nvmrc`) || '';
+    // let gitignore = jetpack.read(path.resolve(`${__dirname}/../../templates/gitignore.md`));
+    let nvmrc = jetpack.read(`${self.firebaseProjectPath}/functions/.nvmrc`) || '';
     return nvmrc === `v${CLI_CONFIG.node}/*`
 
   }, fix_nvmrc);
@@ -362,7 +367,7 @@ Main.prototype.setup = async function () {
   // }, fix_mocha);
 
   await this.test('using proper .runtimeconfig', async function () {
-    let runtimeconfig = JSON.parse(fs.read(`${self.firebaseProjectPath}/functions/.runtimeconfig.json`) || '{}');
+    let runtimeconfig = JSON.parse(jetpack.read(`${self.firebaseProjectPath}/functions/.runtimeconfig.json`) || '{}');
     let ogPaths = getObjectPaths(runtimeconfigTemplate).split('\n');
     let pass = true;
     for (var i = 0, l = ogPaths.length; i < l; i++) {
@@ -378,7 +383,7 @@ Main.prototype.setup = async function () {
   }, fix_runtimeConfig);
 
   await this.test('using proper backend-manager-config.json', async function () {
-    let bemConfig = JSON.parse(fs.read(`${self.firebaseProjectPath}/functions/backend-manager-config.json`) || '{}');
+    let bemConfig = JSON.parse(jetpack.read(`${self.firebaseProjectPath}/functions/backend-manager-config.json`) || '{}');
     let ogPaths = getObjectPaths(bemConfigTemplate).split('\n');
     let pass = true;
     for (var i = 0, l = ogPaths.length; i < l; i++) {
@@ -394,7 +399,7 @@ Main.prototype.setup = async function () {
   }, fix_bemConfig);
 
   await this.test('has service-account.json', function () {
-    let exists = fs.exists(`${self.firebaseProjectPath}/functions/service-account.json`);
+    let exists = jetpack.exists(`${self.firebaseProjectPath}/functions/service-account.json`);
     return !!exists;
   }, fix_serviceAccount);
 
@@ -403,31 +408,100 @@ Main.prototype.setup = async function () {
     if (!match) {
       return false;
     } else {
-      let gitignore = fs.read(path.resolve(`${__dirname}/../../templates/gitignore.md`));
+      let gitignore = jetpack.read(path.resolve(`${__dirname}/../../templates/gitignore.md`));
       let file = gitignore.match(bem_giRegexOuter) ? RegExp.$1 : 'BAD1';
       let file2 = match[0].match(bem_giRegexOuter) ? RegExp.$1 : 'BAD2';
       return file === file2;
     }
   }, fix_gitignore);
 
+
+  // Check firebase.json fields
   await this.test('firestore rules in JSON', function () {
-    let firestore = _.get(self.firebaseJSON, 'firestore', {});
+    const firestore = _.get(self.firebaseJSON, 'firestore', {});
     return (firestore.rules === 'firestore.rules')
   }, fix_firestoreRules);
 
+  await this.test('firestore indexes in JSON', function () {
+    let firestore = _.get(self.firebaseJSON, 'firestore', {});
+    return (firestore.indexes === 'firestore.indexes.json')
+  }, fix_firestoreIndexes);
+
   await this.test('realtime rules in JSON', function () {
-    let firestore = _.get(self.firebaseJSON, 'database', {});
-    return (firestore.rules === 'security.rules.json')
+    const database = _.get(self.firebaseJSON, 'database', {});
+    return (database.rules === 'database.rules.json')
   }, fix_realtimeRules);
 
+  await this.test('storage rules in JSON', function () {
+    const storage = _.get(self.firebaseJSON, 'storage', {});
+    return (storage.rules === 'storage.rules')
+  }, fix_storageRules);
+
+  await this.test('remoteconfig template in JSON', function () {
+    const remoteconfig = _.get(self.firebaseJSON, 'remoteconfig', {});
+    return (remoteconfig.template === 'remoteconfig.template.json')
+  }, fix_remoteconfigTemplate);
+
+  await this.test('firestore indexes synced', async function () {
+    const tempPath = '_firestore.indexes.json'
+    const liveIndexes = await cmd_indexesGet(self, tempPath, false);
+
+    const localIndexes_exists = jetpack.exists(`${self.firebaseProjectPath}/firestore.indexes.json`);
+    let localIndexes
+    if (localIndexes_exists) {
+      localIndexes = require(`${self.firebaseProjectPath}/firestore.indexes.json`)
+    }
+    const equal = _.isEqual(liveIndexes, localIndexes);
+
+    if (localIndexes_exists && !equal) {
+      console.log(chalk.red(`Run ${chalk.bold('npx bm indexes:get')} to overwrite the local Firestore indexes with the live ones.`));
+    }
+
+    jetpack.remove(`${self.firebaseProjectPath}/${tempPath}`)
+
+    return !localIndexes_exists || equal
+  }, NOFIX);
+
+
+  // Update actual files
+  await this.test('update firestore rules file', function () {
+    let exists = jetpack.exists(`${self.firebaseProjectPath}/firestore.rules`);
+    let contents = jetpack.read(`${self.firebaseProjectPath}/firestore.rules`) || '';
+    let containsCore = contents.match(bem_fsRulesRegex);
+    let matchesVersion = contents.match(self.default.firestoreRulesVersionRegex);
+
+    return (!!exists && !!containsCore && !!matchesVersion);
+  }, fix_firestoreRulesFile);
+
+  await this.test('update firestore indexes file', function () {
+    let exists = jetpack.exists(`${self.firebaseProjectPath}/firestore.indexes.json`);
+    return (!!exists);
+  }, fix_firestoreIndexesFile);
+
+  await this.test('update realtime rules file', function () {
+    let exists = jetpack.exists(`${self.firebaseProjectPath}/database.rules.json`);
+    return (!!exists);
+  }, fix_realtimeRulesFile);
+
+  await this.test('update storage rules file', function () {
+    let exists = jetpack.exists(`${self.firebaseProjectPath}/storage.rules`);
+    return (!!exists);
+  }, fix_storageRulesFile);
+
+  await this.test('update remoteconfig template file', function () {
+    let exists = jetpack.exists(`${self.firebaseProjectPath}/remoteconfig.template.json`);
+    return (!!exists);
+  }, fix_remoteconfigTemplateFile);
+
+  // Hosting
   await this.test('hosting is set to dedicated folder in JSON', function () {
     let hosting = _.get(self.firebaseJSON, 'hosting', {});
     return (hosting.public && (hosting.public === 'public' || hosting.public !== '.'))
   }, fix_firebaseHosting);
 
   await this.test('update backend-manager-tests.js', function () {
-    fs.write(`${self.firebaseProjectPath}/test/backend-manager-tests.js`,
-      (fs.read(path.resolve(`${__dirname}/../../templates/backend-manager-tests.js`)))
+    jetpack.write(`${self.firebaseProjectPath}/test/backend-manager-tests.js`,
+      (jetpack.read(path.resolve(`${__dirname}/../../templates/backend-manager-tests.js`)))
     )
     return true;
   }, NOFIX);
@@ -442,27 +516,7 @@ Main.prototype.setup = async function () {
   //   return script === NPM_CLEAN_SCRIPT;
   // }, fix_cleanNpmScript);
 
-  await this.test('ignore firestore indexes file', function () {
-    let firestore = _.get(self.firebaseJSON, 'firestore', {});
-    return (firestore.indexes === '')
-  }, fix_firebaseIndexes);
 
-  await this.test('update firestore rules file', function () {
-    let exists = fs.exists(`${self.firebaseProjectPath}/firestore.rules`);
-    let contents = fs.read(`${self.firebaseProjectPath}/firestore.rules`) || '';
-    let containsCore = contents.match(bem_fsRulesRegex);
-    let matchesVersion = contents.match(self.default.firestoreRulesVersionRegex);
-
-    // console.log('exists', !!exists);
-    // console.log('containsCore', !!containsCore);
-    // console.log('matchesVersion', !!matchesVersion);
-    return (!!exists && !!containsCore && !!matchesVersion);
-  }, fix_firestoreRulesFile);
-
-  await this.test('update realtime rules file', function () {
-    let exists = fs.exists(`${self.firebaseProjectPath}/security.rules.json`);
-    return (!!exists);
-  }, fix_realtimeRulesFile);
 
 
   if (self.package.dependencies['backend-manager'].includes('file:')) {
@@ -512,17 +566,10 @@ Main.prototype.setup = async function () {
 
   console.log(chalk.green(`Checks finished. Passed ${self.testCount}/${self.testTotal} tests.`));
   if (self.testCount !== self.testTotal) {
-    console.log(chalk.yellow(`You should continue to run ${chalk.bold('bm setup')} until you pass all tests and fix all errors.`));
+    console.log(chalk.yellow(`You should continue to run ${chalk.bold('npx bm setup')} until you pass all tests and fix all errors.`));
   }
 
   return;
-
-  // await this.test('deleted firestore indexes', function () {
-  //   let indexes = fs.exists(`${self.firebaseProjectPath}/firestore.indexes.json`);
-  //   return (!indexes);
-  // }, fix_fsindexes);
-
-  // console.log(self.package);
 
 };
 
@@ -600,9 +647,9 @@ function bemPackageVersionWarning(package, current, latest) {
 async function fix_runtimeConfig(self) {
   return new Promise(function(resolve, reject) {
     log(NOFIX_TEXT);
-    log(chalk.red(`You need to run ${chalk.bold(`bm config:set`)} for each of these keys:`));
+    log(chalk.red(`You need to run ${chalk.bold(`npx bm config:set`)} for each of these keys:`));
     let objectKeys = getObjectPaths(runtimeconfigTemplate).split('\n');
-    let theirConfig = JSON.parse(fs.read(`${self.firebaseProjectPath}/functions/.runtimeconfig.json`) || '{}');
+    let theirConfig = JSON.parse(jetpack.read(`${self.firebaseProjectPath}/functions/.runtimeconfig.json`) || '{}');
     for (var i = 0, l = objectKeys.length; i < l; i++) {
       let item = objectKeys[i];
       if (!item) {return}
@@ -614,7 +661,7 @@ async function fix_runtimeConfig(self) {
       }
     }
     // console.log('objectKeys', objectKeys);
-    // log(chalk.red(`You need to run ${chalk.bold(`bm config:set`)} for each of these keys: \n${getObjectPaths(runtimeconfigTemplate)}`));
+    // log(chalk.red(`You need to run ${chalk.bold(`npx bm config:set`)} for each of these keys: \n${getObjectPaths(runtimeconfigTemplate)}`));
     reject();
   });
 };
@@ -624,9 +671,9 @@ async function fix_bemConfig(self) {
     log(NOFIX_TEXT);
     log(chalk.red(`You need to open backend-manager-config.json and set each of these keys:`));
     let objectKeys = getObjectPaths(bemConfigTemplate).split('\n');
-    let theirConfig = JSON.parse(fs.read(`${self.firebaseProjectPath}/functions/backend-manager-config.json`) || '{}');
+    let theirConfig = JSON.parse(jetpack.read(`${self.firebaseProjectPath}/functions/backend-manager-config.json`) || '{}');
     if (Object.keys(theirConfig).length < 1) {
-      fs.write(`${self.firebaseProjectPath}/functions/backend-manager-config.json`, bemConfigTemplate)
+      jetpack.write(`${self.firebaseProjectPath}/functions/backend-manager-config.json`, bemConfigTemplate)
     }
     for (var i = 0, l = objectKeys.length; i < l; i++) {
       let item = objectKeys[i];
@@ -655,7 +702,7 @@ async function fix_serviceAccount(self) {
 // function fix_mochaScript(self) {
 //   return new Promise(function(resolve, reject) {
 //     _.set(self.package, 'scripts.test', MOCHA_PKG_SCRIPT);
-//     fs.write(`${self.firebaseProjectPath}/functions/package.json`, JSON.stringify(self.package, null, 2) );
+//     jetpack.write(`${self.firebaseProjectPath}/functions/package.json`, JSON.stringify(self.package, null, 2) );
 //     resolve();
 //   });
 // }
@@ -664,7 +711,7 @@ function fix_nodeVersion(self) {
   return new Promise(function(resolve, reject) {
     _.set(self.package, 'engines.node', CLI_CONFIG.node)
 
-    fs.write(`${self.firebaseProjectPath}/functions/package.json`, JSON.stringify(self.package, null, 2) );
+    jetpack.write(`${self.firebaseProjectPath}/functions/package.json`, JSON.stringify(self.package, null, 2) );
     resolve();
   });
 };
@@ -672,7 +719,7 @@ function fix_nodeVersion(self) {
 function fix_nvmrc(self) {
   return new Promise(function(resolve, reject) {
 
-    fs.write(`${self.firebaseProjectPath}/functions/.nvmrc`, `v${CLI_CONFIG.node}/*`);
+    jetpack.write(`${self.firebaseProjectPath}/functions/.nvmrc`, `v${CLI_CONFIG.node}/*`);
     resolve();
   });
 };
@@ -691,7 +738,7 @@ function fix_projpackage(self) {
     self.projectPackage.dependencies = self.projectPackage.dependencies || {};
     self.projectPackage.devDependencies = self.projectPackage.devDependencies || {};
 
-    fs.write(`${self.firebaseProjectPath}/package.json`, JSON.stringify(self.projectPackage, null, 2) );
+    jetpack.write(`${self.firebaseProjectPath}/package.json`, JSON.stringify(self.projectPackage, null, 2) );
     resolve();
   });
 };
@@ -702,7 +749,7 @@ function fix_functionspackage(self) {
     self.package.devDependencies = self.package.devDependencies || {};
     self.package.version = self.package.version || '0.0.1';
 
-    fs.write(`${self.firebaseProjectPath}/functions/package.json`, JSON.stringify(self.package, null, 2) );
+    jetpack.write(`${self.firebaseProjectPath}/functions/package.json`, JSON.stringify(self.package, null, 2) );
     resolve();
   });
 };
@@ -711,7 +758,7 @@ function fix_packageversion(self) {
   return new Promise(function(resolve, reject) {
     self.package.version = self.projectPackage.version;
 
-    fs.write(`${self.firebaseProjectPath}/functions/package.json`, JSON.stringify(self.package, null, 2) );
+    jetpack.write(`${self.firebaseProjectPath}/functions/package.json`, JSON.stringify(self.package, null, 2) );
     resolve();
   });
 };
@@ -725,7 +772,12 @@ async function fix_fba(self) {
   return await installPkg('firebase-admin', `@${self.packageJSON.dependencies['firebase-admin']}`)
 };
 async function fix_bem(self) {
-  return await installPkg('backend-manager')
+  await installPkg('backend-manager');
+
+  console.log(chalk.green(`Process has exited since a new version of backend-manager was installed. Run ${chalk.bold('npx bm setup')} again.`));
+  process.exit(0);
+
+  return;
 };
 // async function fix_bea(self) {
 //   return await installPkg('backend-assistant')
@@ -742,7 +794,7 @@ async function fix_bem(self) {
 
 function fix_gitignore(self) {
   return new Promise(function(resolve, reject) {
-    let gi = (fs.read(path.resolve(`${__dirname}/../../templates/gitignore.md`)));
+    let gi = (jetpack.read(path.resolve(`${__dirname}/../../templates/gitignore.md`)));
     if (self.gitignore.match(bem_giRegexOuter)) {
       self.gitignore = self.gitignore.replace(bem_giRegexOuter, gi);
     } else {
@@ -751,7 +803,7 @@ function fix_gitignore(self) {
     self.gitignore = self.gitignore.replace(/\n\s*\n$/mg, '\n')
     // self.gitignore = `${self.gitignore}\n${gi}`.replace(/$\n/m,'');
     // self.gitignore = self.gitignore.replace(/$\n/m,'');
-    fs.write(`${self.firebaseProjectPath}/functions/.gitignore`, self.gitignore);
+    jetpack.write(`${self.firebaseProjectPath}/functions/.gitignore`, self.gitignore);
     resolve();
   });
 };
@@ -759,31 +811,39 @@ function fix_gitignore(self) {
 function fix_firestoreRules(self) {
   return new Promise(function(resolve, reject) {
     _.set(self.firebaseJSON, 'firestore.rules', 'firestore.rules')
-    fs.write(`${self.firebaseProjectPath}/firebase.json`, JSON.stringify(self.firebaseJSON, null, 2));
+    jetpack.write(`${self.firebaseProjectPath}/firebase.json`, JSON.stringify(self.firebaseJSON, null, 2));
+    resolve();
+  });
+};
+
+function fix_firestoreIndexes(self) {
+  return new Promise(function(resolve, reject) {
+    _.set(self.firebaseJSON, 'firestore.indexes', 'firestore.indexes.json')
+    jetpack.write(`${self.firebaseProjectPath}/firebase.json`, JSON.stringify(self.firebaseJSON, null, 2));
     resolve();
   });
 };
 
 function fix_realtimeRules(self) {
   return new Promise(function(resolve, reject) {
-    _.set(self.firebaseJSON, 'database.rules', 'security.rules.json')
-    fs.write(`${self.firebaseProjectPath}/firebase.json`, JSON.stringify(self.firebaseJSON, null, 2));
+    _.set(self.firebaseJSON, 'database.rules', 'database.rules.json')
+    jetpack.write(`${self.firebaseProjectPath}/firebase.json`, JSON.stringify(self.firebaseJSON, null, 2));
     resolve();
   });
 };
 
-function fix_firebaseHosting(self) {
+function fix_storageRules(self) {
   return new Promise(function(resolve, reject) {
-    _.set(self.firebaseJSON, 'hosting.public', 'public')
-    fs.write(`${self.firebaseProjectPath}/firebase.json`, JSON.stringify(self.firebaseJSON, null, 2));
+    _.set(self.firebaseJSON, 'storage.rules', 'storage.rules')
+    jetpack.write(`${self.firebaseProjectPath}/firebase.json`, JSON.stringify(self.firebaseJSON, null, 2));
     resolve();
   });
 };
 
-function fix_firebaseIndexes(self) {
+function fix_remoteconfigTemplate(self) {
   return new Promise(function(resolve, reject) {
-    _.set(self.firebaseJSON, 'firestore.indexes', "")
-    fs.write(`${self.firebaseProjectPath}/firebase.json`, JSON.stringify(self.firebaseJSON, null, 2));
+    _.set(self.firebaseJSON, 'remoteconfig.template', 'remoteconfig.template.json')
+    jetpack.write(`${self.firebaseProjectPath}/firebase.json`, JSON.stringify(self.firebaseJSON, null, 2));
     resolve();
   });
 };
@@ -791,13 +851,13 @@ function fix_firebaseIndexes(self) {
 function fix_firestoreRulesFile(self) {
   return new Promise(function(resolve, reject) {
     let path = `${self.firebaseProjectPath}/firestore.rules`;
-    let exists = fs.exists(path);
-    let contents = fs.read(path) || '';
+    let exists = jetpack.exists(path);
+    let contents = jetpack.read(path) || '';
 
     if (!exists || !contents) {
       log(chalk.yellow(`Writing new firestore.rules file...`));
-      fs.write(path, self.default.firestoreRulesWhole)
-      contents = fs.read(path) || '';
+      jetpack.write(path, self.default.firestoreRulesWhole)
+      contents = jetpack.read(path) || '';
     }
 
     let hasTemplate = contents.match(bem_fsRulesRegex) || contents.match(bem_fsRulesBackupRegex);
@@ -812,32 +872,85 @@ function fix_firestoreRulesFile(self) {
       // console.log('replace wih', self.default.firestoreRulesCore);
       contents = contents.replace(bem_fsRulesBackupRegex, self.default.firestoreRulesCore)
       contents = contents.replace(bem_fsRulesRegex, self.default.firestoreRulesCore)
-      fs.write(path, contents)
+      jetpack.write(path, contents)
       log(chalk.yellow(`Writing core rules to firestore.rules file...`));
     }
     resolve();
   });
 };
 
-function fix_realtimeRulesFile(self) {
-  return new Promise(function(resolve, reject) {
-    let filePath = `${self.firebaseProjectPath}/security.rules.json`;
-    let exists = fs.exists(filePath);
-    let contents = fs.read(filePath) || '';
+function fix_firestoreIndexesFile(self) {
+  return new Promise(async function(resolve, reject) {
+    const name = 'firestore.indexes.json';
+    let filePath = `${self.firebaseProjectPath}/${name}`;
+    let exists = jetpack.exists(filePath);
 
     if (!exists) {
-      log(chalk.yellow(`Writing new security.rules.json file...`));
-      fs.write(filePath, fs.read(path.resolve(`${__dirname}/../../templates/security.rules.json`)))
-      contents = fs.read(filePath) || '';
+      log(chalk.yellow(`Writing new ${name} file...`));
+      await cmd_indexesGet(self, name, false);
     }
 
     resolve();
   });
 };
 
-function fix_fsindexes(self) {
+function fix_realtimeRulesFile(self) {
   return new Promise(function(resolve, reject) {
-    fs.remove(`${self.firebaseProjectPath}/firestore.indexes.json`)
+    const name = 'database.rules.json';
+    let filePath = `${self.firebaseProjectPath}/${name}`;
+    let exists = jetpack.exists(filePath);
+    let contents = jetpack.read(filePath) || '';
+
+    if (!exists) {
+      log(chalk.yellow(`Writing new ${name} file...`));
+      jetpack.write(filePath, jetpack.read(path.resolve(`${__dirname}/../../templates/${name}`)))
+      contents = jetpack.read(filePath) || '';
+    }
+
+    resolve();
+  });
+};
+
+function fix_storageRulesFile(self) {
+  return new Promise(function(resolve, reject) {
+    const name = 'storage.rules';
+    let filePath = `${self.firebaseProjectPath}/${name}`;
+    let exists = jetpack.exists(filePath);
+    let contents = jetpack.read(filePath) || '';
+
+    if (!exists) {
+      log(chalk.yellow(`Writing new ${name} file...`));
+      jetpack.write(filePath, jetpack.read(path.resolve(`${__dirname}/../../templates/${name}`)))
+      contents = jetpack.read(filePath) || '';
+    }
+
+    resolve();
+  });
+};
+
+function fix_remoteconfigTemplateFile(self) {
+  return new Promise(function(resolve, reject) {
+    const name = 'remoteconfig.template.json'
+    let filePath = `${self.firebaseProjectPath}/${name}`;
+    let exists = jetpack.exists(filePath);
+    let contents = jetpack.read(filePath) || '';
+
+    if (!exists) {
+      log(chalk.yellow(`Writing new ${name} file...`));
+      jetpack.write(filePath, jetpack.read(path.resolve(`${__dirname}/../../templates/${name}`)))
+      contents = jetpack.read(filePath) || '';
+    }
+
+    resolve();
+  });
+};
+
+
+// Hosting
+function fix_firebaseHosting(self) {
+  return new Promise(function(resolve, reject) {
+    _.set(self.firebaseJSON, 'hosting.public', 'public')
+    jetpack.write(`${self.firebaseProjectPath}/firebase.json`, JSON.stringify(self.firebaseJSON, null, 2));
     resolve();
   });
 };
@@ -855,130 +968,165 @@ function getPkgVersion(package) {
   });
 }
 
-
-
-  async function cmd_configGet(self) {
-    return new Promise(function(resolve, reject) {
-      let cmd = exec(`firebase functions:config:get > ${self.firebaseProjectPath}/functions/.runtimeconfig.json`, function (error, stdout, stderr) {
-        if (error) {
+async function cmd_indexesGet(self, filePath, log) {
+  return new Promise(function(resolve, reject) {
+    const finalPath = `${self.firebaseProjectPath}/${filePath || 'firestore.indexes.json'}`;
+    let existingIndexes;
+    try {
+      existingIndexes = require(`${self.firebaseProjectPath}/firestore.indexes.json`)
+    } catch (e) {
+      if (log !== false) {
+        console.error('Failed to read existing local indexes', e);
+      }
+    }
+    let cmd = exec(`firebase firestore:indexes > ${finalPath}`, function (error, stdout, stderr) {
+      if (error) {
+        if (log !== false) {
           console.error(error);
-          reject(error);
-        } else {
-          console.log(chalk.green(`Saving config to: ${self.firebaseProjectPath}/functions/.runtimeconfig.json`));
-          console.log(stdout);
-          resolve();
         }
-      });
-    });
-  }
+        reject(error);
+      } else {
+        const newIndexes = require(finalPath);
+        if (log !== false) {
+          console.log(chalk.green(`Saving indexes to: ${finalPath}`));
+          console.log(stdout);
 
-  async function cmd_configSet(self, newPath, newValue) {
-    return new Promise(async function(resolve, reject) {
-      // console.log(this.options);
-      // console.log(this.argv);
-      newPath = newPath || await inquirer.prompt([
+          const equal = (_.isEqual(newIndexes, existingIndexes));
+
+          if (!equal) {
+            console.log(chalk.red(`The live and local index files did not match and have been overwritten by the ${chalk.bold('live indexes')}`));
+          }
+
+        }
+        resolve(newIndexes);
+      }
+    });
+  });
+}
+
+async function cmd_configGet(self, filePath) {
+  return new Promise(function(resolve, reject) {
+    const finalPath = `${self.firebaseProjectPath}/${filePath || 'functions/.runtimeconfig.json'}`;
+    let cmd = exec(`firebase functions:config:get > ${finalPath}`, function (error, stdout, stderr) {
+      if (error) {
+        console.error(error);
+        reject(error);
+      } else {
+        console.log(chalk.green(`Saving config to: ${finalPath}`));
+        console.log(stdout);
+        resolve(require(finalPath));
+      }
+    });
+  });
+}
+
+async function cmd_configSet(self, newPath, newValue) {
+  return new Promise(async function(resolve, reject) {
+    // console.log(this.options);
+    // console.log(this.argv);
+    newPath = newPath || await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'path',
+        default: 'service.key'
+      }
+    ]).then(answers => answers.path)
+
+    try {
+      const object = JSON5.parse(newPath)
+      try {
+        if (typeof object === 'object') {
+          const keyify = (obj, prefix = '') =>
+            Object.keys(obj).reduce((res, el) => {
+              if( Array.isArray(obj[el]) ) {
+                return res;
+              } else if( typeof obj[el] === 'object' && obj[el] !== null ) {
+                return [...res, ...keyify(obj[el], prefix + el + '.')];
+              }
+              return [...res, prefix + el];
+            }, []);
+          const pathArray = keyify(object);
+          for (var i = 0; i < pathArray.length; i++) {
+            const pathName = pathArray[i];
+            const pathValue = _.get(object, pathName);
+            // console.log(chalk.blue(`Setting object: ${chalk.bold(pathName)} = ${chalk.bold(pathValue)}`));
+            console.log(chalk.blue(`Setting object: ${chalk.bold(pathName)}`));
+            await cmd_configSet(self, pathName, pathValue)
+            .catch(e => {
+              log(chalk.red(`Failed to save object path: ${e}`));
+            })
+          }
+          return resolve();
+        }
+      } catch (e) {
+        log(chalk.red(`Failed to save object: ${e}`));
+        return reject(e)
+      }
+    } catch (e) {
+    }
+
+    newValue = newValue || await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'value',
+        default: '123-abc'
+      }
+    ]).then(answers => answers.value)
+
+    let isInvalid = false;
+    if (newPath !== newPath.toLowerCase()) {
+      isInvalid = true;
+      newPath = newPath.replace(/([A-Z])/g, '_$1').trim().toLowerCase();
+    }
+    log(chalk.yellow(`Saving to ${chalk.bold(newPath)}...`));
+    let cmd = exec(`firebase functions:config:set ${newPath}="${newValue}"`, function (error, stdout, stderr) {
+      if (error) {
+        log(chalk.red(`Failed to save ${chalk.bold(newPath)}: ${error}`));
+        reject(error);
+      } else {
+        console.log(stdout);
+        if (isInvalid) {
+          log(chalk.red(`!!! Your path contained an invalid uppercase character`));
+          log(chalk.red(`!!! It was set to: ${chalk.bold(newPath)}`));
+        } else {
+          log(chalk.green(`Successfully saved to ${chalk.bold(newPath)}`));
+        }
+        resolve();
+      }
+    });
+  });
+}
+
+async function cmd_configUnset(self) {
+  return new Promise(async function(resolve, reject) {
+    // console.log(this.options);
+    // console.log(this.argv);
+    await inquirer
+      .prompt([
+        /* Pass your questions in here */
         {
           type: 'input',
           name: 'path',
           default: 'service.key'
         }
-      ]).then(answers => answers.path)
-
-      try {
-        const object = JSON5.parse(newPath)
-        try {
-          if (typeof object === 'object') {
-            const keyify = (obj, prefix = '') =>
-              Object.keys(obj).reduce((res, el) => {
-                if( Array.isArray(obj[el]) ) {
-                  return res;
-                } else if( typeof obj[el] === 'object' && obj[el] !== null ) {
-                  return [...res, ...keyify(obj[el], prefix + el + '.')];
-                }
-                return [...res, prefix + el];
-              }, []);
-            const pathArray = keyify(object);
-            for (var i = 0; i < pathArray.length; i++) {
-              const pathName = pathArray[i];
-              const pathValue = _.get(object, pathName);
-              // console.log(chalk.blue(`Setting object: ${chalk.bold(pathName)} = ${chalk.bold(pathValue)}`));
-              console.log(chalk.blue(`Setting object: ${chalk.bold(pathName)}`));
-              await cmd_configSet(self, pathName, pathValue)
-              .catch(e => {
-                log(chalk.red(`Failed to save object path: ${e}`));
-              })
-            }
-            return resolve();
-          }
-        } catch (e) {
-          log(chalk.red(`Failed to save object: ${e}`));
-          return reject(e)
-        }
-      } catch (e) {
-      }
-
-      newValue = newValue || await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'value',
-          default: '123-abc'
-        }
-      ]).then(answers => answers.value)
-
-      let isInvalid = false;
-      if (newPath !== newPath.toLowerCase()) {
-        isInvalid = true;
-        newPath = newPath.replace(/([A-Z])/g, '_$1').trim().toLowerCase();
-      }
-      log(chalk.yellow(`Saving to ${chalk.bold(newPath)}...`));
-      let cmd = exec(`firebase functions:config:set ${newPath}="${newValue}"`, function (error, stdout, stderr) {
-        if (error) {
-          log(chalk.red(`Failed to save ${chalk.bold(newPath)}: ${error}`));
-          reject(error);
-        } else {
-          console.log(stdout);
-          if (isInvalid) {
-            log(chalk.red(`!!! Your path contained an invalid uppercase character`));
-            log(chalk.red(`!!! It was set to: ${chalk.bold(newPath)}`));
+      ])
+      .then(answers => {
+        // Use user feedback for... whatever!!
+        // console.log('answer', answers);
+        log(chalk.yellow(`Deleting ${chalk.bold(answers.path)}...`));
+        let cmd = exec(`firebase functions:config:unset ${answers.path}`, function (error, stdout, stderr) {
+          if (error) {
+            log(chalk.red(`Failed to delete ${chalk.bold(answers.path)}: ${error}`));
+            reject(error);
           } else {
-            log(chalk.green(`Successfully saved to ${chalk.bold(newPath)}`));
+            console.log(stdout);
+            log(chalk.green(`Successfully deleted ${chalk.bold(answers.path)}`));
+            resolve();
           }
-          resolve();
-        }
-      });
-    });
-  }
-
-  async function cmd_configUnset(self) {
-    return new Promise(async function(resolve, reject) {
-      // console.log(this.options);
-      // console.log(this.argv);
-      await inquirer
-        .prompt([
-          /* Pass your questions in here */
-          {
-            type: 'input',
-            name: 'path',
-            default: 'service.key'
-          }
-        ])
-        .then(answers => {
-          // Use user feedback for... whatever!!
-          // console.log('answer', answers);
-          log(chalk.yellow(`Deleting ${chalk.bold(answers.path)}...`));
-          let cmd = exec(`firebase functions:config:unset ${answers.path}`, function (error, stdout, stderr) {
-            if (error) {
-              log(chalk.red(`Failed to delete ${chalk.bold(answers.path)}: ${error}`));
-              reject(error);
-            } else {
-              console.log(stdout);
-              log(chalk.green(`Successfully deleted ${chalk.bold(answers.path)}`));
-              resolve();
-            }
-          });
         });
-    });
-  }
+      });
+  });
+}
 
 
 // HELPER
