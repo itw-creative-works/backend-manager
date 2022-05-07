@@ -89,11 +89,18 @@ Module.prototype.import = function (command, payload, user, response) {
       lib.assistant = self.assistant;
       lib.payload = _.cloneDeep({
         data: {
+          // command: '?',
           payload: payload ? payload : self.payload.data.payload,
         },
         user: user ? user : self.payload.user,
         response: response ? response : self.payload.response,
       });
+
+      if (self.payload.data.backendManagerKey) {
+        lib.payload.data.backendManagerKey = self.payload.data.backendManagerKey;
+      } else if (self.payload.data.authenticationToken) {
+        lib.payload.data.authenticationToken = self.payload.data.authenticationToken;
+      }
 
       // lib.payload = {};
       //
