@@ -33,6 +33,8 @@ Module.prototype.main = function() {
   const res = self.res;
 
   return libraries.cors(req, res, async () => {
+    assistant.request.data.command = assistant.request.data.command || '';
+    assistant.request.data.payload = assistant.request.data.payload || {};
     self.payload.data = assistant.request.data;
     self.payload.user = await assistant.authenticate();
 
