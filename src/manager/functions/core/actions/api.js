@@ -1,5 +1,6 @@
 const path = require('path');
 const _ = require('lodash');
+const jetpack = require('fs-jetpack');
 
 function Module() {
 
@@ -22,6 +23,11 @@ Module.prototype.init = function (Manager, data) {
     user: {},
   };
 
+  // Fix the two required
+  const resolved = self.resolveCommand(self.assistant.request.data.command);
+  self.assistant.request.data.command = resolved.command;
+  self.assistant.request.data.payload = self.assistant.request.data.payload || {};
+
   return self;
 }
 
@@ -33,8 +39,6 @@ Module.prototype.main = function() {
   const res = self.res;
 
   return libraries.cors(req, res, async () => {
-    assistant.request.data.command = assistant.request.data.command || '';
-    assistant.request.data.payload = assistant.request.data.payload || {};
     self.payload.data = assistant.request.data;
     self.payload.user = await assistant.authenticate();
 
@@ -42,33 +46,39 @@ Module.prototype.main = function() {
 
     self.assistant.log(`Executing: ${resolved.command}`, self.payload, JSON.stringify(self.payload), {environment: 'production'})
 
-    await self.import(resolved.command)
-    .then(async lib => {
-      try {
-        // Call main function
-        await lib.main()
-        .then(result => {
-          self.payload.response.status = result.status || 200;
-          self.payload.response.data = result.data || {};
-        })
-        .catch(e => {
-          self.payload.response.status = e.code || 500;
-          self.payload.response.error = e || new Error('Unknown error occured');
-        })
-      } catch (e) {
-        self.payload.response.status = 500;
-        self.payload.response.error = e || new Error('Unknown error occured');
-      }
-    })
-    .catch(e => {
+    if (!resolved.exists) {
       self.payload.response.status = 400;
-      self.payload.response.error = new Error(`Failed to import: ${e}`);
-    })
+      self.payload.response.error = new Error(`${self.payload.data.command} is not a valid command`);
+    } else {
+      await self.import(resolved.command)
+      .then(async lib => {
+        try {
+          // Call main function
+          await lib.main()
+          .then(result => {
+            result = result || {};
+            self.payload.response.status = result.status || self.payload.response.status || 200;
+            self.payload.response.data = result.data || self.payload.response.data || {};
+          })
+          .catch(e => {
+            self.payload.response.status = e.code || 500;
+            self.payload.response.error = e || new Error('Unknown error occured');
+          })
+        } catch (e) {
+          self.payload.response.status = 500;
+          self.payload.response.error = e || new Error('Unknown error occured');
+        }
+      })
+      .catch(e => {
+        self.payload.response.status = 400;
+        self.payload.response.error = new Error(`Failed to import: ${e}`);
+      })
+    }
 
     if (self.payload.response.status === 200) {
       return res.status(self.payload.response.status).json(self.payload.response.data);
     } else {
-      console.error(`Error executing ${self.payload.data.command} => ${resolved.command} @ ${resolved.path}`, self.payload.response.error)
+      console.error(`Error executing ${resolved.command} @ ${resolved.path}`, self.payload.response.error)
       // return res.status(self.payload.response.status).send(self.payload.response.error.message);
       return res.status(self.payload.response.status).send(`${self.payload.response.error}`);
     }
@@ -121,6 +131,7 @@ Module.prototype.import = function (command, payload, user, response) {
 
 Module.prototype.resolveCommand = function (command) {
   const self = this;
+  const originalCommand = command;
 
   // Start
   if (false) {
@@ -162,25 +173,36 @@ Module.prototype.resolveCommand = function (command) {
     command = 'admin:payment-processor';
 
   // Special
-  } else if (command === 'special:setup-electron-manager-client' || command === 'setup-electron-manager-client') {
-    command = 'special:setup-electron-manager-client';
+  // } else if (command === 'special:setup-electron-manager-client' || command === 'setup-electron-manager-client') {
+    // command = 'special:setup-electron-manager-client';
 
   // Test
-  } else if (command === 'test:authenticate' || command === 'authenticate') {
-    command = 'test:authenticate';
-  } else if (command === 'test:create-test-accounts' || command === 'create-test-accounts') {
-    command = 'test:create-test-accounts';
-  } else if (command === 'test:webhook' || command === 'webhook') {
-    command = 'test:webhook';
+  // } else if (command === 'test:authenticate' || command === 'authenticate') {
+  //   command = 'test:authenticate';
+  // } else if (command === 'test:create-test-accounts' || command === 'create-test-accounts') {
+  //   command = 'test:create-test-accounts';
+  // } else if (command === 'test:webhook' || command === 'webhook') {
+  //   command = 'test:webhook';
 
   // End
   } else {
-    command = 'error:error';
+    // command = 'error:error';
+  }
+
+  command = command || '';
+
+  const resolvedPath = './' + path.join('./api/', `${command.replace(/\.\.\//g, '').replace(/\:/, '/')}.js`);
+  const pathExists = jetpack.exists(path.join(__dirname, resolvedPath));
+
+  // if (!command || command === 'error:error') {
+  if (!pathExists) {
+    self.assistant.log(`This command does not exist: ${originalCommand} => ${command} @ ${pathExists}`, {environment: 'production'})
   }
 
   return {
     command: command,
-    path: './' + path.join('./api/', `${command.replace(/\.\.\//g, '').replace(/\:/, '/')}.js`),
+    path: resolvedPath,
+    exists: !!pathExists,
   };
 }
 

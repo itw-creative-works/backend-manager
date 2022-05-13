@@ -15,8 +15,32 @@ Module.prototype.main = function () {
 
   return new Promise(async function(resolve, reject) {
 
-    // console.log('----self.Manager.libraries', self.Manager.libraries);
-    // console.log('----self.Manager.libraries.sentry 1', self.Manager.libraries.sentry);
+    // Set up response obj
+    payload.response.data = {
+      subscribers: 0,
+      batches: 0,
+      sent: 0,
+      deleted: 0,
+    }
+
+    // Fix notification payload
+    self._notificationPayload = {
+      notification: self.payload.data.payload.notification || {},
+    };
+    self._notificationPayload.notification.title = self.payload.data.payload.title || self.payload.data.payload.notification.title || 'Notification';
+    self._notificationPayload.notification.click_action = self.payload.data.payload.click_action || self.payload.data.payload.notification.click_action || 'https://itwcreativeworks.com';
+    self._notificationPayload.notification.body = self.payload.data.payload.body || self.payload.data.payload.notification.body || 'Check this out';
+    self._notificationPayload.notification.icon = self.payload.data.payload.icon || self.payload.data.payload.notification.icon || self.Manager.config.brand.brandmark || 'https://cdn.itwcreativeworks.com/assets/itw-creative-works/images/socials/itw-creative-works-brandmark-black-1024x1024.png';
+
+    try {
+      self._notificationPayload.notification.click_action = new URL(self._notificationPayload.notification.click_action);
+      self._notificationPayload.notification.click_action.searchParams.set('cb', new Date().getTime())
+      self._notificationPayload.notification.click_action = self._notificationPayload.notification.click_action.toString()
+    } catch (e) {
+      assistant.errorManager(`Failed to add cb to URL: ${e}`, {code: 500, sentry: false, send: false, log: true})
+    }
+
+    assistant.log('Resolved notification payload', self._notificationPayload, {environment: 'production'})
 
     if (!payload.user.roles.admin) {
       return reject(assistant.errorManager(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
@@ -28,7 +52,7 @@ Module.prototype.main = function () {
 
     await self.getTokens({tags: false})
     .then(r => {
-      return resolve({data: r})
+      return resolve({data: payload.response.data})
     })
     .catch(e => {
       return reject(assistant.errorManager(`Failed to send notification: ${e}`, {code: 400, sentry: true, send: false, log: false}).error)
@@ -54,6 +78,7 @@ Module.prototype.getTokens = function (options) {
       .get()
       .then(function(querySnapshot) {
         self.assistant.log(`Queried ${querySnapshot.size} tokens.`);
+        self.payload.response.data.subscribers = querySnapshot.size;
         // self.result.subscriptionsStart = querySnapshot.size;
         let batchCurrentSize = 0;
         let batchSizeMax = 1000;
@@ -74,6 +99,7 @@ Module.prototype.getTokens = function (options) {
             batchPromises.push(self.sendBatch(batchCurrent, batchId));
             batchCurrent = [];
             batchCurrentSize = 0;
+            self.payload.response.data.batches++;
           }
           batchLoops++;
         });
@@ -103,20 +129,7 @@ Module.prototype.sendBatch = function (batch, id) {
 
     // self.assistant.log('payload', payload);
 
-    let payload = {};
-    payload.notification = {};
-    payload.notification.title = self.payload.data.payload.title;
-    payload.notification.clickAction = self.payload.data.payload.click_action || self.payload.data.payload.clickAction;
-    payload.notification.click_action = self.payload.data.payload.click_action || self.payload.data.payload.clickAction;
-    payload.notification.body = self.payload.data.payload.body;
-    payload.notification.icon = self.payload.data.payload.icon || self.Manager.config.brand.brandmark;
-
-    // payload.data = {};
-    // payload.data.clickAction = self.payload.data.payload.click_action || self.payload.data.payload.clickAction;
-    // payload.data.click_action = self.payload.data.payload.click_action || self.payload.data.payload.clickAction;
-
-
-    await self.libraries.admin.messaging().sendToDevice(batch, payload)
+    await self.libraries.admin.messaging().sendToDevice(batch, self._notificationPayload)
       .then(async function (response) {
         // self.result.batches.list.push('#' + id + ' | ' + '✅  ' + response.successCount + ' | ' + '❌  ' + response.failureCount);
         self.assistant.log('Sent batch #' + id);
@@ -126,6 +139,7 @@ Module.prototype.sendBatch = function (batch, id) {
         if (response.failureCount > 0) {
           await self.cleanTokens(batch, response.results, id);
         }
+        self.payload.response.data.sent += (batch.length - response.failureCount);
         resolve();
       })
       .catch(function (e) {
@@ -145,7 +159,9 @@ Module.prototype.cleanTokens = function (batch, results, id) {
     self.assistant.log(`Cleaning tokens of batch ID: ${id}`);
 
     results.forEach(function (item, index) {
-      if (!item.error) { return false; }
+      if (!item.error) {
+        return false;
+      }
       let curCode = item.error.code;
       let token = batch[index];
       self.assistant.log(`Found bad token: ${index} = ${curCode}`);
@@ -168,6 +184,7 @@ Module.prototype.deleteToken = function (token, errorCode) {
       .delete()
       .then(function() {
         self.assistant.log(`Deleting bad token: ${token} for reason ${errorCode}`);
+        self.payload.response.data.deleted++;
         resolve();
       })
       .catch(function(error) {
