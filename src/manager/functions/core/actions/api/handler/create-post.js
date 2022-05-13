@@ -117,7 +117,8 @@ Module.prototype.main = function () {
         payload: {
           title: payload.data.payload.title,
           body: `"${payload.data.payload.title}" was just published on our blog. It's a great read and we think you'll enjoy the content!`,
-          click_action: `${Manager.config.brand.url}/${postUrl}`,
+          // click_action: `${Manager.config.brand.url}/${postUrl}`,
+          click_action: Manager.config.brand.url,
           icon: Manager.config.brand.brandmark,
         }
       }),
