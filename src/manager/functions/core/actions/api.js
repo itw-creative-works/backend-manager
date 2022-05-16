@@ -57,6 +57,8 @@ Module.prototype.main = function() {
           await lib.main()
           .then(result => {
             result = result || {};
+            // console.log('---result', result);
+            // console.log('---self.payload.response.data', self.payload.response.data);
             self.payload.response.status = result.status || self.payload.response.status || 200;
             self.payload.response.data = result.data || self.payload.response.data || {};
           })

@@ -29,6 +29,7 @@ Manager.prototype.init = function (exporter, options) {
   options = options || {};
   options.initialize = typeof options.initialize === 'undefined' ? true : options.initialize;
   options.setupFunctions = typeof options.setupFunctions === 'undefined' ? true : options.setupFunctions;
+  options.setupLocalDatabase = typeof options.setupLocalDatabase === 'undefined' ? false : options.setupLocalDatabase;
   options.sentry = typeof options.sentry === 'undefined' ? true : options.sentry;
   options.reportErrorsInDev = typeof options.reportErrorsInDev === 'undefined' ? false : options.reportErrorsInDev;
   options.firebaseConfig = options.firebaseConfig;
@@ -40,11 +41,15 @@ Manager.prototype.init = function (exporter, options) {
 
   // Load libraries
   self.libraries = {
+    // Third-party
     functions: require('firebase-functions'),
     admin: require('firebase-admin'),
     cors: require('cors')({ origin: true }),
-    Assistant: require('backend-assistant'),
     sentry: null,
+
+    // First-party
+    Assistant: require('backend-assistant'),
+    localDatabase: null,
     User: null,
     Analytics: null,
   };
@@ -76,23 +81,7 @@ Manager.prototype.init = function (exporter, options) {
     require('firebase-functions/lib/logger/compat');
   }
 
-  // Setup options features
-  if (self.options.initialize) {
-    // console.log('Initializing:', self.project);
-    try {
-      // console.log('----self.project.databaseURL', self.project.databaseURL);
-      self.libraries.initializedAdmin = self.libraries.admin.initializeApp({
-        credential: self.libraries.admin.credential.cert(
-          require(path.resolve(self.cwd, options.serviceAccountPath))
-        ),
-        databaseURL: self.project.databaseURL,
-      }, options.uniqueAppName);
-    } catch (e) {
-      console.error('Failed to call .initializeApp()', e);
-    }
-    // admin.firestore().settings({/* your settings... */ timestampsInSnapshots: true})
-  }
-
+  // Setup sentry
   if (self.options.sentry) {
     const sentryRelease = `${get(self.config, 'app.id') || self.project.projectId}@${self.package.version}`;
     const sentryDSN = get(self.config, 'sentry.dsn', '');
@@ -114,6 +103,23 @@ Manager.prototype.init = function (exporter, options) {
         return event;
       },
     });
+  }
+
+  // Setup options features
+  if (self.options.initialize) {
+    // console.log('Initializing:', self.project);
+    try {
+      // console.log('----self.project.databaseURL', self.project.databaseURL);
+      self.libraries.initializedAdmin = self.libraries.admin.initializeApp({
+        credential: self.libraries.admin.credential.cert(
+          require(path.resolve(self.cwd, options.serviceAccountPath))
+        ),
+        databaseURL: self.project.databaseURL,
+      }, options.uniqueAppName);
+    } catch (e) {
+      console.error('Failed to call .initializeApp()', e);
+    }
+    // admin.firestore().settings({/* your settings... */ timestampsInSnapshots: true})
   }
 
   // Main functions
@@ -348,13 +354,30 @@ Manager.prototype.init = function (exporter, options) {
   }
 
   // Set dotenv
-  // if (self.assistant.meta.environment === 'development') {
+  try {
+    require('dotenv').config();
+  } catch (e) {
+    console.error('Failed to set up environment variables from .env file');
+  }
+
+  // Setup LocalDatabase
+  if (options.setupLocalDatabase) {
+    const low = require('lowdb');
+    const FileSync = require('lowdb/adapters/FileSync');
+    // const dbPath = path.resolve(process.cwd(), './.data/db.json');
+    const dbPath = './.data/db.json';
+    const adapter = new FileSync(dbPath);
+    const jetpack = require('fs-jetpack');
+
     try {
-      require('dotenv').config();
+      if (!jetpack.exists(dbPath)) {
+        jetpack.write(dbPath, {});
+      }
+      self.libraries.localDatabase = low(adapter);
     } catch (e) {
-      console.error('Failed to set up environment variables from .env file');
+      console.error('Could not load .data', e);
     }
-  // }
+  }
 
   return self;
 };
@@ -438,21 +461,45 @@ Manager.prototype.Assistant = function(ref, options) {
 };
 
 Manager.prototype.User = function () {
-  this.libraries.User = this.libraries.User || require('./helpers/user.js');
-  return new this.libraries.User(...arguments);
+  const self = this;
+  self.libraries.User = self.libraries.User || require('./helpers/user.js');
+  return new self.libraries.User(...arguments);
 };
 
 Manager.prototype.Analytics = function () {
   const self = this;
-  this.libraries.Analytics = this.libraries.Analytics || require('./helpers/analytics.js');
-  return new this.libraries.Analytics(self, ...arguments);
+  self.libraries.Analytics = self.libraries.Analytics || require('./helpers/analytics.js');
+  return new self.libraries.Analytics(self, ...arguments);
 };
 
 Manager.prototype.ApiManager = function () {
   const self = this;
-  this.libraries.ApiManager = this.libraries.ApiManager || require('./helpers/api-manager.js');
-  return new this.libraries.ApiManager(self, ...arguments);
+  self.libraries.ApiManager = self.libraries.ApiManager || require('./helpers/api-manager.js');
+  return new self.libraries.ApiManager(self, ...arguments);
 };
+
+// Manager.prototype.LocalDatabase = function () {
+//   const self = this;
+//   if (!self.libraries.LocalDatabase) {
+//     const low = require('lowdb');
+//     const FileSync = require('lowdb/adapters/FileSync');
+//     // const dbPath = path.resolve(process.cwd(), './.data/db.json');
+//     const dbPath = './.data/db.json';
+//     const adapter = new FileSync(dbPath);
+//     const jetpack = require('fs-jetpack');
+//
+//     try {
+//       if (!jetpack.exists(dbPath)) {
+//         jetpack.write(dbPath, {});
+//       }
+//       self.localDatabase = low(adapter);
+//     } catch (e) {
+//       console.error('Could not load .data', e);
+//     }
+//   }
+//   self.libraries.LocalDatabase = self.libraries.LocalDatabase || require('./helpers/api-manager.js');
+//   return new self.libraries.LocalDatabase(self, ...arguments);
+// };
 
 Manager.prototype.require = function (p) {
   return require(p);

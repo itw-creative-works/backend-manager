@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -43,6 +43,7 @@
     "inquirer": "^8.2.4",
     "json5": "^2.2.1",
     "lodash": "^4.17.21",
+    "lowdb": "^1.0.0",
     "mailchimp-api-v3": "^1.15.0",
     "mocha": "^9.2.2",
     "moment": "^2.29.3",
@@ -58,7 +59,7 @@
     "universal-analytics": "^0.5.3",
     "uuid": "^8.3.2",
     "wonderful-fetch": "^0.0.5",
-    "yargs": "^17.5.0"
+    "yargs": "^17.5.1"
   },
   "files": [
     "bin/",
