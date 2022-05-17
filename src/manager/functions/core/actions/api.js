@@ -78,6 +78,7 @@ Module.prototype.main = function() {
     }
 
     if (self.payload.response.status === 200) {
+      self.assistant.log(`Finished: ${resolved.command}`, self.payload, JSON.stringify(self.payload), {environment: 'production'})
       return res.status(self.payload.response.status).json(self.payload.response.data);
     } else {
       console.error(`Error executing ${resolved.command} @ ${resolved.path}`, self.payload.response.error)

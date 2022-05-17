@@ -39,6 +39,7 @@ Module.prototype.main = function () {
           prefix += `${item}=LOL&`
         });
 
+        // https://firebase.google.com/docs/reference/rest/auth#section-sign-in-with-oauth-credential
         fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=${payload.data.payload.firebaseApiKey}`, {
           method: 'post',
           json: true,
