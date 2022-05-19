@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -28,8 +28,8 @@
   "homepage": "https://itwcreativeworks.com",
   "dependencies": {
     "@firebase/rules-unit-testing": "^2.0.2",
-    "@google-cloud/storage": "^5.20.3",
-    "@sendgrid/mail": "^7.6.2",
+    "@google-cloud/storage": "^5.20.5",
+    "@sendgrid/mail": "^7.7.0",
     "@sentry/node": "^6.19.7",
     "backend-assistant": "^0.0.64",
     "busboy": "^1.6.0",
