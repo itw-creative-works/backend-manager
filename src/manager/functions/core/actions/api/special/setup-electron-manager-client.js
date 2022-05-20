@@ -12,12 +12,36 @@ Module.prototype.main = function () {
   return new Promise(async function(resolve, reject) {
 
     const fetch = Manager.require('wonderful-fetch');
+    const _ = Manager.require('lodash');
 
-    const uid = payload.data.payload.uid;
+    let uid = payload.data.payload.uid;
     const app = payload.data.payload.appId || payload.data.payload.app || Manager.config.app.id;
 
     let uuid = null;
     let error;
+
+    let customToken = null;
+
+    if (payload.data.authenticationToken || payload.data.backendManagerKey) {
+      await self.Api.resolveUser({adminRequired: true})
+      .then(async (user) => {
+        uid = _.get(user, 'auth.uid', null);
+        await self.libraries.admin.auth().createCustomToken(uid)
+        .then(token => {
+          customToken = token;
+        })
+        .catch(e => {
+          error = assistant.errorManager(`Failed to create custom token: ${e}`, {code: 500, sentry: false, send: false, log: false}).error
+        })
+      })
+      .catch(e => {
+        assistant.errorManager(`Failed to resolve user: ${e}`, {code: 500, sentry: false, send: false, log: true})
+      })
+
+      if (error) {
+        return reject(error)
+      }
+    }
 
     // Generate uuid
     if (uid) {
@@ -52,6 +76,7 @@ Module.prototype.main = function () {
       return resolve({
         data: {
           uuid: uuid,
+          customToken: customToken,
           timestamp: new Date().toISOString(),
           ip: assistant.request.ip,
           country: assistant.request.country,
@@ -60,8 +85,11 @@ Module.prototype.main = function () {
       });
     })
     .catch(e => {
-      return reject(new Error(`Error fetching app details: ${e}`))
+      return reject(assistant.errorManager(`Error fetching app details: ${e}`, {code: 500, sentry: false, send: false, log: false}).error)
     })
+
+
+
 
   });
 
