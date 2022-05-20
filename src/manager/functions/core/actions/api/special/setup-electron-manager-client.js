@@ -20,7 +20,7 @@ Module.prototype.main = function () {
     let uuid = null;
     let error;
 
-    let customToken = null;
+    let signInToken = null;
 
     if (payload.data.authenticationToken || payload.data.backendManagerKey) {
       await self.Api.resolveUser({adminRequired: true})
@@ -28,7 +28,7 @@ Module.prototype.main = function () {
         uid = _.get(user, 'auth.uid', null);
         await self.libraries.admin.auth().createCustomToken(uid)
         .then(token => {
-          customToken = token;
+          signInToken = token;
         })
         .catch(e => {
           error = assistant.errorManager(`Failed to create custom token: ${e}`, {code: 500, sentry: false, send: false, log: false}).error
@@ -76,7 +76,7 @@ Module.prototype.main = function () {
       return resolve({
         data: {
           uuid: uuid,
-          customToken: customToken,
+          signInToken: signInToken,
           timestamp: new Date().toISOString(),
           ip: assistant.request.ip,
           country: assistant.request.country,
