@@ -29,7 +29,7 @@ Module.prototype.main = function () {
       }
     }
 
-    const postUrl = `blog/${payload.data.payload.url}`;
+    const postUrl = `${Manager.config.brand.url}/blog/${payload.data.payload.url}`;
 
     if (payload.data.payload.invoiceEmail && payload.data.payload.invoicePrice) {
       // Create invoice
