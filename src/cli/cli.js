@@ -43,9 +43,9 @@ const fetch = require('node-fetch');
 
 let bem_giRegex = 'Set in .setup()'
 let bem_giRegexOuter = /# BEM>>>(.*\n?)# <<<BEM/sg;
-let bem_fsRulesRegex = /(\/\/\/---backend-manager---\/\/\/)(.*?)(\/\/\/---------end---------\/\/\/)/sgm;
-let bem_fsRulesDefaultRegex = /(\/\/\/---default-rules---\/\/\/)(.*?)(\/\/\/---------end---------\/\/\/)/sgm;
-let bem_fsRulesBackupRegex = /({{\s*?backend-manager\s*?}})/sgm;
+let bem_allRulesRegex = /(\/\/\/---backend-manager---\/\/\/)(.*?)(\/\/\/---------end---------\/\/\/)/sgm;
+let bem_allRulesDefaultRegex = /(\/\/\/---default-rules---\/\/\/)(.*?)(\/\/\/---------end---------\/\/\/)/sgm;
+let bem_allRulesBackupRegex = /({{\s*?backend-manager\s*?}})/sgm;
 let MOCHA_PKG_SCRIPT = 'mocha ../test/ --recursive --timeout=10000';
 let NPM_CLEAN_SCRIPT = 'rm -fr node_modules && rm -fr package-lock.json && npm cache clean --force && npm install && npm rb';
 let NOFIX_TEXT = chalk.red(`There is no automatic fix for this check.`);
@@ -139,7 +139,7 @@ Main.prototype.process = async function (args) {
 
   if (self.options['rules:default'] || self.options['rules:getdefault']) {
     self.getRulesFile();
-    console.log(self.default.firestoreRulesWhole.match(bem_fsRulesDefaultRegex)[0].replace('    ///', '///'));
+    console.log(self.default.firestoreRulesWhole.match(bem_allRulesDefaultRegex)[0].replace('    ///', '///'));
     return;
   }
 
@@ -205,9 +205,11 @@ module.exports = Main;
 
 Main.prototype.getRulesFile = function () {
   const self = this;
-  self.default.firestoreRulesWhole = (jetpack.read(path.resolve(`${__dirname}/../../templates/firestore.rules`))).replace('=0.0.0-', `-${self.default.version}-`);
-  self.default.firestoreRulesCore = self.default.firestoreRulesWhole.match(bem_fsRulesRegex)[0];
+  self.default.firestoreRulesWhole = (jetpack.read(path.resolve(`${__dirname}/../../templates/firestore.rules`))).replace('=0.0.0-', `=${self.default.version}-`);
+  self.default.firestoreRulesCore = self.default.firestoreRulesWhole.match(bem_allRulesRegex)[0];
 
+  self.default.databaseRulesWhole = (jetpack.read(path.resolve(`${__dirname}/../../templates/database.rules.json`))).replace('=0.0.0-', `=${self.default.version}-`);
+  self.default.databaseRulesCore = self.default.databaseRulesWhole.match(bem_allRulesRegex)[0];
 };
 
 Main.prototype.setup = async function () {
@@ -243,7 +245,7 @@ Main.prototype.setup = async function () {
 
   self.getRulesFile();
 
-  self.default.firestoreRulesVersionRegex = new RegExp(`///---version-${self.default.version}---///`)
+  self.default.rulesVersionRegex = new RegExp(`///---version-${self.default.version}---///`)
   // bem_giRegex = new RegExp(jetpack.read(path.resolve(`${__dirname}/../../templates/gitignore.md`)).replace(/\./g, '\\.'), 'm' )
   bem_giRegex = new RegExp(jetpack.read(path.resolve(`${__dirname}/../../templates/gitignore.md`)), 'm' )
 
@@ -478,22 +480,26 @@ Main.prototype.setup = async function () {
 
   // Update actual files
   await self.test('update firestore rules file', function () {
-    let exists = jetpack.exists(`${self.firebaseProjectPath}/firestore.rules`);
-    let contents = jetpack.read(`${self.firebaseProjectPath}/firestore.rules`) || '';
-    let containsCore = contents.match(bem_fsRulesRegex);
-    let matchesVersion = contents.match(self.default.firestoreRulesVersionRegex);
+    const exists = jetpack.exists(`${self.firebaseProjectPath}/firestore.rules`);
+    const contents = jetpack.read(`${self.firebaseProjectPath}/firestore.rules`) || '';
+    const containsCore = contents.match(bem_allRulesRegex);
+    const matchesVersion = contents.match(self.default.rulesVersionRegex);
 
     return (!!exists && !!containsCore && !!matchesVersion);
   }, fix_firestoreRulesFile);
 
   await self.test('update firestore indexes file', function () {
-    let exists = jetpack.exists(`${self.firebaseProjectPath}/firestore.indexes.json`);
+    const exists = jetpack.exists(`${self.firebaseProjectPath}/firestore.indexes.json`);
     return (!!exists);
   }, fix_firestoreIndexesFile);
 
   await self.test('update realtime rules file', function () {
-    let exists = jetpack.exists(`${self.firebaseProjectPath}/database.rules.json`);
-    return (!!exists);
+    const exists = jetpack.exists(`${self.firebaseProjectPath}/database.rules.json`);
+    const contents = jetpack.read(`${self.firebaseProjectPath}/database.rules.json`) || '';
+    const containsCore = contents.match(bem_allRulesRegex);
+    const matchesVersion = contents.match(self.default.rulesVersionRegex);
+
+    return (!!exists && !!containsCore && !!matchesVersion);
   }, fix_realtimeRulesFile);
 
   await self.test('update storage rules file', function () {
@@ -874,34 +880,84 @@ function fix_remoteconfigTemplate(self) {
 
 function fix_firestoreRulesFile(self) {
   return new Promise(function(resolve, reject) {
-    let path = `${self.firebaseProjectPath}/firestore.rules`;
+    const name = 'firestore.rules'
+    let path = `${self.firebaseProjectPath}/${name}`;
     let exists = jetpack.exists(path);
     let contents = jetpack.read(path) || '';
 
     if (!exists || !contents) {
-      log(chalk.yellow(`Writing new firestore.rules file...`));
+      log(chalk.yellow(`Writing new ${name} file...`));
       jetpack.write(path, self.default.firestoreRulesWhole)
       contents = jetpack.read(path) || '';
     }
 
-    let hasTemplate = contents.match(bem_fsRulesRegex) || contents.match(bem_fsRulesBackupRegex);
+    let hasTemplate = contents.match(bem_allRulesRegex) || contents.match(bem_allRulesBackupRegex);
 
     if (!hasTemplate) {
-      log(chalk.red(`Could not find rules template. Please edit firestore.rules file and add`), chalk.red(`{{backend-manager}}`), chalk.red(`to it.`));
+      log(chalk.red(`Could not find rules template. Please edit ${name} file and add`), chalk.red(`{{backend-manager}}`), chalk.red(`to it.`));
       reject()
     }
 
-    let matchesVersion = contents.match(self.default.firestoreRulesVersionRegex);
+    let matchesVersion = contents.match(self.default.rulesVersionRegex);
     if (!matchesVersion) {
       // console.log('replace wih', self.default.firestoreRulesCore);
-      contents = contents.replace(bem_fsRulesBackupRegex, self.default.firestoreRulesCore)
-      contents = contents.replace(bem_fsRulesRegex, self.default.firestoreRulesCore)
+      contents = contents.replace(bem_allRulesBackupRegex, self.default.firestoreRulesCore)
+      contents = contents.replace(bem_allRulesRegex, self.default.firestoreRulesCore)
       jetpack.write(path, contents)
-      log(chalk.yellow(`Writing core rules to firestore.rules file...`));
+      log(chalk.yellow(`Writing core rules to ${name} file...`));
     }
     resolve();
   });
 };
+
+function fix_realtimeRulesFile(self) {
+  return new Promise(function(resolve, reject) {
+    const name = 'database.rules.json'
+    let path = `${self.firebaseProjectPath}/${name}`;
+    let exists = jetpack.exists(path);
+    let contents = jetpack.read(path) || '';
+
+    if (!exists || !contents) {
+      log(chalk.yellow(`Writing new ${name} file...`));
+      jetpack.write(path, self.default.databaseRulesWhole)
+      contents = jetpack.read(path) || '';
+    }
+
+    let hasTemplate = contents.match(bem_allRulesRegex) || contents.match(bem_allRulesBackupRegex);
+
+    if (!hasTemplate) {
+      log(chalk.red(`Could not find rules template. Please edit ${name} file and add`), chalk.red(`{{backend-manager}}`), chalk.red(`to it.`));
+      reject()
+    }
+
+    let matchesVersion = contents.match(self.default.rulesVersionRegex);
+    if (!matchesVersion) {
+      // console.log('replace wih', self.default.databaseRulesCore);
+      contents = contents.replace(bem_allRulesBackupRegex, self.default.databaseRulesCore)
+      contents = contents.replace(bem_allRulesRegex, self.default.databaseRulesCore)
+      jetpack.write(path, contents)
+      log(chalk.yellow(`Writing core rules to ${name} file...`));
+    }
+    resolve();
+  });
+};
+
+// function fix_realtimeRulesFile(self) {
+//   return new Promise(function(resolve, reject) {
+//     const name = 'database.rules.json';
+//     let filePath = `${self.firebaseProjectPath}/${name}`;
+//     let exists = jetpack.exists(filePath);
+//     let contents = jetpack.read(filePath) || '';
+//
+//     if (!exists) {
+//       log(chalk.yellow(`Writing new ${name} file...`));
+//       jetpack.write(filePath, jetpack.read(path.resolve(`${__dirname}/../../templates/${name}`)))
+//       contents = jetpack.read(filePath) || '';
+//     }
+//
+//     resolve();
+//   });
+// };
 
 function fix_firestoreIndexesFile(self) {
   return new Promise(async function(resolve, reject) {
@@ -912,23 +968,6 @@ function fix_firestoreIndexesFile(self) {
     if (!exists) {
       log(chalk.yellow(`Writing new ${name} file...`));
       await cmd_indexesGet(self, name, false);
-    }
-
-    resolve();
-  });
-};
-
-function fix_realtimeRulesFile(self) {
-  return new Promise(function(resolve, reject) {
-    const name = 'database.rules.json';
-    let filePath = `${self.firebaseProjectPath}/${name}`;
-    let exists = jetpack.exists(filePath);
-    let contents = jetpack.read(filePath) || '';
-
-    if (!exists) {
-      log(chalk.yellow(`Writing new ${name} file...`));
-      jetpack.write(filePath, jetpack.read(path.resolve(`${__dirname}/../../templates/${name}`)))
-      contents = jetpack.read(filePath) || '';
     }
 
     resolve();

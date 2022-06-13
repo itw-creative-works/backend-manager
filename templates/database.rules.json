@@ -1,31 +1,46 @@
 {
   "rules": {
+    ///---backend-manager---///
+    ///---version=0.0.0---///
+
+    // Gathering rules
     "gatherings": {
       ".read": false,
       ".write": false,
-			"online": {
-        ".read": "auth.uid != null && query.equalTo == auth.uid",
+			"$room": {
+        ".read": "
+        	(auth.uid != null && query.equalTo == auth.uid)
+        ",
         ".write": false,
         ".indexOn": ["uid"],
-        "$uid": {
+        "$id": {
           ".read": "
-          	// Allowed if user is signed in AND is the owner of the doc
+          	// Allowed if user is authenticated AND is the owner of the doc
           	(auth != null && auth.uid == data.child('uid').val())
+            // Allowed if uid is equal to the doc id [LEGACY FOR SOMIIBO]
+            || (auth != null && auth.uid == $id)
+          	// Allowed if user is not authenticated AND is the doc has no owner
+          	|| (auth == null && (data.child('uid').val() == ''))
           ",
           ".write": "
-          	// Allowed if the user is signed in AND is the owner of the existing doc
+          	// Allowed if the user is authenticated AND is the owner of the existing doc
           	(auth != null && auth.uid == data.child('uid').val())
-          	// Allowed if the user is signed in AND is the owner of the new doc
+          	// Allowed if the user is authenticated AND is the owner of the new doc
           	|| (auth != null && auth.uid == newData.child('uid').val())
-          	// Allowed if it's a delete
-          	|| (!newData.exists())
-						// Allowed if the existing doc has no owner
+            // Allowed if the user is authenticated AND is the owner of the existing doc
+          	|| (auth != null && auth.uid == data.child('uid').val())
+            // Allowed if uid is equal to the doc id [LEGACY FOR SOMIIBO]
+            || (auth != null && auth.uid == $id)
+            // Allowed if the existing doc has no owner
           	|| (data.child('uid').val() == '')
           	// Allowed if the new doc has no owner
           	|| (newData.child('uid').val() == '')
+            // Allowed if it's a delete
+          	|| (!newData.exists())
           ",
       	}
       }
-    }
+    },
+    ///---------end---------///
   }
 }
