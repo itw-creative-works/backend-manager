@@ -1,3 +1,5 @@
+let _;
+
 function Module() {
 
 }
@@ -11,6 +13,8 @@ Module.prototype.main = function () {
 
   return new Promise(async function(resolve, reject) {
 
+    _ = Manager.require('lodash')
+
     if (!payload.user.roles.admin) {
       return reject(assistant.errorManager(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
     } else {
@@ -21,15 +25,11 @@ Module.prototype.main = function () {
           let data = doc.data() || {};
           let error = null;
 
-          await self.fixStats(data)
+          await self.updateStats(data)
             .catch(e => {
               error = e;
             })
 
-          await self.updateStats()
-            .catch(e => {
-              error = e;
-            })
 
           if (error) {
             return reject(assistant.errorManager(error, {code: 500, sentry: false, send: false, log: false}).error)
@@ -64,63 +64,64 @@ Module.prototype.fixStats = function (data) {
   return new Promise(async function(resolve, reject) {
     const stats = self.libraries.admin.firestore().doc(`meta/stats`);
 
-    if (!data || !data.users || !data.users.total || !data.subscriptions || !data.subscriptions.total) {
-      let usersTotal = 0;
-      let subscriptionsTotal = 0;
-      let error = null;
-      await self.getAllUsers()
-        .then(r => {
-          usersTotal = r.length
-        })
-        .catch(e => {
-          error = new Error(`Failed fixing stats: ${e}`);
-          self.assistant.error(error, {environment: 'production'});
-        })
-      await self.getAllSubscriptions()
-        .then(r => {
-          subscriptionsTotal = r
-        })
-        .catch(e => {
-          error = new Error(`Failed getting subscriptions: ${e}`);
-          self.assistant.error(error, {environment: 'production'});
-        })
 
-      if (error) {
-        return reject(error);
-      }
-      await stats
-        .set({
-          users: {
-            total: usersTotal,
-          },
-          subscriptions: {
-            total: subscriptionsTotal,
-          },
-        }, { merge: true })
-        .catch(function (e) {
-          return reject(e);
-        })
-    }
 
-    return resolve(data);
+    return resolve();
   });
 }
 
-Module.prototype.updateStats = function () {
+Module.prototype.updateStats = function (existingData) {
   const self = this;
 
   return new Promise(async function(resolve, reject) {
     const stats = self.libraries.admin.firestore().doc(`meta/stats`);
-    let online = self.libraries.admin.database().ref(`gatherings/online`);
-    let onlineCount = 0;
+    const online = self.libraries.admin.database().ref(`gatherings/online`);
+
     let error = null;
+    let update = {};
+
+    // Fix broken stats
+    if (!_.get(existingData, 'users.total', null)) {
+      await self.getAllUsers()
+        .then(r => {
+          _.set(update, 'users.total', r.length)
+        })
+        .catch(e => {
+          error = new Error(`Failed fixing stats: ${e}`);
+        })
+    }
+
+    if (error) {
+      return reject(error);
+    }
+
+    // Fetch new stats
+    await self.getAllNotifications()
+      .then(r => {
+        _.set(update, 'notifications.total', r)
+      })
+      .catch(e => {
+        error = new Error(`Failed getting notifications: ${e}`);
+      })
+
+    await self.getAllSubscriptions()
+      .then(r => {
+        _.set(update, 'subscriptions.total', r)
+      })
+      .catch(e => {
+        error = new Error(`Failed getting subscriptions: ${e}`);
+      })
+
+    if (error) {
+      return reject(error);
+    }
 
     await online
       .once('value')
       .then((snap) => {
         let data = snap.val() || {};
         let keys = Object.keys(data);
-        onlineCount = keys.length;
+        _.set(update, 'users.online', keys.length)
       })
       .catch(e => {
         error = new Error(`Failed getting online users: ${e}`);
@@ -131,13 +132,9 @@ Module.prototype.updateStats = function () {
     }
 
     await stats
-      .set({
-        users: {
-          online: onlineCount
-        }
-      }, { merge: true })
+      .set(update, { merge: true })
       .catch(function (e) {
-        return reject(`Failed getting stats: ${e}`);
+        return reject(new Error(`Failed getting stats: ${e}`));
       })
 
     return resolve();
@@ -156,7 +153,7 @@ Module.prototype.getAllUsers = function () {
   });
 }
 
-Module.prototype.getAllSubscriptions = function () {
+Module.prototype.getAllNotifications = function () {
   const self = this;
   return new Promise(async function(resolve, reject) {
     await self.libraries.admin.firestore().collection('notifications/subscriptions/all')
@@ -167,6 +164,33 @@ Module.prototype.getAllSubscriptions = function () {
     .catch(function(e) {
       return reject(e)
     });
+  });
+}
+
+Module.prototype.getAllSubscriptions = function () {
+  const self = this;
+  return new Promise(async function(resolve, reject) {
+    await self.libraries.admin.firestore().collection('users')
+    .where('plan.expires.timestampUNIX', '>=', new Date().getTime() / 1000)
+    .get()
+    .then(function(snapshot) {
+      let count = 0;
+
+      snapshot
+      .forEach((doc, i) => {
+        const data = doc.data();
+        const planId = _.get(data, 'plan.id', 'basic');
+        if (!['', 'basic', 'free'].includes(planId)) {
+          count++;
+        }
+      });
+
+      return resolve(count);
+    })
+    .catch(function(e) {
+      return reject(e)
+    });
+
   });
 }
 
