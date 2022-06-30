@@ -245,7 +245,7 @@ Main.prototype.setup = async function () {
 
   self.getRulesFile();
 
-  self.default.rulesVersionRegex = new RegExp(`///---version-${self.default.version}---///`)
+  self.default.rulesVersionRegex = new RegExp(`///---version=${self.default.version}---///`)
   // bem_giRegex = new RegExp(jetpack.read(path.resolve(`${__dirname}/../../templates/gitignore.md`)).replace(/\./g, '\\.'), 'm' )
   bem_giRegex = new RegExp(jetpack.read(path.resolve(`${__dirname}/../../templates/gitignore.md`)), 'm' )
 
