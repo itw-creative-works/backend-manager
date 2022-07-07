@@ -67,7 +67,7 @@ Module.prototype.main = function () {
       method: 'post',
       timeout: 30000,
       tries: 3,
-      json: true,
+      response: 'json',
       body: {
         id: app,
       },

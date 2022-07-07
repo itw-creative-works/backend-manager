@@ -35,8 +35,8 @@ Module.prototype.main = function () {
       // Create invoice
       const createdInvoice = await fetch('https://us-central1-itw-creative-works.cloudfunctions.net/wrapper', {
         method: 'POST',
-        json: true,
-        body: JSON.stringify({
+        response: 'json',
+        body: {
           authenticationToken: Manager.config.backend_manager.key,
           method: 'post',
           service: 'paypal',
@@ -69,7 +69,7 @@ Module.prototype.main = function () {
               },
             ],
           }
-        }),
+        },
       })
       .then(response => response)
       .catch(e => e);
@@ -82,15 +82,15 @@ Module.prototype.main = function () {
       const createdInvoiceId = _.get(createdInvoice, 'href', '').split('/').pop();
       const sentInvoice = await fetch('https://us-central1-itw-creative-works.cloudfunctions.net/wrapper', {
         method: 'POST',
-        json: true,
-        body: JSON.stringify({
+        response: 'json',
+        body: {
           authenticationToken: Manager.config.backend_manager.key,
           service: 'paypal',
           command: `v2/invoicing/invoices/${createdInvoiceId}/send`,
           method: 'post',
           body: {
           }
-        }),
+        },
       })
       .then(response => response)
       .catch(e => e);
@@ -110,8 +110,8 @@ Module.prototype.main = function () {
     // Send notification
     const sentNotification = fetch(`https://us-central1-${Manager.project.projectId}.cloudfunctions.net/bm_api`, {
       method: 'POST',
-      json: true,
-      body: JSON.stringify({
+      response: 'json',
+      body: {
         authenticationToken: Manager.config.backend_manager.key,
         command: `admin:send-notification`,
         payload: {
@@ -121,7 +121,7 @@ Module.prototype.main = function () {
           click_action: `${Manager.config.brand.url}/blog`,
           icon: Manager.config.brand.brandmark,
         }
-      }),
+      },
     })
     .then(response => response)
     .catch(e => e);
