@@ -106,26 +106,26 @@ Module.prototype.main = function () {
 
     }
 
-
     // Send notification
-    const sentNotification = fetch(`https://us-central1-${Manager.project.projectId}.cloudfunctions.net/bm_api`, {
-      method: 'POST',
-      response: 'json',
-      body: {
-        authenticationToken: Manager.config.backend_manager.key,
-        command: `admin:send-notification`,
-        payload: {
-          title: payload.data.payload.title,
-          body: `"${payload.data.payload.title}" was just published on our blog. It's a great read and we think you'll enjoy the content!`,
-          // click_action: `${Manager.config.brand.url}/${postUrl}`,
-          click_action: `${Manager.config.brand.url}/blog`,
-          icon: Manager.config.brand.brandmark,
-        }
-      },
-    })
-    .then(response => response)
-    .catch(e => e);
-
+    if (payload.data.payload.sendNotification !== false) {
+      const sentNotification = fetch(`https://us-central1-${Manager.project.projectId}.cloudfunctions.net/bm_api`, {
+        method: 'POST',
+        response: 'json',
+        body: {
+          authenticationToken: Manager.config.backend_manager.key,
+          command: `admin:send-notification`,
+          payload: {
+            title: payload.data.payload.title,
+            body: `"${payload.data.payload.title}" was just published on our blog. It's a great read and we think you'll enjoy the content!`,
+            // click_action: `${Manager.config.brand.url}/${postUrl}`,
+            click_action: `${Manager.config.brand.url}/blog`,
+            icon: Manager.config.brand.brandmark,
+          }
+        },
+      })
+      .then(response => response)
+      .catch(e => e);
+    }
 
     return resolve({data: payload.response.data})
 

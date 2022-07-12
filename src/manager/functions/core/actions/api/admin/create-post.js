@@ -24,27 +24,37 @@ Module.prototype.main = function () {
     const poster = new Poster();
 
     // Save to disk OR commit
-    poster.onDownload = async function (meta) {
+    poster.onDownload = function (meta) {
       return new Promise(async function(resolve, reject) {
-        let finalPath = poster.removeDirDot(meta.finalPath);
-        let tempPath = (meta.tempPath);
-        await createFile(get(self.Manager.config, 'github.user'), repoInfo.user, repoInfo.name, get(self.Manager.config, 'github.key'), finalPath, await poster.readImage(tempPath))
-        .catch((e) => {
-          // console.log('---CAUGHT 1', e);
-        })
-        resolve();
+        const tempPath = (meta.tempPath);
+        const finalPath = poster.removeDirDot(meta.finalPath);
+
+        poster.readImage(tempPath)
+          .then(image => {
+            createFile(get(self.Manager.config, 'github.user'), repoInfo.user, repoInfo.name, get(self.Manager.config, 'github.key'), finalPath, image)
+              .then(() => {resolve()})
+              .catch((e) => {reject(e)})
+          })
+          .catch((e) => {reject(e)})
+
       });
     }
 
-    const finalPost = await poster.create(payload.data);
+    const finalPost = await poster.create(payload.data).catch(e => e);
+
+    if (finalPost instanceof Error) {
+      return reject(assistant.errorManager(`Failed to post: ${finalPost}`, {code: 500, sentry: false, send: false, log: false}).error)
+    }
 
     // Save post OR commit
     await createFile(get(self.Manager.config, 'github.user'), repoInfo.user, repoInfo.name, get(self.Manager.config, 'github.key'), poster.removeDirDot(finalPost.path), finalPost.content)
+    .then(() => {
+      return resolve({data: finalPost});
+    })
     .catch((e) => {
       return reject(assistant.errorManager(`Failed to post: ${e}`, {code: 500, sentry: false, send: false, log: false}).error)
     })
 
-    return resolve({data: finalPost});
   });
 
 };
