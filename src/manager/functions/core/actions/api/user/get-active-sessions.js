@@ -16,16 +16,17 @@ Module.prototype.main = function () {
     self.Api.resolveUser({adminRequired: true})
     .then(async (user) => {
       const uid = _.get(user, 'auth.uid', null);
-      const id = _.get(payload.data.payload, 'id', 'sessions/app');
+      const id = _.get(payload.data.payload, 'id', 'app');
+      const session = `sessions/${id}`;
 
-      assistant.log(`Getting active sessions for ${uid} @ ${id}`, {environment: 'production'})
+      assistant.log(`Getting active sessions for ${uid} @ ${session}`, {environment: 'production'})
 
-      await self.libraries.admin.database().ref(id)
+      await self.libraries.admin.database().ref(session)
       .orderByChild('uid')
       .equalTo(uid)
       .once('value')
       .then(async (snap) => {
-        const data = (snap.val() || []).filter(i => i);
+        const data = snap.val() || {};
         return resolve({data: data});
       })
       .catch(e => {
