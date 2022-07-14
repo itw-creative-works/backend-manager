@@ -895,7 +895,7 @@ function fix_firestoreRulesFile(self) {
 
     if (!hasTemplate) {
       log(chalk.red(`Could not find rules template. Please edit ${name} file and add`), chalk.red(`{{backend-manager}}`), chalk.red(`to it.`));
-      reject()
+      return resolve()
     }
 
     let matchesVersion = contents.match(self.default.rulesVersionRegex);
@@ -927,7 +927,7 @@ function fix_realtimeRulesFile(self) {
 
     if (!hasTemplate) {
       log(chalk.red(`Could not find rules template. Please edit ${name} file and add`), chalk.red(`{{backend-manager}}`), chalk.red(`to it.`));
-      reject()
+      return resolve()
     }
 
     let matchesVersion = contents.match(self.default.rulesVersionRegex);
