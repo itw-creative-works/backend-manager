@@ -25,7 +25,7 @@ Module.prototype.main = function () {
       .equalTo(uid)
       .once('value')
       .then(async (snap) => {
-        const data = snap.val();
+        const data = (snap.val() || []).filter(i => i);
         return resolve({data: data});
       })
       .catch(e => {
