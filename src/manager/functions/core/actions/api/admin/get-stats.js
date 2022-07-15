@@ -75,7 +75,8 @@ Module.prototype.updateStats = function (existingData) {
 
   return new Promise(async function(resolve, reject) {
     const stats = self.libraries.admin.firestore().doc(`meta/stats`);
-    const online = self.libraries.admin.database().ref(`gatherings/online`);
+    const gatheringOnline = self.libraries.admin.database().ref(`gatherings/online`);
+    const sessionsApp = self.libraries.admin.database().ref(`sessions/app`);
 
     let error = null;
     let update = {};
@@ -106,7 +107,7 @@ Module.prototype.updateStats = function (existingData) {
 
     await self.getAllSubscriptions()
       .then(r => {
-        _.set(update, 'subscriptions.total', r)
+        _.set(update, 'subscriptions', r)
       })
       .catch(e => {
         error = new Error(`Failed getting subscriptions: ${e}`);
@@ -116,12 +117,25 @@ Module.prototype.updateStats = function (existingData) {
       return reject(error);
     }
 
-    await online
+    await gatheringOnline
       .once('value')
       .then((snap) => {
-        let data = snap.val() || {};
-        let keys = Object.keys(data);
-        _.set(update, 'users.online', keys.length)
+        const data = snap.val() || {};
+        const keys = Object.keys(data);
+        const existing = _.get(update, 'users.online', 0)
+        _.set(update, 'users.online', existing + keys.length)
+      })
+      .catch(e => {
+        error = new Error(`Failed getting online users: ${e}`);
+      })
+
+    await sessionsApp
+      .once('value')
+      .then((snap) => {
+        const data = snap.val() || {};
+        const keys = Object.keys(data);
+        const existing = _.get(update, 'users.online', 0)
+        _.set(update, 'users.online', existing + keys.length)
       })
       .catch(e => {
         error = new Error(`Failed getting online users: ${e}`);
@@ -174,18 +188,43 @@ Module.prototype.getAllSubscriptions = function () {
     .where('plan.expires.timestampUNIX', '>=', new Date().getTime() / 1000)
     .get()
     .then(function(snapshot) {
-      let count = 0;
+      const stats = {
+        totals: {
+          total: 0,
+          exempt: 0,
+        },
+        plans: {}
+      };
 
       snapshot
       .forEach((doc, i) => {
         const data = doc.data();
         const planId = _.get(data, 'plan.id', 'basic');
-        if (!['', 'basic', 'free'].includes(planId)) {
-          count++;
+        const frequency = _.get(data, 'plan.payment.frequency', 'unknown');
+        const isAdmin = _.get(data, 'roles.admin', false);
+        const isVip = _.get(data, 'roles.vip', false);
+
+        if (!stats.plans[planId]) {
+          stats.plans[planId] = {
+            total: 0,
+            monthly: 0,
+            annually: 0,
+            exempt: 0,
+          }
         }
+
+        if (isAdmin || isVip) {
+          stats.totals.exempt++;
+          stats.plans[planId].exempt++;
+          return
+        }
+
+        stats.totals.total++;
+        stats.plans[planId].total++;
+        stats.plans[planId][frequency] = (stats.plans[planId][frequency] || 0) + 1
       });
 
-      return resolve(count);
+      return resolve(stats);
     })
     .catch(function(e) {
       return reject(e)
