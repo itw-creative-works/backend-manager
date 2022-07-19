@@ -7,8 +7,7 @@
 <p align="center">
   <img src="https://img.shields.io/github/package-json/v/itw-creative-works/backend-manager.svg">
   <br>
-  <img src="https://img.shields.io/david/itw-creative-works/backend-manager.svg">
-  <img src="https://img.shields.io/david/dev/itw-creative-works/backend-manager.svg">
+  <img src="https://img.shields.io/librariesio/release/npm/backend-manager.svg">
   <img src="https://img.shields.io/bundlephobia/min/backend-manager.svg">
   <img src="https://img.shields.io/codeclimate/maintainability-percentage/itw-creative-works/backend-manager.svg">
   <img src="https://img.shields.io/npm/dm/backend-manager.svg">
