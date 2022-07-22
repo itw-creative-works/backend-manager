@@ -16,6 +16,7 @@ Module.prototype.main = function () {
 
     let uid = payload.data.payload.uid;
     const app = payload.data.payload.appId || payload.data.payload.app || Manager.config.app.id;
+    let config = payload.data.payload.config || {};
 
     let uuid = null;
     let error;
@@ -62,6 +63,12 @@ Module.prototype.main = function () {
       return reject(error)
     }
 
+    if (config.backendManagerKey === Manager.config.backend_manager.key && Manager.config.backend_manager.key) {
+      assistant.log('Validated config', config, {environment: 'production'})
+    } else {
+      config = {};
+    }
+
     // Fetch app details
     await fetch('https://us-central1-itw-creative-works.cloudfunctions.net/getApp', {
       method: 'post',
@@ -81,6 +88,7 @@ Module.prototype.main = function () {
           ip: assistant.request.ip,
           country: assistant.request.country,
           app: result,
+          config: config,
         }
       });
     })
