@@ -33,7 +33,7 @@ Manager.prototype.init = function (exporter, options) {
   options = options || {};
   options.initialize = typeof options.initialize === 'undefined' ? true : options.initialize;
   options.setupFunctions = typeof options.setupFunctions === 'undefined' ? true : options.setupFunctions;
-  options.setupLocalDatabase = typeof options.setupLocalDatabase === 'undefined' ? false : options.setupLocalDatabase;
+  options.initializeLocalStorage = typeof options.initializeLocalStorage === 'undefined' ? false : options.initializeLocalStorage;
   options.sentry = typeof options.sentry === 'undefined' ? true : options.sentry;
   options.reportErrorsInDev = typeof options.reportErrorsInDev === 'undefined' ? false : options.reportErrorsInDev;
   options.firebaseConfig = options.firebaseConfig;
@@ -365,7 +365,7 @@ Manager.prototype.init = function (exporter, options) {
   }
 
   // Setup LocalDatabase
-  if (options.setupLocalDatabase) {
+  if (options.initializeLocalStorage) {
     self.storage();
   }
 
