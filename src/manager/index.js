@@ -15,6 +15,10 @@ function Manager(exporter, options) {
   self.libraries = {};
   self.handlers = {};
 
+  self._internal = {
+    storage: {},
+  };
+
   return self;
 }
 
@@ -362,21 +366,7 @@ Manager.prototype.init = function (exporter, options) {
 
   // Setup LocalDatabase
   if (options.setupLocalDatabase) {
-    const low = require('lowdb');
-    const FileSync = require('lowdb/adapters/FileSync');
-    // const dbPath = path.resolve(process.cwd(), './.data/db.json');
-    const dbPath = './.data/db.json';
-    const adapter = new FileSync(dbPath);
-    const jetpack = require('fs-jetpack');
-
-    try {
-      if (!jetpack.exists(dbPath)) {
-        jetpack.write(dbPath, {});
-      }
-      self.libraries.localDatabase = low(adapter);
-    } catch (e) {
-      console.error('Could not load .data', e);
-    }
+    self.storage();
   }
 
   return self;
@@ -476,6 +466,49 @@ Manager.prototype.ApiManager = function () {
   const self = this;
   self.libraries.ApiManager = self.libraries.ApiManager || require('./helpers/api-manager.js');
   return new self.libraries.ApiManager(self, ...arguments);
+};
+
+Manager.prototype.storage = function (options) {
+  const self = this;
+  options = options || {};
+  options.name = options.name || 'main';
+
+  if (!self._internal.storage[options.name]) {
+    const low = require('lowdb');
+    const FileSync = require('lowdb/adapters/FileSync');
+    const dbPath = `./.data/${options.name}.json`;
+    const adapter = new FileSync(dbPath);
+    const jetpack = require('fs-jetpack');
+
+    options.clearInvalid = typeof options.clearInvalid === 'undefined'
+      ? true
+      : options.clearInvalid;
+
+    function _setup() {
+      if (!jetpack.exists(dbPath)) {
+        jetpack.write(dbPath, {});
+      }
+      self._internal.storage[options.name] = low(adapter);
+    }
+
+    try {
+      _setup()
+    } catch (e) {
+      console.error(`Could not storage: ${dbPath}`, e);
+
+      try {
+        if (options.clearInvalid) {
+          console.log(`Clearing invalud storage: ${dbPath}`);
+          jetpack.write(dbPath, {});
+        }
+        _setup()
+      } catch (e) {
+        console.error(`Failed to clear invalid storage: ${dbPath}`, e);
+      }
+    }
+  }
+
+  return self._internal.storage[options.name]
 };
 
 // Manager.prototype.LocalDatabase = function () {
