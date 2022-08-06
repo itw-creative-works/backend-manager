@@ -19,6 +19,8 @@ function Manager(exporter, options) {
     storage: {},
   };
 
+  // self.isDevelopment = false;
+
   return self;
 }
 
@@ -36,6 +38,7 @@ Manager.prototype.init = function (exporter, options) {
   options.setupFunctions = typeof options.setupFunctions === 'undefined' ? true : options.setupFunctions;
   options.setupFunctionsLegacy = typeof options.setupFunctionsLegacy === 'undefined' ? true : options.setupFunctionsLegacy;
   options.initializeLocalStorage = typeof options.initializeLocalStorage === 'undefined' ? false : options.initializeLocalStorage;
+  options.resourceZone = typeof options.resourceZone === 'undefined' ? 'us-central1' : options.resourceZone;
   options.sentry = typeof options.sentry === 'undefined' ? true : options.sentry;
   options.reportErrorsInDev = typeof options.reportErrorsInDev === 'undefined' ? false : options.reportErrorsInDev;
   options.firebaseConfig = options.firebaseConfig;
@@ -70,7 +73,9 @@ Manager.prototype.init = function (exporter, options) {
 
   // Set properties
   self.options = options;
-  self.project = options.firebaseConfig || JSON.parse(process.env.FIREBASE_CONFIG);
+  self.project = options.firebaseConfig || JSON.parse(process.env.FIREBASE_CONFIG || '{}');
+  self.project.resourceZone = options.resourceZone;
+
   self.cwd = process.cwd();
   self.package = resolveProjectPackage();
   self.config = merge(
@@ -78,9 +83,16 @@ Manager.prototype.init = function (exporter, options) {
     self.libraries.functions.config()
   );
 
+  // Init assistant
   self.assistant = self.Assistant().init(undefined, options.assistant);
 
   process.env.ENVIRONMENT = !process.env.ENVIRONMENT ? self.assistant.meta.environment : process.env.ENVIRONMENT;
+
+  // set more properties (need to wait for assistant to determine if DEV)
+  self.project.functionsUrl = self.assistant.meta.environment === 'development'
+    ? `http://localhost:5001/${self.project.projectId}/${self.project.resourceZone}`
+    : `https://${self.project.resourceZone}-${self.project.projectId}.cloudfunctions.net`;
+
 
   // Use the working Firebase logger that they disabled for whatever reason
   if (self.assistant.meta.environment !== 'development' && options.useFirebaseLogger) {

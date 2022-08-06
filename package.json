@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "2.3.20",
+  "version": "2.4.0",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -27,11 +27,11 @@
   },
   "homepage": "https://itwcreativeworks.com",
   "dependencies": {
-    "@firebase/rules-unit-testing": "^2.0.3",
+    "@firebase/rules-unit-testing": "^2.0.4",
     "@google-cloud/storage": "^5.20.5",
     "@sendgrid/mail": "^7.7.0",
     "@sentry/node": "^6.19.7",
-    "backend-assistant": "^0.0.67",
+    "backend-assistant": "^0.0.71",
     "busboy": "^1.6.0",
     "chalk": "^4.1.2",
     "cors": "^2.8.5",
@@ -42,6 +42,7 @@
     "hcaptcha": "^0.1.1",
     "inquirer": "^8.2.4",
     "json5": "^2.2.1",
+    "jwt-decode": "^3.1.2",
     "lodash": "^4.17.21",
     "lowdb": "^1.0.0",
     "mailchimp-api-v3": "^1.15.0",

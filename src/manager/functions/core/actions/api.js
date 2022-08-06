@@ -33,6 +33,7 @@ Module.prototype.init = function (Manager, data) {
 
 Module.prototype.main = function() {
   const self = this;
+  const Manager = self.Manager;
   const libraries = self.libraries;
   const assistant = self.assistant;
   const req = self.req;
@@ -45,6 +46,7 @@ Module.prototype.main = function() {
     const resolved = self.resolveCommand(self.payload.data.command);
 
     self.assistant.log(`Executing: ${resolved.command}`, self.payload, JSON.stringify(self.payload), {environment: 'production'})
+    self.assistant.log(`Resolved URL: ${Manager.project.functionsUrl}?command=${encodeURIComponent(resolved.command)}&payload=${encodeURIComponent(JSON.stringify(self.assistant.request.data.payload))}`, {environment: 'development'})
 
     if (!resolved.exists) {
       self.payload.response.status = 400;
@@ -61,6 +63,7 @@ Module.prototype.main = function() {
             // console.log('---self.payload.response.data', self.payload.response.data);
             self.payload.response.status = result.status || self.payload.response.status || 200;
             self.payload.response.data = result.data || self.payload.response.data || {};
+            self.payload.response.redirect = result.redirect || self.payload.response.redirect || null;
           })
           .catch(e => {
             self.payload.response.status = e.code || 500;
@@ -77,13 +80,22 @@ Module.prototype.main = function() {
       })
     }
 
-    if (self.payload.response.status === 200) {
-      self.assistant.log(`Finished: ${resolved.command}`, self.payload, JSON.stringify(self.payload), {environment: 'production'})
-      return res.status(self.payload.response.status).json(self.payload.response.data);
+    self.payload.response.status = _fixStatus(self.payload.response.status);
+
+    res.status(self.payload.response.status)
+
+    if (self.payload.response.status >= 200 && self.payload.response.status < 300) {
+      self.assistant.log(`Finished ${resolved.command} (status=${self.payload.response.status})`, self.payload, JSON.stringify(self.payload), {environment: 'production'})
+
+      if (self.payload.response.redirect) {
+        return res.redirect(self.payload.response.redirect);
+      } else {
+        return res.json(self.payload.response.data);
+      }
     } else {
-      console.error(`Error executing ${resolved.command} @ ${resolved.path}`, self.payload.response.error)
-      // return res.status(self.payload.response.status).send(self.payload.response.error.message);
-      return res.status(self.payload.response.status).send(`${self.payload.response.error}`);
+      console.error(`Error executing ${resolved.command} @ ${resolved.path} (status=${self.payload.response.status}):`, self.payload.response.error)
+      // return res.send(self.payload.response.error.message);
+      return res.send(`${self.payload.response.error}`);
     }
   });
 }
@@ -251,5 +263,17 @@ Module.prototype.resolveUser = function (options) {
 
   });
 };
+
+function _fixStatus(status) {
+  if (typeof status === 'number') {
+    return status;
+  } else {
+    if (status === 'ok') {
+      return 200
+    } else {
+      return 500
+    }
+  }
+}
 
 module.exports = Module;
