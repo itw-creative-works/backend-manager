@@ -44,12 +44,14 @@ Module.prototype.main = function () {
 
       payload.data.payload.service = payload.data.payload.service || '';
       payload.data.payload.state = payload.data.payload.state || 'authorize'; // authorize, tokenize, deauthorize, refresh, get
+      payload.data.payload.redirect_uri = payload.data.payload.redirect_uri
+        ? payload.data.payload.redirect_uri
+        : `${Manager.config.brand.url}/authentication/account`;
 
       // payload.data.payload.parameters = payload.data.payload.parameters || {}
 
       // payload.data.payload.client_id = payload.data.payload.client_id;
       // payload.data.payload.scope = payload.data.payload.scope;
-      // payload.data.payload.redirect_uri = payload.data.payload.redirect_uri;
 
       let newUrl;
       const state = {
