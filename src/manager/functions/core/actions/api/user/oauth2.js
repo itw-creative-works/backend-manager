@@ -46,7 +46,7 @@ Module.prototype.main = function () {
       payload.data.payload.state = payload.data.payload.state || 'authorize'; // authorize, tokenize, deauthorize, refresh, get
       payload.data.payload.redirect_uri = payload.data.payload.redirect_uri
         ? payload.data.payload.redirect_uri
-        : `${Manager.config.brand.url}/authentication/account`;
+        : payload.data.payload.referrer;
 
       // payload.data.payload.parameters = payload.data.payload.parameters || {}
 
