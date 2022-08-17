@@ -15,7 +15,7 @@ Module.prototype.main = function () {
   const payload = self.payload;
 
   return new Promise(async function(resolve, reject) {
-    if (!payload.user.roles.admin) {
+    if (!payload.user.roles.admin && !payload.user.roles.blogger) {
       return reject(assistant.errorManager(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
     }
 

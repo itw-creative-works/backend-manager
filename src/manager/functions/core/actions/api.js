@@ -39,64 +39,70 @@ Module.prototype.main = function() {
   const req = self.req;
   const res = self.res;
 
-  return libraries.cors(req, res, async () => {
-    self.payload.data = assistant.request.data;
-    self.payload.user = await assistant.authenticate();
+  return new Promise(async function(resolve, reject) {
+    return libraries.cors(req, res, async () => {
+      self.payload.data = assistant.request.data;
+      self.payload.user = await assistant.authenticate();
 
-    const resolved = self.resolveCommand(self.payload.data.command);
+      const resolved = self.resolveCommand(self.payload.data.command);
 
-    self.assistant.log(`Executing: ${resolved.command}`, self.payload, JSON.stringify(self.payload), {environment: 'production'})
-    self.assistant.log(`Resolved URL: ${Manager.project.functionsUrl}?command=${encodeURIComponent(resolved.command)}&payload=${encodeURIComponent(JSON.stringify(self.assistant.request.data.payload))}`, {environment: 'development'})
+      self.assistant.log(`Executing: ${resolved.command}`, self.payload, JSON.stringify(self.payload), {environment: 'production'})
+      self.assistant.log(`Resolved URL: ${Manager.project.functionsUrl}?command=${encodeURIComponent(resolved.command)}&payload=${encodeURIComponent(JSON.stringify(self.assistant.request.data.payload))}`, {environment: 'development'})
 
-    if (!resolved.exists) {
-      self.payload.response.status = 400;
-      self.payload.response.error = new Error(`${self.payload.data.command} is not a valid command`);
-    } else {
-      await self.import(resolved.command)
-      .then(async lib => {
-        try {
-          // Call main function
-          await lib.main()
-          .then(result => {
-            result = result || {};
-            // console.log('---result', result);
-            // console.log('---self.payload.response.data', self.payload.response.data);
-            self.payload.response.status = result.status || self.payload.response.status || 200;
-            self.payload.response.data = result.data || self.payload.response.data || {};
-            self.payload.response.redirect = result.redirect || self.payload.response.redirect || null;
-          })
-          .catch(e => {
-            self.payload.response.status = e.code || 500;
-            self.payload.response.error = e || new Error('Unknown error occured');
-          })
-        } catch (e) {
-          self.payload.response.status = 500;
-          self.payload.response.error = e || new Error('Unknown error occured');
-        }
-      })
-      .catch(e => {
+      if (!resolved.exists) {
         self.payload.response.status = 400;
-        self.payload.response.error = new Error(`Failed to import: ${e}`);
-      })
-    }
-
-    self.payload.response.status = _fixStatus(self.payload.response.status);
-
-    res.status(self.payload.response.status)
-
-    if (self.payload.response.status >= 200 && self.payload.response.status < 300) {
-      self.assistant.log(`Finished ${resolved.command} (status=${self.payload.response.status})`, self.payload, JSON.stringify(self.payload), {environment: 'production'})
-
-      if (self.payload.response.redirect) {
-        return res.redirect(self.payload.response.redirect);
+        self.payload.response.error = new Error(`${self.payload.data.command} is not a valid command`);
       } else {
-        return res.json(self.payload.response.data);
+        await self.import(resolved.command)
+        .then(async lib => {
+          try {
+            // Call main function
+            await lib.main()
+            .then(result => {
+              result = result || {};
+              // console.log('---result', result);
+              // console.log('---self.payload.response.data', self.payload.response.data);
+              self.payload.response.status = result.status || self.payload.response.status || 200;
+              self.payload.response.data = result.data || self.payload.response.data || {};
+              self.payload.response.redirect = result.redirect || self.payload.response.redirect || null;
+            })
+            .catch(e => {
+              // console.log('---e', e);
+              self.payload.response.status = e.code || 500;
+              self.payload.response.error = e || new Error('Unknown error occured');
+            })
+          } catch (e) {
+            self.payload.response.status = 500;
+            self.payload.response.error = e || new Error('Unknown error occured');
+          }
+        })
+        .catch(e => {
+          self.payload.response.status = 400;
+          self.payload.response.error = new Error(`Failed to import: ${e}`);
+        })
       }
-    } else {
-      console.error(`Error executing ${resolved.command} @ ${resolved.path} (status=${self.payload.response.status}):`, self.payload.response.error)
-      // return res.send(self.payload.response.error.message);
-      return res.send(`${self.payload.response.error}`);
-    }
+
+      self.payload.response.status = _fixStatus(self.payload.response.status);
+
+      res.status(self.payload.response.status)
+
+      if (self.payload.response.status >= 200 && self.payload.response.status < 300) {
+        self.assistant.log(`Finished ${resolved.command} (status=${self.payload.response.status})`, self.payload, JSON.stringify(self.payload), {environment: 'production'})
+
+        if (self.payload.response.redirect) {
+          res.redirect(self.payload.response.redirect);
+          return resolve();
+        } else {
+          res.json(self.payload.response.data);
+          return resolve();
+        }
+      } else {
+        console.error(`Error executing ${resolved.command} @ ${resolved.path} (status=${self.payload.response.status}):`, self.payload.response.error)
+        // return res.send(self.payload.response.error.message);
+        res.send(`${self.payload.response.error}`)
+        return reject(self.payload.response.error);
+      }
+    });
   });
 }
 

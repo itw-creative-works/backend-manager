@@ -13,12 +13,9 @@ Module.prototype.main = function () {
 
     if (payload.user.roles.admin) {
 
-      // console.log('---payload.data.payload', payload.data.payload);
-
       payload.data.payload.path = `${payload.data.payload.path || ''}`;
       payload.data.payload.document = payload.data.payload.document || {};
       payload.data.payload.options = payload.data.payload.options || { merge: true };
-
 
       if (!payload.data.payload.path) {
         return reject(assistant.errorManager(`<path> parameter required`, {code: 400, sentry: false, send: false, log: false}).error)

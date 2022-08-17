@@ -8,9 +8,13 @@ Module.prototype.main = function () {
   const Api = self.Api;
   const assistant = self.assistant;
   const payload = self.payload;
+  const powertools = Manager.require('node-powertools');
 
   return new Promise(async function(resolve, reject) {
 
+    if (payload.data.payload.delay > 0) {
+      await powertools.wait(payload.data.payload.delay)
+    }
 
     if (payload.data.payload.status >= 200 && payload.data.payload.status <= 299) {
       return resolve({data: payload.data.payload.response, status: payload.data.payload.status});

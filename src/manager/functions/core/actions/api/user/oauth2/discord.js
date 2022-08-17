@@ -4,13 +4,14 @@ const fetch = require('wonderful-fetch')
 
 function OAuth2() {
   const self = this;
-  self.provider = 'google';
-  self.name = 'Google';
+  self.provider = 'discord';
+  self.name = 'Discord';
   self.urls = {
-    authorize: 'https://accounts.google.com/o/oauth2/v2/auth',
-    tokenize: 'https://oauth2.googleapis.com/token',
-    // status: 'https://oauth2.googleapis.com/tokeninfo?id_token={token}'
-    status: 'https://oauth2.googleapis.com/tokeninfo'
+    // var oauthURL = 'https://discord.com/api/oauth2/authorize?client_id=701375931918581810&redirect_uri=URL&response_type=code&scope=identify';
+
+    authorize: 'https://discord.com/api/oauth2/authorize',
+    tokenize: 'https://discord.com/api/oauth2/token',
+    status: ''
   }
 }
 
@@ -35,17 +36,33 @@ OAuth2.prototype.verifyIdentity = function (tokenizeResult) {
   const assistant = self.assistant;
 
   return new Promise(async function(resolve, reject) {
-    const decoded = decode(tokenizeResult.id_token);
 
-    // console.log('---decoded', decoded);
+    const identityResponse = await fetch('https://discord.com/api/users/@me', {
+      timeout: 60000,
+      response: 'json',
+      tries: 1,
+      log: true,
+      cacheBreaker: false,
+      headers: {
+        authorization: `${tokenizeResult.token_type} ${tokenizeResult.access_token}`,
+      },
+    })
+    .then(json => json)
+    .catch(e => e)
+
+    assistant.log('identityResponse', identityResponse, {environment: 'development'});
+
+    if (identityResponse instanceof Error) {
+      return reject(identityResponse);
+    }
 
     // Check if exists
     Manager.libraries.admin.firestore().collection(`users`)
-    .where(`oauth2.${self.provider}.identity.email`, '==', decoded.email)
+    .where(`oauth2.${self.provider}.identity.id`, '==', identityResponse.id)
     .get()
     .then(async (snap) => {
       if (snap.size === 0) {
-        return resolve(decoded);
+        return resolve(identityResponse);
       } else {
         return reject(new Error(`This ${self.name} account is already connected to a ${Manager.config.brand.name} account`));
       }

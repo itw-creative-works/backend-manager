@@ -22,5 +22,15 @@
   },
   "google_analytics": {
     "id": "UA-123456789-1"
+  },
+  "firebaseConfig": {
+    "apiKey": "123-456",
+    "authDomain": "PROJECT-ID.firebaseapp.com",
+    "databaseURL": "https://PROJECT-ID.firebaseio.com",
+    "projectId": "PROJECT-ID",
+    "storageBucket": "PROJECT-ID.appspot.com",
+    "messagingSenderId": "123",
+    "appId": "1:123:web:456",
+    "measurementId": "G-0123456789"    
   }
 }

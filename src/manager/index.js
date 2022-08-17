@@ -93,7 +93,6 @@ Manager.prototype.init = function (exporter, options) {
     ? `http://localhost:5001/${self.project.projectId}/${self.project.resourceZone}`
     : `https://${self.project.resourceZone}-${self.project.projectId}.cloudfunctions.net`;
 
-
   // Use the working Firebase logger that they disabled for whatever reason
   if (self.assistant.meta.environment !== 'development' && options.useFirebaseLogger) {
     require('firebase-functions/lib/logger/compat');
@@ -154,15 +153,9 @@ Manager.prototype.init = function (exporter, options) {
     exporter.bm_api =
     self.libraries.functions
     .runWith({memory: '256MB', timeoutSeconds: 60})
-    .https.onRequest(async (req, res) => {
-      const Module = (new (require(`${core}/actions/api.js`))()).init(self, { req: req, res: res, });
-
-      return self._preProcess(Module)
-      .then(r => Module.main())
-      .catch(e => {
-        self.assistant.error(e, {environment: 'production'});
-        return res.status(500).send(e.message);
-      });
+    .https
+    .onRequest(async (req, res) => {
+      return self._process((new (require(`${core}/actions/api.js`))()).init(self, { req: req, res: res, }))
     });
 
     if (options.setupFunctionsLegacy) {
@@ -338,45 +331,34 @@ Manager.prototype.init = function (exporter, options) {
     exporter.bm_authOnCreate =
     self.libraries.functions
     .runWith({memory: '256MB', timeoutSeconds: 60})
-    .auth.user().onCreate(async (user) => {
-      const Module = require(`${core}/events/auth/on-create.js`);
-      Module.init(self, { user: user });
-
-      return self._preProcess(Module)
-      .then(r => Module.main())
-      .catch(e => {
-        self.assistant.error(e, {environment: 'production'});
-      });
+    .auth.user()
+    .onCreate(async (user) => {
+      return self._process((new (require(`${core}/events/auth/on-create.js`))()).init(self, { user: user, }))
     });
 
     exporter.bm_authOnDelete =
     self.libraries.functions
     .runWith({memory: '256MB', timeoutSeconds: 60})
-    .auth.user().onDelete(async (user) => {
-      const Module = require(`${core}/events/auth/on-delete.js`);
-      Module.init(self, { user: user });
-
-      return self._preProcess(Module)
-      .then(r => Module.main())
-      .catch(e => {
-        self.assistant.error(e, {environment: 'production'});
-      });
+    .auth.user()
+    .onDelete(async (user) => {
+      return self._process((new (require(`${core}/events/auth/on-delete.js`))()).init(self, { user: user, }))
     });
 
     exporter.bm_subOnWrite =
     self.libraries.functions
     .runWith({memory: '256MB', timeoutSeconds: 60})
-    .firestore
-    .document('notifications/subscriptions/all/{token}')
+    .firestore.document('notifications/subscriptions/all/{token}')
     .onWrite(async (change, context) => {
-      const Module = require(`${core}/events/firestore/on-subscription.js`);
-      Module.init(self, { change: change, context: context, });
+      return self._process((new (require(`${core}/events/firestore/on-subscription.js`))()).init(self, { change: change, context: context, }))
+    });
 
-      return self._preProcess(Module)
-      .then(r => Module.main())
-      .catch(e => {
-        self.assistant.error(e, {environment: 'production'});
-      });
+    // Cron
+    exporter.bm_backup =
+    self.libraries.functions
+    .runWith({ memory: '256MB', timeoutSeconds: 60 })
+    .pubsub.schedule(get(self.config, 'backup.schedule', 'every 24 hours'))
+    .onRun(async (context) => {
+      return self._process((new (require(`${core}/cron/backup.js`))()).init(self, { context: context, }))
     });
   }
 
@@ -396,6 +378,46 @@ Manager.prototype.init = function (exporter, options) {
 };
 
 // HELPERS
+Manager.prototype._process = function (mod) {
+  const self = this;
+  const name = mod.assistant.meta.name;
+  const hook = self.handlers && self.handlers[name];
+  const req = mod.req;
+  const res = mod.res;
+
+  return new Promise(async function(resolve, reject) {
+    let error;
+
+    function _reject(e, log) {
+      if (log) {
+        // self.assistant.error(e, {environment: 'production'});
+        mod.assistant.errorManager(e, {code: 500, sentry: true, send: false, log: true});
+      }
+      // res.status(500).send(e.message);
+      return resolve()
+    }
+
+    // Run pre
+    if (hook) {
+      await hook(mod, 'pre').catch(e => {error = e});
+    }
+    if (error) { return _reject(error, true) }
+
+    // Run main
+    await mod.main().catch(e => {error = e});
+    if (error) { return _reject(error, false) }
+
+    // Run post
+    if (hook) {
+      await hook(mod, 'post').catch(e => {error = e});
+    }
+    if (error) { return _reject(error, true) }
+
+    // Fin
+    return resolve();
+  });
+};
+
 Manager.prototype._preProcess = function (mod) {
   const self = this;
   const name = mod.assistant.meta.name;
