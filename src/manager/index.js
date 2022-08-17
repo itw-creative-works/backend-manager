@@ -63,20 +63,14 @@ Manager.prototype.init = function (exporter, options) {
     Analytics: null,
   };
 
-  // Manager inner variables
-  // self._inner = {
-  //   ip: '',
-  //   country: '',
-  //   referrer: '',
-  //   userAgent: '',
-  // };
-
   // Set properties
+  self.cwd = process.cwd();
+
   self.options = options;
   self.project = options.firebaseConfig || JSON.parse(process.env.FIREBASE_CONFIG || '{}');
   self.project.resourceZone = options.resourceZone;
+  self.project.serviceAccountPath = path.resolve(self.cwd, options.serviceAccountPath)
 
-  self.cwd = process.cwd();
   self.package = resolveProjectPackage();
   self.config = merge(
     require(path.resolve(self.cwd, 'backend-manager-config.json')),
@@ -86,12 +80,12 @@ Manager.prototype.init = function (exporter, options) {
   // Init assistant
   self.assistant = self.Assistant().init(undefined, options.assistant);
 
-  process.env.ENVIRONMENT = !process.env.ENVIRONMENT ? self.assistant.meta.environment : process.env.ENVIRONMENT;
-
-  // set more properties (need to wait for assistant to determine if DEV)
+  // Set more properties (need to wait for assistant to determine if DEV)
   self.project.functionsUrl = self.assistant.meta.environment === 'development'
     ? `http://localhost:5001/${self.project.projectId}/${self.project.resourceZone}`
     : `https://${self.project.resourceZone}-${self.project.projectId}.cloudfunctions.net`;
+
+  process.env.ENVIRONMENT = !process.env.ENVIRONMENT ? self.assistant.meta.environment : process.env.ENVIRONMENT;
 
   // Use the working Firebase logger that they disabled for whatever reason
   if (self.assistant.meta.environment !== 'development' && options.useFirebaseLogger) {
@@ -137,7 +131,7 @@ Manager.prototype.init = function (exporter, options) {
       } else {
         self.libraries.initializedAdmin = self.libraries.admin.initializeApp({
           credential: self.libraries.admin.credential.cert(
-            require(path.resolve(self.cwd, options.serviceAccountPath))
+            require(self.project.serviceAccountPath)
           ),
           databaseURL: self.project.databaseURL,
         }, options.uniqueAppName);

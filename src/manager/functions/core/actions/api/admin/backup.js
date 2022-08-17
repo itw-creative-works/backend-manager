@@ -21,9 +21,13 @@ Module.prototype.main = function () {
     if (!payload.user.roles.admin) {
       return reject(assistant.errorManager(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
     } else {
-      const client = new self.libraries.admin.firestore.v1.FirestoreAdminClient({});
-      const projectId = self.Manager.project.projectId;
-      const resourceZone = self.Manager.project.resourceZone;
+      const client = new self.libraries.admin.firestore.v1.FirestoreAdminClient({
+        credential: Manager.libraries.admin.credential.cert(
+          require(Manager.project.serviceAccountPath)
+        ),
+      });
+      const projectId = Manager.project.projectId;
+      const resourceZone = Manager.project.resourceZone;
       const databaseName = client.databasePath(projectId, '(default)');
       const bucketName = `bm-backup-firestore-${projectId}`;
       const bucketAddress = `gs://${bucketName}`;
