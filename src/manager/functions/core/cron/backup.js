@@ -30,7 +30,7 @@ Module.prototype.main = function() {
       }
     })
     .then(response => {
-      assistant.log(`Successfully executed backup: ${response}`, {environment: 'production'})
+      assistant.log(`Successfully executed backup:`, response, {environment: 'production'})
       return resolve(response);
     })
     .catch(e => {
