@@ -71,7 +71,7 @@ Module.prototype._setMetaStats = function (error) {
   const payload = self.payload;
 
   return new Promise(async function(resolve, reject) {
-    error = error || false;
+    error = error || null;
     const isError = error instanceof Error;
 
     await self.libraries.admin.firestore().doc('meta/stats')
