@@ -21,10 +21,13 @@ Module.prototype.main = function () {
     if (!payload.user.roles.admin) {
       return reject(assistant.errorManager(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
     } else {
+      // https://googleapis.dev/nodejs/firestore/latest/v1.FirestoreAdminClient.html#exportDocuments
+      // https://firebase.google.com/docs/firestore/solutions/schedule-export#firebase-cli
+      // https://levelup.gitconnected.com/how-to-back-up-firestore-easily-and-automatically-eab6bf0d7e1f
       const client = new self.libraries.admin.firestore.v1.FirestoreAdminClient({
-        credential: Manager.libraries.admin.credential.cert(
-          require(Manager.project.serviceAccountPath)
-        ),
+        // credential: Manager.libraries.admin.credential.cert(
+        //   require(Manager.project.serviceAccountPath)
+        // ),
       });
       const projectId = Manager.project.projectId;
       const resourceZone = Manager.project.resourceZone;
@@ -51,7 +54,6 @@ Module.prototype.main = function () {
       .catch(e => {
         return reject(assistant.errorManager(e, {code: 500, sentry: false, send: false, log: true}).error)
       });
-
 
     }
   });

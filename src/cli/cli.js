@@ -259,6 +259,8 @@ Main.prototype.setup = async function () {
     throw new Error('Missing <engines.node> in package.json')
   }
 
+
+  // Tests
   await self.test('is a firebase project', async function () {
     let exists = jetpack.exists(`${self.firebaseProjectPath}/firebase.json`);
     return exists;
@@ -477,6 +479,15 @@ Main.prototype.setup = async function () {
     return !localIndexes_exists || equal
   }, NOFIX);
 
+  await self.test('add roles/datastore.importExportAdmin', async function () {
+    const result = await cmd_iamImportExport(self).catch(e => e);
+    return !(result instanceof Error);
+  }, NOFIX);
+
+  await self.test('set storage lifecycle policy', async function () {
+    const result = await cmd_setStorageLifecycle(self).catch(e => e);
+    return !(result instanceof Error);
+  }, NOFIX);
 
   // Update actual files
   await self.test('update firestore rules file', function () {
@@ -524,6 +535,12 @@ Main.prototype.setup = async function () {
     )
     return true;
   }, NOFIX);
+
+  // await self.test('add roles/datastore.importExportAdmin', function () {
+  //   const result = await cmd_iamImportExport(self);
+  //   console.log('---result', result);
+  //   return true;
+  // }, NOFIX);
 
   // await self.test('has mocha package.json script', function () {
   //   let script = _.get(self.package, 'scripts.test', '')
@@ -1191,6 +1208,44 @@ async function cmd_configUnset(self) {
   });
 }
 
+async function cmd_iamImportExport(self) {
+  return new Promise(function(resolve, reject) {
+    const command = `
+      gcloud projects add-iam-policy-binding {projectId} \
+          --member serviceAccount:{projectId}@appspot.gserviceaccount.com \
+          --role roles/datastore.importExportAdmin
+    `
+    .replace(/{projectId}/ig, self.projectName)
+
+    let cmd = exec(command, function (error, stdout, stderr) {
+      if (error) {
+        console.log(chalk.red(`Failed to run command`, error));
+        reject(error);
+      } else {
+        // console.log(chalk.green(`Added permission`));
+        resolve(stdout);
+      }
+    });
+  });
+}
+
+async function cmd_setStorageLifecycle(self) {
+  return new Promise(function(resolve, reject) {
+    const command = `gsutil lifecycle set {config} gs://{bucket}`
+      .replace(/{config}/ig, path.resolve(`${__dirname}/../../templates/storage-lifecycle-config.json`))
+      .replace(/{bucket}/ig, `us.artifacts.${self.projectName}.appspot.com`)
+
+    let cmd = exec(command, function (error, stdout, stderr) {
+      if (error) {
+        console.log(chalk.red(`Failed to run command`, error));
+        reject(error);
+      } else {
+        // console.log(chalk.green(`Added lifecycle`));
+        resolve(stdout);
+      }
+    });
+  });
+}
 
 // HELPER
 
