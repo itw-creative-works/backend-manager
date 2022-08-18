@@ -45,19 +45,56 @@ Module.prototype.main = function () {
         // or set to a list of collection IDs to export,
         collectionIds: []
       })
-      .then(responses => {
+      .then(async (responses) => {
+
+        await self._setMetaStats();
+
         const response = responses[0];
-        // assistant.log('Saved backup successfully', response['name'], {environment: 'development'})
         assistant.log('Saved backup successfully:', response.metadata.outputUriPrefix, {environment: 'development'})
         return resolve(response['name']);
       })
-      .catch(e => {
+      .catch(async (e) => {
+        await self._setMetaStats(e);
         return reject(assistant.errorManager(e, {code: 500, sentry: false, send: false, log: true}).error)
       });
 
     }
   });
 
+};
+
+Module.prototype._setMetaStats = function (error) {
+  const self = this;
+  const Manager = self.Manager;
+  const Api = self.Api;
+  const assistant = self.assistant;
+  const payload = self.payload;
+
+  return new Promise(async function(resolve, reject) {
+    error = error || false;
+    const isError = error instanceof Error;
+
+    await self.libraries.admin.firestore().doc('meta/stats')
+    .set({
+      backups: {
+        lastBackup: {
+          date: {
+            timestamp: assistant.meta.startTime.timestamp,
+            timestampUNIX: assistant.meta.startTime.timestampUNIX,
+          },
+          status: {
+            success: !isError,
+            error: error,
+          }
+        }
+      }
+    }, {merge: true})
+    .catch(e => {
+      assistant.errorManager(e, {code: 500, sentry: false, send: false, log: true});
+    })
+
+    return resolve();
+  });
 };
 
 Module.prototype.createBucket = function (bucketName, resourceZone) {
