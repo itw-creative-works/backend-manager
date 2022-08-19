@@ -57,13 +57,13 @@ service cloud.firestore {
     }
 
     function isWritingProtectedUserField() {
-      return isWritingField('firebase')
+      return isWritingField('auth')
       		|| isWritingField('roles')
           || isWritingField('plan')
           || isWritingField('affiliate')
           || isWritingField('api')
           || isWritingField('link')
-          || isWritingField('verifications')
+          || isWritingField('usage')
           || isWritingField('view');
     }
 
