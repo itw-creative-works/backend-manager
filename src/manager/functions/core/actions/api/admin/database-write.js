@@ -14,19 +14,22 @@ Module.prototype.main = function () {
     if (payload.user.roles.admin) {
 
       payload.data.payload.path = `${payload.data.payload.path || ''}`;
+      payload.data.payload.document = payload.data.payload.document || {};
       payload.data.payload.options = payload.data.payload.options || {};
 
       if (!payload.data.payload.path) {
         return reject(assistant.errorManager(`<path> parameter required`, {code: 400, sentry: false, send: false, log: false}).error)
       } else {
-        await self.libraries.admin.firestore().doc(payload.data.payload.path)
-        .get()
-        .then(doc => {
-          return resolve({data: doc.data()});
+
+        self.libraries.admin.database().ref(payload.data.payload.path)
+        .set(payload.data.payload.document)
+        .then(() => {
+          return resolve({data: payload.data.payload.document});
         })
-        .catch(e => {
+        .catch((e) => {
           return reject(assistant.errorManager(e, {code: 500, sentry: false, send: false, log: false}).error)
-        })
+        });        
+
       }
 
     } else {

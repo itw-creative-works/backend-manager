@@ -1,12 +1,13 @@
 // Libraries
 const path = require('path');
 const { get, merge } = require('lodash');
+const jetpack = require('fs-jetpack');
 // const { debug, log, error, warn } = require('firebase-functions/lib/logger');
 // let User;
 // let Analytics;
 
 
-function Manager(exporter, options) {
+  function Manager(exporter, options) {
   const self = this;
   // Constants
   self.SERVER_UUID = '11111111-1111-1111-1111-111111111111';
@@ -91,6 +92,30 @@ Manager.prototype.init = function (exporter, options) {
   if (self.assistant.meta.environment !== 'development' && options.useFirebaseLogger) {
     require('firebase-functions/lib/logger/compat');
   }
+
+  // Handle dev environments
+  if (self.assistant.meta.environment === 'development') {
+    const semverMajor = require('semver/functions/major')
+    const semverCoerce = require('semver/functions/coerce')
+    const semverUsing = semverMajor(semverCoerce(process.versions.node));
+    const semverRequired = semverMajor(semverCoerce(get(self.package, 'engines.node', '0.0.0')));
+
+    // Fix firebase-tools overwriting console.log
+    // https://stackoverflow.com/questions/56026747/firebase-console-log-on-localhost
+    if (process.env.GCLOUD_PROJECT) {
+      function logFix() {
+        console.error(...arguments);
+      }
+      console.log = logFix;
+      console.info = logFix;   
+    }    
+
+    // Reject if package.json does not exist
+    if (semverUsing !== semverRequired) {
+      console.error(new Error(`Node.js version mismatch: using ${semverUsing} but asked for ${semverRequired}`));
+      return process.exit(1);
+    }
+  }  
 
   if (options.log) {
     self.assistant.log('process.env', process.env, {environment: 'production'})
@@ -517,7 +542,6 @@ Manager.prototype.storage = function (options) {
     const FileSync = require('lowdb/adapters/FileSync');
     const dbPath = `./.data/${options.name}.json`;
     const adapter = new FileSync(dbPath);
-    const jetpack = require('fs-jetpack');
 
     options.clearInvalid = typeof options.clearInvalid === 'undefined'
       ? true
