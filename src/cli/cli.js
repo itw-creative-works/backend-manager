@@ -477,7 +477,7 @@ Main.prototype.setup = async function () {
     jetpack.remove(`${self.firebaseProjectPath}/${tempPath}`)
 
     return !localIndexes_exists || equal
-  }, NOFIX);
+  }, fix_indexesSync);
 
   await self.test('add roles/datastore.importExportAdmin', async function () {
     const result = await cmd_iamImportExport(self).catch(e => e);
@@ -892,6 +892,29 @@ function fix_remoteconfigTemplate(self) {
     _.set(self.firebaseJSON, 'remoteconfig.template', self.remoteconfigJSONExists ? 'remoteconfig.template.json' : '')
     jetpack.write(`${self.firebaseProjectPath}/firebase.json`, JSON.stringify(self.firebaseJSON, null, 2));
     resolve();
+  });
+};
+
+function fix_indexesSync(self) {
+  return new Promise(function(resolve, reject) {
+    inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'replace',
+        message: 'Would you like to replace the local indexes?',
+        default: true,
+      }
+    ])
+    .then(async (answer) => {
+      if (answer.replace) {
+        cmd_indexesGet(self, undefined, true)
+        .then(r => {
+          return resolve();
+        })
+      } else {
+        return reject();
+      }
+    })    
   });
 };
 
