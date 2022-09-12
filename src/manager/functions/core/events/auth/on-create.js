@@ -1,26 +1,32 @@
-let Module = {
-  init: async function (Manager, data) {
-    this.Manager = Manager;
-    this.libraries = Manager.libraries;
-    this.assistant = Manager.Assistant();
-    this.user = data.user
+function Module() {
+  const self = this;
+}
 
-    return this;
-  },
-  main: async function() {
-    let self = this;
-    let libraries = self.libraries;
-    let assistant = self.assistant;
-    let user = self.user;
+Module.prototype.init = function (Manager, payload) {
+  const self = this;
+  self.Manager = Manager;
+  self.libraries = Manager.libraries;
+  self.assistant = Manager.Assistant();
+  self.user = payload.user
 
-    let newUser = self.Manager.User({
+  return self;  
+};
+
+Module.prototype.main = function () {
+  const self = this;
+  const libraries = self.libraries;
+  const assistant = self.assistant;
+  const user = self.user;
+
+  return new Promise(async function(resolve, reject) {
+    const newUser = self.Manager.User({
       auth: {
         uid: user.uid,
         email: user.email,
       }
     });
 
-    let analytics = self.Manager.Analytics({
+    const analytics = self.Manager.Analytics({
       assistant: assistant,
       uuid: user.uid,
     })
@@ -56,7 +62,8 @@ let Module = {
       })
 
     assistant.log('User created:', user, {environment: 'production'});
-  },
-}
+    return resolve(self);      
+  });
+};
 
 module.exports = Module;

@@ -28,6 +28,10 @@ Module.prototype.init = function (Manager, data) {
   self.assistant.request.data.command = resolved.command;
   self.assistant.request.data.payload = self.assistant.request.data.payload || {};
 
+  if (Manager.options.log) {
+    self.assistant.log(`Executing (log): ${resolved.command}`, self.assistant.request, JSON.stringify(self.assistant.request), {environment: 'production'})
+  }
+
   return self;
 }
 
@@ -43,6 +47,10 @@ Module.prototype.main = function() {
     return libraries.cors(req, res, async () => {
       self.payload.data = assistant.request.data;
       self.payload.user = await assistant.authenticate();
+
+      if (self.assistant.request.method === 'OPTIONS') {
+        return resolve();
+      }
 
       const resolved = self.resolveCommand(self.payload.data.command);
 

@@ -1,27 +1,34 @@
-let Module = {
-  init: async function (Manager, data) {
-    this.Manager = Manager;
-    this.libraries = Manager.libraries;
-    this.assistant = Manager.Assistant();
-    this.change = data.change
-    this.context = data.context
+function Module() {
+  const self = this;
+}
 
-    return this;
-  },
-  main: async function() {
-    let self = this;
-    let libraries = self.libraries;
-    let assistant = self.assistant;
-    let change = self.change;
-    let context = self.context;
+Module.prototype.init = function (Manager, payload) {
+  const self = this;
+  self.Manager = Manager;
+  self.libraries = Manager.libraries;
+  self.assistant = Manager.Assistant();
+  self.change = payload.change
+  self.context = payload.context
 
-    let _ = self.Manager.require('lodash');
+  return self;  
+};
+
+Module.prototype.main = function () {
+  const self = this;
+  const libraries = self.libraries;
+  const assistant = self.assistant;
+  const change = self.change;
+  const context = self.context;  
+  
+  return new Promise(async function(resolve, reject) {
+    const _ = self.Manager.require('lodash');
+
+    const dataBefore = change.before.data();
+    const dataAfter = change.after.data();
 
     let analytics;
-
-    let dataBefore = change.before.data();
-    let dataAfter = change.after.data();
     let eventType;
+
     if (dataAfter == undefined) {
       eventType = 'delete';
     } else if (dataBefore && dataAfter) {
@@ -54,15 +61,19 @@ let Module = {
             action: 'notification-unsubscribe',
             // label: 'regular',
           });
+
           assistant.log('Notification subscription deleted:', dataBefore, {environment: 'production'});
+
+          return resolve(dataBefore);
         })
         .catch(e => {
           assistant.error(e, {environment: 'production'});
+          return reject(e);
         })
 
     // Update event
   } else if (eventType === 'update') {
-      // ...
+    return resolve();
 
     // Create event
   } else if (eventType === 'create') {
@@ -82,13 +93,17 @@ let Module = {
           });
 
           assistant.log('Notification subscription created:', dataAfter, {environment: 'production'});
+
+          return resolve(dataAfter);
         })
         .catch(e => {
           assistant.error(e, {environment: 'production'});
+          return reject(e);
         })
     }
 
-  },
-}
+  });
+};
+
 
 module.exports = Module;
