@@ -11,13 +11,13 @@ const path = require('path');
 const chalk = require('chalk');
 const _ = require('lodash');
 const log = console.log;
-let NpmApi = require('npm-api');
+const Npm = require('npm-api');
 const semver = require('semver');
-let inquirer = require('inquirer');
+const inquirer = require('inquirer');
 const { spawn } = require('child_process');
-let argv = require('yargs').argv;
 const JSON5 = require('json5');
-const fetch = require('node-fetch');
+const fetch = require('wonderful-fetch');
+const argv = require('yargs').argv;
 
 // function parseArgumentsIntoOptions(rawArgs) {
 //   const args = arg(
@@ -252,8 +252,9 @@ Main.prototype.setup = async function () {
   // tests
   self.projectName = self.firebaseRC.projects.default;
   self.projectUrl = `https://console.firebase.google.com/project/${self.projectName}`;
-  log(chalk.black(`Id: `, chalk.bold(`${self.projectName}`)));
-  log(chalk.black(`Url:`, chalk.bold(`${self.projectUrl}`)));
+  
+  log(`Id: `, chalk.bold(`${self.projectName}`));
+  log(`Url:`, chalk.bold(`${self.projectUrl}`));
 
   if (!self.package || !self.package.engines || !self.package.engines.node) {
     throw new Error('Missing <engines.node> in package.json')
@@ -566,29 +567,13 @@ Main.prototype.setup = async function () {
   // const prepareStatsURL = `https://us-central1-${_.get(self.firebaseRC, 'projects.default')}.cloudfunctions.net/bm_api?authenticationToken=undefined`;
   const statsFetchResult = await fetch(prepareStatsURL, {
     method: 'post',
-    body: JSON.stringify({
+    timeout: 10000,
+    response: 'json',
+    body: {
       command: 'admin:get-stats',
-    }),
-    timeout: 3000,
+    },
   })
-  .then(async (res) => {
-    if (!res.ok) {
-      return res.text()
-        .then(data => {
-          throw new Error(data || res.statusText || 'Unknown error.');
-        })
-        .catch(e => e)
-    } else {
-      return res.text()
-      .then(data => {
-        try {
-          return JSON5.parse(data);
-        } catch (e) {
-          return e;
-        }
-      })
-    }
-  })
+  .then(json => json)
   .catch(e => e);
 
   if (statsFetchResult instanceof Error) {
@@ -659,7 +644,7 @@ Main.prototype.test = async function(name, fn, fix, args) {
       status = chalk.red('failed');
       self.testTotal++;
     }
-    log(chalk.black.bold(`[${self.testTotal}]`), chalk.black(`${name}:`), status);
+    log(chalk.bold(`[${self.testTotal}]`), `${name}:`, status);
     if (!passed) {
       log(chalk.yellow(`Fixing...`));
       fix(self, args)
@@ -1060,7 +1045,7 @@ function fix_firebaseHosting(self) {
 
 function getPkgVersion(package) {
   return new Promise(async function(resolve, reject) {
-    let npm = new NpmApi();
+    let npm = new Npm();
     npm.repo(package)
     .package()
       .then(function(pkg) {
