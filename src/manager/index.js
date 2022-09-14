@@ -112,7 +112,7 @@ Manager.prototype.init = function (exporter, options) {
 
     // Reject if package.json does not exist
     if (semverUsing !== semverRequired) {
-      console.error(new Error(`Node.js version mismatch: using ${semverUsing} but asked for ${semverRequired}`));
+      self.assistant.error(new Error(`Node.js version mismatch: using ${semverUsing} but asked for ${semverRequired}`), {environment: 'production'});
       return process.exit(1);
     }
   }  
@@ -133,7 +133,7 @@ Manager.prototype.init = function (exporter, options) {
       release: sentryRelease,
       beforeSend(event, hint) {
         if (self.assistant.meta.environment === 'development' && !self.options.reportErrorsInDev) {
-          self.assistant.error('Skipping Sentry because DEV')
+          self.assistant.error(new Error('Skipping Sentry because DEV'), {environment: 'production'})
           return null;
         }
         event.tags = event.tags || {};
@@ -162,7 +162,7 @@ Manager.prototype.init = function (exporter, options) {
         }, options.uniqueAppName);
       }
     } catch (e) {
-      console.error('Failed to call .initializeApp()', e);
+      self.assistant.error('Failed to call .initializeApp()', e, {environment: 'production'});
     }
     // admin.firestore().settings({/* your settings... */ timestampsInSnapshots: true})
   }
@@ -372,12 +372,12 @@ Manager.prototype.init = function (exporter, options) {
     });
 
     // Cron
-    exporter.bm_backup =
+    exporter.bm_cronDaily =
     self.libraries.functions
     .runWith({ memory: '256MB', timeoutSeconds: 60 })
-    .pubsub.schedule(get(self.config, 'backup.schedule', 'every 24 hours'))
+    .pubsub.schedule('every 24 hours')
     .onRun(async (context) => {
-      return self._process((new (require(`${core}/cron/backup.js`))()).init(self, { context: context, }))
+      return self._process((new (require(`${core}/cron/daily.js`))()).init(self, { context: context, }))
     });
   }
 
@@ -385,7 +385,7 @@ Manager.prototype.init = function (exporter, options) {
   try {
     require('dotenv').config();
   } catch (e) {
-    console.error('Failed to set up environment variables from .env file');
+    self.assistant.error(new Error('Failed to set up environment variables from .env file'), {environment: 'production'});
   }
 
   // Setup LocalDatabase
@@ -566,16 +566,16 @@ Manager.prototype.storage = function (options) {
     try {
       _setup()
     } catch (e) {
-      console.error(`Could not storage: ${dbPath}`, e);
+      self.assistant.error(`Could not setup storage: ${dbPath}`, e, {environment: 'production'});
 
       try {
         if (options.clearInvalid) {
-          console.log(`Clearing invalud storage: ${dbPath}`);
+          self.assistant.log(`Clearing invalid storage: ${dbPath}`, {environment: 'production'});
           jetpack.write(dbPath, {});
         }
         _setup()
       } catch (e) {
-        console.error(`Failed to clear invalid storage: ${dbPath}`, e);
+        self.assistant.error(`Failed to clear invalid storage: ${dbPath}`, e, {environment: 'production'});
       }
     }
   }
