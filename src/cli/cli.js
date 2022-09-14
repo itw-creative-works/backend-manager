@@ -569,7 +569,7 @@ Main.prototype.setup = async function () {
 
   const statsFetchResult = await fetch(self.bemApiURL, {
     method: 'post',
-    timeout: 10000,
+    timeout: 30000,
     response: 'json',
     body: {
       command: 'admin:get-stats',
@@ -909,7 +909,7 @@ function fix_setStoragePolicy(self) {
   return new Promise(function(resolve, reject) {
     fetch(self.bemApiURL, {
       method: 'post',
-      timeout: 10000,
+      timeout: 30000,
       response: 'json',
       body: {
         command: 'admin:backup',
