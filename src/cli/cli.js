@@ -252,6 +252,11 @@ Main.prototype.setup = async function () {
   // tests
   self.projectName = self.firebaseRC.projects.default;
   self.projectUrl = `https://console.firebase.google.com/project/${self.projectName}`;
+
+  self.bemApiURL = `https://us-central1-${_.get(self.firebaseRC, 'projects.default')}.cloudfunctions.net/bm_api?authenticationToken=${_.get(self.runtimeConfigJSON, 'backend_manager.key')}`;
+  // const prepareStatsURL = `https://us-central1-${_.get(self.firebaseRC, 'projects.default')}.cloudfunctions.net/bm_api?authenticationToken=undefined`;
+  
+
   
   log(`Id: `, chalk.bold(`${self.projectName}`));
   log(`Url:`, chalk.bold(`${self.projectUrl}`));
@@ -488,7 +493,7 @@ Main.prototype.setup = async function () {
   await self.test('set storage lifecycle policy', async function () {
     const result = await cmd_setStorageLifecycle(self).catch(e => e);
     return !(result instanceof Error);
-  }, NOFIX);
+  }, fix_setStoragePolicy);
 
   // Update actual files
   await self.test('update firestore rules file', function () {
@@ -562,10 +567,7 @@ Main.prototype.setup = async function () {
     console.log('\n');
   }
 
-
-  const prepareStatsURL = `https://us-central1-${_.get(self.firebaseRC, 'projects.default')}.cloudfunctions.net/bm_api?authenticationToken=${_.get(self.runtimeConfigJSON, 'backend_manager.key')}`;
-  // const prepareStatsURL = `https://us-central1-${_.get(self.firebaseRC, 'projects.default')}.cloudfunctions.net/bm_api?authenticationToken=undefined`;
-  const statsFetchResult = await fetch(prepareStatsURL, {
+  const statsFetchResult = await fetch(self.bemApiURL, {
     method: 'post',
     timeout: 10000,
     response: 'json',
@@ -900,6 +902,27 @@ function fix_indexesSync(self) {
         return reject();
       }
     })    
+  });
+};
+
+function fix_setStoragePolicy(self) {
+  return new Promise(function(resolve, reject) {
+    fetch(self.bemApiURL, {
+      method: 'post',
+      timeout: 10000,
+      response: 'json',
+      body: {
+        command: 'admin:backup',
+      },
+    })
+    .then(json => {
+      console.log('Response', json);
+      return resolve();
+    })
+    .catch(e => {
+      console.error(chalk.red(`There is no automatic fix. Please run: \n${chalk.bold('firebase deploy && npx bm setup')}`));
+      return reject();
+    });    
   });
 };
 
