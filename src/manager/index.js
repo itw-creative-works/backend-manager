@@ -2,6 +2,7 @@
 const path = require('path');
 const { get, merge } = require('lodash');
 const jetpack = require('fs-jetpack');
+const JSON5 = require('json5');
 // const { debug, log, error, warn } = require('firebase-functions/lib/logger');
 // let User;
 // let Analytics;
@@ -45,6 +46,7 @@ Manager.prototype.init = function (exporter, options) {
   options.firebaseConfig = options.firebaseConfig;
   options.useFirebaseLogger = typeof options.useFirebaseLogger === 'undefined' ? true : options.useFirebaseLogger;
   options.serviceAccountPath = typeof options.serviceAccountPath === 'undefined' ? 'service-account.json' : options.serviceAccountPath;
+  options.backendManagerConfigPath = typeof options.backendManagerConfigPath === 'undefined' ? 'backend-manager-config.json' : options.backendManagerConfigPath;
   options.uniqueAppName = options.uniqueAppName || undefined;
   options.assistant = options.assistant || {};
   // options.assistant.optionsLogString = options.assistant.optionsLogString || undefined;
@@ -71,10 +73,11 @@ Manager.prototype.init = function (exporter, options) {
   self.project = options.firebaseConfig || JSON.parse(process.env.FIREBASE_CONFIG || '{}');
   self.project.resourceZone = options.resourceZone;
   self.project.serviceAccountPath = path.resolve(self.cwd, options.serviceAccountPath)
-
+  self.project.backendManagerConfigPath = path.resolve(self.cwd, options.backendManagerConfigPath)
+  
   self.package = resolveProjectPackage();
   self.config = merge(
-    require(path.resolve(self.cwd, 'backend-manager-config.json')),
+    requireJSON5(self.project.backendManagerConfigPath),
     self.libraries.functions.config()
   );
 
@@ -119,6 +122,8 @@ Manager.prototype.init = function (exporter, options) {
 
   if (options.log) {
     self.assistant.log('process.env', process.env, {environment: 'production'})
+    console.log('Resolved serviceAccountPath', self.project.serviceAccountPath);
+    console.log('Resolved backendManagerConfigPath', self.project.backendManagerConfigPath);
   }
 
   // Setup sentry
@@ -154,13 +159,19 @@ Manager.prototype.init = function (exporter, options) {
       if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
         self.libraries.initializedAdmin = self.libraries.admin.initializeApp();
       } else {
+        const serviceAccount = require(self.project.serviceAccountPath);
         self.libraries.initializedAdmin = self.libraries.admin.initializeApp({
-          credential: self.libraries.admin.credential.cert(
-            require(self.project.serviceAccountPath)
-          ),
+          credential: self.libraries.admin.credential.cert(serviceAccount),
           databaseURL: self.project.databaseURL,
         }, options.uniqueAppName);
+
+        // const loadedProjectId = get(self.libraries.initializedAdmin, 'options_.credential.projectId', null);   
+        const loadedProjectId = serviceAccount.project_id;   
+        if (!loadedProjectId || !loadedProjectId.includes(self.config.app.id)) {
+          self.assistant.error(`Loaded app may have wrong service account: ${loadedProjectId} =/= ${self.config.app.id}`, {environment: 'production'});
+        }        
       }
+
     } catch (e) {
       self.assistant.error('Failed to call .initializeApp()', e, {environment: 'production'});
     }
@@ -393,6 +404,18 @@ Manager.prototype.init = function (exporter, options) {
     self.storage();
   }
 
+  if (self.assistant.meta.environment === 'development') {
+    setTimeout(function () {
+      console.log('Fetching meta/stats...');
+      self.libraries.admin
+      .firestore().doc('meta/stats')
+      .get()
+      .then(doc => {
+        console.log('meta/stats', doc.data());
+      })         
+    }, 3000);
+  }
+
   return self;
 };
 
@@ -532,6 +555,12 @@ Manager.prototype.ApiManager = function () {
   return new self.libraries.ApiManager(self, ...arguments);
 };
 
+Manager.prototype.Utilities = function () {
+  const self = this;
+  self.libraries.Utilities = self.libraries.Utilities || require('./helpers/utilities.js');
+  return new self.libraries.Utilities(self, ...arguments);
+};
+
 Manager.prototype.storage = function (options) {
   const self = this;
   options = options || {};
@@ -629,6 +658,10 @@ function resolveProjectPackage() {
   try {
     return require(path.resolve(process.cwd(), 'package.json'));
   } catch (e) {}
+}
+
+function requireJSON5(p) {
+  return JSON5.parse(jetpack.read(p))
 }
 
 module.exports = Manager;

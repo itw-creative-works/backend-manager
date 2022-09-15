@@ -79,7 +79,9 @@ Module.prototype.updateStats = function (existingData) {
     const sessionsApp = self.libraries.admin.database().ref(`sessions/app`);
 
     let error = null;
-    let update = {};
+    let update = {
+      app: _.get(self.Manager.config, 'app.id', null),
+    };
 
     // Fix broken stats
     if (!_.get(existingData, 'users.total', null)) {
