@@ -5,7 +5,6 @@
 // https://www.sitepoint.com/javascript-command-line-interface-cli-node-js/
 // https://github.com/sitepoint-editors/ginit
 
-let exec = require('child_process').exec;
 const jetpack = require('fs-jetpack');
 const path = require('path');
 const chalk = require('chalk');
@@ -14,7 +13,7 @@ const log = console.log;
 const Npm = require('npm-api');
 const semver = require('semver');
 const inquirer = require('inquirer');
-const { spawn } = require('child_process');
+const { spawn, child, exec, fork } = require('child_process');
 const JSON5 = require('json5');
 const fetch = require('wonderful-fetch');
 const argv = require('yargs').argv;
@@ -87,6 +86,12 @@ Main.prototype.process = async function (args) {
     console.log('cwd: ', self.firebaseProjectPath);
   }
   if (self.options.setup) {
+    // console.log(`Running Setup`);
+    // console.log(`node:`, process.versions.node);
+    // console.log(`pwd:`, await execute('pwd').catch(e => e));
+    // console.log(`node:`, await execute('node --version').catch(e => e));
+    // console.log(`firebase-tools:`, await execute('firebase --version').catch(e => e));
+    // console.log('');
     await cmd_configGet(self).catch(e => log(chalk.red(`Failed to run config:get`)));
     await self.setup();
   }
@@ -1115,9 +1120,63 @@ async function cmd_indexesGet(self, filePath, log) {
   });
 }
 
+async function execute(command, cwd) {
+  cwd = cwd || process.cwd();
+  return new Promise(function(resolve, reject) {
+    exec(command, { cwd: cwd, stdio: 'inherit' })
+      .on('error', function(err) {
+        reject(err);
+      })
+      .on('close', function (one, two, three) {
+        console.log('===', one, two, three);
+        resolve()
+      })
+    // fork(command, function (error, stdout, stderr) {
+    //   if (error) {
+    //     reject(error);
+    //   } else {
+    //     resolve(stdout);
+    //   }
+    // });    
+
+  });
+}
+
+// async function execute(command, args, cwd) {
+//   cwd = cwd || process.cwd();
+//   return new Promise(function(resolve, reject) {
+//     spawn(command, args, { cwd: cwd, stdio: 'inherit' })
+//       .on('error', function(err) {
+//         reject(err);
+//       })
+//       .on('close', function (one, two, three) {
+//         console.log('===', one, two, three);
+//         resolve()
+//       })
+//     // fork(command, function (error, stdout, stderr) {
+//     //   if (error) {
+//     //     reject(error);
+//     //   } else {
+//     //     resolve(stdout);
+//     //   }
+//     // });    
+
+//   });
+// }
+
 async function cmd_configGet(self, filePath) {
   return new Promise(function(resolve, reject) {
     const finalPath = `${self.firebaseProjectPath}/${filePath || 'functions/.runtimeconfig.json'}`;
+    // execute(`firebase functions:config:get > ${finalPath}`)
+    // .then(r => {
+    //   console.log(chalk.green(`Saving config to: ${finalPath}`));
+    //   console.log(r);
+    //   resolve(require(finalPath));
+    // })
+    // .catch(e => {
+    //   console.error(e);
+    //   reject(e);
+    // })
     let cmd = exec(`firebase functions:config:get > ${finalPath}`, function (error, stdout, stderr) {
       if (error) {
         console.error(error);
