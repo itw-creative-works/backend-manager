@@ -15,10 +15,20 @@ Utilities.prototype.iterateCollection = function (callback, options) {
     options = options || {};
     options.collection = options.collection || '';
     options.batchSize = options.batchSize || 1000;
+    options.orderBy = options.orderBy || null;
+    options.startAt = options.startAt || null;
     options.log = options.log;
 
     function listAllDocuments(nextPageToken) {
       let query = admin.firestore().collection(options.collection)
+
+      if (options.orderBy) {
+        query = query.orderBy(options.orderBy);
+      }
+
+      if (batch === -1 && options.startAt) {
+        query = query.startAt(options.startAt);
+      }
 
       // Start at next page
       if (nextPageToken) {

@@ -47,6 +47,7 @@ Manager.prototype.init = function (exporter, options) {
   options.useFirebaseLogger = typeof options.useFirebaseLogger === 'undefined' ? true : options.useFirebaseLogger;
   options.serviceAccountPath = typeof options.serviceAccountPath === 'undefined' ? 'service-account.json' : options.serviceAccountPath;
   options.backendManagerConfigPath = typeof options.backendManagerConfigPath === 'undefined' ? 'backend-manager-config.json' : options.backendManagerConfigPath;
+  options.fetchStats = typeof options.fetchStats === 'undefined' ? true : options.fetchStats;
   options.uniqueAppName = options.uniqueAppName || undefined;
   options.assistant = options.assistant || {};
   // options.assistant.optionsLogString = options.assistant.optionsLogString || undefined;
@@ -404,7 +405,7 @@ Manager.prototype.init = function (exporter, options) {
     self.storage();
   }
 
-  if (self.assistant.meta.environment === 'development') {
+  if (self.assistant.meta.environment === 'development' && options.fetchStats) {
     setTimeout(function () {
       console.log('Fetching meta/stats...');
       self.libraries.admin
