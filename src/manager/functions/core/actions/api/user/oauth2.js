@@ -1,6 +1,6 @@
 const _ = require('lodash')
 const fetch = require('wonderful-fetch');
-const powertools = require('node-powertools');
+const { arrayify } = require('node-powertools');
 
 function Module() {
 
