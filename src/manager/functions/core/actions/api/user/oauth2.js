@@ -93,7 +93,7 @@ Module.prototype.main = function () {
             }
             newUrl.searchParams.set('state', JSON.stringify(state));
             newUrl.searchParams.set('client_id', client_id);
-            newUrl.searchParams.set('scope', arrayify(payload.data.payload.scope)).join(' ');
+            newUrl.searchParams.set('scope', arrayify(payload.data.payload.scope).join(' '));
             newUrl.searchParams.set('redirect_uri', self.ultimateJekyllOAuth2Url);
 
             newUrl.searchParams.set('access_type', typeof payload.data.payload.access_type === 'undefined' ? 'offline' : payload.data.payload.access_type)
