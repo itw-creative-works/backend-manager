@@ -562,6 +562,12 @@ Manager.prototype.Utilities = function () {
   return new self.libraries.Utilities(self, ...arguments);
 };
 
+Manager.prototype.Roles = function () {
+  const self = this;
+  self.libraries.Roles = self.libraries.Roles || require('./helpers/roles.js');
+  return new self.libraries.Roles(self, ...arguments);
+};
+
 Manager.prototype.storage = function (options) {
   const self = this;
   options = options || {};
