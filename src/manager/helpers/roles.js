@@ -45,7 +45,12 @@ Roles.prototype.list = function () {
       id: 'betaTester',
       name: 'Beta Tester',
       regex: /(^betatester$|^beta$)/ig,
-    },    
+    },
+    {
+      id: 'serverBooster',
+      name: 'Server Booster',
+      regex: /(^serverbooster$|^booster$)/ig,
+    },      
 
     // Vanity
     {
