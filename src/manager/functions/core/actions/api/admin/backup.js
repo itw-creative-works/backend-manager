@@ -36,7 +36,7 @@ Module.prototype.main = function () {
       const bucketAddress = `gs://${bucketName}`;
 
       await self.createBucket(bucketName, resourceZone);
-      await self.deleteOldFiles(bucketName, resourceZone);
+      // await self.deleteOldFiles(bucketName, resourceZone);
 
       client.exportDocuments({
         name: databaseName,
@@ -127,7 +127,86 @@ Module.prototype.createBucket = function (bucketName, resourceZone) {
 };
 
 // https://github.com/zsolt-dev/auto-delete-gcp-storage-backups/blob/master/index.js
-Module.prototype.deleteOldFiles = function (bucketName, resourceZone) {
+Module.prototype.__RETRY_deleteOldFiles = function (bucketName, resourceZone) {
+  const self = this;
+  const Manager = self.Manager;
+  const Api = self.Api;
+  const assistant = self.assistant;
+  const payload = self.payload;
+
+  return new Promise(async function(resolve, reject) {
+    const now = moment();
+    const deletionRegex = payload.data.payload.deletionRegex;
+
+    // Helpers
+    const getFileObjectWithMetaData = async (bucketName, fileName) => {
+      const [metaData] = await storage.bucket(bucketName).file(fileName).getMetadata();
+      return ({ fileName, created: metaData.timeCreated });
+    };
+
+    const deleteFileFromBucket = async (bucketName, fileName) => {
+      assistant.log(`Deleting item: ${fileName}...`, );
+      return await storage.bucket(bucketName).file(fileName).delete();
+    };
+
+    // Main
+    // get the file names as an array
+    let [allFiles] = await storage.bucket(bucketName).getFiles();
+    let deletePromises = [];
+    let foldersToDelete = [];
+    allFiles = allFiles.map(file => file.name);
+    // console.log(`all files: ${allFiles.join(', ')}`);
+
+    allFiles.forEach((filePath, i) => {
+      const fileName = filePath.split('/')[0];
+      const date = moment(fileName.split('T')[0]);
+      const day = date.date();
+      const month = date.month();
+      const age = now.diff(date, 'days', false);      
+      
+      if (age >= 30) {
+        if (day === 1) { return }
+        deletePromises.push(deleteFileFromBucket(bucketName, backup.fileName))
+        assistant.log(`Preparing to delete ${filePath}: date=${date.format('MMM Do, YYYY')}, day=${day}, month=${month}, age=${age}`, );
+        // if (!foldersToDelete.includes(fileName)) {
+        //   assistant.log(`Preparing to delete ${fileName}: date=${date.format('MMM Do, YYYY')}, day=${day}, month=${month}, age=${age}`, );
+        //   foldersToDelete = foldersToDelete.concat(fileName);
+        //   deletePromises.push(deleteFileFromBucket(bucketName, fileName))
+        // }
+      }
+    })
+
+    console.log('---deletePromises.length', deletePromises.length);
+
+    return
+
+    // transform to array of objects with creation timestamp { fileName: abc, created: xyz }
+    allFiles = allFiles.map(fileName => getFileObjectWithMetaData(bucketName, fileName));
+    allFiles = await Promise.all(allFiles);
+
+    allFiles.forEach((backup, i) => {
+      const date = moment(backup.created);
+      const day = date.date();
+      const month = date.month();
+      const age = now.diff(date, 'days', false);
+
+      assistant.log(`Sorting item ${i}: date=${date.format('MMM Do, YYYY')}, day=${day}, month=${month}, age=${age}`, );
+
+      if (age >= 31) {
+        if (day === 1) { return }
+        deletePromises.push(deleteFileFromBucket(bucketName, backup.fileName))
+      } else if ((deletionRegex && backup.fileName.match(deletionRegex))) {
+        deletePromises.push(deleteFileFromBucket(bucketName, backup.fileName))
+      }
+    })
+
+    await Promise.all(deletePromises);
+
+    return resolve();
+  });
+};
+
+Module.prototype.__deleteOldFiles = function (bucketName, resourceZone) {
   const self = this;
   const Manager = self.Manager;
   const Api = self.Api;

@@ -386,7 +386,7 @@ Manager.prototype.init = function (exporter, options) {
     // Cron
     exporter.bm_cronDaily =
     self.libraries.functions
-    .runWith({ memory: '256MB', timeoutSeconds: 60 })
+    .runWith({ memory: '256MB', timeoutSeconds: 120 })
     .pubsub.schedule('every 24 hours')
     .onRun(async (context) => {
       return self._process((new (require(`${core}/cron/daily.js`))()).init(self, { context: context, }))

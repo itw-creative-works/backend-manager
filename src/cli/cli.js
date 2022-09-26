@@ -1322,16 +1322,26 @@ async function cmd_iamImportExport(self) {
 async function cmd_setStorageLifecycle(self) {
   return new Promise(function(resolve, reject) {
     const command = `gsutil lifecycle set {config} gs://{bucket}`
-      .replace(/{config}/ig, path.resolve(`${__dirname}/../../templates/storage-lifecycle-config.json`))
+      .replace(/{config}/ig, path.resolve(`${__dirname}/../../templates/storage-lifecycle-config-1-day.json`))
       .replace(/{bucket}/ig, `us.artifacts.${self.projectName}.appspot.com`)
+    const command2 = `gsutil lifecycle set {config} gs://{bucket}`
+      .replace(/{config}/ig, path.resolve(`${__dirname}/../../templates/storage-lifecycle-config-30-days.json`))
+      .replace(/{bucket}/ig, `bm-backup-firestore-${self.projectName}`)      
 
-    let cmd = exec(command, function (error, stdout, stderr) {
+    exec(command, function (error, stdout, stderr) {
       if (error) {
         console.log(chalk.red(`Failed to run command`, error));
         reject(error);
       } else {
-        // console.log(chalk.green(`Added lifecycle`));
-        resolve(stdout);
+        exec(command2, function (error, stdout, stderr) {
+          if (error) {
+            console.log(chalk.red(`Failed to run command`, error));
+            reject(error);
+          } else {
+            // console.log(chalk.green(`Added lifecycle`));
+            resolve(stdout);
+          }
+        })
       }
     });
   });

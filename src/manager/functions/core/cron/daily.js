@@ -24,6 +24,7 @@ Module.prototype.main = function() {
   return new Promise(async function(resolve, reject) {
     fetch(`${Manager.project.functionsUrl}/bm_api`, {
       method: 'post',
+      response: 'json',
       body: {
         backendManagerKey: Manager.config.backend_manager.key,
         command: 'admin:backup',
