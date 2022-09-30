@@ -48,6 +48,7 @@ Manager.prototype.init = function (exporter, options) {
   options.serviceAccountPath = typeof options.serviceAccountPath === 'undefined' ? 'service-account.json' : options.serviceAccountPath;
   options.backendManagerConfigPath = typeof options.backendManagerConfigPath === 'undefined' ? 'backend-manager-config.json' : options.backendManagerConfigPath;
   options.fetchStats = typeof options.fetchStats === 'undefined' ? true : options.fetchStats;
+  options.checkNodeVersion = typeof options.checkNodeVersion === 'undefined' ? true : options.checkNodeVersion;
   options.uniqueAppName = options.uniqueAppName || undefined;
   options.assistant = options.assistant || {};
   // options.assistant.optionsLogString = options.assistant.optionsLogString || undefined;
@@ -75,7 +76,7 @@ Manager.prototype.init = function (exporter, options) {
   self.project.resourceZone = options.resourceZone;
   self.project.serviceAccountPath = path.resolve(self.cwd, options.serviceAccountPath)
   self.project.backendManagerConfigPath = path.resolve(self.cwd, options.backendManagerConfigPath)
-  
+
   self.package = resolveProjectPackage();
   self.config = merge(
     requireJSON5(self.project.backendManagerConfigPath),
@@ -117,7 +118,9 @@ Manager.prototype.init = function (exporter, options) {
     // Reject if package.json does not exist
     if (semverUsing !== semverRequired) {
       self.assistant.error(new Error(`Node.js version mismatch: using ${semverUsing} but asked for ${semverRequired}`), {environment: 'production'});
-      return process.exit(1);
+      if (options.checkNodeVersion) {
+        return process.exit(1);
+      }
     }
   }  
 
