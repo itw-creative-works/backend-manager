@@ -117,9 +117,12 @@ Manager.prototype.init = function (exporter, options) {
 
     // Reject if package.json does not exist
     if (semverUsing !== semverRequired) {
-      self.assistant.error(new Error(`Node.js version mismatch: using ${semverUsing} but asked for ${semverRequired}`), {environment: 'production'});
+      const msg = `Node.js version mismatch: using ${semverUsing} but asked for ${semverRequired}`;
       if (options.checkNodeVersion) {
+        self.assistant.error(new Error(msg), {environment: 'production'});
         return process.exit(1);
+      } else {
+        self.assistant.log(msg, {environment: 'production'});
       }
     }
   }  
