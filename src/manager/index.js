@@ -678,7 +678,7 @@ function requireJSON5(p) {
   try {
     return JSON5.parse(jetpack.read(p))
   } catch (e) {
-    console.error('Failed to load JSON', e);
+    console.error(`Failed to load JSON at ${p}:`, e)
     throw e;
   }
 }
