@@ -675,7 +675,12 @@ function resolveProjectPackage() {
 }
 
 function requireJSON5(p) {
-  return JSON5.parse(jetpack.read(p))
+  try {
+    return JSON5.parse(jetpack.read(p))
+  } catch (e) {
+    console.error('Failed to load JSON', e);
+    throw e;
+  }
 }
 
 module.exports = Manager;
