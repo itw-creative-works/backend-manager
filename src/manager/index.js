@@ -129,9 +129,9 @@ Manager.prototype.init = function (exporter, options) {
   }  
 
   if (options.log) {
-    self.assistant.log('process.env', process.env, {environment: 'production'})
-    console.log('Resolved serviceAccountPath', self.project.serviceAccountPath);
-    console.log('Resolved backendManagerConfigPath', self.project.backendManagerConfigPath);
+    // self.assistant.log('process.env', process.env, {environment: 'production'})
+    self.assistant.log('Resolved serviceAccountPath', self.project.serviceAccountPath);
+    self.assistant.log('Resolved backendManagerConfigPath', self.project.backendManagerConfigPath);
   }
 
   // Setup sentry
@@ -414,12 +414,12 @@ Manager.prototype.init = function (exporter, options) {
 
   if (self.assistant.meta.environment === 'development' && options.fetchStats) {
     setTimeout(function () {
-      console.log('Fetching meta/stats...');
+      self.assistant.log('Fetching meta/stats...');
       self.libraries.admin
       .firestore().doc('meta/stats')
       .get()
       .then(doc => {
-        console.log('meta/stats', doc.data());
+        self.assistant.log('meta/stats', doc.data());
       })         
     }, 3000);
   }
@@ -591,7 +591,7 @@ Manager.prototype.storage = function (options) {
     const adapter = new FileSync(dbPath);
 
     if (options.temporary && self.assistant.meta.environment === 'development') {
-      console.log('Removed temporary file @', dbPath);
+      self.assistant.log('Removed temporary file @', dbPath);
       jetpack.remove(dbPath);
     }
 
