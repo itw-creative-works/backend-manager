@@ -169,7 +169,7 @@ Module.prototype.processState_tokenize = function (newUrl) {
   return new Promise(async function(resolve, reject) {
     const finalUrl = newUrl.toString();
 
-    assistant.log('Running processState_tokenize()', {environment: 'development'});
+    assistant.log('Running processState_tokenize()', {environment: 'production'});
 
     const body = {
       client_id: _.get(Manager.config, `oauth2.${payload.data.payload.provider}.client_id`),
@@ -180,7 +180,7 @@ Module.prototype.processState_tokenize = function (newUrl) {
       // scope: '',
     };
 
-    assistant.log('body', body, {environment: 'development'});
+    assistant.log('body', body, {environment: 'production'});
 
     const tokenizeResponse = await fetch(finalUrl, {
       method: 'POST',
@@ -197,7 +197,7 @@ Module.prototype.processState_tokenize = function (newUrl) {
     .then(json => json)
     .catch(e => e)
 
-    assistant.log('tokenizeResponse', tokenizeResponse, {environment: 'development'});
+    assistant.log('tokenizeResponse', tokenizeResponse, {environment: 'production'});
 
     if (tokenizeResponse instanceof Error) {
       return reject(tokenizeResponse);
@@ -208,7 +208,7 @@ Module.prototype.processState_tokenize = function (newUrl) {
     .then(identity => identity)
     .catch(e => e);
 
-    assistant.log('verifiedIdentity', verifiedIdentity, {environment: 'development'});
+    assistant.log('verifiedIdentity', verifiedIdentity, {environment: 'production'});
 
     if (verifiedIdentity instanceof Error) {
       return reject(verifiedIdentity);
@@ -234,7 +234,7 @@ Module.prototype.processState_tokenize = function (newUrl) {
     .then(r => r)
     .catch(e => e)
 
-    assistant.log('storeResponse', storeResponse, {environment: 'development'});
+    assistant.log('storeResponse', storeResponse, {environment: 'production'});
 
     if (storeResponse instanceof Error) {
       return reject(storeResponse);
