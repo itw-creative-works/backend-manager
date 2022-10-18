@@ -23,6 +23,8 @@ OAuth2.prototype.buildUrl = function (state, url) {
   return new Promise(async function(resolve, reject) {
     if (state === 'authorize') {
       // do something with url
+      // url.searchParams.set('prompt', typeof payload.data.payload.prompt === 'undefined' ? 'consent' : payload.data.payload.prompt)
+      // url.searchParams.set('prompt', 'consent')
       return resolve()
     } else {
       return resolve()

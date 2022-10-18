@@ -97,6 +97,7 @@ Module.prototype.main = function () {
             newUrl.searchParams.set('redirect_uri', self.ultimateJekyllOAuth2Url);
 
             newUrl.searchParams.set('access_type', typeof payload.data.payload.access_type === 'undefined' ? 'offline' : payload.data.payload.access_type)
+            newUrl.searchParams.set('prompt', typeof payload.data.payload.prompt === 'undefined' ? 'consent' : payload.data.payload.prompt)
             newUrl.searchParams.set('include_granted_scopes', typeof payload.data.payload.include_granted_scopes === 'undefined' ? 'true' : payload.data.payload.include_granted_scopes)
             newUrl.searchParams.set('response_type', typeof payload.data.payload.response_type === 'undefined' ? 'code' : payload.data.payload.response_type)
           }
