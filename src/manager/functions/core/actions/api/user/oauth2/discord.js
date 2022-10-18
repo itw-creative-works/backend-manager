@@ -11,7 +11,8 @@ function OAuth2() {
 
     authorize: 'https://discord.com/api/oauth2/authorize',
     tokenize: 'https://discord.com/api/oauth2/token',
-    status: ''
+    status: '',
+    removeAccess: 'https://discord.com/channels/@me',
   }
 }
 

@@ -69,7 +69,7 @@ Module.prototype.main = function () {
         redirectUrl: payload.data.payload.redirect_uri,
       }
 
-      assistant.log('OAuth2 payload', payload.data.payload);
+      assistant.log('OAuth2 payload', payload.data.payload, {environment: 'production'});
 
       if (!payload.data.payload.provider) {
         return reject(new Error(`The provider parameter is required.`));
@@ -100,6 +100,8 @@ Module.prototype.main = function () {
             newUrl.searchParams.set('include_granted_scopes', typeof payload.data.payload.include_granted_scopes === 'undefined' ? 'true' : payload.data.payload.include_granted_scopes)
             newUrl.searchParams.set('response_type', typeof payload.data.payload.response_type === 'undefined' ? 'code' : payload.data.payload.response_type)
           }
+
+          assistant.log('OAuth2 newUrl', newUrl, {environment: 'production'});
 
           await self.oauth2.buildUrl(payload.data.payload.state, newUrl)
           .then(url => {
@@ -212,6 +214,8 @@ Module.prototype.processState_tokenize = function (newUrl) {
 
     if (verifiedIdentity instanceof Error) {
       return reject(verifiedIdentity);
+    } else if (tokenizeResponse && !tokenizeResponse.refresh_token) {
+      return reject(new Error(`Missing "refresh_token" in response. This is likely because you disconnected your account and tried to reconnect it. Visit ${self.oauth2.urls.removeAccess} and remove our app from your account and then try again or contact us if you need help!`));
     }
 
     const storeResponse = await self.libraries.admin.firestore().doc(`users/${payload.user.auth.uid}`)
