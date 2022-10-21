@@ -57,29 +57,33 @@ Module.prototype.main = function () {
     storage.set(ipPath, ipData).write();
     storage.set(emailPath, emailData).write();
 
-    assistant.log('Storage', storage.getState()['api:general:send-email']);
+    assistant.log('Storage:', storage.getState()['api:general:send-email'], {environment: 'production'});
 
     if (ipData.count >= emailPayload.spamFilter.ip || emailData.count >= emailPayload.spamFilter.email) {
       self.assistant.errorManager(`Spam filter triggered ip=${ipData.count}, email=${emailData.count}`, {code: 429, sentry: false, send: false, log: true})
       return resolve({data: {success: true}});
     }    
 
-    console.log('---emailPayload', emailPayload);
+    assistant.log('Email payload:', emailPayload, {environment: 'production'});
+
+    const sendableBody = {
+      backendManagerKey: Manager.config.backend_manager.key,
+      service: 'sendgrid',
+      command: `v3/mail/send`,
+      method: 'post',
+      body: emailPayload.body,
+    }
 
     fetch('https://us-central1-itw-creative-works.cloudfunctions.net/wrapper', {
       method: 'post',
       timeout: 30000,
       tries: 1,
       response: 'json',
-      body: {
-        service: 'sendgrid',
-        command: `/v3/mail/send`,
-        method: 'post',
-        body: emailPayload.body,
-      },
+      body: sendableBody,
     })
-    .then(result => {
-      console.log('---result', result);
+    .then(res => {
+      assistant.log('Response:', res, {environment: 'production'});
+
       return resolve({
         data: {
           success: true,
@@ -89,9 +93,6 @@ Module.prototype.main = function () {
     .catch(e => {
       return reject(assistant.errorManager(`Error sending email: ${e}`, {code: 500, sentry: true, send: false, log: false}).error)
     })    
-
-    // return resolve({data: {success: true}});
-
   });
 
 };
