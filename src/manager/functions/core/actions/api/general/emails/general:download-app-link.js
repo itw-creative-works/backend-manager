@@ -8,6 +8,7 @@ module.exports = function (payload, config) {
     //   ip: 3,
     //   email: 3,
     // },
+    // delay: 1,
     body: {
       personalizations: [
         {
@@ -23,6 +24,8 @@ module.exports = function (payload, config) {
               url: config.brand.url,
               name: config.brand.name,
               wordmark: config.brand.wordmark,
+              brandmark: config.brand.brandmark,
+              combomark: config.brand.combomark,
             },
             footer: {
               name: 'ITW Creative Works',

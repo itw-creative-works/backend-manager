@@ -23,6 +23,7 @@ Module.prototype.main = function () {
         ip: 3,
         email: 3,
       },
+      delay: 1,
       body: {},
     }
 
@@ -71,6 +72,7 @@ Module.prototype.main = function () {
       service: 'sendgrid',
       command: `v3/mail/send`,
       method: 'post',
+      delay: emailPayload.delay,
       body: emailPayload.body,
     }
 
