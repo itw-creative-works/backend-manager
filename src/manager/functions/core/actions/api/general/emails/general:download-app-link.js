@@ -14,7 +14,7 @@ module.exports = function (payload, config) {
         {
           to: [
             {
-              name: payload.name || 'Valued member',
+              name: payload.name,
               email: payload.email,
             },
           ],

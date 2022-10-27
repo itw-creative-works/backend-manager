@@ -119,19 +119,23 @@ Module.prototype.main = function () {
 
       // Process by state
       if (payload.data.payload.state === 'authorize') {
-        self.processState_authorize(newUrl)
+        self.processState_authorize(newUrl, user)
         .then(r => {resolve(r)})
         .catch(e => {reject(e)})
       } else if (payload.data.payload.state === 'tokenize') {
-        self.processState_tokenize(newUrl)
+        self.processState_tokenize(newUrl, user)
         .then(r => {resolve(r)})
         .catch(e => {reject(e)})
+      } else if (payload.data.payload.state === 'refresh') {
+        self.processState_refresh(newUrl, user)
+        .then(r => {resolve(r)})
+        .catch(e => {reject(e)})        
       } else if (payload.data.payload.state === 'deauthorize') {
-        self.processState_deauthorize(newUrl)
+        self.processState_deauthorize(newUrl, user)
         .then(r => {resolve(r)})
         .catch(e => {reject(e)})
       } else if (payload.data.payload.state === 'status') {
-        self.processState_status(newUrl)
+        self.processState_status(newUrl, user)
         .then(r => {resolve(r)})
         .catch(e => {reject(e)})
       }
@@ -143,7 +147,7 @@ Module.prototype.main = function () {
 
 };
 
-Module.prototype.processState_authorize = function (newUrl) {
+Module.prototype.processState_authorize = function (newUrl, user) {
   const self = this;
   const Manager = self.Manager;
   const Api = self.Api;
@@ -162,7 +166,7 @@ Module.prototype.processState_authorize = function (newUrl) {
   });
 };
 
-Module.prototype.processState_tokenize = function (newUrl) {
+Module.prototype.processState_tokenize = function (newUrl, user) {
   const self = this;
   const Manager = self.Manager;
   const Api = self.Api;
@@ -219,7 +223,7 @@ Module.prototype.processState_tokenize = function (newUrl) {
       return reject(new Error(`Missing "refresh_token" in response. This is likely because you disconnected your account and tried to reconnect it. Visit ${self.oauth2.urls.removeAccess} and remove our app from your account and then try again or contact us if you need help!`));
     }
 
-    const storeResponse = await self.libraries.admin.firestore().doc(`users/${payload.user.auth.uid}`)
+    const storeResponse = await self.libraries.admin.firestore().doc(`users/${user.auth.uid}`)
     .set({
       oauth2: {
         [payload.data.payload.provider]: {
@@ -239,7 +243,7 @@ Module.prototype.processState_tokenize = function (newUrl) {
     .then(r => r)
     .catch(e => e)
 
-    assistant.log('storeResponse', storeResponse, {environment: 'production'});
+    assistant.log('storeResponse', user.auth.uid, storeResponse, {environment: 'production'});
 
     if (storeResponse instanceof Error) {
       return reject(storeResponse);
@@ -252,7 +256,7 @@ Module.prototype.processState_tokenize = function (newUrl) {
   });
 };
 
-Module.prototype.processState_deauthorize = function () {
+Module.prototype.processState_refresh = function (newUrl, user) {
   const self = this;
   const Manager = self.Manager;
   const Api = self.Api;
@@ -260,7 +264,93 @@ Module.prototype.processState_deauthorize = function () {
   const payload = self.payload;
 
   return new Promise(async function(resolve, reject) {
-    self.libraries.admin.firestore().doc(`users/${payload.user.auth.uid}`)
+    const finalUrl = newUrl.toString();
+
+    assistant.log('Running processState_refresh()', {environment: 'production'});
+
+    const body = {
+      client_id: _.get(Manager.config, `oauth2.${payload.data.payload.provider}.client_id`),
+      client_secret: _.get(Manager.config, `oauth2.${payload.data.payload.provider}.client_secret`),
+      grant_type: 'refresh_token',
+      refresh_token: _.get(user, `oauth2.${payload.data.payload.provider}.token.refresh_token`),
+    };
+
+    assistant.log('body', body, {environment: 'production'});
+
+    const refreshResponse = await fetch(finalUrl, {
+      method: 'POST',
+      timeout: 60000,
+      response: 'json',
+      tries: 1,
+      log: true,
+      body: new URLSearchParams(body),
+      cacheBreaker: false,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+    })
+    .then(json => json)
+    .catch(e => e)
+
+    assistant.log('refreshResponse', refreshResponse, {environment: 'production'});
+
+    if (refreshResponse instanceof Error) {
+      return reject(refreshResponse);
+    }
+
+    // DISABLED .verifyIdentity() BECAUSE IT WILL TRY TO CHECK IF IT EXISTS
+    // Determine identity
+    // const verifiedIdentity = await self.oauth2.verifyIdentity(refreshResponse)
+    // .then(identity => identity)
+    // .catch(e => e);
+
+    // assistant.log('verifiedIdentity', verifiedIdentity, {environment: 'production'});
+
+    // if (verifiedIdentity instanceof Error) {
+    //   return reject(verifiedIdentity);
+    // } else if (refreshResponse && !refreshResponse.refresh_token) {
+    //   return reject(new Error(`Missing "refresh_token" in response. This is likely because you disconnected your account and tried to reconnect it. Visit ${self.oauth2.urls.removeAccess} and remove our app from your account and then try again or contact us if you need help!`));
+    // }
+
+    const storeResponse = await self.libraries.admin.firestore().doc(`users/${user.auth.uid}`)
+    .set({
+      oauth2: {
+        [payload.data.payload.provider]: {
+          token: refreshResponse,
+          // identity: verifiedIdentity,
+          updated: {
+            timestamp: assistant.meta.startTime.timestamp,
+            timestampUNIX: assistant.meta.startTime.timestampUNIX,
+          }
+        }
+      }
+    }, { merge: true })
+    .then(r => r)
+    .catch(e => e)
+
+    assistant.log('storeResponse', user.auth.uid, storeResponse, {environment: 'production'});
+
+    if (storeResponse instanceof Error) {
+      return reject(storeResponse);
+    }
+
+    return resolve({
+      data: {success: true}
+    })
+
+  });
+};
+
+
+Module.prototype.processState_deauthorize = function (newUrl, user) {
+  const self = this;
+  const Manager = self.Manager;
+  const Api = self.Api;
+  const assistant = self.assistant;
+  const payload = self.payload;
+
+  return new Promise(async function(resolve, reject) {
+    self.libraries.admin.firestore().doc(`users/${user.auth.uid}`)
     .set({
       oauth2: {
         [payload.data.payload.provider]: {},
@@ -281,7 +371,7 @@ Module.prototype.processState_deauthorize = function () {
   });
 };
 
-Module.prototype.processState_status = function (newUrl) {
+Module.prototype.processState_status = function (newUrl, user) {
   const self = this;
   const Manager = self.Manager;
   const Api = self.Api;
@@ -301,7 +391,7 @@ Module.prototype.processState_status = function (newUrl) {
           return resolve();
         }
 
-        Manager.libraries.admin.firestore().doc(`users/${payload.user.auth.uid}`)
+        Manager.libraries.admin.firestore().doc(`users/${user.auth.uid}`)
         .set({
           oauth2: {
             [payload.data.payload.provider]: {},
@@ -312,7 +402,7 @@ Module.prototype.processState_status = function (newUrl) {
           }
         }, { merge: true })
         .then(async () => {
-          assistant.log(`Removed disconnected token for user: ${payload.user.auth.uid}`)
+          assistant.log(`Removed disconnected token for user: ${user.auth.uid}`)
         })
         .catch((e) => e)
         .finally(() => {
@@ -321,7 +411,7 @@ Module.prototype.processState_status = function (newUrl) {
       });
     }
 
-    Manager.libraries.admin.firestore().doc(`users/${payload.user.auth.uid}`)
+    Manager.libraries.admin.firestore().doc(`users/${user.auth.uid}`)
     .get()
     .then(async (doc) => {
       const data = doc.data();

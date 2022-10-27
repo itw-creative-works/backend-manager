@@ -9,6 +9,7 @@ function OAuth2() {
   self.urls = {
     authorize: 'https://accounts.google.com/o/oauth2/v2/auth',
     tokenize: 'https://oauth2.googleapis.com/token',
+    refresh: 'https://oauth2.googleapis.com/token',
     // status: 'https://oauth2.googleapis.com/tokeninfo?id_token={token}'
     status: 'https://oauth2.googleapis.com/tokeninfo',
     removeAccess: 'https://myaccount.google.com/security',

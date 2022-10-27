@@ -16,7 +16,7 @@ Module.prototype.main = function () {
   return new Promise(async function(resolve, reject) {
     payload.data.payload.id = payload.data.payload.id;
     payload.data.payload.email = payload.data.payload.email;
-    payload.data.payload.name = payload.data.payload.name || 'Friend';
+    payload.data.payload.name = payload.data.payload.name;
 
     const DEFAULT = {
       spamFilter: {
