@@ -47,9 +47,9 @@ module.exports = function (payload, config) {
         email: config.brand.email,
       },
       subject: subject,
-      template_id: 'd-1d730ac8cc544b7cbccc8fa4a4b3f9ce',
+      template_id: templateId,
       asm: {
-        group_id: 16223,
+        group_id: groupId,
       },
       categories: ['transactional', 'download', config.app.id],
     }
