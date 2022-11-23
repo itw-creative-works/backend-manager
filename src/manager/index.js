@@ -83,6 +83,9 @@ Manager.prototype.init = function (exporter, options) {
     self.libraries.functions.config()
   );
 
+  // Saved config
+  const appId = get(self.config, 'app.id');
+
   // Init assistant
   self.assistant = self.Assistant().init(undefined, options.assistant);
 
@@ -134,9 +137,13 @@ Manager.prototype.init = function (exporter, options) {
     self.assistant.log('Resolved backendManagerConfigPath', self.project.backendManagerConfigPath);
   }
 
+  if (!appId) {
+    console.warn('⚠️ Missing config.app.id');
+  }
+
   // Setup sentry
   if (self.options.sentry) {
-    const sentryRelease = `${get(self.config, 'app.id') || self.project.projectId}@${self.package.version}`;
+    const sentryRelease = `${appId || self.project.projectId}@${self.package.version}`;
     const sentryDSN = get(self.config, 'sentry.dsn', '');
     // console.log('Sentry', sentryRelease, sentryDSN);
 
@@ -175,8 +182,8 @@ Manager.prototype.init = function (exporter, options) {
 
         // const loadedProjectId = get(self.libraries.initializedAdmin, 'options_.credential.projectId', null);   
         const loadedProjectId = serviceAccount.project_id;   
-        if (!loadedProjectId || !loadedProjectId.includes(self.config.app.id)) {
-          self.assistant.error(`Loaded app may have wrong service account: ${loadedProjectId} =/= ${self.config.app.id}`, {environment: 'production'});
+        if (!loadedProjectId || !loadedProjectId.includes(appId)) {
+          self.assistant.error(`Loaded app may have wrong service account: ${loadedProjectId} =/= ${appId}`, {environment: 'production'});
         }        
       }
 
