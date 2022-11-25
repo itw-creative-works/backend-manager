@@ -15,12 +15,18 @@ Utilities.prototype.iterateCollection = function (callback, options) {
     options = options || {};
     options.collection = options.collection || '';
     options.batchSize = options.batchSize || 1000;
+    options.where = options.where || [];
     options.orderBy = options.orderBy || null;
     options.startAt = options.startAt || null;
     options.log = options.log;
 
     function listAllDocuments(nextPageToken) {
       let query = admin.firestore().collection(options.collection)
+
+      options.where
+      .forEach(clause => {
+        query = query.where(clause.field, clause.operator, clause.value);
+      });
 
       if (options.orderBy) {
         query = query.orderBy(options.orderBy);
