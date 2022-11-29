@@ -44,7 +44,7 @@ Module.prototype.main = function () {
           body: {
             detail: {
               currency_code: 'USD',
-              note: `Post to ${Manager.config.brand.name}`,
+              note: `Post to ${Manager.config.brand.name} \n ${payload.data.payload.invoiceNote || ''}`,
             },
             primary_recipients: [
               {
@@ -56,7 +56,7 @@ Module.prototype.main = function () {
             items: [
               {
                 name: `Guest post`,
-                description: postUrl,
+                description: `Post URL: ${postUrl}`,
                 quantity: '1',
                 unit_amount: {
                   currency_code: 'USD',
