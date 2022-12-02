@@ -582,6 +582,12 @@ Manager.prototype.Roles = function () {
   return new self.libraries.Roles(self, ...arguments);
 };
 
+Manager.prototype.SubscriptionResolver = function () {
+  const self = this;
+  self.libraries.SubscriptionResolver = self.libraries.SubscriptionResolver || require('./helpers/subscription-resolver.js');
+  return new self.libraries.SubscriptionResolver(self, ...arguments);
+};
+
 Manager.prototype.storage = function (options) {
   const self = this;
   options = options || {};
