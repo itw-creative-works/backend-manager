@@ -26,6 +26,9 @@ SubscriptionResolver.prototype.resolve = function () {
     },
   }
 
+  const profile = self.profile;
+  const resource = self.resource;
+
   if (profile.processor === 'paypal') {
     if (resource.status === 'ACTIVE') {
       resolved.status = 'active';
