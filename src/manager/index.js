@@ -585,7 +585,7 @@ Manager.prototype.Roles = function () {
 Manager.prototype.SubscriptionResolver = function () {
   const self = this;
   self.libraries.SubscriptionResolver = self.libraries.SubscriptionResolver || require('./helpers/subscription-resolver.js');
-  return new self.libraries.SubscriptionResolver(self, ...arguments);
+  return new self.libraries.SubscriptionResolver(...arguments);
 };
 
 Manager.prototype.storage = function (options) {
