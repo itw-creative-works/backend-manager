@@ -8,7 +8,7 @@ function SubscriptionResolver(profile, resource) {
   self.resource = resource;
 }
 
-SubscriptionResolver.prototype.resolve = function () {
+SubscriptionResolver.prototype.resolve = function (options) {
   const self = this;
 
   const resolved = {
@@ -31,6 +31,13 @@ SubscriptionResolver.prototype.resolve = function () {
 
   const profile = self.profile;
   const resource = self.resource;
+
+  options = options || {};
+
+  if (options.log) {
+    console.log('profile', profile);
+    console.log('resource', resource);
+  }
 
   // Process differently based on each provider
   if (profile.processor === 'paypal') {
@@ -148,6 +155,10 @@ SubscriptionResolver.prototype.resolve = function () {
   resolved.start.timestamp = resolved.start.timestamp.toISOString()  
 
   // console.log('---resolved', resolved);
+
+  if (options.log) {
+    console.log('resolved', resolved);
+  }
 
   self.resolved = resolved;
 
