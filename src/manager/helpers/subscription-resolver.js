@@ -42,6 +42,10 @@ SubscriptionResolver.prototype.resolve = function (options) {
   // Process differently based on each provider
   if (profile.processor === 'paypal') {
     // Set status
+    // subscription: https://developer.paypal.com/docs/api/subscriptions/v1/#subscriptions_get
+    // APPROVAL_PENDING. The subscription is created but not yet approved by the buyer. APPROVED. The buyer has approved the subscription. ACTIVE. The subscription is active. SUSPENDED. The subscription is suspended. CANCELLED. The subscription is cancelled. EXPIRED. The subscription is expired.
+    // order: https://developer.paypal.com/docs/api/orders/v2/#orders_get
+    // CREATED. The order was created with the specified context. SAVED. The order was saved and persisted. The order status continues to be in progress until a capture is made with final_capture = true for all purchase units within the order. APPROVED. The customer approved the payment through the PayPal wallet or another form of guest or unbranded payment. For example, a card, bank account, or so on. VOIDED. All purchase units in the order are voided. COMPLETED. The payment was authorized or the authorized payment was captured for the order. PAYER_ACTION_REQUIRED. The order requires an action from the payer (e.g. 3DS authentication). Redirect the payer to the "rel":"payer-action" HATEOAS link returned as part of the response prior to authorizing or capturing the order.
     if (['ACTIVE'].includes(resource.status)) {
       resolved.status = 'active';
     } else if (['SUSPENDED'].includes(resource.status)) {
@@ -62,9 +66,15 @@ SubscriptionResolver.prototype.resolve = function (options) {
     )
     
     // Set completed
-    resolved.payment.completed = !['APPROVAL_PENDING', 'APPROVED'].includes(resource.status);
+    if (resource.plan_id) {
+      resolved.payment.completed = !['APPROVAL_PENDING', 'APPROVED'].includes(resource.status);      
+    } else {
+      resolved.payment.completed = !['CREATED', 'SAVED', 'APPROVED', 'VOIDED', 'PAYER_ACTION_REQUIRED'].includes(resource.status);         
+    }
   } else if (profile.processor === 'chargebee') {
     // Set status
+    // subscription: https://apidocs.chargebee.com/docs/api/subscriptions?prod_cat_ver=2#subscription_status
+    // future The subscription is scheduled to start at a future date. in_trial The subscription is in trial. active The subscription is active and will be charged for automatically based on the items in it. non_renewing The subscription will be canceled at the end of the current term. paused The subscription is paused. The subscription will not renew while in this state. cancelled The subscription has been canceled and is no longer in service.
     if (['in_trial', 'active'].includes(resource.status)) {
       resolved.status = 'active';
     } else if (['paused'].includes(resource.status)) {
@@ -85,8 +95,15 @@ SubscriptionResolver.prototype.resolve = function (options) {
     )    
 
     // Set completed
-    resolved.payment.completed = !['future'].includes(resource.status);
+    if (true) {
+      resolved.payment.completed = !['future'].includes(resource.status);
+    }
   } else if (profile.processor === 'stripe') {
+    // Subscription: https://stripe.com/docs/api/subscriptions/object#subscription_object-status
+    // incomplete, incomplete_expired, trialing, active, past_due, canceled, or unpaid
+
+    // Charge: https://stripe.com/docs/api/payment_intents/object#payment_intent_object-status
+    // requires_payment_method, requires_confirmation, requires_action, processing, requires_capture, canceled, or succeeded
     // Set status
     if (['trialing', 'active'].includes(resource.status)) {
       resolved.status = 'active';
@@ -108,7 +125,11 @@ SubscriptionResolver.prototype.resolve = function (options) {
     );
 
     // Set completed
-    resolved.payment.completed = !['incomplete', 'incomplete_expired'].includes(resource.status);
+    if (resource.object === 'subscription') {
+      resolved.payment.completed = !['incomplete', 'incomplete_expired'].includes(resource.status);      
+    } else if (resource.object === 'payment_intent') {
+      resolved.payment.completed = !['requires_payment_method', 'requires_confirmation', 'requires_action', 'processing', 'requires_capture', 'canceled'].includes(resource.status);      
+    }
   } else if (profile.processor === 'coinbase') {
     // Set status
     resolved.status = 'cancelled';
@@ -125,7 +146,9 @@ SubscriptionResolver.prototype.resolve = function (options) {
     );
 
     // Set completed
-    resolved.payment.completed = !!resource.payments.find(p => p.status === 'CONFIRMED');
+    if (true) {
+      resolved.payment.completed = !!resource.payments.find(p => p.status === 'CONFIRMED');
+    }
   }
 
   // If there was NEVER any payment sent
