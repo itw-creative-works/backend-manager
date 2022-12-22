@@ -29,7 +29,8 @@ Module.prototype.main = function () {
       }
     }
 
-    const postUrl = `${Manager.config.brand.url}/blog/${payload.data.payload.url}`;
+    const postSlug = `/blog/${payload.data.payload.url}`;
+    const postUrl = `${Manager.config.brand.url}${postSlug}`;
 
     if (payload.data.payload.invoiceEmail && payload.data.payload.invoicePrice) {
       // Create invoice
@@ -44,7 +45,8 @@ Module.prototype.main = function () {
           body: {
             detail: {
               currency_code: 'USD',
-              note: `Post to ${Manager.config.brand.name} \n ${payload.data.payload.invoiceNote || ''}`,
+              // note: `Post to ${Manager.config.brand.name} \n ${payload.data.payload.invoiceNote || ''}`,
+              note: `${Manager.config.brand.name} GP. \n ${payload.data.payload.invoiceNote || ''}`,
             },
             primary_recipients: [
               {
@@ -55,8 +57,10 @@ Module.prototype.main = function () {
             ],
             items: [
               {
-                name: `Guest post`,
-                description: `Post URL: ${postUrl}`,
+                // name: `Guest Post`,
+                name: `GP`,
+                // description: `Post URL: ${postUrl}`,
+                description: `Slug: ${postSlug}`,
                 quantity: '1',
                 unit_amount: {
                   currency_code: 'USD',
@@ -65,7 +69,7 @@ Module.prototype.main = function () {
                 // discount: {
                 //   percent: '5'
                 // },
-                unit_of_measure: 'QUANTITY'
+                unit_of_measure: 'QUANTITY',
               },
             ],
           }
