@@ -46,7 +46,8 @@ Module.prototype.main = function () {
             detail: {
               currency_code: 'USD',
               // note: `Post to ${Manager.config.brand.name} \n ${payload.data.payload.invoiceNote || ''}`,
-              note: `${Manager.config.brand.name} GP. \n ${payload.data.payload.invoiceNote || ''}`,
+              note: `GP to ${Manager.config.brand.name} \n\n ${payload.data.payload.invoiceNote || ''}`,
+              memo: `GP to ${Manager.config.brand.name} \n\n Slug: ${postSlug}`,
             },
             primary_recipients: [
               {
