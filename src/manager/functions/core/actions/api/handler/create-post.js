@@ -31,6 +31,7 @@ Module.prototype.main = function () {
 
     const postSlug = `/blog/${payload.data.payload.url}`;
     const postUrl = `${Manager.config.brand.url}${postSlug}`;
+    const invoiceNote = `GP to ${Manager.config.brand.name} \nSlug: ${postSlug} \n\n${payload.data.payload.invoiceNote || ''}`
 
     if (payload.data.payload.invoiceEmail && payload.data.payload.invoicePrice) {
       // Create invoice
@@ -46,8 +47,10 @@ Module.prototype.main = function () {
             detail: {
               currency_code: 'USD',
               // note: `Post to ${Manager.config.brand.name} \n ${payload.data.payload.invoiceNote || ''}`,
-              note: `GP to ${Manager.config.brand.name} \n\n ${payload.data.payload.invoiceNote || ''}`,
-              memo: `GP to ${Manager.config.brand.name} \n\n Slug: ${postSlug}`,
+              // note: `GP to ${Manager.config.brand.name} \n\n${payload.data.payload.invoiceNote || '' }`,
+              // memo: `GP to ${Manager.config.brand.name} \nSlug: ${postSlug}`,
+              note: invoiceNote,
+              memo: invoiceNote,
             },
             primary_recipients: [
               {
