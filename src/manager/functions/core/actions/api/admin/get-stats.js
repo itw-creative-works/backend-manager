@@ -23,29 +23,28 @@ Module.prototype.main = function () {
         .get()
         .then(async (doc) => {
           let data = doc.data() || {};
-          let error = null;
 
-          await self.updateStats(data)
-            .catch(e => {
-              error = e;
-            })
-
-
-          if (error) {
-            return reject(assistant.errorManager(error, {code: 500, sentry: false, send: false, log: false}).error)
+          // Only update if requested
+          if (payload.data.payload.update) {
+            await self.updateStats(data)
+              .catch(e => data = e)
           }
 
+          if (data instanceof Error) {
+            return reject(assistant.errorManager(data, {code: 500, sentry: false, send: false, log: false}).error)
+          }
+
+          // Retrieve the stats again after updating
           await stats
             .get()
             .then(doc => {
               data = doc.data() || {};
             })
-            .catch((e) => {
-              error = e;
-            })
+            .catch(e => data = e)
 
-          if (error) {
-            return reject(assistant.errorManager(error, {code: 500, sentry: false, send: false, log: false}).error)
+
+          if (data instanceof Error) {
+            return reject(assistant.errorManager(data, {code: 500, sentry: false, send: false, log: false}).error)
           }
 
           return resolve({data: data})

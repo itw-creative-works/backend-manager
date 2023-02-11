@@ -153,7 +153,7 @@ Manager.prototype.init = function (exporter, options) {
       release: sentryRelease,
       beforeSend(event, hint) {
         if (self.assistant.meta.environment === 'development' && !self.options.reportErrorsInDev) {
-          self.assistant.error(new Error('Skipping Sentry because DEV'), {environment: 'production'})
+          self.assistant.error(new Error('[Sentry] Skipping Sentry because we\'re in development'), hint, {environment: 'production'})
           return null;
         }
         event.tags = event.tags || {};
