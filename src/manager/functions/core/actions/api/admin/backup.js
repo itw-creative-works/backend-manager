@@ -18,52 +18,57 @@ Module.prototype.main = function () {
 
     payload.data.payload.deletionRegex = payload.data.payload.deletionRegex ? powertools.regexify(payload.data.payload.deletionRegex) : payload.data.payload.deletionRegex;
 
-    if (!payload.user.roles.admin) {
+    if (!payload.user.roles.admin && assistant.meta.environment === 'production') {
       return reject(assistant.errorManager(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
-    } else {
-      // https://googleapis.dev/nodejs/firestore/latest/v1.FirestoreAdminClient.html#exportDocuments
-      // https://firebase.google.com/docs/firestore/solutions/schedule-export#firebase-cli
-      // https://levelup.gitconnected.com/how-to-back-up-firestore-easily-and-automatically-eab6bf0d7e1f
-      const client = new self.libraries.admin.firestore.v1.FirestoreAdminClient({
-        // credential: Manager.libraries.admin.credential.cert(
-        //   require(Manager.project.serviceAccountPath)
-        // ),
-      });
-      const projectId = Manager.project.projectId;
-      const resourceZone = Manager.project.resourceZone;
-      const databaseName = client.databasePath(projectId, '(default)');
-      const bucketName = `bm-backup-firestore-${projectId}`;
-      const bucketAddress = `gs://${bucketName}`;
-
-      await self.createBucket(bucketName, resourceZone);
-      // await self.deleteOldFiles(bucketName, resourceZone);
-
-      client.exportDocuments({
-        name: databaseName,
-        outputUriPrefix: bucketAddress,
-        // Leave collectionIds empty to export all collections
-        // or set to a list of collection IDs to export,
-        collectionIds: []
-      })
-      .then(async (responses) => {
-
-        await self._setMetaStats();
-
-        const response = responses[0];
-        assistant.log('Saved backup successfully:', response.metadata.outputUriPrefix, {environment: 'development'})
-
-        return resolve(response['name']);
-      })
-      .catch(async (e) => {
-        await self._setMetaStats(e);
-        return reject(assistant.errorManager(e, {code: 500, sentry: false, send: false, log: true}).error)
-      });
     }
+
+    // https://googleapis.dev/nodejs/firestore/latest/v1.FirestoreAdminClient.html#exportDocuments
+    // https://firebase.google.com/docs/firestore/solutions/schedule-export#firebase-cli
+    // https://levelup.gitconnected.com/how-to-back-up-firestore-easily-and-automatically-eab6bf0d7e1f
+    const client = new self.libraries.admin.firestore.v1.FirestoreAdminClient({
+      // credential: Manager.libraries.admin.credential.cert(
+      //   require(Manager.project.serviceAccountPath)
+      // ),
+    });
+    const projectId = Manager.project.projectId;
+    const resourceZone = Manager.project.resourceZone;
+    const databaseName = client.databasePath(projectId, '(default)');
+    const bucketName = `bm-backup-firestore-${projectId}`;
+    const bucketAddress = `gs://${bucketName}`;
+
+    await self.createBucket(bucketName, resourceZone);
+    // await self.deleteOldFiles(bucketName, resourceZone);
+
+    client.exportDocuments({
+      name: databaseName,
+      outputUriPrefix: bucketAddress,
+      // Leave collectionIds empty to export all collections
+      // or set to a list of collection IDs to export,
+      collectionIds: []
+    })
+    .then(async (responses) => {
+
+      const response = responses[0];
+      const meta = {
+
+      }
+
+      assistant.log('Saved backup successfully:', response.metadata.outputUriPrefix, meta, {environment: 'development'})
+
+      await self._setMetaStats(null, meta);
+
+      return resolve(response['name']);
+    })
+    .catch(async (e) => {
+      await self._setMetaStats(e);
+      return reject(assistant.errorManager(e, {code: 500, sentry: false, send: false, log: true}).error)
+    });    
+
   });
 
 };
 
-Module.prototype._setMetaStats = function (error) {
+Module.prototype._setMetaStats = function (error, meta) {
   const self = this;
   const Manager = self.Manager;
   const Api = self.Api;

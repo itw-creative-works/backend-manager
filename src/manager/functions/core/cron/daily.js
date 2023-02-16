@@ -38,17 +38,18 @@ Module.prototype.main = function() {
       }),
 
       // Sync Firestore users to the database
-      fetch(`${Manager.project.functionsUrl}/bm_api`, {
-        method: 'post',
-        response: 'json',
-        body: {
-          backendManagerKey: Manager.config.backend_manager.key,
-          command: 'admin:sync-users',
-        }
-      })
-      .then(response => {
-        assistant.log(`Successfully executed sync-users:`, response, {environment: 'production'})
-      }),
+      // TODO: This is not working becaues the pageToken is not relative any more when its saved...
+      // fetch(`${Manager.project.functionsUrl}/bm_api`, {
+      //   method: 'post',
+      //   response: 'json',
+      //   body: {
+      //     backendManagerKey: Manager.config.backend_manager.key,
+      //     command: 'admin:sync-users',
+      //   }
+      // })
+      // .then(response => {
+      //   assistant.log(`Successfully executed sync-users:`, response, {environment: 'production'})
+      // }),
 
       // More daily processes
       // ...
