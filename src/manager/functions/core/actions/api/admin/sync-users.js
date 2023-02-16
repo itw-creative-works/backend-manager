@@ -91,7 +91,7 @@ Module.prototype.main = function () {
               await self.libraries.admin.firestore().doc(`meta/stats`)
                 .update({
                   syncUsers: {
-                    lastPageToken: batch.pageToken
+                    lastPageToken: batch.pageToken,
                   }
                 })
                 .then(r => {
