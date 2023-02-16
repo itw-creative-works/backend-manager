@@ -51,13 +51,13 @@ Module.prototype.main = function () {
 
         const response = responses[0];
         assistant.log('Saved backup successfully:', response.metadata.outputUriPrefix, {environment: 'development'})
+
         return resolve(response['name']);
       })
       .catch(async (e) => {
         await self._setMetaStats(e);
         return reject(assistant.errorManager(e, {code: 500, sentry: false, send: false, log: true}).error)
       });
-
     }
   });
 

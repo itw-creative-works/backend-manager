@@ -90,12 +90,14 @@ Utilities.prototype.iterateUsers = function (callback, options) {
     let batch = -1;
 
     options = options || {};
+    options.batchSize = options.batchSize || 1000;
     options.log = options.log;
+    options.pageToken = options.pageToken;
     
     function listAllUsers(nextPageToken) {
       // List batch of users, 1000 at a time.
       admin.auth()
-        .listUsers(1000, nextPageToken)
+        .listUsers(options.batchSize, nextPageToken)
         .then(async (listUsersResult) => {
           
           batch++;
@@ -105,7 +107,9 @@ Utilities.prototype.iterateUsers = function (callback, options) {
           }
 
           callback({
-            snap: listUsersResult, users: listUsersResult.users,
+            snap: listUsersResult, 
+            users: listUsersResult.users, 
+            pageToken: listUsersResult.pageToken,
           }, batch)
             .then(r => {
               if (listUsersResult.pageToken) {
@@ -126,7 +130,7 @@ Utilities.prototype.iterateUsers = function (callback, options) {
         });      
     }
     
-    listAllUsers();   
+    listAllUsers(options.pageToken);   
   });
 };
 

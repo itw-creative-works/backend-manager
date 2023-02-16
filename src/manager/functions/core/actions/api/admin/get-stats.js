@@ -69,6 +69,7 @@ Module.prototype.fixStats = function (data) {
   });
 }
 
+// TODO: ADD https://firebase.google.com/docs/firestore/query-data/aggregation-queries#pricing
 Module.prototype.updateStats = function (existingData) {
   const self = this;
 

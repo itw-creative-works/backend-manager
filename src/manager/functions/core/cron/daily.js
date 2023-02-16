@@ -22,21 +22,44 @@ Module.prototype.main = function() {
   const context = self.context;
 
   return new Promise(async function(resolve, reject) {
-    fetch(`${Manager.project.functionsUrl}/bm_api`, {
-      method: 'post',
-      response: 'json',
-      body: {
-        backendManagerKey: Manager.config.backend_manager.key,
-        command: 'admin:backup',
-      }
-    })
-    .then(response => {
-      assistant.log(`Successfully executed backup:`, response, {environment: 'production'})
-      return resolve(response);
+    // Wait for all the promises to resolve
+    Promise.all([
+      // Backup the database
+      fetch(`${Manager.project.functionsUrl}/bm_api`, {
+        method: 'post',
+        response: 'json',
+        body: {
+          backendManagerKey: Manager.config.backend_manager.key,
+          command: 'admin:backup',
+        }
+      })
+      .then(response => {
+        assistant.log(`Successfully executed backup:`, response, {environment: 'production'})
+      }),
+
+      // Sync Firestore users to the database
+      fetch(`${Manager.project.functionsUrl}/bm_api`, {
+        method: 'post',
+        response: 'json',
+        body: {
+          backendManagerKey: Manager.config.backend_manager.key,
+          command: 'admin:sync-users',
+        }
+      })
+      .then(response => {
+        assistant.log(`Successfully executed sync-users:`, response, {environment: 'production'})
+      }),
+
+      // More daily processes
+      // ...
+    ])
+    .then(() => {
+      assistant.log(`Successfully executed all daily processes:`, {environment: 'production'})
+      return resolve();
     })
     .catch(e => {
-      assistant.errorManager(`Error executing backup: ${e}`, {sentry: true, send: false, log: true})
-      return reject();
+      assistant.errorManager(`Error executing all proceses: ${e}`, {sentry: true, send: false, log: true})
+      return reject(e);
     })
   });
 }
