@@ -177,7 +177,7 @@ Manager.prototype.init = function (exporter, options) {
         const serviceAccount = require(self.project.serviceAccountPath);
         self.libraries.initializedAdmin = self.libraries.admin.initializeApp({
           credential: self.libraries.admin.credential.cert(serviceAccount),
-          databaseURL: self.project.databaseURL,
+          databaseURL: self.project.databaseURL || `https://${self.project.projectId}.firebaseio.com`,
         }, options.uniqueAppName);
 
         // const loadedProjectId = get(self.libraries.initializedAdmin, 'options_.credential.projectId', null);   
