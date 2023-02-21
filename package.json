@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "2.5.51",
+  "version": "2.5.52",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -27,7 +27,7 @@
   },
   "homepage": "https://itwcreativeworks.com",
   "dependencies": {
-    "@firebase/rules-unit-testing": "^2.0.5",
+    "@firebase/rules-unit-testing": "^2.0.7",
     "@google-cloud/storage": "^5.20.5",
     "@sendgrid/mail": "^7.7.0",
     "@sentry/node": "^6.19.7",
@@ -41,14 +41,14 @@
     "fs-jetpack": "^4.3.1",
     "hcaptcha": "^0.1.1",
     "inquirer": "^8.2.5",
-    "json5": "^2.2.2",
+    "json5": "^2.2.3",
     "jwt-decode": "^3.1.2",
     "lodash": "^4.17.21",
     "lowdb": "^1.0.0",
     "mailchimp-api-v3": "^1.15.0",
     "moment": "^2.29.4",
-    "node-fetch": "^2.6.7",
-    "node-powertools": "^0.0.21",
+    "node-fetch": "^2.6.9",
+    "node-powertools": "^0.0.23",
     "npm-api": "^1.0.1",
     "paypal-server-api": "^0.0.8",
     "pushid": "^1.0.0",
@@ -59,6 +59,6 @@
     "universal-analytics": "^0.5.3",
     "uuid": "^8.3.2",
     "wonderful-fetch": "^0.0.17",
-    "yargs": "^17.6.2"
+    "yargs": "^17.7.1"
   }
 }
