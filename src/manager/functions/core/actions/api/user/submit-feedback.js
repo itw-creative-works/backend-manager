@@ -1,6 +1,7 @@
 const pushid = require('pushid');
 const fetch = require('wonderful-fetch');
 const powertools = require('node-powertools');
+const { get } = require('lodash');
 
 function Module() {
 
@@ -63,7 +64,7 @@ Module.prototype.main = function () {
           feedback: request,
           decision: decision,
           owner: {
-            uid: user.uid,
+            uid: get(user, 'auth.uid', null),
           }
         }, {merge: true})
         .then(r => {
