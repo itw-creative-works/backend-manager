@@ -62,6 +62,9 @@ Module.prototype.main = function () {
           created: assistant.meta.startTime,
           feedback: request,
           decision: decision,
+          owner: {
+            uid: user.uid,
+          }
         }, {merge: true})
         .then(r => {
           return resolve({
