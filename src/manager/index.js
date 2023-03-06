@@ -595,6 +595,7 @@ Manager.prototype.storage = function (options) {
 
   if (!self._internal.storage[options.name]) {
     options.temporary = typeof options.temporary === 'undefined' ? false : options.temporary;
+    options.clear = typeof options.clear === 'undefined' ? true : options.clear;
 
     const low = require('lowdb');
     const FileSync = require('lowdb/adapters/FileSync');
@@ -603,7 +604,11 @@ Manager.prototype.storage = function (options) {
       : `./.data/${options.name}.json`;
     const adapter = new FileSync(dbPath);
 
-    if (options.temporary && self.assistant.meta.environment === 'development') {
+    if (
+      options.temporary 
+      && self.assistant.meta.environment === 'development'
+      && options.clear
+    ) {
       self.assistant.log('Removed temporary file @', dbPath);
       jetpack.remove(dbPath);
     }
