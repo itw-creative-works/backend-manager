@@ -603,7 +603,7 @@ Manager.prototype.storage = function (options) {
       ? `${require('os').tmpdir()}/${options.name}.json`
       : `./.data/${options.name}.json`;
     const adapter = new FileSync(dbPath);
-
+    
     if (
       options.temporary 
       && self.assistant.meta.environment === 'development'
