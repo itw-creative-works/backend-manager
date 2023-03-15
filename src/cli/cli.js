@@ -227,6 +227,7 @@ Main.prototype.setup = async function () {
   self.runtimeConfigJSON = jetpack.read(`${self.firebaseProjectPath}/functions/.runtimeconfig.json`) || '{}';
   self.remoteconfigJSON = jetpack.read(`${self.firebaseProjectPath}/remoteconfig.template.json`) || '{}';
   self.projectPackage = jetpack.read(`${self.firebaseProjectPath}/package.json`) || '{}';
+  self.bemConfigJSON = jetpack.read(`${self.firebaseProjectPath}/functions/backend-manager-config.json`) || '{}';
 
   self.gitignore = jetpack.read(`${self.firebaseProjectPath}/functions/.gitignore`) || '';
   if (!self.package) {
@@ -261,19 +262,18 @@ Main.prototype.setup = async function () {
   self.bemApiURL = `https://us-central1-${_.get(self.firebaseRC, 'projects.default')}.cloudfunctions.net/bm_api?authenticationToken=${_.get(self.runtimeConfigJSON, 'backend_manager.key')}`;
   // const prepareStatsURL = `https://us-central1-${_.get(self.firebaseRC, 'projects.default')}.cloudfunctions.net/bm_api?authenticationToken=undefined`;
   
-
-  
-  log(`Id: `, chalk.bold(`${self.projectName}`));
-  log(`Url:`, chalk.bold(`${self.projectUrl}`));
+  // Log
+  log(`ID: `, chalk.bold(`${self.projectName}`));
+  log(`URL:`, chalk.bold(`${self.projectUrl}`));
 
   if (!self.package || !self.package.engines || !self.package.engines.node) {
     throw new Error('Missing <engines.node> in package.json')
   }
 
-
   // Tests
   await self.test('is a firebase project', async function () {
     let exists = jetpack.exists(`${self.firebaseProjectPath}/firebase.json`);
+    
     return exists;
   }, fix_isFirebase);
 
@@ -281,8 +281,8 @@ Main.prototype.setup = async function () {
     // return !!self.package.dependencies && !!self.package.devDependencies;
     // let gitignore = jetpack.read(path.resolve(`${__dirname}/../../templates/gitignore.md`));
     let nvmrc = jetpack.read(`${self.firebaseProjectPath}/functions/.nvmrc`) || '';
+    
     return nvmrc === `v${CLI_CONFIG.node}/*`
-
   }, fix_nvmrc);
 
   await self.test(`using node ${CLI_CONFIG.node}`, function () {
@@ -390,22 +390,25 @@ Main.prototype.setup = async function () {
     let runtimeconfig = JSON.parse(jetpack.read(`${self.firebaseProjectPath}/functions/.runtimeconfig.json`) || '{}');
     let ogPaths = getObjectPaths(runtimeconfigTemplate).split('\n');
     let pass = true;
+
     for (var i = 0, l = ogPaths.length; i < l; i++) {
       let item = ogPaths[i];
       if (!item) {continue}
-      pass = (_.get(runtimeconfig, item, undefined));
+      pass = _.get(runtimeconfig, item, undefined);
       if (typeof pass === 'undefined') {
         break;
       }
     }
-    return !!pass;
 
+    return !!pass;
   }, fix_runtimeConfig);
 
   await self.test('using proper backend-manager-config.json', async function () {
-    let bemConfig = JSON.parse(jetpack.read(`${self.firebaseProjectPath}/functions/backend-manager-config.json`) || '{}');
+    const bemConfig = JSON.parse(self.bemConfigJSON);
+
     let ogPaths = getObjectPaths(bemConfigTemplate).split('\n');
     let pass = true;
+
     for (var i = 0, l = ogPaths.length; i < l; i++) {
       let item = ogPaths[i];
       if (!item) {continue}
@@ -414,8 +417,13 @@ Main.prototype.setup = async function () {
         break;
       }
     }
-    return !!pass;
 
+    if (self.projectName !== bemConfig.firebaseConfig.projectId) {
+      console.error(chalk.red('Mismatch between project name and firebaseConfig.projectId in backend-manager-config.json'));
+      return false;
+    }
+
+    return !!pass;
   }, fix_bemConfig);
 
   await self.test('has service-account.json', function () {
@@ -761,6 +769,12 @@ function fix_nvmrc(self) {
     jetpack.write(`${self.firebaseProjectPath}/functions/.nvmrc`, `v${CLI_CONFIG.node}/*`);
     resolve();
   });
+};
+
+async function fix_isFirebase(self) {
+  log(chalk.red(`self is not a firebase project. Please use ${chalk.bold('firebase-init')} to set up.`));
+  throw '';
+  return;
 };
 
 async function fix_isFirebase(self) {
