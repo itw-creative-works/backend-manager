@@ -1,5 +1,9 @@
+let nanoId;
+
 function Utilities(Manager) {
   const self = this;
+
+  self.cache = null;
   
   self.Manager = Manager;
 }
@@ -131,6 +135,61 @@ Utilities.prototype.iterateUsers = function (callback, options) {
     }
     
     listAllUsers(options.pageToken);   
+  });
+};
+
+Utilities.prototype.randomId = function (options) {
+  const self = this;
+
+  options = options || {};
+  options.size = options.size || 14;
+
+  if (!nanoId) {
+    nanoId = require('nanoid');
+
+    nanoId = nanoId.customAlphabet(
+      nanoId.urlAlphabet.replace(/_|-/g, ''), 
+      options.size,
+    )
+  }
+
+  return nanoId();
+};
+
+Utilities.prototype.get = function (docPath, options) {
+  const self = this;
+
+  return new Promise(function(resolve, reject) {
+
+    options = options || {};
+    options.maxAge = options.maxAge || (1000 * 60 * 5); // 5 minutes
+
+    self.cache = self.cache || self.Manager.storage({name: 'cache', temporary: true, clear: false});
+
+    const item = self.cache.get(docPath).value();
+    const age = item ? Date.now() - item.time : null;
+
+    if (item && age && age < options.maxAge) {
+      return resolve(item.doc);
+    } else {
+      self.Manager.libraries.admin.firestore().doc(docPath)
+        .get()
+        .then(async (doc) => {
+          const data = doc.data();
+
+          if (!data) {
+            throw new Error(`Document with ID ${doc} not found`);
+          }
+
+          self.cache.set(docPath, {
+            doc: doc,
+            time: Date.now(),
+          })
+          .write();
+
+          return resolve(doc);
+        })
+    }
   });
 };
 

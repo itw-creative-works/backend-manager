@@ -3,6 +3,7 @@ const path = require('path');
 const { get, merge } = require('lodash');
 const jetpack = require('fs-jetpack');
 const JSON5 = require('json5');
+
 // const { debug, log, error, warn } = require('firebase-functions/lib/logger');
 // let User;
 // let Analytics;
@@ -570,12 +571,6 @@ Manager.prototype.ApiManager = function () {
   return new self.libraries.ApiManager(self, ...arguments);
 };
 
-Manager.prototype.Utilities = function () {
-  const self = this;
-  self.libraries.Utilities = self.libraries.Utilities || require('./helpers/utilities.js');
-  return new self.libraries.Utilities(self, ...arguments);
-};
-
 Manager.prototype.Roles = function () {
   const self = this;
   self.libraries.Roles = self.libraries.Roles || require('./helpers/roles.js');
@@ -586,6 +581,23 @@ Manager.prototype.SubscriptionResolver = function () {
   const self = this;
   self.libraries.SubscriptionResolver = self.libraries.SubscriptionResolver || require('./helpers/subscription-resolver.js');
   return new self.libraries.SubscriptionResolver(...arguments);
+};
+
+// Manager.prototype.Utilities = function () {
+//   const self = this;
+//   self.libraries.Utilities = self.libraries.Utilities || require('./helpers/utilities.js');
+//   return new self.libraries.Utilities(self, ...arguments);
+// };
+
+Manager.prototype.Utilities = function () {
+  const self = this;
+
+  if (!self._internal.utilities) {
+    self.libraries.Utilities = require('./helpers/utilities.js');
+    self._internal.utilities = new self.libraries.Utilities(self, ...arguments);
+  }
+
+  return self._internal.utilities;
 };
 
 Manager.prototype.storage = function (options) {
@@ -622,6 +634,8 @@ Manager.prototype.storage = function (options) {
         jetpack.write(dbPath, {});
       }
       self._internal.storage[options.name] = low(adapter);
+
+      self._internal.storage[options.name].set('_location', dbPath)
     }
 
     try {
