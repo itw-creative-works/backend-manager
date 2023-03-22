@@ -50,8 +50,9 @@ Module.prototype.signOutOfSession = function (uid, session) {
   const payload = self.payload;
 
   return new Promise(async function(resolve, reject) {
-    assistant.log(`Signing out of all active sessions for ${uid} @ ${session}`, {environment: 'production'})
     let count = 0;
+
+    assistant.log(`Signing out of all active sessions for ${uid} @ ${session}`, {environment: 'production'})
 
     await self.libraries.admin.database().ref(session)
     .orderByChild('uid')
@@ -60,14 +61,29 @@ Module.prototype.signOutOfSession = function (uid, session) {
     .then(async (snap) => {
       const data = snap.val() || {};
       const keys = Object.keys(data);
+
       for (var i = 0; i < keys.length; i++) {
         const key = keys[i];
+
         self.assistant.log(`Signing out: ${key}`, {environment: 'production'});
-        await self.libraries.admin.database().ref(`${session}/${key}/command`).set('signout').catch(e => self.assistant.error(`Failed to signout ${key}`, e))
+        
+        // Send signout command
+        await self.libraries.admin.database().ref(`${session}/${key}/command`)
+          .set('signout')
+          .catch(e => self.assistant.error(`Failed to signout of session ${key}`, e))
+
         // await powertools.wait(3000);
-        // await self.libraries.admin.database().ref(`${session}/${key}`).remove().catch(e => self.assistant.error(`Failed to delete ${key}`, e))
+
+        // Delete session
+        setTimeout(function () {
+          self.libraries.admin.database().ref(`${session}/${key}`)
+            .remove()
+            .catch(e => self.assistant.error(`Failed to delete session ${key}`, e))          
+        }, 30000);
+
         count++;
       }
+
       return resolve(count);
     })
     .catch(e => {
