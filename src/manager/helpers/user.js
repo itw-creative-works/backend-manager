@@ -6,13 +6,15 @@ const UIDGenerator = require('uid-generator');
 const uidgen = new UIDGenerator(256);
 
 function User(settings, options) {
-  let self = this;
+  const self = this;
+
   settings = settings || {};
   options = options || {};
-  let now = powertools.timestamp(new Date(), {output: 'string'});
-  let nowUNIX = powertools.timestamp(now, {output: 'unix'});
-  let oldDate = powertools.timestamp(new Date(0), {output: 'string'})
-  let oldDateUNIX = powertools.timestamp(oldDate, {output: 'unix'});
+
+  const now = powertools.timestamp(new Date(), {output: 'string'});
+  const nowUNIX = powertools.timestamp(now, {output: 'unix'});
+  const oldDate = powertools.timestamp(new Date(0), {output: 'string'})
+  const oldDateUNIX = powertools.timestamp(oldDate, {output: 'unix'});
 
   const useDefaults = typeof options.defaults === 'undefined' ? true : options.defaults;
 
@@ -32,6 +34,13 @@ function User(settings, options) {
       expires: {
         timestamp: _.get(settings, 'plan.expires.timestamp', useDefaults ? oldDate : null),
         timestampUNIX: _.get(settings, 'plan.expires.timestampUNIX', useDefaults ? oldDateUNIX : null),
+      },
+      trial: {
+        activated: _.get(settings, 'plan.trial.activated', useDefaults ? false : null),
+        date: {
+          timestamp: _.get(settings, 'plan.trial.date.timestamp', useDefaults ? oldDate : null),
+          timestampUNIX: _.get(settings, 'plan.trial.date.timestampUNIX', useDefaults ? oldDateUNIX : null),          
+        }
       },
       limits: {
         // devices: _.get(settings, 'plan.limits.devices', null),
@@ -77,6 +86,25 @@ function User(settings, options) {
       clientId: _.get(settings, 'api.clientId', useDefaults ? `${uuid4()}` : null),
       privateKey: _.get(settings, 'api.privateKey', useDefaults ? `${uidgen.generateSync()}` : null),
     },
+    personal: {
+      birthday: {
+        timestamp: _.get(settings, 'personal.birthday.timestamp', useDefaults ? oldDate : null),
+        timestampUNIX: _.get(settings, 'personal.birthday.timestampUNIX', useDefaults ? oldDateUNIX : null),
+      },
+      gender: _.get(settings, 'personal.gender', useDefaults ? 'undisclosed' : null),
+      location: {
+        city: _.get(settings, 'personal.location.city', useDefaults ? 'undisclosed' : null),
+        country: _.get(settings, 'personal.location.country', useDefaults ? 'ZZ' : null),
+      },
+      name: {
+        first: _.get(settings, 'personal.name.first', useDefaults ? 'undisclosed' : null),
+        last: _.get(settings, 'personal.name.last', useDefaults ? 'undisclosed' : null),
+      },
+      telephone: {
+        countryCode: _.get(settings, 'personal.telephone.countryCode', useDefaults ? 0 : null),
+        national: _.get(settings, 'personal.telephone.national', useDefaults ? 0 : null),
+      },      
+    },    
   }
 
   if (options.prune) {
