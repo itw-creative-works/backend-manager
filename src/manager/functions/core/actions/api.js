@@ -220,18 +220,18 @@ Module.prototype.resolveCommand = function (command) {
 
   command = command || '';
 
-  const resolvedPath = './' + path.join('./api/', `${command.replace(/\.\.\//g, '').replace(/\:/, '/')}.js`);
-  const pathExists = jetpack.exists(path.join(__dirname, resolvedPath));
+  // Check local path
+  const resolvedPath = resolveApiPath(command);
 
   // if (!command || command === 'error:error') {
-  if (!pathExists) {
-    self.assistant.log(`This command does not exist: ${originalCommand} => ${command} @ ${pathExists}`, {environment: 'production'})
+  if (!resolvedPath) {
+    self.assistant.log(`This command does not exist: ${originalCommand} => ${command} @ ${resolvedPath}`, {environment: 'production'})
   }
 
   return {
     command: command,
     path: resolvedPath,
-    exists: !!pathExists,
+    exists: !!resolvedPath,
   };
 }
 
@@ -289,5 +289,28 @@ function _fixStatus(status) {
     }
   }
 }
+
+function resolveBasePath(basePath, command) {
+  const sanitizedCommand = command.replace(/\.\.\//g, '').replace(/\:/, '/');
+  const resolvedPath = path.join(basePath, `${sanitizedCommand}.js`);
+
+  return resolvedPath;
+};
+
+function resolveApiPath(command) {
+  const projectBasePath = path.join(process.cwd(), 'methods/api');
+  const localBasePath = './api/';
+
+  const projectPath = resolveBasePath(projectBasePath, command);
+  const localPath = path.join(__dirname, resolveBasePath(localBasePath, command));
+
+  if (jetpack.exists(projectPath)) {
+    return projectPath;
+  } else if (jetpack.exists(localPath)) {
+    return localPath;
+  } else {
+    return null;
+  }
+};
 
 module.exports = Module;
