@@ -7,9 +7,11 @@ const JSON5 = require('json5');
 // const { debug, log, error, warn } = require('firebase-functions/lib/logger');
 // let User;
 // let Analytics;
+// Paths
+const core = './functions/core';
+const wrappers = './functions/wrappers';
 
-
-  function Manager(exporter, options) {
+function Manager(exporter, options) {
   const self = this;
   // Constants
   self.SERVER_UUID = '11111111-1111-1111-1111-111111111111';
@@ -29,10 +31,6 @@ const JSON5 = require('json5');
 
 Manager.prototype.init = function (exporter, options) {
   const self = this;
-
-  // Paths
-  const core = './functions/core';
-  const wrappers = './functions/wrappers';
 
   // Set options defaults
   options = options || {};
@@ -581,6 +579,18 @@ Manager.prototype.SubscriptionResolver = function () {
   const self = this;
   self.libraries.SubscriptionResolver = self.libraries.SubscriptionResolver || require('./helpers/subscription-resolver.js');
   return new self.libraries.SubscriptionResolver(...arguments);
+};
+
+// For importing API libraries
+Manager.prototype.Api = function () {
+  const self = this;
+  // self.libraries.Api = self.libraries.Api || require('./helpers/subscription-resolver.js');
+  // return new self.libraries.Api(...arguments);
+  // return self._process((new (require(`${core}/actions/api.js`))()).init(self, { req: req, res: res, }))
+  
+  const Api = (new (require(`${core}/actions/api.js`))()).init(self, { req: {}, res: {}, });
+
+  return Api;
 };
 
 // Manager.prototype.Utilities = function () {

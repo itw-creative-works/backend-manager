@@ -27,6 +27,9 @@ SubscriptionResolver.prototype.resolve = function (options) {
       timestamp: moment(0),
       timestampUNIX: moment(0),
     },
+    trial: {
+      active: false,
+    }
   }
 
   const profile = self.profile;
@@ -42,10 +45,22 @@ SubscriptionResolver.prototype.resolve = function (options) {
   // Process differently based on each provider
   if (profile.processor === 'paypal') {
     // Set status
-    // subscription: https://developer.paypal.com/docs/api/subscriptions/v1/#subscriptions_get
-    // APPROVAL_PENDING. The subscription is created but not yet approved by the buyer. APPROVED. The buyer has approved the subscription. ACTIVE. The subscription is active. SUSPENDED. The subscription is suspended. CANCELLED. The subscription is cancelled. EXPIRED. The subscription is expired.
-    // order: https://developer.paypal.com/docs/api/orders/v2/#orders_get
-    // CREATED. The order was created with the specified context. SAVED. The order was saved and persisted. The order status continues to be in progress until a capture is made with final_capture = true for all purchase units within the order. APPROVED. The customer approved the payment through the PayPal wallet or another form of guest or unbranded payment. For example, a card, bank account, or so on. VOIDED. All purchase units in the order are voided. COMPLETED. The payment was authorized or the authorized payment was captured for the order. PAYER_ACTION_REQUIRED. The order requires an action from the payer (e.g. 3DS authentication). Redirect the payer to the "rel":"payer-action" HATEOAS link returned as part of the response prior to authorizing or capturing the order.
+    /*
+      subscription: https://developer.paypal.com/docs/api/subscriptions/v1/#subscriptions_get
+      APPROVAL_PENDING. The subscription is created but not yet approved by the buyer. 
+      APPROVED. The buyer has approved the subscription. 
+      ACTIVE. The subscription is active. 
+      SUSPENDED. The subscription is suspended.
+      CANCELLED. The subscription is cancelled. 
+      EXPIRED. The subscription is expired.
+
+      order: https://developer.paypal.com/docs/api/orders/v2/#orders_get
+      CREATED. The order was created with the specified context. 
+      SAVED. The order was saved and persisted. The order status continues to be in progress until a capture is made with final_capture = true for all purchase units within the order. 
+      APPROVED. The customer approved the payment through the PayPal wallet or another form of guest or unbranded payment. For example, a card, bank account, or so on. 
+      VOIDED. All purchase units in the order are voided. COMPLETED. The payment was authorized or the authorized payment was captured for the order. 
+      PAYER_ACTION_REQUIRED. The order requires an action from the payer (e.g. 3DS authentication). Redirect the payer to the "rel":"payer-action" HATEOAS link returned as part of the response prior to authorizing or capturing the order.
+    */
     if (['ACTIVE'].includes(resource.status)) {
       resolved.status = 'active';
     } else if (['SUSPENDED'].includes(resource.status)) {
@@ -57,10 +72,26 @@ SubscriptionResolver.prototype.resolve = function (options) {
     // Set resource ID
     resolved.resource.id = resource.id;
 
-    // Set expiration and start
-    resolved.expires.timestamp = moment(
-      get(resource, 'billing_info.last_payment.time', 0)
-    )
+    // Get trial
+    const trialTenure = get(resource, 'billing_info.cycle_executions', []).find((cycle) => cycle.tenure_type === 'TRIAL');
+    const regularTenure = get(resource, 'billing_info.cycle_executions', []).find((cycle) => cycle.tenure_type === 'REGULAR');
+
+    // Resolve trial
+    if (trialTenure && regularTenure && regularTenure.cycles_completed === 0) {
+      resolved.trial.active = true;
+      
+      // Set expiration and start
+      // resolved.expires.timestamp = moment(
+      //   get(resource, 'billing_info.next_billing_time', 0)
+      // )
+      resolved.expires.timestamp = moment();
+    } else {
+      // Set expiration and start
+      resolved.expires.timestamp = moment(
+        get(resource, 'billing_info.last_payment.time', 0)
+      )
+    }
+
     resolved.start.timestamp = moment(
       get(resource, 'start_time', 0)
     )
@@ -86,10 +117,28 @@ SubscriptionResolver.prototype.resolve = function (options) {
     // Set resource ID
     resolved.resource.id = resource.id;
 
-    // Set expiration and start
-    resolved.expires.timestamp = moment(
-      get(resource, 'current_term_start', 0) * 1000
-    )
+    // Get trial
+    if (resource.status === 'in_trial') {
+      resolved.trial.active = true;
+      
+      // Set expiration and start
+      resolved.expires.timestamp = moment();
+
+      // resolved.expires.timestamp = moment(
+      //   (
+      //     get(resource, 'current_term_start', 0)
+      //     || get(resource, 'current_term_start', 0)
+      //   ) * 1000
+      // )      
+    } else {
+      // Set expiration and start
+      resolved.expires.timestamp = moment(
+        (
+          get(resource, 'current_term_start', 0)
+        ) * 1000
+      )
+    }
+
     resolved.start.timestamp = moment(
       get(resource, 'created_at', 0) * 1000
     )    
@@ -116,10 +165,19 @@ SubscriptionResolver.prototype.resolve = function (options) {
     // Set resource ID
     resolved.resource.id = resource.id;
 
-    // Set expiration and start
-    resolved.expires.timestamp = moment(
-      get(resource, 'current_period_start', 0) * 1000
-    );
+    // Get trial
+    if (resource.status === 'trialing') {
+      resolved.trial.active = true;
+
+      // Set expiration and start
+      resolved.expires.timestamp = moment();      
+    } else {
+      // Set expiration and start
+      resolved.expires.timestamp = moment(
+        get(resource, 'current_period_start', 0) * 1000
+      );      
+    }    
+
     resolved.start.timestamp = moment(
       get(resource, 'start_date', 0) * 1000
     );
@@ -136,6 +194,11 @@ SubscriptionResolver.prototype.resolve = function (options) {
 
     // Set resource ID
     resolved.resource.id = resource.id;
+
+    // Get trial
+    if (true) {
+      resolved.trial.active = false;
+    }
 
     // Set expiration and start
     resolved.expires.timestamp = moment(
@@ -168,6 +231,11 @@ SubscriptionResolver.prototype.resolve = function (options) {
     } else if (freq === 'daily') {
       resolved.expires.timestamp.add(1, 'day');
     }
+  }
+
+  // If trial, set to a max of 1 month
+  if (resolved.trial.active) {
+    resolved.expires.timestamp = moment().add(1, 'month');
   }
 
   // Fix timestamps

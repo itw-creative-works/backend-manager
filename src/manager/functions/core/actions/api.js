@@ -162,6 +162,8 @@ Module.prototype.resolveCommand = function (command) {
   const self = this;
   const originalCommand = command;
 
+  command = command || '';
+
   // Start
   if (false) {
 
@@ -217,8 +219,6 @@ Module.prototype.resolveCommand = function (command) {
   } else {
     // command = 'error:error';
   }
-
-  command = command || '';
 
   // Check local path
   const resolvedPath = resolveApiPath(command);
