@@ -81,10 +81,9 @@ SubscriptionResolver.prototype.resolve = function (options) {
       resolved.trial.active = true;
       
       // Set expiration and start
-      // resolved.expires.timestamp = moment(
-      //   get(resource, 'billing_info.next_billing_time', 0)
-      // )
-      resolved.expires.timestamp = moment();
+      resolved.expires.timestamp = moment(
+        get(resource, 'billing_info.next_billing_time', 0)
+      )
     } else {
       // Set expiration and start
       resolved.expires.timestamp = moment(
@@ -102,6 +101,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
     } else {
       resolved.payment.completed = !['CREATED', 'SAVED', 'APPROVED', 'VOIDED', 'PAYER_ACTION_REQUIRED'].includes(resource.status);         
     }
+
   } else if (profile.processor === 'chargebee') {
     // Set status
     // subscription: https://apidocs.chargebee.com/docs/api/subscriptions?prod_cat_ver=2#subscription_status
@@ -122,14 +122,11 @@ SubscriptionResolver.prototype.resolve = function (options) {
       resolved.trial.active = true;
       
       // Set expiration and start
-      resolved.expires.timestamp = moment();
-
-      // resolved.expires.timestamp = moment(
-      //   (
-      //     get(resource, 'current_term_start', 0)
-      //     || get(resource, 'current_term_start', 0)
-      //   ) * 1000
-      // )      
+      resolved.expires.timestamp = moment(
+        (
+          get(resource, 'trial_end', 0)
+        ) * 1000
+      )
     } else {
       // Set expiration and start
       resolved.expires.timestamp = moment(
@@ -141,12 +138,13 @@ SubscriptionResolver.prototype.resolve = function (options) {
 
     resolved.start.timestamp = moment(
       get(resource, 'created_at', 0) * 1000
-    )    
+    )
 
     // Set completed
     if (true) {
       resolved.payment.completed = !['future'].includes(resource.status);
     }
+
   } else if (profile.processor === 'stripe') {
     // Subscription: https://stripe.com/docs/api/subscriptions/object#subscription_object-status
     // incomplete, incomplete_expired, trialing, active, past_due, canceled, or unpaid
@@ -170,13 +168,17 @@ SubscriptionResolver.prototype.resolve = function (options) {
       resolved.trial.active = true;
 
       // Set expiration and start
-      resolved.expires.timestamp = moment();      
+      resolved.expires.timestamp = moment(
+        (
+          get(resource, 'trial_end', 0)
+        ) * 1000
+      )    
     } else {
       // Set expiration and start
       resolved.expires.timestamp = moment(
         get(resource, 'current_period_start', 0) * 1000
       );      
-    }    
+    }
 
     resolved.start.timestamp = moment(
       get(resource, 'start_date', 0) * 1000
@@ -188,6 +190,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
     } else if (resource.object === 'payment_intent') {
       resolved.payment.completed = !['requires_payment_method', 'requires_confirmation', 'requires_action', 'processing', 'requires_capture', 'canceled'].includes(resource.status);      
     }
+
   } else if (profile.processor === 'coinbase') {
     // Set status
     resolved.status = 'cancelled';
@@ -214,28 +217,26 @@ SubscriptionResolver.prototype.resolve = function (options) {
     }
   }
 
-  // If there was NEVER any payment sent
-  if (!resolved.payment.completed) {
-    resolved.expires.timestamp = moment(0);
-  }  
-
-  // Fix expires by adding time to the date of last payment
+  // Fix expiry by adding time to the date of last payment
   if (resolved.status === 'active') {
     resolved.expires.timestamp.add(1, 'year').add(30, 'days');
   } else {
-    const freq = profile.details.planFrequency || 'monthly';
-    if (freq === 'annually') {
-      resolved.expires.timestamp.add(1, 'year');
-    } else if (freq === 'monthly') {
-      resolved.expires.timestamp.add(1, 'month');
-    } else if (freq === 'daily') {
-      resolved.expires.timestamp.add(1, 'day');
+    // If trial, it's already set to the trial end above
+    if (!resolved.trial.active) {
+      const freq = profile.details.planFrequency || 'monthly';
+      if (freq === 'annually') {
+        resolved.expires.timestamp.add(1, 'year');
+      } else if (freq === 'monthly') {
+        resolved.expires.timestamp.add(1, 'month');
+      } else if (freq === 'daily') {
+        resolved.expires.timestamp.add(1, 'day');
+      }      
     }
   }
 
-  // If trial, set to a max of 1 month
-  if (resolved.trial.active) {
-    resolved.expires.timestamp = moment().add(1, 'month');
+  // If there was NEVER any payment sent AND they are not trialing
+  if (!resolved.payment.completed && !resolved.trial.active) {
+    resolved.expires.timestamp = moment(0);
   }
 
   // Fix timestamps
@@ -244,8 +245,6 @@ SubscriptionResolver.prototype.resolve = function (options) {
 
   resolved.start.timestampUNIX = resolved.start.timestamp.unix()
   resolved.start.timestamp = resolved.start.timestamp.toISOString()  
-
-  // console.log('---resolved', resolved);
 
   if (options.log) {
     console.log('resolved', resolved);
