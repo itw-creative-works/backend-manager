@@ -12,47 +12,49 @@ Module.prototype.main = function () {
   const payload = self.payload;
 
   return new Promise(async function(resolve, reject) {
-
+    // Load libraries
     _ = Manager.require('lodash')
 
+    // Perform checks
     if (!payload.user.roles.admin) {
       return reject(assistant.errorManager(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
-    } else {
-      const stats = self.libraries.admin.firestore().doc(`meta/stats`)
-      await stats
-        .get()
-        .then(async (doc) => {
-          let data = doc.data() || {};
-
-          // Only update if requested
-          if (payload.data.payload.update) {
-            await self.updateStats(data)
-              .catch(e => data = e)
-          }
-
-          if (data instanceof Error) {
-            return reject(assistant.errorManager(data, {code: 500, sentry: false, send: false, log: false}).error)
-          }
-
-          // Retrieve the stats again after updating
-          await stats
-            .get()
-            .then(doc => {
-              data = doc.data() || {};
-            })
-            .catch(e => data = e)
-
-
-          if (data instanceof Error) {
-            return reject(assistant.errorManager(data, {code: 500, sentry: false, send: false, log: false}).error)
-          }
-
-          return resolve({data: data})
-        })
-        .catch(function (e) {
-          return reject(assistant.errorManager(`Failed to get: ${e}`, {code: 500, sentry: false, send: false, log: false}).error)
-        })
     }
+
+    // Get stats
+    const stats = self.libraries.admin.firestore().doc(`meta/stats`)
+    await stats
+      .get()
+      .then(async (doc) => {
+        let data = doc.data() || {};
+
+        // Only update if requested
+        if (payload.data.payload.update) {
+          await self.updateStats(data)
+            .catch(e => data = e)
+        }
+
+        if (data instanceof Error) {
+          return reject(assistant.errorManager(data, {code: 500, sentry: false, send: false, log: false}).error)
+        }
+
+        // Retrieve the stats again after updating
+        await stats
+          .get()
+          .then(doc => {
+            data = doc.data() || {};
+          })
+          .catch(e => data = e)
+
+
+        if (data instanceof Error) {
+          return reject(assistant.errorManager(data, {code: 500, sentry: false, send: false, log: false}).error)
+        }
+
+        return resolve({data: data})
+      })
+      .catch(function (e) {
+        return reject(assistant.errorManager(`Failed to get: ${e}`, {code: 500, sentry: false, send: false, log: false}).error)
+      })    
   });
 
 };

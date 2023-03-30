@@ -13,11 +13,12 @@ Module.prototype.main = function () {
   const payload = self.payload;
 
   return new Promise(async function(resolve, reject) {
-
+    // Perform checks    
     if (!payload.user.roles.admin) {
       return reject(assistant.errorManager(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
     }
 
+    // Run queries
     self.docs = [];
     assistant.log('Queries', payload.data.payload.queries);
     let queries = powertools.arrayify(payload.data.payload.queries || []);
@@ -28,6 +29,7 @@ Module.prototype.main = function () {
       promises.push(self.runQuery(queries[i]))
     }
 
+    // Get the results
     await Promise.all(promises)
       .then((r) => {
         return resolve({data: self.docs});
