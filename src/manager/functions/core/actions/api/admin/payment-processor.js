@@ -1,4 +1,5 @@
 const _ = require('lodash');
+const jetpack = require('fs-jetpack');
 
 function Module() {
 
@@ -24,11 +25,18 @@ Module.prototype.main = function () {
     const processorPath = `${process.cwd()}/payment-processors/${productId}.js`
     let processor;
     // console.log('---processorPath', processorPath);
+
     try {
+      if (!jetpack.exists(processorPath)) {
+        self.assistant.warn('Subprocessor does not exist:', processorPath, {environment: 'production'})
+
+        return resolve({data: {}})
+      }
       processor = new (require(processorPath));
       processor.Manager = self.Manager;
     } catch (e) {
-      self.assistant.error('Error loading processor', processorPath, e, {environment: 'production'})
+      self.assistant.error('Subprocessor failed to load:', processorPath, e, {environment: 'production'})
+
       return resolve({data: {}})
     }
 

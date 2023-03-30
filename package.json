@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "2.5.66",
+  "version": "2.5.67",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -31,7 +31,7 @@
     "@google-cloud/storage": "^5.20.5",
     "@sendgrid/mail": "^7.7.0",
     "@sentry/node": "^6.19.7",
-    "backend-assistant": "^1.0.1",
+    "backend-assistant": "^1.0.2",
     "busboy": "^1.6.0",
     "chalk": "^4.1.2",
     "cors": "^2.8.5",
@@ -47,7 +47,7 @@
     "lowdb": "^1.0.0",
     "mailchimp-api-v3": "^1.15.0",
     "moment": "^2.29.4",
-    "nanoid": "^3.3.4",
+    "nanoid": "^3.3.6",
     "node-fetch": "^2.6.9",
     "node-powertools": "^0.0.23",
     "npm-api": "^1.0.1",
