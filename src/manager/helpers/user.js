@@ -37,10 +37,10 @@ function User(settings, options) {
       },
       trial: {
         activated: _.get(settings, 'plan.trial.activated', useDefaults ? false : null),
-        date: {
-          timestamp: _.get(settings, 'plan.trial.date.timestamp', useDefaults ? oldDate : null),
-          timestampUNIX: _.get(settings, 'plan.trial.date.timestampUNIX', useDefaults ? oldDateUNIX : null),          
-        }
+        expires: {
+          timestamp: _.get(settings, 'plan.trial.expires.timestamp', useDefaults ? oldDate : null),
+          timestampUNIX: _.get(settings, 'plan.trial.expires.timestampUNIX', useDefaults ? oldDateUNIX : null),          
+        },
       },
       limits: {
         // devices: _.get(settings, 'plan.limits.devices', null),
