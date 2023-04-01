@@ -1,6 +1,7 @@
 const path = require('path');
 const _ = require('lodash');
 const jetpack = require('fs-jetpack');
+const powertools = require('node-powertools');
 
 function Module() {
 
@@ -27,6 +28,7 @@ Module.prototype.init = function (Manager, data) {
   const resolved = self.resolveCommand(self.assistant.request.data.command);
   self.assistant.request.data.command = resolved.command;
   self.assistant.request.data.payload = self.assistant.request.data.payload || {};
+  self.assistant.request.data.options = self.assistant.request.data.options || {};
 
   if (Manager.options.log) {
     self.assistant.log(`Executing (log): ${resolved.command}`, self.assistant.request, JSON.stringify(self.assistant.request), {environment: 'production'})
@@ -48,14 +50,30 @@ Module.prototype.main = function() {
       self.payload.data = assistant.request.data;
       self.payload.user = await assistant.authenticate();
 
+      // Quit if OPTIONS request
       if (self.assistant.request.method === 'OPTIONS') {
         return resolve();
       }
 
+      // Resolve command
       const resolved = self.resolveCommand(self.payload.data.command);
 
       self.assistant.log(`Executing: ${resolved.command}`, self.payload, JSON.stringify(self.payload), {environment: 'production'})
       self.assistant.log(`Resolved URL: ${Manager.project.functionsUrl}?command=${encodeURIComponent(resolved.command)}&payload=${encodeURIComponent(JSON.stringify(self.assistant.request.data.payload))}`, {environment: 'development'})
+
+      // Set up options
+      self.payload.data.options = self.payload.data.options || {};
+      self.payload.data.options.delay = self.payload.data.options.delay || 0;
+
+      // Delay
+      if (self.payload.data.options.delay > 0) {
+        let delay = Math.floor(self.payload.data.options.delay / 1000);
+
+        await powertools.poll(() => {
+          self.assistant.log(`Delaying for ${delay--} seconds...`, {environment: 'production'});
+        }, {interval: 1000, timeout: self.payload.data.options.delay})
+        .catch(e => e);
+      }
 
       if (!resolved.exists) {
         self.payload.response.status = 400;

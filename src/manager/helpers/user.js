@@ -5,8 +5,10 @@ const powertools = require('node-powertools');
 const UIDGenerator = require('uid-generator');
 const uidgen = new UIDGenerator(256);
 
-function User(settings, options) {
+function User(Manager, settings, options) {
   const self = this;
+
+  self.Manager = Manager;
 
   settings = settings || {};
   options = options || {};
@@ -80,6 +82,17 @@ function User(settings, options) {
       created: {
         timestamp: _.get(settings, 'activity.created.timestamp', useDefaults ? now : null),
         timestampUNIX: _.get(settings, 'activity.created.timestampUNIX', useDefaults ? nowUNIX : null),
+      },
+      geolocation: {
+        ip: _.get(settings, 'activity.geolocation.ip', useDefaults ? 'unknown' : null),
+        continent: _.get(settings, 'activity.geolocation.continent', useDefaults ? 'unknown' : null),
+        country: _.get(settings, 'activity.geolocation.country', useDefaults ? 'unknown' : null),
+        city: _.get(settings, 'activity.geolocation.city', useDefaults ? 'unknown' : null),
+        latitude: _.get(settings, 'activity.geolocation.latitude', useDefaults ? 'unknown' : null),
+        longitude: _.get(settings, 'activity.geolocation.longitude', useDefaults ? 'unknown' : null),
+        userAgent: _.get(settings, 'activity.geolocation.userAgent', useDefaults ? 'unknown' : null),
+        language: _.get(settings, 'activity.geolocation.language', useDefaults ? 'unknown' : null),
+        platform: _.get(settings, 'activity.geolocation.platform', useDefaults ? 'unknown' : null),
       },
     },
     api: {

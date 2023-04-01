@@ -72,14 +72,13 @@ Module.prototype.signOutOfSession = function (uid, session) {
           .set('signout')
           .catch(e => self.assistant.error(`Failed to signout of session ${key}`, e))
 
-        // await powertools.wait(3000);
+        // Delay so the client has time to react to the command
+        await powertools.wait(5000);
 
         // Delete session
-        setTimeout(function () {
-          self.libraries.admin.database().ref(`${session}/${key}`)
-            .remove()
-            .catch(e => self.assistant.error(`Failed to delete session ${key}`, e))          
-        }, 30000);
+        self.libraries.admin.database().ref(`${session}/${key}`)
+          .remove()
+          .catch(e => self.assistant.error(`Failed to delete session ${key}`, e))          
 
         count++;
       }

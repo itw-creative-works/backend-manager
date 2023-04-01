@@ -1,11 +1,14 @@
 const moment = require('moment');
 const { get } = require('lodash');
 
-function SubscriptionResolver(profile, resource) {
+function SubscriptionResolver(Manager, profile, resource) {
   const self = this;
   
+  self.Manager = Manager;
   self.profile = profile;
   self.resource = resource;
+
+  return self;
 }
 
 SubscriptionResolver.prototype.resolve = function (options) {

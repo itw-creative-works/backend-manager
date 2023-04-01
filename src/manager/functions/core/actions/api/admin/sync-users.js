@@ -72,6 +72,10 @@ Module.prototype.main = function () {
 
                   const finalData = merge(newUser.properties, data);
 
+                  // Set metadata
+                  finalData.metadata = Manager.Metadata().set({tag: 'admin:sync-users'});
+
+                  // Save to database
                   await self.libraries.admin.firestore().doc(`users/${account.uid}`)
                     .set(finalData, {merge: true})
                     .then(r => {

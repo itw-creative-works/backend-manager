@@ -100,7 +100,7 @@ Module.prototype.updateStats = function (existingData) {
       return reject(error);
     }
 
-    // Fetch new stats
+    // Fetch new notification stats
     await self.getAllNotifications()
       .then(r => {
         _.set(update, 'notifications.total', r)
@@ -109,6 +109,7 @@ Module.prototype.updateStats = function (existingData) {
         error = new Error(`Failed getting notifications: ${e}`);
       })
 
+    // Fetch new subscription stats
     await self.getAllSubscriptions()
       .then(r => {
         _.set(update, 'subscriptions', r)
@@ -120,7 +121,8 @@ Module.prototype.updateStats = function (existingData) {
     if (error) {
       return reject(error);
     }
-
+    
+    // Count users online (in old gathering)
     await gatheringOnline
       .once('value')
       .then((snap) => {
@@ -133,6 +135,7 @@ Module.prototype.updateStats = function (existingData) {
         error = new Error(`Failed getting online users: ${e}`);
       })
 
+    // Count users online (in new session)
     await sessionsApp
       .once('value')
       .then((snap) => {
@@ -149,6 +152,10 @@ Module.prototype.updateStats = function (existingData) {
       return reject(error);
     }
 
+    // Set metadata
+    update.metadata = self.Manager.Metadata().set({tag: 'admin:get-stats'})
+
+    // Update stats
     await stats
       .set(update, { merge: true })
       .catch(function (e) {

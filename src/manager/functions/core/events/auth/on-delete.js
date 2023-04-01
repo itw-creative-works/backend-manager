@@ -19,6 +19,7 @@ Module.prototype.main = function () {
   const user = self.user;
 
   return new Promise(async function(resolve, reject) {
+    // Set up analytics
     const analytics = self.Manager.Analytics({
       assistant: assistant,
       uuid: user.uid,
@@ -29,11 +30,11 @@ Module.prototype.main = function () {
       // label: 'regular',
     });
 
-    // Add user record
+    // Delete user record
     await libraries.admin.firestore().doc(`users/${user.uid}`)
       .delete()
-      .catch(e => {
-        assistant.error(e, {environment: 'production'});
+      .catch((e) => {
+        assistant.error(`auth-on-delete: Delete user failed`, e, {environment: 'production'});
       })
 
     // Update user count
@@ -41,11 +42,11 @@ Module.prototype.main = function () {
       .update({
         'users.total': libraries.admin.firestore.FieldValue.increment(-1),
       })
-      .catch(e => {
-        assistant.error(e, {environment: 'production'});
+      .catch((e) => {
+        assistant.error(`auth-on-delete: Failed to decrement user`, e, {environment: 'production'});
       })
 
-    assistant.log('User deleted:', user, {environment: 'production'}); 
+    assistant.log(`auth-on-delete: User deleted ${user.uid}:`, user, {environment: 'production'}); 
     
     return resolve(self);
   });

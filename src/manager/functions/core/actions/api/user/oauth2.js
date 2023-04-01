@@ -224,24 +224,25 @@ Module.prototype.processState_tokenize = function (newUrl, user) {
     }
 
     const storeResponse = await self.libraries.admin.firestore().doc(`users/${user.auth.uid}`)
-    .set({
-      oauth2: {
-        [payload.data.payload.provider]: {
-          code: _.omit(
-            _.merge({}, payload.data.payload),
-            self.omittedPayloadFields,
-          ),
-          token: tokenizeResponse,
-          identity: verifiedIdentity,
-          updated: {
-            timestamp: assistant.meta.startTime.timestamp,
-            timestampUNIX: assistant.meta.startTime.timestampUNIX,
+      .set({
+        oauth2: {
+          [payload.data.payload.provider]: {
+            code: _.omit(
+              _.merge({}, payload.data.payload),
+              self.omittedPayloadFields,
+            ),
+            token: tokenizeResponse,
+            identity: verifiedIdentity,
+            updated: {
+              timestamp: assistant.meta.startTime.timestamp,
+              timestampUNIX: assistant.meta.startTime.timestampUNIX,
+            }
           }
-        }
-      }
-    }, { merge: true })
-    .then(r => r)
-    .catch(e => e)
+        },
+        metadata: Manager.Metadata().set({tag: 'user:oauth2'}),
+      }, { merge: true })
+      .then(r => r)
+      .catch(e => e)
 
     assistant.log('storeResponse', user.auth.uid, storeResponse, {environment: 'production'});
 
@@ -313,20 +314,21 @@ Module.prototype.processState_refresh = function (newUrl, user) {
     // }
 
     const storeResponse = await self.libraries.admin.firestore().doc(`users/${user.auth.uid}`)
-    .set({
-      oauth2: {
-        [payload.data.payload.provider]: {
-          token: refreshResponse,
-          // identity: verifiedIdentity,
-          updated: {
-            timestamp: assistant.meta.startTime.timestamp,
-            timestampUNIX: assistant.meta.startTime.timestampUNIX,
+      .set({
+        oauth2: {
+          [payload.data.payload.provider]: {
+            token: refreshResponse,
+            // identity: verifiedIdentity,
+            updated: {
+              timestamp: assistant.meta.startTime.timestamp,
+              timestampUNIX: assistant.meta.startTime.timestampUNIX,
+            }
           }
-        }
-      }
-    }, { merge: true })
-    .then(r => r)
-    .catch(e => e)
+        },
+        metadata: Manager.Metadata().set({tag: 'user:oauth2'}),
+      }, { merge: true })
+      .then(r => r)
+      .catch(e => e)
 
     assistant.log('storeResponse', user.auth.uid, storeResponse, {environment: 'production'});
 
@@ -351,23 +353,24 @@ Module.prototype.processState_deauthorize = function (newUrl, user) {
 
   return new Promise(async function(resolve, reject) {
     self.libraries.admin.firestore().doc(`users/${user.auth.uid}`)
-    .set({
-      oauth2: {
-        [payload.data.payload.provider]: {},
-        updated: {
-          timestamp: assistant.meta.startTime.timestamp,
-          timestampUNIX: assistant.meta.startTime.timestampUNIX,
-        }
-      }
-    }, { merge: true })
-    .then(function(data) {
-      return resolve({
-        data: {success: true},
-      });
-    })
-    .catch(function(e) {
-      return reject(e);
-    })
+      .set({
+        oauth2: {
+          [payload.data.payload.provider]: {},
+          updated: {
+            timestamp: assistant.meta.startTime.timestamp,
+            timestampUNIX: assistant.meta.startTime.timestampUNIX,
+          }
+        },
+        metadata: Manager.Metadata().set({tag: 'user:oauth2'}),
+      }, { merge: true })
+      .then(function(data) {
+        return resolve({
+          data: {success: true},
+        });
+      })
+      .catch(function(e) {
+        return reject(e);
+      })
   });
 };
 
@@ -392,22 +395,23 @@ Module.prototype.processState_status = function (newUrl, user) {
         }
 
         Manager.libraries.admin.firestore().doc(`users/${user.auth.uid}`)
-        .set({
-          oauth2: {
-            [payload.data.payload.provider]: {},
-            updated: {
-              timestamp: assistant.meta.startTime.timestamp,
-              timestampUNIX: assistant.meta.startTime.timestampUNIX,
-            }
-          }
-        }, { merge: true })
-        .then(async () => {
-          assistant.log(`Removed disconnected token for user: ${user.auth.uid}`)
-        })
-        .catch((e) => e)
-        .finally(() => {
-          return resolve();
-        })
+          .set({
+            oauth2: {
+              [payload.data.payload.provider]: {},
+              updated: {
+                timestamp: assistant.meta.startTime.timestamp,
+                timestampUNIX: assistant.meta.startTime.timestampUNIX,
+              }
+            },
+            metadata: Manager.Metadata().set({tag: 'user:oauth2'}),
+          }, { merge: true })
+          .then(async () => {
+            assistant.log(`Removed disconnected token for user: ${user.auth.uid}`)
+          })
+          .catch((e) => e)
+          .finally(() => {
+            return resolve();
+          })
       });
     }
 

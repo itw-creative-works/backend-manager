@@ -33,6 +33,7 @@ Module.prototype.main = function () {
       self.libraries.admin.firestore().doc(`users/${user.auth.uid}`)
       .set({
         api: newKeys,
+        metadata: Manager.Metadata().set({tag: 'user:regenerate-api-keys'}),
       }, {merge: true})
       .then(r => {
         return resolve({data: newKeys});

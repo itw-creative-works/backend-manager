@@ -1,3 +1,5 @@
+const { get } = require('lodash');
+
 function Module() {
   const self = this;
 }
@@ -19,13 +21,33 @@ Module.prototype.main = function () {
   const user = self.user;
 
   return new Promise(async function(resolve, reject) {
+    // Check if exists already
+    // It could exist already if user signed up with email and then signed in with Google
+    const existingUser = await libraries.admin.firestore().doc(`users/${user.uid}`)
+      .get()
+      .then((doc) => doc.data() || {})
+      .catch(e => e)
+
+    // If user already exists, skip auth-on-create handler
+    if (
+      existingUser instanceof Error
+      || get(existingUser, 'auth.uid', null)
+      || get(existingUser, 'auth.email', null)
+    ) {
+      assistant.log(`auth-on-create: Skipping handler because user already exists ${user.uid}:`, existingUser, {environment: 'production'});
+
+      return resolve(self);      
+    }      
+
+    // Build user object
     const newUser = self.Manager.User({
       auth: {
         uid: user.uid,
         email: user.email,
       }
-    });
+    }).properties;       
 
+    // Set up analytics
     const analytics = self.Manager.Analytics({
       assistant: assistant,
       uuid: user.uid,
@@ -42,14 +64,17 @@ Module.prototype.main = function () {
         return true
       }
     }).length < 1) {
-      return;
+      return resolve(self);      
     }
 
+    // Add metadata
+    newUser.metadata = self.Manager.Metadata().set({tag: 'auth:on-create'});
+
     // Add user record
-    await libraries.admin.firestore().doc(`users/${newUser.properties.auth.uid}`)
-      .set(newUser.properties, {merge: true})
-      .catch(e => {
-        assistant.error(e, {environment: 'production'});
+    await libraries.admin.firestore().doc(`users/${newUser.auth.uid}`)
+      .set(newUser, {merge: true})
+      .catch((e) => {
+        assistant.error(`auth-on-create: Failed save user record`, e, {environment: 'production'});
       })
 
     // Update user count
@@ -57,11 +82,12 @@ Module.prototype.main = function () {
       .update({
         'users.total': libraries.admin.firestore.FieldValue.increment(1),
       })
-      .catch(e => {
-        assistant.error(e, {environment: 'production'});
+      .catch((e) => {
+        assistant.error(`auth-on-create: Failed to increment user`, e, {environment: 'production'});
       })
 
-    assistant.log('User created:', user, {environment: 'production'});
+    assistant.log(`auth-on-create: User created ${user.uid}:`, newUser, user, {environment: 'production'});
+
     return resolve(self);      
   });
 };

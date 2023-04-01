@@ -65,7 +65,8 @@ Module.prototype.main = function () {
           decision: decision,
           owner: {
             uid: get(user, 'auth.uid', null),
-          }
+          },
+          metadata: Manager.Metadata().set({tag: 'user:submit-feedback'}),
         }, {merge: true})
         .then(r => {
           return resolve({

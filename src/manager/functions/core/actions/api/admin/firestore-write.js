@@ -15,6 +15,7 @@ Module.prototype.main = function () {
     payload.data.payload.document = payload.data.payload.document || {};
     payload.data.payload.options = payload.data.payload.options || {};
     payload.data.payload.options.merge = typeof payload.data.payload.options.merge === 'undefined' ? true : payload.data.payload.options.merge;
+    payload.data.payload.options.metadataTag = typeof payload.data.payload.options.metadataTag === 'undefined' ? 'admin:firestore-write' : payload.data.payload.options.metadataTag;
 
     // Perform checks
     if (!payload.user.roles.admin) {
@@ -22,6 +23,12 @@ Module.prototype.main = function () {
     } else if (!payload.data.payload.path) {
       return reject(assistant.errorManager(`Path parameter required.`, {code: 400, sentry: false, send: false, log: false}).error)
     }
+
+    // Set metadata
+    payload.data.payload.document.metadata = Manager.Metadata().set({tag: payload.data.payload.options.metadataTag})
+
+    // Delete metadataTag
+    delete payload.data.payload.options.metadataTag;
 
     // Write to Firestore
     await self.libraries.admin.firestore().doc(payload.data.payload.path)

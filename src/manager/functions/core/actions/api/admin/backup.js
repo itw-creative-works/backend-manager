@@ -92,7 +92,8 @@ Module.prototype._setMetaStats = function (error, meta) {
             error: error,
           }
         }
-      }
+      },
+      metadata: Manager.Metadata().set({tag: 'admin:backup'}),
     }, {merge: true})
     .catch(e => {
       assistant.errorManager(e, {code: 500, sentry: false, send: false, log: true});

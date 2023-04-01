@@ -52,64 +52,75 @@ Module.prototype.main = function () {
 
 };
 
+
+
 Module.prototype.signUp = function (payload) {
   const self = this;
-  const result = {
-    signedUp: false,
-    referrerUid: undefined,
-    // updatedReferral: true,
-  };
-  let error;
-  payload = payload || {};
+  const Manager = self.Manager;
+  const Api = self.Api;
+  const assistant = self.assistant;
 
   return new Promise(async function(resolve, reject) {
-    let existingUser = {};
-    let finalPayload = {};
+    const result = {
+      signedUp: false,
+      referrerUid: undefined,
+      // updatedReferral: true,
+    };
 
+    payload = payload || {};    
+
+    // Check if the user has a UID and email
     if (!_.get(payload, 'auth.uid', null) || !_.get(payload, 'auth.email', null)) {
       return reject(new Error('Cannot create user without UID and email.'))
     }
 
+    // Update the user who referred this user
     await self.updateReferral({
       affiliateCode: _.get(payload, 'affiliate.referrer', null),
       uid: payload.auth.uid,
     })
-    .then(r => {
+    .then((r) => {
       payload.affiliate.referrer = r.referrerUid;
       result.referrerUid = payload.affiliate.referrer;
     })
-    .catch(function (e) {
+    .catch((e) => {
       payload.affiliate.referrer = undefined;
       console.error('Failed to update affiliate code', e)
     })
 
-    // payload.affiliate.referrer = undefined;
-
-    await self.libraries.admin.firestore().doc(`users/${payload.auth.uid}`)
-    .get()
-    .then(async function (doc) {
-      existingUser = doc.data() || {};
-    })
-    .catch(function (e) {
-      error = e;
-    })
-
-    if (error) {
-      return reject(error);
-    }
-
-    const user = self.Manager.User(payload);
-
     // Merge the payload and the default user object
-    finalPayload = _.merge({}, existingUser, user.properties)
+    const user = {
+      activity: {
+        geolocation: {
+          // Main geolocation
+          ip: assistant.request.ip,
+          continent: assistant.request.continent,
+          country: assistant.request.country,
+          city: assistant.request.city,
+          latitude: assistant.request.latitude,
+          longitude: assistant.request.longitude,
 
+          // Get User Agent data
+          userAgent: assistant.request.userAgent,
+          language: assistant.request.language,
+          platform: assistant.request.platform,
+        },
+      },
+      affiliate: {
+        referrer: payload.affiliate.referrer,
+      },
+      metadata: Manager.Metadata().set({tag: 'user:sign-up'}),
+    }
+    
+    // Set the user
     self.libraries.admin.firestore().doc(`users/${payload.auth.uid}`)
-    .set(finalPayload, { merge: true })
-    .then(function(data) {
+    .set(user, { merge: true })
+    .then((data) => {
       result.signedUp = true;
+
       return resolve(result);
     })
-    .catch(function(e) {
+    .catch((e) => {
       return reject(e);
     })
 

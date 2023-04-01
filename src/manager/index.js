@@ -554,7 +554,7 @@ Manager.prototype.Assistant = function(ref, options) {
 Manager.prototype.User = function () {
   const self = this;
   self.libraries.User = self.libraries.User || require('./helpers/user.js');
-  return new self.libraries.User(...arguments);
+  return new self.libraries.User(self, ...arguments);
 };
 
 Manager.prototype.Analytics = function () {
@@ -578,7 +578,13 @@ Manager.prototype.Roles = function () {
 Manager.prototype.SubscriptionResolver = function () {
   const self = this;
   self.libraries.SubscriptionResolver = self.libraries.SubscriptionResolver || require('./helpers/subscription-resolver.js');
-  return new self.libraries.SubscriptionResolver(...arguments);
+  return new self.libraries.SubscriptionResolver(self, ...arguments);
+};
+
+Manager.prototype.Metadata = function () {
+  const self = this;
+  self.libraries.Metadata = self.libraries.Metadata || require('./helpers/metadata.js');
+  return new self.libraries.Metadata(self, ...arguments);
 };
 
 // For importing API libraries
