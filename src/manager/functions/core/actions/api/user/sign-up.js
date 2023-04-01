@@ -15,6 +15,21 @@ Module.prototype.main = function () {
   return new Promise(async function(resolve, reject) {
     self.Api.resolveUser({adminRequired: true})
     .then(async (user) => {
+        // Get auth user from firebase
+        const authUser = await self.libraries.admin.auth().getUser(user.auth.uid).catch(e => e);
+
+        if (authUser instanceof Error) {
+          return reject(assistant.errorManager(`Failed to get auth user: ${authUser}`, {code: 500, sentry: false, send: false, log: false}).error)
+        }
+
+        // Difference in hours
+        const diff = (Date.now() - new Date(authUser.metadata.creationTime)) / 36e5;
+
+        // If the user is not new, reject
+        if (diff > 0.5) {
+          return reject(assistant.errorManager(`User is not new.`, {code: 400, sentry: false, send: false, log: false}).error)
+        }
+
         await self.signUp({
           auth: {
             uid: _.get(user, 'auth.uid', null),
