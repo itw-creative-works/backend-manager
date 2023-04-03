@@ -317,11 +317,14 @@ SubscriptionResolver.prototype.resolve = function (options) {
       get(resource, 'created_at', 0)
     );
 
+    // Retrieve last payment
+    const lastPayment = resource.payments.find(p => p.status === 'CONFIRMED');
+
     // Set last payment
     if (lastPayment) {
       resolved.lastPayment.amount = parseFloat(lastPayment.value.local.amount);
       resolved.lastPayment.date.timestamp = moment(lastPayment.detected_at);
-    }    
+    }
 
     // Get trial
     if (true) {
@@ -337,7 +340,6 @@ SubscriptionResolver.prototype.resolve = function (options) {
     }
 
     // Set completed
-    const lastPayment = resource.payments.find(p => p.status === 'CONFIRMED');
     if (true) {
       resolved.payment.completed = !!lastPayment;
     }
