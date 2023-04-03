@@ -218,7 +218,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
       resolved.payment.completed = !['future'].includes(resource.status);
     }
 
-    // Set last payment
+    // Set last payment @@@ TODO
     // if (resource.billing_info && resource.billing_info.last_payment) {
     //   resolved.lastPayment.amount = parseFloat(resource.billing_info.last_payment.amount.value);
     //   resolved.lastPayment.date.timestamp = moment(resource.billing_info.last_payment.time);
