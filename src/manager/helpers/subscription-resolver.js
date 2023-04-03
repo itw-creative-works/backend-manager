@@ -31,6 +31,13 @@ SubscriptionResolver.prototype.resolve = function (options) {
       timestamp: moment(0),
       timestampUNIX: moment(0),
     },
+    lastPayment: {
+      amount: 0,
+      date: {
+        timestamp: moment(0),
+        timestampUNIX: moment(0),           
+      }
+    },
     trial: {
       active: false,
       daysLeft: 0,
@@ -147,6 +154,12 @@ SubscriptionResolver.prototype.resolve = function (options) {
       resolved.payment.completed = !['CREATED', 'SAVED', 'APPROVED', 'VOIDED', 'PAYER_ACTION_REQUIRED'].includes(resource.status);         
     }
 
+    // Set last payment
+    if (resource.billing_info && resource.billing_info.last_payment) {
+      resolved.lastPayment.amount = parseFloat(resource.billing_info.last_payment.amount.value);
+      resolved.lastPayment.date.timestamp = moment(resource.billing_info.last_payment.time);
+    }
+
   } else if (profile.processor === 'chargebee') {
     // Set status
     // subscription: https://apidocs.chargebee.com/docs/api/subscriptions?prod_cat_ver=2#subscription_status
@@ -204,6 +217,12 @@ SubscriptionResolver.prototype.resolve = function (options) {
     if (true) {
       resolved.payment.completed = !['future'].includes(resource.status);
     }
+
+    // Set last payment
+    // if (resource.billing_info && resource.billing_info.last_payment) {
+    //   resolved.lastPayment.amount = parseFloat(resource.billing_info.last_payment.amount.value);
+    //   resolved.lastPayment.date.timestamp = moment(resource.billing_info.last_payment.time);
+    // }
 
   } else if (profile.processor === 'stripe') {
     // Subscription: https://stripe.com/docs/api/subscriptions/object#subscription_object-status
@@ -266,6 +285,14 @@ SubscriptionResolver.prototype.resolve = function (options) {
       resolved.payment.completed = !['requires_payment_method', 'requires_confirmation', 'requires_action', 'processing', 'requires_capture', 'canceled'].includes(resource.status);      
     }
 
+    // Set last payment
+    if (resource.latest_invoice) {
+      resolved.lastPayment.amount = resource.latest_invoice.amount_paid / 100;
+      resolved.lastPayment.date.timestamp = moment(
+        get(resource, 'latest_invoice.created', 0) * 1000
+      );
+    }
+
   } else if (profile.processor === 'coinbase') {
     // Set status
     resolved.status = 'cancelled';
@@ -297,9 +324,17 @@ SubscriptionResolver.prototype.resolve = function (options) {
     }
 
     // Set completed
+    const lastPayment = resource.payments.find(p => p.status === 'CONFIRMED');
     if (true) {
-      resolved.payment.completed = !!resource.payments.find(p => p.status === 'CONFIRMED');
+      resolved.payment.completed = !!lastPayment;
     }
+
+    // Set last payment
+    if (lastPayment) {
+      resolved.lastPayment.amount = parseFloat(lastPayment.local.amount);
+      resolved.lastPayment.date.timestamp = moment(lastPayment.detected_at);
+    }
+
   } else {
     throw new Error('Unknown processor');
   }
@@ -342,6 +377,10 @@ SubscriptionResolver.prototype.resolve = function (options) {
 
   // Fix trial days
   resolved.trial.daysLeft = resolved.trial.daysLeft < 0 ? 0 : resolved.trial.daysLeft;
+
+  // Set last payment
+  resolved.lastPayment.date.timestampUNIX = moment(resolved.lastPayment.date.timestamp).unix();
+  resolved.lastPayment.date.timestamp = resolved.lastPayment.date.timestamp.toISOString();
   
   // Log if needed
   if (options.log) {
