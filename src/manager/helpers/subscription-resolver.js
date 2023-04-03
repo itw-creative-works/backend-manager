@@ -331,7 +331,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
 
     // Set last payment
     if (lastPayment) {
-      resolved.lastPayment.amount = parseFloat(lastPayment.local.amount);
+      resolved.lastPayment.amount = parseFloat(lastPayment.value.local.amount);
       resolved.lastPayment.date.timestamp = moment(lastPayment.detected_at);
     }
 
