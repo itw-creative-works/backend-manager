@@ -116,14 +116,27 @@ SubscriptionResolver.prototype.resolve = function (options) {
       get(resource, 'billing_info.last_payment.time', 0)
     )
 
+    // Set last payment
+    if (get(resource, 'billing_info.last_payment')) {
+      resolved.lastPayment.amount = parseFloat(resource.billing_info.last_payment.amount.value);
+      resolved.lastPayment.date.timestamp = moment(resource.billing_info.last_payment.time);
+    } 
+
     // Get trial
     const trialTenure = get(resource, 'plan.billing_cycles', []).find((cycle) => cycle.tenure_type === 'TRIAL');
     const regularTenure = get(resource, 'plan.billing_cycles', []).find((cycle) => cycle.tenure_type === 'REGULAR');
 
     // Resolve trial
+    /* 
+      Special condition for PayPal 
+      Because you cannot remove trial on a sub-level, you have to charge a prorated amount for the "trial".
+      Even if charged, it is still considered a trial period by paypal.
+      Thus, we must remove the trial indicator if the user has been charged.
+    */
     if (
       resolved.status === 'active'
       && (trialTenure && regularTenure && regularTenure.total_cycles === 0)
+      && resolved.lastPayment.amount === 0
     ) {
       resolved.trial.active = true;
       
@@ -154,12 +167,6 @@ SubscriptionResolver.prototype.resolve = function (options) {
       resolved.payment.completed = !['CREATED', 'SAVED', 'APPROVED', 'VOIDED', 'PAYER_ACTION_REQUIRED'].includes(resource.status);         
     }
 
-    // Set last payment
-    if (resource.billing_info && resource.billing_info.last_payment) {
-      resolved.lastPayment.amount = parseFloat(resource.billing_info.last_payment.amount.value);
-      resolved.lastPayment.date.timestamp = moment(resource.billing_info.last_payment.time);
-    }
-
   } else if (profile.processor === 'chargebee') {
     // Set status
     // subscription: https://apidocs.chargebee.com/docs/api/subscriptions?prod_cat_ver=2#subscription_status
@@ -186,6 +193,12 @@ SubscriptionResolver.prototype.resolve = function (options) {
         get(resource, 'current_term_start', 0)
       ) * 1000
     )
+
+    // Set last payment @@@ TODO
+    // if (resource.billing_info && resource.billing_info.last_payment) {
+    //   resolved.lastPayment.amount = parseFloat(resource.billing_info.last_payment.amount.value);
+    //   resolved.lastPayment.date.timestamp = moment(resource.billing_info.last_payment.time);
+    // }    
 
     // Get trial
     if (resource.status === 'in_trial') {
@@ -218,12 +231,6 @@ SubscriptionResolver.prototype.resolve = function (options) {
       resolved.payment.completed = !['future'].includes(resource.status);
     }
 
-    // Set last payment @@@ TODO
-    // if (resource.billing_info && resource.billing_info.last_payment) {
-    //   resolved.lastPayment.amount = parseFloat(resource.billing_info.last_payment.amount.value);
-    //   resolved.lastPayment.date.timestamp = moment(resource.billing_info.last_payment.time);
-    // }
-
   } else if (profile.processor === 'stripe') {
     // Subscription: https://stripe.com/docs/api/subscriptions/object#subscription_object-status
     // incomplete, incomplete_expired, trialing, active, past_due, canceled, or unpaid
@@ -252,6 +259,14 @@ SubscriptionResolver.prototype.resolve = function (options) {
       get(resource, 'current_period_start', 0) * 1000
     );
 
+    // Set last payment
+    if (resource.latest_invoice) {
+      resolved.lastPayment.amount = resource.latest_invoice.amount_paid / 100;
+      resolved.lastPayment.date.timestamp = moment(
+        get(resource, 'latest_invoice.created', 0) * 1000
+      );
+    }    
+
     // Get trial
     if (resource.status === 'trialing') {
       resolved.trial.active = true;
@@ -264,7 +279,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
       )
     }
 
-    // Resolve frequency @@@
+    // Resolve frequency
     const unit = resource.plan.interval;
     if (unit === 'year') {
       resolved.frequency = 'annually';
@@ -285,14 +300,6 @@ SubscriptionResolver.prototype.resolve = function (options) {
       resolved.payment.completed = !['requires_payment_method', 'requires_confirmation', 'requires_action', 'processing', 'requires_capture', 'canceled'].includes(resource.status);      
     }
 
-    // Set last payment
-    if (resource.latest_invoice) {
-      resolved.lastPayment.amount = resource.latest_invoice.amount_paid / 100;
-      resolved.lastPayment.date.timestamp = moment(
-        get(resource, 'latest_invoice.created', 0) * 1000
-      );
-    }
-
   } else if (profile.processor === 'coinbase') {
     // Set status
     resolved.status = 'cancelled';
@@ -309,6 +316,12 @@ SubscriptionResolver.prototype.resolve = function (options) {
     resolved.expires.timestamp = moment(
       get(resource, 'created_at', 0)
     );
+
+    // Set last payment
+    if (lastPayment) {
+      resolved.lastPayment.amount = parseFloat(lastPayment.value.local.amount);
+      resolved.lastPayment.date.timestamp = moment(lastPayment.detected_at);
+    }    
 
     // Get trial
     if (true) {
@@ -327,12 +340,6 @@ SubscriptionResolver.prototype.resolve = function (options) {
     const lastPayment = resource.payments.find(p => p.status === 'CONFIRMED');
     if (true) {
       resolved.payment.completed = !!lastPayment;
-    }
-
-    // Set last payment
-    if (lastPayment) {
-      resolved.lastPayment.amount = parseFloat(lastPayment.value.local.amount);
-      resolved.lastPayment.date.timestamp = moment(lastPayment.detected_at);
     }
 
   } else {
