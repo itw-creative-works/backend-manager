@@ -16,6 +16,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
 
   const resolved = {
     status: 'cancelled',
+    frequency: 'monthly',
     resource: {
       id: '',
     },
@@ -32,18 +33,41 @@ SubscriptionResolver.prototype.resolve = function (options) {
     },
     trial: {
       active: false,
+      daysLeft: 0,
     }
   }
 
+  // Set
   const profile = self.profile;
   const resource = self.resource;
 
+  // Set defaults
+  profile.details = profile.details || {};
+  profile.details.planFrequency = profile.details.planFrequency || null;
+  
+  // Set
   options = options || {};
 
+  // Set provider if not set
+  if (!profile.processor) {
+    if (resource.billing_info) {
+      profile.processor = 'paypal';
+    } else if (resource.billing_period_unit) {
+      profile.processor = 'chargebee';
+    } else if (resource.customer) {
+      profile.processor = 'stripe';
+    } else if (resource.addresses) {
+      profile.processor = 'coinbase';
+    } else {
+      throw new Error('Unable to determine subscription provider');
+    }
+  }
+
+  // Log if requested
   if (options.log) {
     console.log('profile', profile);
     console.log('resource', resource);
-  }
+  }  
 
   // Process differently based on each provider
   if (profile.processor === 'paypal') {
@@ -75,28 +99,46 @@ SubscriptionResolver.prototype.resolve = function (options) {
     // Set resource ID
     resolved.resource.id = resource.id;
 
-    // Get trial
-    const trialTenure = get(resource, 'billing_info.cycle_executions', []).find((cycle) => cycle.tenure_type === 'TRIAL');
-    const regularTenure = get(resource, 'billing_info.cycle_executions', []).find((cycle) => cycle.tenure_type === 'REGULAR');
-
-    // Resolve trial
-    if (trialTenure && regularTenure && regularTenure.cycles_completed === 0) {
-      resolved.trial.active = true;
-      
-      // Set expiration and start
-      resolved.expires.timestamp = moment(
-        get(resource, 'billing_info.next_billing_time', 0)
-      )
-    } else {
-      // Set expiration and start
-      resolved.expires.timestamp = moment(
-        get(resource, 'billing_info.last_payment.time', 0)
-      )
-    }
-
+    // Set start
     resolved.start.timestamp = moment(
       get(resource, 'start_time', 0)
     )
+
+    // Set expiration
+    resolved.expires.timestamp = moment(
+      get(resource, 'billing_info.last_payment.time', 0)
+    )
+
+    // Get trial
+    const trialTenure = get(resource, 'plan.billing_cycles', []).find((cycle) => cycle.tenure_type === 'TRIAL');
+    const regularTenure = get(resource, 'plan.billing_cycles', []).find((cycle) => cycle.tenure_type === 'REGULAR');
+
+    // Resolve trial
+    if (
+      resolved.status === 'active'
+      && (trialTenure && regularTenure && regularTenure.total_cycles === 0)
+    ) {
+      resolved.trial.active = true;
+      
+      // Set expiration
+      resolved.expires.timestamp = moment(
+        get(resource, 'billing_info.next_billing_time', 0)
+      )
+    }
+
+    // Resolve frequency
+    const unit = regularTenure.frequency.interval_unit;
+    if (unit === 'YEAR') {
+      resolved.frequency = 'annually';
+    } else if (unit === 'MONTH') {
+      resolved.frequency = 'monthly';
+    } else if (unit === 'WEEK') {
+      resolved.frequency = 'weekly';      
+    } else if (unit === 'DAY') {
+      resolved.frequency = 'daily';
+    } else {
+      throw new Error('Unknown frequency');
+    }
     
     // Set completed
     if (resource.plan_id) {
@@ -120,28 +162,43 @@ SubscriptionResolver.prototype.resolve = function (options) {
     // Set resource ID
     resolved.resource.id = resource.id;
 
+    // Set start
+    resolved.start.timestamp = moment(
+      get(resource, 'created_at', 0) * 1000
+    )
+
+    // Set expiration
+    resolved.expires.timestamp = moment(
+      (
+        get(resource, 'current_term_start', 0)
+      ) * 1000
+    )
+
     // Get trial
     if (resource.status === 'in_trial') {
       resolved.trial.active = true;
       
-      // Set expiration and start
+      // Set expiration
       resolved.expires.timestamp = moment(
         (
           get(resource, 'trial_end', 0)
         ) * 1000
       )
-    } else {
-      // Set expiration and start
-      resolved.expires.timestamp = moment(
-        (
-          get(resource, 'current_term_start', 0)
-        ) * 1000
-      )
     }
 
-    resolved.start.timestamp = moment(
-      get(resource, 'created_at', 0) * 1000
-    )
+    // Resolve frequency
+    const unit = resource.billing_period_unit;
+    if (unit === 'year') {
+      resolved.frequency = 'annually';
+    } else if (unit === 'month') {
+      resolved.frequency = 'monthly';
+    } else if (unit === 'week') {
+      resolved.frequency = 'weekly';      
+    } else if (unit === 'day') {
+      resolved.frequency = 'daily';
+    } else {
+      throw new Error('Unknown frequency');
+    }
 
     // Set completed
     if (true) {
@@ -157,7 +214,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
     // Set status
     if (['trialing', 'active'].includes(resource.status)) {
       resolved.status = 'active';
-    } if (['past_due', 'unpaid'].includes(resource.status)) {
+    } else if (['past_due', 'unpaid'].includes(resource.status)) {
       resolved.status = 'suspended';
     } else {
       resolved.status = 'cancelled';
@@ -166,26 +223,41 @@ SubscriptionResolver.prototype.resolve = function (options) {
     // Set resource ID
     resolved.resource.id = resource.id;
 
+    // Set start
+    resolved.start.timestamp = moment(
+      get(resource, 'start_date', 0) * 1000
+    );
+    
+    // Set expiration
+    resolved.expires.timestamp = moment(
+      get(resource, 'current_period_start', 0) * 1000
+    );
+
     // Get trial
     if (resource.status === 'trialing') {
       resolved.trial.active = true;
 
-      // Set expiration and start
+      // Set expiration
       resolved.expires.timestamp = moment(
         (
           get(resource, 'trial_end', 0)
         ) * 1000
-      )    
-    } else {
-      // Set expiration and start
-      resolved.expires.timestamp = moment(
-        get(resource, 'current_period_start', 0) * 1000
-      );      
+      )
     }
 
-    resolved.start.timestamp = moment(
-      get(resource, 'start_date', 0) * 1000
-    );
+    // Resolve frequency @@@
+    const unit = resource.plan.interval;
+    if (unit === 'year') {
+      resolved.frequency = 'annually';
+    } else if (unit === 'month') {
+      resolved.frequency = 'monthly';
+    } else if (unit === 'week') {
+      resolved.frequency = 'weekly';      
+    } else if (unit === 'day') {
+      resolved.frequency = 'daily';
+    } else {
+      throw new Error('Unknown frequency');
+    }
 
     // Set completed
     if (resource.object === 'subscription') {
@@ -201,37 +273,56 @@ SubscriptionResolver.prototype.resolve = function (options) {
     // Set resource ID
     resolved.resource.id = resource.id;
 
+    // Set start
+    resolved.start.timestamp = moment(
+      get(resource, 'created_at', 0)
+    );
+
+    // Set expiration
+    resolved.expires.timestamp = moment(
+      get(resource, 'created_at', 0)
+    );
+
     // Get trial
     if (true) {
       resolved.trial.active = false;
     }
 
-    // Set expiration and start
-    resolved.expires.timestamp = moment(
-      get(resource, 'created_at', 0)
-    );
-    resolved.start.timestamp = moment(
-      get(resource, 'created_at', 0)
-    );
+    // Resolve frequency
+    const unit = profile.details.planFrequency;
+    if (unit) {
+      resolved.frequency = unit;
+    } else {
+      throw new Error('Unknown frequency');
+    }
 
     // Set completed
     if (true) {
       resolved.payment.completed = !!resource.payments.find(p => p.status === 'CONFIRMED');
     }
+  } else {
+    throw new Error('Unknown processor');
   }
 
   // Fix expiry by adding time to the date of last payment
   if (resolved.status === 'active') {
+    // Set days left
+    if (resolved.trial.active) {
+      resolved.trial.daysLeft = resolved.expires.timestamp.diff(moment(), 'days');        
+    }
+
+    // Set expiration
     resolved.expires.timestamp.add(1, 'year').add(30, 'days');
   } else {
     // If trial, it's already set to the trial end above
     if (!resolved.trial.active) {
-      const freq = profile.details.planFrequency || 'monthly';
-      if (freq === 'annually') {
+      if (resolved.frequency === 'annually') {
         resolved.expires.timestamp.add(1, 'year');
-      } else if (freq === 'monthly') {
+      } else if (resolved.frequency === 'monthly') {
         resolved.expires.timestamp.add(1, 'month');
-      } else if (freq === 'daily') {
+      } else if (resolved.frequency === 'weekly') {
+        resolved.expires.timestamp.add(1, 'week');        
+      } else if (resolved.frequency === 'daily') {
         resolved.expires.timestamp.add(1, 'day');
       }      
     }
@@ -243,12 +334,16 @@ SubscriptionResolver.prototype.resolve = function (options) {
   }
 
   // Fix timestamps
-  resolved.expires.timestampUNIX = resolved.expires.timestamp.unix()
-  resolved.expires.timestamp = resolved.expires.timestamp.toISOString()
+  resolved.expires.timestampUNIX = resolved.expires.timestamp.unix();
+  resolved.expires.timestamp = resolved.expires.timestamp.toISOString();
 
-  resolved.start.timestampUNIX = resolved.start.timestamp.unix()
-  resolved.start.timestamp = resolved.start.timestamp.toISOString()  
+  resolved.start.timestampUNIX = resolved.start.timestamp.unix();
+  resolved.start.timestamp = resolved.start.timestamp.toISOString();
 
+  // Fix trial days
+  resolved.trial.daysLeft = resolved.trial.daysLeft < 0 ? 0 : resolved.trial.daysLeft;
+  
+  // Log if needed
   if (options.log) {
     console.log('resolved', resolved);
   }
