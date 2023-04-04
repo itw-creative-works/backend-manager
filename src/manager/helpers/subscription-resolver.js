@@ -194,11 +194,13 @@ SubscriptionResolver.prototype.resolve = function (options) {
       ) * 1000
     )
 
-    // Set last payment @@@ TODO
-    // if (resource.billing_info && resource.billing_info.last_payment) {
-    //   resolved.lastPayment.amount = parseFloat(resource.billing_info.last_payment.amount.value);
-    //   resolved.lastPayment.date.timestamp = moment(resource.billing_info.last_payment.time);
-    // }    
+    // Set last payment
+    if (resource.total_dues) {
+      resolved.lastPayment.amount = resource.total_dues / 100;
+      resolved.lastPayment.date.timestamp = moment(
+        (resource.due_since || 0) * 1000
+      );
+    }
 
     // Get trial
     if (resource.status === 'in_trial') {
