@@ -57,13 +57,22 @@ SubscriptionResolver.prototype.resolve = function (options) {
 
   // Set provider if not set
   if (!profile.processor) {
-    if (resource.billing_info) {
+    if (
+      // resource.billing_info
+      resource.create_time
+    ) {
       profile.processor = 'paypal';
-    } else if (resource.billing_period_unit) {
+    } else if (
+      resource.billing_period_unit
+    ) {
       profile.processor = 'chargebee';
-    } else if (resource.customer) {
+    } else if (
+      resource.customer
+    ) {
       profile.processor = 'stripe';
-    } else if (resource.addresses) {
+    } else if (
+      resource.addresses
+    ) {
       profile.processor = 'coinbase';
     } else {
       throw new Error('Unable to determine subscription provider');
