@@ -161,6 +161,11 @@ Module.prototype.import = function (command, payload, user, response) {
         lib.payload.data.authenticationToken = self.payload.data.authenticationToken;
       }
 
+      // Set itself to the instance
+      self.lib = lib;
+
+      // console.log('***** import() lib.payload 4', lib.payload);
+
       // lib.payload = {};
       //
       // // Set payload and user if it's provided
@@ -255,12 +260,13 @@ Module.prototype.resolveCommand = function (command) {
 
 Module.prototype.resolveUser = function (options) {
   const self = this;
+
   return new Promise(async function(resolve, reject) {
     let user = null;
 
     options = options || {};
-    options.uid = typeof options.uid !== 'undefined' ? options.uid : self.payload.data.payload.uid;
-    options.admin = typeof options.admin !== 'undefined' ? options.admin : self.payload.user.roles.admin;
+    options.uid = typeof options.uid !== 'undefined' ? options.uid : _.get(self.payload, 'data.payload.uid');
+    options.admin = typeof options.admin !== 'undefined' ? options.admin : _.get(self.payload, 'user.roles.admin');
     options.adminRequired = typeof options.adminRequired !== 'undefined' ? options.adminRequired : true;
 
     if (options.uid) {
@@ -283,6 +289,8 @@ Module.prototype.resolveUser = function (options) {
       }
     } else if (self.payload.user.authenticated) {
       user = self.payload.user;
+    } else if (_.get(self.lib, 'payload.user.authenticated')) {
+      user = self.lib.payload.user;
     }
 
     if (user instanceof Error) {

@@ -23,14 +23,18 @@ SubscriptionResolver.prototype.resolve = function (options) {
     payment: {
       completed: false,
     },
-    expires: {
-      timestamp: moment(0),
-      timestampUNIX: moment(0),
-    },
     start: {
       timestamp: moment(0),
       timestampUNIX: moment(0),
     },
+    expires: {
+      timestamp: moment(0),
+      timestampUNIX: moment(0),
+    },
+    cancelled: {
+      timestamp: moment(0),
+      timestampUNIX: moment(0),
+    },        
     lastPayment: {
       amount: 0,
       date: {
@@ -125,6 +129,13 @@ SubscriptionResolver.prototype.resolve = function (options) {
       get(resource, 'billing_info.last_payment.time', 0)
     )
 
+    // Set cancelled
+    if (resolved.status === 'cancelled') {
+      resolved.cancelled.timestamp = moment(
+        get(resource, 'status_update_time', 0)
+      )
+    }
+
     // Set last payment
     if (get(resource, 'billing_info.last_payment')) {
       resolved.lastPayment.amount = parseFloat(resource.billing_info.last_payment.amount.value);
@@ -203,6 +214,13 @@ SubscriptionResolver.prototype.resolve = function (options) {
       ) * 1000
     )
 
+    // Set cancelled
+    if (resolved.status === 'cancelled') {
+      resolved.cancelled.timestamp = moment(
+        get(resource, 'cancelled_at', 0)
+      )
+    }
+
     // Set last payment
     if (resource.total_dues) {
       resolved.lastPayment.amount = resource.total_dues / 100;
@@ -270,6 +288,13 @@ SubscriptionResolver.prototype.resolve = function (options) {
       get(resource, 'current_period_start', 0) * 1000
     );
 
+    // Set cancelled
+    if (resolved.status === 'cancelled') {
+      resolved.cancelled.timestamp = moment(
+        get(resource, 'canceled_at', 0)
+      )
+    }    
+
     // Set last payment
     if (resource.latest_invoice) {
       resolved.lastPayment.amount = resource.latest_invoice.amount_paid / 100;
@@ -327,6 +352,11 @@ SubscriptionResolver.prototype.resolve = function (options) {
     resolved.expires.timestamp = moment(
       get(resource, 'created_at', 0)
     );
+
+    // Set cancelled
+    resolved.cancelled.timestamp = moment(
+      get(resource, 'created_at', 0)
+    )
 
     // Retrieve last payment
     const lastPayment = resource.payments.find(p => p.status === 'CONFIRMED');
@@ -389,11 +419,14 @@ SubscriptionResolver.prototype.resolve = function (options) {
   }
 
   // Fix timestamps
+  resolved.start.timestampUNIX = resolved.start.timestamp.unix();
+  resolved.start.timestamp = resolved.start.timestamp.toISOString();
+
   resolved.expires.timestampUNIX = resolved.expires.timestamp.unix();
   resolved.expires.timestamp = resolved.expires.timestamp.toISOString();
 
-  resolved.start.timestampUNIX = resolved.start.timestamp.unix();
-  resolved.start.timestamp = resolved.start.timestamp.toISOString();
+  resolved.cancelled.timestampUNIX = resolved.cancelled.timestamp.unix();
+  resolved.cancelled.timestamp = resolved.cancelled.timestamp.toISOString();  
 
   // Fix trial days
   resolved.trial.daysLeft = resolved.trial.daysLeft < 0 ? 0 : resolved.trial.daysLeft;

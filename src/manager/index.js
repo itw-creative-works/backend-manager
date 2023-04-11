@@ -599,6 +599,20 @@ Manager.prototype.Api = function () {
   return Api;
 };
 
+// Manager.prototype.Api = function () {
+//   const self = this;
+//   // self.libraries.Api = self.libraries.Api || require('./helpers/subscription-resolver.js');
+//   // return new self.libraries.Api(...arguments);
+//   // return self._process((new (require(`${core}/actions/api.js`))()).init(self, { req: req, res: res, }))
+//   return new Promise(function(resolve, reject) {
+//     const Api = (new (require(`${core}/actions/api.js`))()).init(self, { req: {}, res: {}, });
+    
+//     Api.main()
+
+//     return Api;
+//   });
+// };
+
 // Manager.prototype.Utilities = function () {
 //   const self = this;
 //   self.libraries.Utilities = self.libraries.Utilities || require('./helpers/utilities.js');
