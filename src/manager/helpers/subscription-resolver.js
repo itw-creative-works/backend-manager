@@ -217,7 +217,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
     // Set cancelled
     if (resolved.status === 'cancelled') {
       resolved.cancelled.timestamp = moment(
-        get(resource, 'cancelled_at', 0)
+        get(resource, 'cancelled_at', 0) * 1000
       )
     }
 
@@ -291,7 +291,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
     // Set cancelled
     if (resolved.status === 'cancelled') {
       resolved.cancelled.timestamp = moment(
-        get(resource, 'canceled_at', 0)
+        get(resource, 'canceled_at', 0) * 1000
       )
     }    
 
