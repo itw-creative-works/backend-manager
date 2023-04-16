@@ -222,7 +222,16 @@ SubscriptionResolver.prototype.resolve = function (options) {
       (
         get(resource, 'current_term_start', 0)
       ) * 1000
-    )
+    )    
+    // if (resource.total_dues > 0) {
+    //   resolved.expires.timestamp = moment(0);
+    // } else {
+    //   resolved.expires.timestamp = moment(
+    //     (
+    //       get(resource, 'current_term_start', 0)
+    //     ) * 1000
+    //   )
+    // }
 
     // Set cancelled
     if (resolved.status === 'cancelled') {
@@ -311,6 +320,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
     }    
 
     // Set last payment
+    // TODO: check if suspended payments are handled correctly when using resource.latest_invoice.amount_paid
     if (resource.latest_invoice) {
       resolved.lastPayment.amount = resource.latest_invoice.amount_paid / 100;
       resolved.lastPayment.date.timestamp = moment(
@@ -428,8 +438,11 @@ SubscriptionResolver.prototype.resolve = function (options) {
     }
   }
 
-  // If there was NEVER any payment sent AND they are not trialing
-  if (!resolved.payment.completed && !resolved.trial.active) {
+  // If they are not trialing AND there was NEVER any payment sent OR the last payment failed, then set the expiration to 0
+  if (
+    !resolved.trial.active
+    && (!resolved.payment.completed || resolved.lastPayment.amount === 0)
+  ) {
     resolved.expires.timestamp = moment(0);
   }
 
