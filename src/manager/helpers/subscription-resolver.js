@@ -190,9 +190,19 @@ SubscriptionResolver.prototype.resolve = function (options) {
   } else if (profile.processor === 'chargebee') {
     // Set status
     // subscription: https://apidocs.chargebee.com/docs/api/subscriptions?prod_cat_ver=2#subscription_status
-    // future The subscription is scheduled to start at a future date. in_trial The subscription is in trial. active The subscription is active and will be charged for automatically based on the items in it. non_renewing The subscription will be canceled at the end of the current term. paused The subscription is paused. The subscription will not renew while in this state. cancelled The subscription has been canceled and is no longer in service.
+    // future The subscription is scheduled to start at a future date. 
+    // in_trial The subscription is in trial. 
+    // active The subscription is active and will be charged for automatically based on the items in it. 
+    // non_renewing The subscription will be canceled at the end of the current term. 
+    // paused The subscription is paused. The subscription will not renew while in this state. 
+    // cancelled The subscription has been canceled and is no longer in service.
     if (['in_trial', 'active'].includes(resource.status)) {
       resolved.status = 'active';
+      
+      // If there's a due invoice, it's suspended
+      if (resource.total_dues > 0) {
+        resolved.status = 'suspended';
+      }
     } else if (['paused'].includes(resource.status)) {
       resolved.status = 'suspended';
     } else {
@@ -222,10 +232,15 @@ SubscriptionResolver.prototype.resolve = function (options) {
     }
 
     // Set last payment
-    if (resource.total_dues) {
-      resolved.lastPayment.amount = resource.total_dues / 100;
+    if (resource.total_dues > 0) {
+      resolved.lastPayment.amount = 0;
       resolved.lastPayment.date.timestamp = moment(
         (resource.due_since || 0) * 1000
+      );
+    } else {
+      resolved.lastPayment.amount = resource.plan_amount / 100;
+      resolved.lastPayment.date.timestamp = moment(
+        (resource.current_term_start || 0) * 1000
       );
     }
 
