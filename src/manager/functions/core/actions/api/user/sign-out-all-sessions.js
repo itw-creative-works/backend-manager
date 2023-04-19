@@ -76,7 +76,7 @@ Module.prototype.signOutOfSession = function (uid, session) {
           await powertools.wait(5000);
 
           // Delete session
-          self.libraries.admin.database().ref(`${session}/${key}`)
+          await self.libraries.admin.database().ref(`${session}/${key}`)
             .remove()
             .catch(e => assistant.error(`Failed to delete session ${key}`, e, {environment: 'production'}))          
 
