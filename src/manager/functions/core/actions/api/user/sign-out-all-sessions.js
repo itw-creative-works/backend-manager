@@ -55,40 +55,43 @@ Module.prototype.signOutOfSession = function (uid, session) {
     assistant.log(`Signing out of all active sessions for ${uid} @ ${session}`, {environment: 'production'})
 
     await self.libraries.admin.database().ref(session)
-    .orderByChild('uid')
-    .equalTo(uid)
-    .once('value')
-    .then(async (snap) => {
-      const data = snap.val() || {};
-      const keys = Object.keys(data);
+      .orderByChild('uid')
+      .equalTo(uid)
+      .once('value')
+      .then(async (snap) => {
+        const data = snap.val() || {};
+        const keys = Object.keys(data);
 
-      for (var i = 0; i < keys.length; i++) {
-        const key = keys[i];
+        for (var i = 0; i < keys.length; i++) {
+          const key = keys[i];
 
-        self.assistant.log(`Signing out: ${key}`, {environment: 'production'});
+          assistant.log(`Signing out ${key}...`, {environment: 'production'});
+          
+          // Send signout command
+          await self.libraries.admin.database().ref(`${session}/${key}/command`)
+            .set('signout')
+            .catch(e => assistant.error(`Failed to signout of session ${key}`, e, {environment: 'production'}))
+
+          // Delay so the client has time to react to the command
+          await powertools.wait(5000);
+
+          // Delete session
+          self.libraries.admin.database().ref(`${session}/${key}`)
+            .remove()
+            .catch(e => assistant.error(`Failed to delete session ${key}`, e, {environment: 'production'}))          
+
+          assistant.log(`Signed out successfully: ${key}`, {environment: 'production'});
+
+          count++;
+        }
+
+        return resolve(count);
+      })
+      .catch(e => {
+        assistant.errorManager(`Session query error for session ${session}: ${e}`, {code: 500, sentry: true, send: false, log: true})
         
-        // Send signout command
-        await self.libraries.admin.database().ref(`${session}/${key}/command`)
-          .set('signout')
-          .catch(e => self.assistant.error(`Failed to signout of session ${key}`, e))
-
-        // Delay so the client has time to react to the command
-        await powertools.wait(5000);
-
-        // Delete session
-        self.libraries.admin.database().ref(`${session}/${key}`)
-          .remove()
-          .catch(e => self.assistant.error(`Failed to delete session ${key}`, e))          
-
-        count++;
-      }
-
-      return resolve(count);
-    })
-    .catch(e => {
-      assistant.errorManager(`Session query error for session ${session}: ${e}`, {code: 500, sentry: true, send: false, log: true})
-      return reject(count)
-    })
+        return reject(count)
+      })
   });
 }
 
