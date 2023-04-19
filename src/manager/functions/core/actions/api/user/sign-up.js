@@ -99,8 +99,9 @@ Module.prototype.signUp = function (payload) {
       result.referrerUid = payload.affiliate.referrer;
     })
     .catch((e) => {
-      payload.affiliate.referrer = undefined;
-      console.error('Failed to update affiliate code', e)
+      payload.affiliate.referrer = null;
+
+      assistant.error('Failed to update affiliate code', e)
     })
 
     // Merge the payload and the default user object
@@ -144,14 +145,15 @@ Module.prototype.signUp = function (payload) {
 
 Module.prototype.updateReferral = function (payload) {
   const self = this;
-  const result = {
-    count: 0,
-    updatedReferral: false,
-    referrerUid: undefined,
-  }
-  payload = payload || {};
 
   return new Promise(function(resolve, reject) {
+    const result = {
+      count: 0,
+      updatedReferral: false,
+      referrerUid: undefined,
+    }
+    payload = payload || {};
+        
     self.libraries.admin.firestore().collection('users')
     .where('affiliate.code', '==', payload.affiliateCode)
     .get()
@@ -183,7 +185,8 @@ Module.prototype.updateReferral = function (payload) {
             }
           }, {merge: true})
           .catch(e => {
-            console.error('Error updating referral', e);
+            self.assistant.error('Error updating referral', e);
+
             error = e;
           })
 
