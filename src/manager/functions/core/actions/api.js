@@ -94,11 +94,11 @@ Module.prototype.main = function() {
             })
             .catch(e => {
               // console.log('---e', e);
-              self.payload.response.status = e.code || 500;
+              self.payload.response.status = e && e.code ? e.code : 500;
               self.payload.response.error = e || new Error('Unknown error occured');
             })
           } catch (e) {
-            self.payload.response.status = 500;
+            self.payload.response.status = e && e.code ? e.code : 500;
             self.payload.response.error = e || new Error('Unknown error occured');
           }
         })
@@ -123,7 +123,7 @@ Module.prototype.main = function() {
           return resolve();
         }
       } else {
-        console.error(`Error executing ${resolved.command} @ ${resolved.path} (status=${self.payload.response.status}):`, self.payload.response.error)
+        self.assistant.error(`Error executing ${resolved.command} @ ${resolved.path} (status=${self.payload.response.status}):`, self.payload.response.error)
         // return res.send(self.payload.response.error.message);
         res.send(`${self.payload.response.error}`)
         return reject(self.payload.response.error);

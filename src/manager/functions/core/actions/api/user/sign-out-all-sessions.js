@@ -21,19 +21,27 @@ Module.prototype.main = function () {
 
       let count = 0;
 
-      await self.signOutOfSession(uid, session).then(r => count += r);
-      // Legacy for somiibo and old electron-manager
-      await self.signOutOfSession(uid, 'gatherings/online').then(r => count += r);
+      try {
+        await self.signOutOfSession(uid, session)
+          .then(r => count += r)
 
-      await self.libraries.admin
-        .auth()
-        .revokeRefreshTokens(uid)
-        .then(() => {
-          return resolve({data: {sessions: count, message: `Successfully signed ${uid} out of all sessions`}});
-        })
-        .catch(e => {
-          return reject(assistant.errorManager(`Failed to sign out of all sessions: ${e}`, {code: 500, sentry: false, send: false, log: false}).error)
-        })
+        // Legacy for somiibo and old electron-manager
+        await self.signOutOfSession(uid, 'gatherings/online')
+          .then(r => count += r)
+
+        await self.libraries.admin
+          .auth()
+          .revokeRefreshTokens(uid)
+          .then(() => {
+            return resolve({data: {sessions: count, message: `Successfully signed ${uid} out of all sessions`}});
+          })
+          .catch(e => {
+            return reject(assistant.errorManager(`Failed to sign out of all sessions: ${e}`, {code: 500, sentry: false, send: false, log: false}).error)
+          })        
+      } catch (e) {
+        assistant.console.log(`@temp sign-out-all-sessions error: ${e}`);
+        return reject(assistant.errorManager(`Failed to sign out of all sessions: ${e}`, {code: 500, sentry: false, send: false, log: false}).error)
+      }
     })
     .catch(e => {
       return reject(e);
