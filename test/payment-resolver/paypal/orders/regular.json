@@ -1,0 +1,120 @@
+{
+    "id": "5CA68427PY850452F",
+    "intent": "CAPTURE",
+    "status": "COMPLETED",
+    "payment_source": {
+        "paypal": {
+            "email_address": "client@gmail.com",
+            "account_id": "DQ3E2AURE5JJN",
+            "name": {
+                "given_name": "Test",
+                "surname": "Lastname"
+            },
+            "address": {
+                "country_code": "US"
+            }
+        }
+    },
+    "purchase_units": [
+        {
+            "reference_id": "default",
+            "amount": {
+                "currency_code": "USD",
+                "value": "1.00"
+            },
+            "payee": {
+                "email_address": "client@gmail.com",
+                "merchant_id": "7DH38EWJF939D"
+            },
+            "description": "Spotify Playlist",
+            "custom_id": "1682566496984-0545",
+            "soft_descriptor": "PAYPAL *ITWCW SPOTIFY ",
+            "shipping": {
+                "name": {
+                    "full_name": "Test Lastname"
+                },
+                "address": {
+                    "address_line_1": "1234 Main Street",
+                    "admin_area_2": "Los Angeles",
+                    "admin_area_1": "CA",
+                    "postal_code": "90000",
+                    "country_code": "US"
+                }
+            },
+            "payments": {
+                "captures": [
+                    {
+                        "id": "1HG55291LY6744213",
+                        "status": "COMPLETED",
+                        "amount": {
+                            "currency_code": "USD",
+                            "value": "1.00"
+                        },
+                        "final_capture": true,
+                        "seller_protection": {
+                            "status": "ELIGIBLE",
+                            "dispute_categories": [
+                                "ITEM_NOT_RECEIVED",
+                                "UNAUTHORIZED_TRANSACTION"
+                            ]
+                        },
+                        "seller_receivable_breakdown": {
+                            "gross_amount": {
+                                "currency_code": "USD",
+                                "value": "1.00"
+                            },
+                            "paypal_fee": {
+                                "currency_code": "USD",
+                                "value": "0.52"
+                            },
+                            "net_amount": {
+                                "currency_code": "USD",
+                                "value": "0.48"
+                            }
+                        },
+                        "custom_id": "1682566496984-0545",
+                        "links": [
+                            {
+                                "href": "https://api.paypal.com/v2/payments/captures/1HG55291LY6744213",
+                                "rel": "self",
+                                "method": "GET"
+                            },
+                            {
+                                "href": "https://api.paypal.com/v2/payments/captures/1HG55291LY6744213/refund",
+                                "rel": "refund",
+                                "method": "POST"
+                            },
+                            {
+                                "href": "https://api.paypal.com/v2/checkout/orders/5CA68427PY850452F",
+                                "rel": "up",
+                                "method": "GET"
+                            }
+                        ],
+                        "create_time": "2023-04-27T03:40:38Z",
+                        "update_time": "2023-04-27T03:40:38Z"
+                    }
+                ]
+            }
+        }
+    ],
+    "payer": {
+        "name": {
+            "given_name": "Test",
+            "surname": "Lastname"
+        },
+        "email_address": "customer@gmail.com",
+        "payer_id": "98FJ29FJ389TH",
+        "address": {
+            "country_code": "US"
+        }
+    },
+    "create_time": "2023-04-27T03:39:50Z",
+    "update_time": "2023-04-27T03:40:38Z",
+    "links": [
+        {
+            "href": "https://api.paypal.com/v2/checkout/orders/5CA68427PY850452F",
+            "rel": "self",
+            "method": "GET"
+        }
+    ]
+}

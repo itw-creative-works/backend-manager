@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "2.5.89",
+  "version": "2.5.90",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -8,7 +8,8 @@
     "bm": "./bin/bem"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "_test": "npm run prepare && ./node_modules/mocha/bin/mocha test/ --recursive --timeout=10000",
+    "test": "./node_modules/mocha/bin/mocha test/ --recursive --timeout=10000",
     "start": "node src/index.js"
   },
   "repository": {
@@ -46,6 +47,7 @@
     "lodash": "^4.17.21",
     "lowdb": "^1.0.0",
     "mailchimp-api-v3": "^1.15.0",
+    "mocha": "^8.4.0",
     "moment": "^2.29.4",
     "nanoid": "^3.3.6",
     "node-fetch": "^2.6.9",

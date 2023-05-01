@@ -1,0 +1,204 @@
+{
+  "addresses": {
+    "pusdc": "0x21a82002d9d144a88da763429332ae66abccc489",
+    "dai": "0xd521590a206b7a768c2b91e76b1e55416cc957a4",
+    "polygon": "0x1103a791462d893b47d557b797a8373cb369923a",
+    "bitcoin": "34fzH947Xbb9frUHQgxDkdeeZ5CHQkVdG5",
+    "apecoin": "0xd197eb4d9e4bdb124c99903157287bef2c1ec83b",
+    "pweth": "0x3ebfa486147820d1d155d88f8a5c1b4fe2c749bc",
+    "usdc": "0x21a82002d9d144a88da763429332ae66abccc489",
+    "litecoin": "MTfdmP8hknqi8Jv7oyFHPQcDA21XiXSS9d",
+    "dogecoin": "D8G1MzRrdifM9Cq6wELyCde7VF52TnmdGH",
+    "ethereum": "0x3ebfa486147820d1d155d88f8a5c1b4fe2c749bc",
+    "tether": "0x1016c9d7f623d73825ede16c718b7d5c18650ac2",
+    "shibainu": "0xa00b30d38c5d878d7556e8d380fee19d1c0747c4",
+    "bitcoincash": "qpurv662v6kt7t2ugg23x0lv9t4d44cyvgx4mzxgfp"
+  },
+  "brand_color": "#122332",
+  "brand_logo_url": "https://res.cloudinary.com/commerce/image/upload/v1669469783/o5msi7avehknjrpyjwts.png",
+  "code": "FBHJR22R",
+  "coinbase_managed_merchant": true,
+  "confirmed_at": "2023-04-26T10:31:42Z",
+  "created_at": "2023-04-26T09:59:19Z",
+  "description": "Slapform Sumo",
+  "exchange_rates": {
+    "USDC-USD": "1.0",
+    "LTC-USD": "91.1",
+    "SHIB-USD": "0.000010505",
+    "PMATIC-USD": "1.0148",
+    "BCH-USD": "120.33",
+    "USDT-USD": "1.000225",
+    "ETH-USD": "1897.2",
+    "DOGE-USD": "0.081105",
+    "APE-USD": "4.027",
+    "BTC-USD": "28883.255",
+    "DAI-USD": "0.99995",
+    "PWETH-USD": "1896.73",
+    "PUSDC-USD": "1.0"
+  },
+  "expires_at": "2023-04-26T10:29:19Z",
+  "fee_rate": 0.01,
+  "hosted_url": "https://commerce.coinbase.com/charges/FBHJR22R",
+  "id": "8f783fa6-eaa3-4460-af64-cac26b183ed1",
+  "local_exchange_rates": {
+    "USDC-USD": "1.0",
+    "LTC-USD": "91.1",
+    "SHIB-USD": "0.000010505",
+    "PMATIC-USD": "1.0148",
+    "BCH-USD": "120.33",
+    "USDT-USD": "1.000225",
+    "ETH-USD": "1897.2",
+    "DOGE-USD": "0.081105",
+    "APE-USD": "4.027",
+    "BTC-USD": "28883.255",
+    "DAI-USD": "0.99995",
+    "PWETH-USD": "1896.73",
+    "PUSDC-USD": "1.0"
+  },
+  "logo_url": "https://res.cloudinary.com/commerce/image/upload/v1669469783/o5msi7avehknjrpyjwts.png",
+  "metadata": {
+    "uid": "O4Env11pWgSCYnQ0zSfwSjv44ak2",
+    "email": "customer@gmail.com",
+    "planId": "sumo",
+    "clientOrderId": "1682503105825-0982",
+    "name": null
+  },
+  "name": "Slapform Sumo",
+  "offchain_eligible": true,
+  "organization_name": "ITW Creative Works",
+  "payment_threshold": {
+    "overpayment_absolute_threshold": {
+      "amount": "9999.00",
+      "currency": "USD"
+    },
+    "underpayment_relative_threshold": "0.05"
+  },
+  "payments": [{
+    "payment_id": "23668f49-5b1f-43cc-8d43-0e0a4aa373ea",
+    "network": "bitcoin",
+    "transaction_id": "5f77305b7d09572cb4cd4bf758baf7d59bffebd55cfe727362646cdd08fbaee9",
+    "status": "CONFIRMED",
+    "detected_at": "2023-04-26T10:06:55Z",
+    "value": {
+      "local": {
+        "amount": "16.00",
+        "currency": "USD"
+      },
+      "crypto": {
+        "amount": "0.00055395",
+        "currency": "BTC"
+      }
+    },
+    "block": {
+      "height": 787072,
+      "hash": "00000000000000000000032c1682e545847242a8486a8c0ceb996af46eeb1c57",
+      "confirmations": 1,
+      "confirmations_required": 1
+    },
+    "deposited": {
+      "autoconversion_enabled": true,
+      "autoconversion_status": "PENDING",
+      "status": "PENDING",
+      "destination": "hello@business.com",
+      "exchange_rate": null,
+      "amount": {
+        "gross": {
+          "local": null,
+          "crypto": {
+            "amount": "0.00055395",
+            "currency": "BTC"
+          }
+        },
+        "net": {
+          "local": null,
+          "crypto": {
+            "amount": "0.00054842",
+            "currency": "BTC"
+          }
+        },
+        "coinbase_fee": {
+          "local": null,
+          "crypto": {
+            "amount": "0.00000553",
+            "currency": "BTC"
+          }
+        }
+      }
+    }
+  }],
+  "pricing": {
+    "local": {
+      "amount": "16.00",
+      "currency": "USD"
+    },
+    "pusdc": {
+      "amount": "16.000000",
+      "currency": "PUSDC"
+    },
+    "dai": {
+      "amount": "16.000800048000000000",
+      "currency": "DAI"
+    },
+    "polygon": {
+      "amount": "15.766654000",
+      "currency": "PMATIC"
+    },
+    "bitcoin": {
+      "amount": "0.00055395",
+      "currency": "BTC"
+    },
+    "apecoin": {
+      "amount": "3.973181028060591011",
+      "currency": "APE"
+    },
+    "pweth": {
+      "amount": "0.008435570692718521",
+      "currency": "PWETH"
+    },
+    "usdc": {
+      "amount": "16.000000",
+      "currency": "USDC"
+    },
+    "litecoin": {
+      "amount": "0.17563117",
+      "currency": "LTC"
+    },
+    "dogecoin": {
+      "amount": "197.27513717",
+      "currency": "DOGE"
+    },
+    "ethereum": {
+      "amount": "0.008433000",
+      "currency": "ETH"
+    },
+    "tether": {
+      "amount": "15.996401",
+      "currency": "USDT"
+    },
+    "shibainu": {
+      "amount": "1523084.245597328000000000",
+      "currency": "SHIB"
+    },
+    "bitcoincash": {
+      "amount": "0.13296767",
+      "currency": "BCH"
+    }
+  },
+  "pricing_type": "fixed_price",
+  "pwcb_only": false,
+  "resource": "charge",
+  "support_email": "support@business.com",
+  "timeline": [{
+    "status": "NEW",
+    "context": "OTHER",
+    "time": "2023-04-26T09:59:19Z"
+  }, {
+    "status": "PENDING",
+    "context": "OTHER",
+    "time": "2023-04-26T10:07:02Z"
+  }, {
+    "status": "COMPLETED",
+    "context": "OTHER",
+    "time": "2023-04-26T10:31:42Z"
+  }]
+}
