@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "2.5.93",
+  "version": "2.5.96",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -57,7 +57,7 @@
     "pushid": "^1.0.0",
     "semver": "^7.5.0",
     "shortid": "^2.2.16",
-    "sizeitup": "^1.0.2",
+    "sizeitup": "^1.0.3",
     "uid-generator": "^2.0.0",
     "ultimate-jekyll-poster": "^0.0.15",
     "universal-analytics": "^0.5.3",
