@@ -39,7 +39,8 @@ Module.prototype.main = function () {
             return reject(assistant.errorManager(`Failed to sign out of all sessions: ${e}`, {code: 500, sentry: false, send: false, log: false}).error)
           })        
       } catch (e) {
-        assistant.console.log(`@temp sign-out-all-sessions error: ${e}`);
+        assistant.error(`@temp sign-out-all-sessions error: ${e}`);
+
         return reject(assistant.errorManager(`Failed to sign out of all sessions: ${e}`, {code: 500, sentry: false, send: false, log: false}).error)
       }
     })
@@ -73,15 +74,17 @@ Module.prototype.signOutOfSession = function (uid, session) {
         for (var i = 0; i < keys.length; i++) {
           const key = keys[i];
 
-          assistant.log(`Signing out ${key}...`, {environment: 'production'});
+          assistant.log(`Signing out ${session}/${key}...`, {environment: 'production'});
           
           // Send signout command
           await self.libraries.admin.database().ref(`${session}/${key}/command`)
             .set('signout')
             .catch(e => assistant.error(`Failed to signout of session ${key}`, e, {environment: 'production'}))
+          assistant.log(`@temp 1`, {environment: 'production'});
 
           // Delay so the client has time to react to the command
           await powertools.wait(5000);
+          assistant.log(`@temp 2`, {environment: 'production'});
 
           // Delete session
           await self.libraries.admin.database().ref(`${session}/${key}`)
@@ -98,7 +101,7 @@ Module.prototype.signOutOfSession = function (uid, session) {
       .catch(e => {
         assistant.errorManager(`Session query error for session ${session}: ${e}`, {code: 500, sentry: true, send: false, log: true})
         
-        return reject(count)
+        return reject(e)
       })
   });
 }

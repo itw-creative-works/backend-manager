@@ -67,8 +67,6 @@ Module.prototype.main = function () {
 
 };
 
-
-
 Module.prototype.signUp = function (payload) {
   const self = this;
   const Manager = self.Manager;
@@ -82,7 +80,9 @@ Module.prototype.signUp = function (payload) {
       // updatedReferral: true,
     };
 
-    payload = payload || {};    
+    payload = payload || {};
+
+    assistant.log(`SignUp(): payload`, payload, {environment: 'production'})
 
     // Check if the user has a UID and email
     if (!_.get(payload, 'auth.uid', null) || !_.get(payload, 'auth.email', null)) {
@@ -128,6 +128,8 @@ Module.prototype.signUp = function (payload) {
       metadata: Manager.Metadata().set({tag: 'user:sign-up'}),
     }
     
+    assistant.log(`updateReferral(): appending referrals...`, referrals, {environment: 'production'})
+
     // Set the user
     self.libraries.admin.firestore().doc(`users/${payload.auth.uid}`)
     .set(user, { merge: true })
@@ -153,6 +155,8 @@ Module.prototype.updateReferral = function (payload) {
       referrerUid: undefined,
     }
     payload = payload || {};
+
+    assistant.log(`updateReferral(): payload`, payload, {environment: 'production'})
         
     self.libraries.admin.firestore().collection('users')
     .where('affiliate.code', '==', payload.affiliateCode)
@@ -178,7 +182,9 @@ Module.prototype.updateReferral = function (payload) {
             timestamp: self.assistant.meta.startTime.timestamp,
           })
 
-          await self.libraries.admin.firestore().doc(`users/${doc.id}`)
+          assistant.log(`updateReferral(): appending referrals...`, doc.ref.id, referrals, {environment: 'production'})
+
+          await self.libraries.admin.firestore().doc(`users/${doc.ref.id}`)
           .set({
             affiliate: {
               referrals: referrals
@@ -192,7 +198,7 @@ Module.prototype.updateReferral = function (payload) {
 
           result.count = count;
           result.updatedReferral = true;
-          result.referrerUid = doc.id
+          result.referrerUid = doc.ref.id
           found = true
         }
       }
