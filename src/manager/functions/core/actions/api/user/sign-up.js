@@ -82,7 +82,7 @@ Module.prototype.signUp = function (payload) {
 
     payload = payload || {};
 
-    assistant.log(`SignUp(): payload`, payload, {environment: 'production'})
+    assistant.log(`signUp(): payload`, payload, {environment: 'production'})
 
     // Check if the user has a UID and email
     if (!_.get(payload, 'auth.uid', null) || !_.get(payload, 'auth.email', null)) {
@@ -128,7 +128,7 @@ Module.prototype.signUp = function (payload) {
       metadata: Manager.Metadata().set({tag: 'user:sign-up'}),
     }
     
-    assistant.log(`updateReferral(): appending referrals...`, referrals, {environment: 'production'})
+    assistant.log(`signUp(): user`, user, {environment: 'production'})
 
     // Set the user
     self.libraries.admin.firestore().doc(`users/${payload.auth.uid}`)
