@@ -196,6 +196,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
     && (!resolved.payment.completed || resolved.lastPayment.amount === 0)
   ) {
     resolved.expires.timestamp = moment(0);
+    // resolved.cancelled.timestamp = moment(0);
   }
   // console.log('----expires 4', resolved.resource.id, resolved.status, resolved.frequency, resolved.trial.active, resolved.expires.timestamp.toISOString ? resolved.expires.timestamp.toISOString() : resolved.expires.timestamp);
 
@@ -346,7 +347,7 @@ SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, res
   }
   
   // Set completed
-  if (!resource.billing_info) {
+  if (!resource.subscriber) {
     resolved.payment.completed = !['CREATED', 'SAVED', 'APPROVED', 'VOIDED', 'PAYER_ACTION_REQUIRED'].includes(resource.status);         
   } else {
     resolved.payment.completed = !['APPROVAL_PENDING', 'APPROVED'].includes(resource.status);      

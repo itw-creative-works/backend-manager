@@ -80,6 +80,33 @@ describe(`${package.name}`, () => {
       });
 
       describe('subscriptions', () => {
+        describe('payment not completed', () => {
+          const item = require('./payment-resolver/paypal/subscriptions/payment-not-complete.json');
+          const result = Manager.SubscriptionResolver({}, item).resolve(options);
+          const expected = {
+            processor: 'paypal',
+            type: 'subscription',
+            status: 'cancelled',
+            frequency: 'monthly',
+            resource: { id: 'I-6YN0VNT6KM4W' },
+            payment: { completed: false },
+            start: { timestamp: '2023-05-11T10:52:00.000Z', timestampUNIX: 1683802320 },
+            expires: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
+            cancelled: { timestamp: '2023-05-11T10:52:00.000Z', timestampUNIX: 1683802320 },
+            lastPayment: {
+              amount: 0,
+              date: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 }
+            },
+            trial: { active: false, daysLeft: 0 }
+          }
+
+          log('result', result);
+
+          it('should resolve correctly', () => {
+            return assert.deepStrictEqual(result, expected);
+          });
+        });
+
         describe('trial => in-trial', () => {
           const item = require('./payment-resolver/paypal/subscriptions/trial-in-trial.json');
           const result = Manager.SubscriptionResolver({}, item).resolve(options);
