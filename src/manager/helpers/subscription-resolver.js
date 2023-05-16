@@ -73,7 +73,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
     ) {
       profile.processor = 'paypal';
       profile.type = profile.type || 'order';
-    // Order    
+    // Subscription    
     } else if (
       // resource.billing_info
       resource.create_time
