@@ -347,7 +347,7 @@ SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, res
   }
   
   // Set completed
-  if (!resource.subscriber) {
+  if (!resource.plan) {
     resolved.payment.completed = !['CREATED', 'SAVED', 'APPROVED', 'VOIDED', 'PAYER_ACTION_REQUIRED'].includes(resource.status);         
   } else {
     resolved.payment.completed = !['APPROVAL_PENDING', 'APPROVED'].includes(resource.status);      
