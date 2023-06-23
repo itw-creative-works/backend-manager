@@ -1,6 +1,7 @@
 const fetch = require('node-fetch');
+const wonderfulFetch = require('wonderful-fetch');
 const Poster = require('ultimate-jekyll-poster');
-const pathApi =  require('path');
+const pathApi = require('path');
 const { get } = require('lodash');
 
 function Module() {
@@ -45,6 +46,20 @@ Module.prototype.main = function () {
 
     if (finalPost instanceof Error) {
       return reject(assistant.errorManager(`Failed to post: ${finalPost}`, {code: 500, sentry: false, send: false, log: false}).error)
+    }
+
+    // Request indexing
+    try {
+      const url = get(self.Manager.config, 'brand.url');
+      const encoded = encodeURIComponent(`${url}/sitemap.xml`);
+      
+      wonderfulFetch(`https://www.google.com/ping?sitemap=${encoded}`)
+
+      // TODO
+      // https://developers.google.com/search/apis/indexing-api/v3/prereqs
+      // https://developers.google.com/search/apis/indexing-api/v3/using-api#url
+    } catch (e) {
+      assistant.error(`Failed to ping google: ${e}`);
     }
 
     // Save post OR commit
@@ -139,7 +154,9 @@ function makeRequest(options) {
   return new Promise(function(resolve, reject) {
     options.headers = options.headers || {};
     options.headers['Content-Type'] = 'application/json';
+    
     let hasBody = Object.keys(options.body || {}).length > 0
+
     fetch(options.url, {
         method: options.method,
         body: hasBody ? JSON.stringify(options.body) : undefined,

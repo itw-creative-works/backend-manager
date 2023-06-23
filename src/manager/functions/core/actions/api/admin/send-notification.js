@@ -30,7 +30,7 @@ Module.prototype.main = function () {
     self._notificationPayload.notification.title = self.payload.data.payload.title || self.payload.data.payload.notification.title || 'Notification';
     self._notificationPayload.notification.click_action = self.payload.data.payload.click_action || self.payload.data.payload.notification.click_action || 'https://itwcreativeworks.com';
     self._notificationPayload.notification.body = self.payload.data.payload.body || self.payload.data.payload.notification.body || 'Check this out';
-    self._notificationPayload.notification.icon = self.payload.data.payload.icon || self.payload.data.payload.notification.icon || self.Manager.config.brand.brandmark || 'https://cdn.itwcreativeworks.com/assets/itw-creative-works/images/socials/itw-creative-works-brandmark-black-1024x1024.png';
+    self._notificationPayload.notification.icon = self.payload.data.payload.icon || self.payload.data.payload.notification.icon || self.Manager.config.brand.brandmark || 'https://cdn.itwcreativeworks.com/assets/itw-creative-works/images/socials/itw-creative-works-brandmark-square-black-1024x1024.png';
 
     try {
       self._notificationPayload.notification.click_action = new URL(self._notificationPayload.notification.click_action);
