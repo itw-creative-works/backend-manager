@@ -40,7 +40,7 @@ Module.prototype.main = function () {
         : payload.data.payload.redirect
 
       payload.data.payload.referrer = typeof payload.data.payload.referrer === 'undefined'
-        ? (assistant.meta.environment === 'development' ? `http://localhost:4000/authentication/account` : `${Manager.config.brand.url}/authentication/account`)
+        ? (assistant.meta.environment === 'development' ? `http://localhost:4000/account` : `${Manager.config.brand.url}/account`)
         : payload.data.payload.referrer
 
       payload.data.payload.serverUrl = typeof payload.data.payload.serverUrl === 'undefined'
