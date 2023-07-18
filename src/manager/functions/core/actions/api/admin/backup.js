@@ -289,12 +289,12 @@ Module.prototype._deleteOldFiles = function (bucketName, resourceZone) {
     // get the file names as an array
     let [allFiles] = await storage.bucket(bucketName).getFiles();
     allFiles = allFiles.map(file => file.name);
-    console.log(`all files: ${allFiles.join(', ')}`);
+    
+    assistant.log(`All files: ${allFiles.join(', ')}`);
 
     // transform to array of objects with creation timestamp { fileName: xyz, created: }
     allFiles = allFiles.map(fileName => getFileObjectWithMetaData(bucketName, fileName));
     allFiles = await Promise.all(allFiles);
-
 
     const filesToKeep = new Set(); // using set insted of array since set does not allow duplicates
 
@@ -302,24 +302,30 @@ Module.prototype._deleteOldFiles = function (bucketName, resourceZone) {
     allFiles.forEach(backup => {
       const createdDate = new Date(backup.created);
       createdDate.setHours( createdDate.getHours() + numHoursToKeepRecentBackups );
-      if(createdDate > new Date()) filesToKeep.add(backup.fileName);
+      
+      if (createdDate > new Date()) { 
+        filesToKeep.add(backup.fileName) 
+      };
     })
 
     // daily backups
-    for(var i = 0; i < numDaysToKeepOneDailyBackup; i++) {
+    for (var i = 0; i < numDaysToKeepOneDailyBackup; i++) {
       // get day
       const now = new Date();
       now.setDate( now.getDate() - i );
       dateString = now.toISOString().substring(0, 10);
       // keep only one from that day
       const backupsFromThatDay = allFiles.filter(backup => backup.created.startsWith(dateString));
-      if(backupsFromThatDay && backupsFromThatDay.length > 0) filesToKeep.add(backupsFromThatDay[0].fileName);
+      if (backupsFromThatDay && backupsFromThatDay.length > 0) {
+        filesToKeep.add(backupsFromThatDay[0].fileName)
+      };
     }
 
     // filesToKeep.forEach(item => console.log(item));
 
     const filesToDelete = allFiles.filter(backup => !filesToKeep.has(backup.fileName));
-    console.log(`Deleting ${filesToDelete.length} files: ${filesToDelete.map(backup => backup.fileName).join(', ')}`);
+    
+    assistant.log(`Deleting ${filesToDelete.length} files: ${filesToDelete.map(backup => backup.fileName).join(', ')}`);
 
     const deletePromises = filesToDelete.map(backup => deleteFileFromBucket(bucketName, backup.fileName));
     await Promise.all(deletePromises);
