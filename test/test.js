@@ -134,6 +134,33 @@ describe(`${package.name}`, () => {
           });
         });
 
+        describe('trial => active => cancelled', () => {
+          const item = require('./payment-resolver/paypal/subscriptions/trial-to-active-to-cancelled.json');
+          const result = Manager.SubscriptionResolver({}, item).resolve(options);
+          const expected = {
+            processor: 'paypal',
+            type: 'subscription',
+            status: 'cancelled',
+            frequency: 'monthly',
+            resource: { id: 'I-MH92AV4A3EA6' },
+            payment: { completed: true },
+            start: { timestamp: '2023-03-31T14:48:51.000Z', timestampUNIX: 1680274131 },
+            expires: { timestamp: '2023-05-14T10:56:15.000Z', timestampUNIX: 1684061775 },
+            cancelled: { timestamp: '2023-04-18T10:14:56.000Z', timestampUNIX: 1681812896 },
+            lastPayment: {
+              amount: 19.95,
+              date: { timestamp: '2023-04-14T10:56:15.000Z', timestampUNIX: 1681469775 }
+            },
+            trial: { active: false, daysLeft: 0 }
+          }
+
+          log('result', result);
+
+          it('should resolve correctly', () => {
+            return assert.deepStrictEqual(result, expected);
+          });
+        });
+
         describe('trial => active', () => {
           const item = require('./payment-resolver/paypal/subscriptions/trial-to-active.json');
           const result = Manager.SubscriptionResolver({}, item).resolve(options);
@@ -188,22 +215,22 @@ describe(`${package.name}`, () => {
           });
         });
 
-        describe('trial => active => cancelled', () => {
-          const item = require('./payment-resolver/paypal/subscriptions/trial-to-active-to-cancelled.json');
+        describe('trial => expired', () => {
+          const item = require('./payment-resolver/paypal/subscriptions/trial-to-expired.json');
           const result = Manager.SubscriptionResolver({}, item).resolve(options);
           const expected = {
             processor: 'paypal',
             type: 'subscription',
             status: 'cancelled',
             frequency: 'monthly',
-            resource: { id: 'I-MH92AV4A3EA6' },
+            resource: { id: 'I-BC83SG8TF205' },
             payment: { completed: true },
-            start: { timestamp: '2023-03-31T14:48:51.000Z', timestampUNIX: 1680274131 },
-            expires: { timestamp: '2023-05-14T10:56:15.000Z', timestampUNIX: 1684061775 },
-            cancelled: { timestamp: '2023-04-18T10:14:56.000Z', timestampUNIX: 1681812896 },
+            start: { timestamp: '2023-06-05T15:16:16.000Z', timestampUNIX: 1685978176 },
+            expires: { timestamp: '2023-07-05T15:16:31.000Z', timestampUNIX: 1688570191 },
+            cancelled: { timestamp: '2023-06-05T15:16:33.000Z', timestampUNIX: 1685978193 },
             lastPayment: {
-              amount: 19.95,
-              date: { timestamp: '2023-04-14T10:56:15.000Z', timestampUNIX: 1681469775 }
+              amount: 3,
+              date: { timestamp: '2023-06-05T15:16:31.000Z', timestampUNIX: 1685978191 }
             },
             trial: { active: false, daysLeft: 0 }
           }
@@ -213,7 +240,7 @@ describe(`${package.name}`, () => {
           it('should resolve correctly', () => {
             return assert.deepStrictEqual(result, expected);
           });
-        });         
+        });          
       });      
     });
 
