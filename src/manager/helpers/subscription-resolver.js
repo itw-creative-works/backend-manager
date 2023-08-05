@@ -3,7 +3,7 @@ const { get } = require('lodash');
 
 function SubscriptionResolver(Manager, profile, resource) {
   const self = this;
-  
+
   self.Manager = Manager;
   self.profile = profile || {};
   self.resource = resource || {};
@@ -22,6 +22,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
     },
     payment: {
       completed: false,
+      refunded: false,
     },
     start: {
       timestamp: moment(0),
@@ -34,12 +35,12 @@ SubscriptionResolver.prototype.resolve = function (options) {
     cancelled: {
       timestamp: moment(0),
       timestampUNIX: moment(0),
-    },        
+    },
     lastPayment: {
       amount: 0,
       date: {
         timestamp: moment(0),
-        timestampUNIX: moment(0),           
+        timestampUNIX: moment(0),
       }
     },
     trial: {
@@ -56,7 +57,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
   profile.type = profile.type || null;
   profile.details = profile.details || {};
   profile.details.planFrequency = profile.details.planFrequency || null;
-  
+
   // Set
   options = options || {};
   options.log = typeof options.log === 'undefined' ? false : options.log;
@@ -67,20 +68,20 @@ SubscriptionResolver.prototype.resolve = function (options) {
   // Set provider if not set
   if (!profile.processor) {
     /*** PayPal ***/
-    // Order    
+    // Order
     if (
       resource.purchase_units
     ) {
       profile.processor = 'paypal';
       profile.type = profile.type || 'order';
-    // Subscription    
+    // Subscription
     } else if (
       // resource.billing_info
       resource.create_time
     ) {
       profile.processor = 'paypal';
       profile.type = profile.type || 'subscription';
-    
+
     /*** Chargebee ***/
     // Order
     } else if (
@@ -106,7 +107,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
     } else if (
       resource.object === 'subscription'
     ) {
-      profile.processor = 'stripe';      
+      profile.processor = 'stripe';
       profile.type = profile.type || 'subscription';
 
     /*** Coinbase ***/
@@ -126,7 +127,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
   // Set profile.type
   if (!profile.type) {
     profile.type = profile.type || 'subscription';
-  }      
+  }
 
   // Set processor if needed
   if (options.resolveProcessor) {
@@ -147,7 +148,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
   if (options.log) {
     console.log('profile', profile);
     console.log('resource', resource);
-  }  
+  }
 
   // Resolve
   const processor = self[`resolve_${profile.processor}`];
@@ -159,7 +160,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
 
   // console.log('---resolved', resolved);
 
-  // Check for frequency 
+  // Check for frequency
   if (!resolved.frequency) {
     throw new Error('Unknown frequency');
   }
@@ -169,7 +170,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
   if (resolved.status === 'active') {
     // Set days left
     if (resolved.trial.active) {
-      resolved.trial.daysLeft = resolved.expires.timestamp.diff(options.today, 'days');        
+      resolved.trial.daysLeft = resolved.expires.timestamp.diff(options.today, 'days');
     }
 
     // Set expiration
@@ -182,10 +183,10 @@ SubscriptionResolver.prototype.resolve = function (options) {
       } else if (resolved.frequency === 'monthly') {
         resolved.expires.timestamp.add(1, 'month');
       } else if (resolved.frequency === 'weekly') {
-        resolved.expires.timestamp.add(1, 'week');        
+        resolved.expires.timestamp.add(1, 'week');
       } else if (resolved.frequency === 'daily') {
         resolved.expires.timestamp.add(1, 'day');
-      }      
+      }
     }
   }
   // console.log('----expires 3', resolved.resource.id, resolved.status, resolved.frequency, resolved.trial.active, resolved.expires.timestamp.toISOString ? resolved.expires.timestamp.toISOString() : resolved.expires.timestamp);
@@ -198,6 +199,16 @@ SubscriptionResolver.prototype.resolve = function (options) {
     resolved.expires.timestamp = moment(0);
     // resolved.cancelled.timestamp = moment(0);
   }
+
+  // If they got a refund, set the expiration to 0
+  if (resolved.payment.refunded) {
+    resolved.expires.timestamp = moment(0);
+  }
+
+  // If they are suspended, set the expiration to 0
+  if (resolved.status === 'suspended') {
+    resolved.expires.timestamp = moment(0);
+  }
   // console.log('----expires 4', resolved.resource.id, resolved.status, resolved.frequency, resolved.trial.active, resolved.expires.timestamp.toISOString ? resolved.expires.timestamp.toISOString() : resolved.expires.timestamp);
 
   // Fix timestamps
@@ -208,7 +219,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
   resolved.expires.timestamp = resolved.expires.timestamp.toISOString ? resolved.expires.timestamp.toISOString() : resolved.expires.timestamp;
 
   resolved.cancelled.timestampUNIX = resolved.cancelled.timestamp.unix();
-  resolved.cancelled.timestamp = resolved.cancelled.timestamp.toISOString();  
+  resolved.cancelled.timestamp = resolved.cancelled.timestamp.toISOString();
 
   // Fix trial days
   resolved.trial.daysLeft = resolved.trial.daysLeft < 0 ? 0 : resolved.trial.daysLeft;
@@ -216,7 +227,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
   // Set last payment
   resolved.lastPayment.date.timestampUNIX = moment(resolved.lastPayment.date.timestamp).unix();
   resolved.lastPayment.date.timestamp = resolved.lastPayment.date.timestamp.toISOString();
-  
+
   // Log if needed
   if (options.log) {
     console.log('resolved', resolved);
@@ -225,7 +236,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
   self.resolved = resolved;
   // console.log('----expires 5', resolved.resource.id, resolved.status, resolved.frequency, resolved.trial.active, resolved.expires.timestamp.toISOString ? resolved.expires.timestamp.toISOString() : resolved.expires.timestamp);
 
-  return resolved;  
+  return resolved;
 };
 
 SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, resolved) {
@@ -234,11 +245,11 @@ SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, res
   // Set status
   /*
     subscription: https://developer.paypal.com/docs/api/subscriptions/v1/#subscriptions_get
-    APPROVAL_PENDING. The subscription is created but not yet approved by the buyer. 
-    APPROVED. The buyer has approved the subscription. 
-    ACTIVE. The subscription is active. 
+    APPROVAL_PENDING. The subscription is created but not yet approved by the buyer.
+    APPROVED. The buyer has approved the subscription.
+    ACTIVE. The subscription is active.
     SUSPENDED. The subscription is suspended.
-    CANCELLED. The subscription is cancelled. 
+    CANCELLED. The subscription is cancelled.
     EXPIRED. The subscription is expired.
 
     order: https://developer.paypal.com/docs/api/orders/v2/#orders_get
@@ -251,12 +262,22 @@ SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, res
   */
   if (['ACTIVE'].includes(resource.status)) {
     resolved.status = 'active';
+
+    // Check for failed payments
+    /*
+      Special condition for PayPal
+      Because I set the payment_failure_threshold to 0, it will not automatically set the status to suspended.
+      We must check for failed payments and set the status to suspended if there are any.
+    */
+    if (get(resource, 'billing_info.failed_payments_count', 0) > 0) {
+      resolved.status = 'suspended';
+    }
   } else if (['SUSPENDED'].includes(resource.status)) {
     resolved.status = 'suspended';
   } else {
     resolved.status = 'cancelled';
   }
-  
+
   // Set resource ID
   resolved.resource.id = resource.id;
 
@@ -315,8 +336,8 @@ SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, res
   const regularTenure = get(resource, 'plan.billing_cycles', []).find((cycle) => cycle.tenure_type === 'REGULAR');
 
   // Resolve trial
-  /* 
-    Special condition for PayPal 
+  /*
+    Special condition for PayPal
     Because you cannot remove trial on a sub-level, you have to charge a prorated amount for the "trial".
     Even if charged, it is still considered a trial period by paypal.
     Thus, we must remove the trial indicator if the user has been charged.
@@ -327,7 +348,7 @@ SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, res
     && resolved.lastPayment.amount === 0
   ) {
     resolved.trial.active = true;
-    
+
     // Set expiration
     resolved.expires.timestamp = moment(
       get(resource, 'billing_info.next_billing_time', 0)
@@ -341,16 +362,25 @@ SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, res
   } else if (unit === 'MONTH') {
     resolved.frequency = 'monthly';
   } else if (unit === 'WEEK') {
-    resolved.frequency = 'weekly';      
+    resolved.frequency = 'weekly';
   } else if (unit === 'DAY') {
     resolved.frequency = 'daily';
   }
-  
+
   // Set completed
   if (!resource.plan) {
-    resolved.payment.completed = !['CREATED', 'SAVED', 'APPROVED', 'VOIDED', 'PAYER_ACTION_REQUIRED'].includes(resource.status);         
+    resolved.payment.completed = !['CREATED', 'SAVED', 'APPROVED', 'VOIDED', 'PAYER_ACTION_REQUIRED'].includes(resource.status);
   } else {
-    resolved.payment.completed = !['APPROVAL_PENDING', 'APPROVED'].includes(resource.status);      
+    resolved.payment.completed = !['APPROVAL_PENDING', 'APPROVED'].includes(resource.status);
+  }
+
+  // Check if refunded
+  if (!resource.plan) {
+    // resolved.payment.refunded = false; // @@@ TODO: check if this is correct
+  } else {
+    const transactions = get(resource, 'transactions', []);
+
+    resolved.payment.refunded = transactions.some(t => t.status === 'REFUNDED');
   }
 
   return resolved;
@@ -361,11 +391,11 @@ SubscriptionResolver.prototype.resolve_chargebee = function (profile, resource, 
 
   // Set status
   // subscription: https://apidocs.chargebee.com/docs/api/subscriptions?prod_cat_ver=2#subscription_status
-  // future The subscription is scheduled to start at a future date. 
-  // in_trial The subscription is in trial. 
-  // active The subscription is active and will be charged for automatically based on the items in it. 
-  // non_renewing The subscription will be canceled at the end of the current term. 
-  // paused The subscription is paused. The subscription will not renew while in this state. 
+  // future The subscription is scheduled to start at a future date.
+  // in_trial The subscription is in trial.
+  // active The subscription is active and will be charged for automatically based on the items in it.
+  // non_renewing The subscription will be canceled at the end of the current term.
+  // paused The subscription is paused. The subscription will not renew while in this state.
   // cancelled The subscription has been canceled and is no longer in service.
 
   // order: https://apidocs.chargebee.com/docs/api/invoices?prod_cat_ver=2#invoice_status
@@ -374,11 +404,11 @@ SubscriptionResolver.prototype.resolve_chargebee = function (profile, resource, 
   // payment_due: Indicates the payment is not yet collected and is being retried as per retry settings.
   // not_paid: Indicates the payment is not made and all attempts to collect is failed.
   // voided: Indicates a voided invoice.
-  // pending: The invoice is yet to be closed (sent for payment collection). An invoice is generated with this status when it has line items that belong to items that are metered or when the subscription.create_pending_invoicesattribute is set to true.  
-  
+  // pending: The invoice is yet to be closed (sent for payment collection). An invoice is generated with this status when it has line items that belong to items that are metered or when the subscription.create_pending_invoicesattribute is set to true.
+
   if (['in_trial', 'active'].includes(resource.status)) {
     resolved.status = 'active';
-    
+
     // If there's a due invoice, it's suspended
     if (resource.total_dues > 0) {
       resolved.status = 'suspended';
@@ -396,11 +426,11 @@ SubscriptionResolver.prototype.resolve_chargebee = function (profile, resource, 
   resolved.start.timestamp = moment(
     (
       // Order
-      get(resource, 'date', 0)      
+      get(resource, 'date', 0)
 
       // Subscription
       || get(resource, 'created_at', 0)
-    ) * 1000    
+    ) * 1000
   )
 
   // Set expiration
@@ -433,7 +463,7 @@ SubscriptionResolver.prototype.resolve_chargebee = function (profile, resource, 
 
         // Subscription
         || get(resource, 'cancelled_at', 0)
-      ) * 1000      
+      ) * 1000
     )
   }
 
@@ -462,7 +492,7 @@ SubscriptionResolver.prototype.resolve_chargebee = function (profile, resource, 
         (resource.amount_paid)
 
         // Order
-        || (resource.plan_amount)        
+        || (resource.plan_amount)
       ) / 100
     )
     resolved.lastPayment.date.timestamp = moment(
@@ -479,7 +509,7 @@ SubscriptionResolver.prototype.resolve_chargebee = function (profile, resource, 
   // Get trial
   if (resource.status === 'in_trial') {
     resolved.trial.active = true;
-    
+
     // Set expiration
     resolved.expires.timestamp = moment(
       (
@@ -495,7 +525,7 @@ SubscriptionResolver.prototype.resolve_chargebee = function (profile, resource, 
   } else if (unit === 'month') {
     resolved.frequency = 'monthly';
   } else if (unit === 'week') {
-    resolved.frequency = 'weekly';      
+    resolved.frequency = 'weekly';
   } else if (unit === 'day') {
     resolved.frequency = 'daily';
   }
@@ -505,6 +535,20 @@ SubscriptionResolver.prototype.resolve_chargebee = function (profile, resource, 
     resolved.payment.completed = !['posted', 'payment_due', 'not_paid', 'voided', 'pending'].includes(resource.status);
   } else {
     resolved.payment.completed = !['future'].includes(resource.status);
+  }
+
+  // Check if refunded
+  if (profile.type === 'order') {
+    resolved.payment.refunded = false; // @@@ TODO: check if this is correct
+  } else {
+    const invoices = get(resource, 'invoices', []);
+
+    resolved.payment.refunded = invoices.some(invoice => {
+      const creditNotes = get(invoice, 'invoice.issued_credit_notes', []);
+      return creditNotes.some(creditNote => {
+        return creditNote.cn_status === 'refunded'
+      })
+    })
   }
 
   // Special chargebee reset lastPayment
@@ -566,7 +610,7 @@ SubscriptionResolver.prototype.resolve_stripe = function (profile, resource, res
       || get(resource, 'start_date', 0)
     ) * 1000
   );
-  
+
   // Set expiration
   resolved.expires.timestamp = moment(
     (
@@ -589,7 +633,7 @@ SubscriptionResolver.prototype.resolve_stripe = function (profile, resource, res
         || get(resource, 'canceled_at', 0)
       ) * 1000
     )
-  }    
+  }
 
   // Set last payment
   // TODO: check if suspended payments are handled correctly when using resource.latest_invoice.amount_paid
@@ -599,13 +643,13 @@ SubscriptionResolver.prototype.resolve_stripe = function (profile, resource, res
     resolved.lastPayment.amount = order.amount_captured / 100;
     resolved.lastPayment.date.timestamp = moment(
       (order.created || 0) * 1000
-    );    
+    );
   } else if (subscription) {
     resolved.lastPayment.amount = subscription.amount_paid / 100;
     resolved.lastPayment.date.timestamp = moment(
       (subscription.created || 0) * 1000
     );
-  }    
+  }
 
   // Get trial
   if (resource.status === 'trialing') {
@@ -626,16 +670,23 @@ SubscriptionResolver.prototype.resolve_stripe = function (profile, resource, res
   } else if (unit === 'month') {
     resolved.frequency = 'monthly';
   } else if (unit === 'week') {
-    resolved.frequency = 'weekly';      
+    resolved.frequency = 'weekly';
   } else if (unit === 'day') {
     resolved.frequency = 'daily';
   }
 
   // Set completed
   if (resource.object === 'charge') {
-    resolved.payment.completed = !['requires_payment_method', 'requires_confirmation', 'requires_action', 'processing', 'requires_capture', 'canceled'].includes(resource.status);      
+    resolved.payment.completed = !['requires_payment_method', 'requires_confirmation', 'requires_action', 'processing', 'requires_capture', 'canceled'].includes(resource.status);
   } else {
-    resolved.payment.completed = !['incomplete', 'incomplete_expired'].includes(resource.status);      
+    resolved.payment.completed = !['incomplete', 'incomplete_expired'].includes(resource.status);
+  }
+
+  // Check if refunded
+  if (resource.object === 'charge') {
+    resolved.payment.refunded = resource.refunded;
+  } else {
+    resolved.payment.refunded = get(resource, 'latest_invoice.charge.refunded', false);
   }
 
   return resolved;
@@ -690,6 +741,11 @@ SubscriptionResolver.prototype.resolve_coinbase = function (profile, resource, r
   // Set completed
   if (true) {
     resolved.payment.completed = !!lastPayment;
+  }
+
+  // Check if refunded
+  if (true) {
+    resolved.payment.refunded = false;
   }
 
   return resolved;

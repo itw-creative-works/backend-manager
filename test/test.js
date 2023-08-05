@@ -16,14 +16,14 @@ after(() => {
  * ============
  */
 describe(`${package.name}`, () => {
-  const Manager = (new (require('../src/manager/index.js')));  
+  const Manager = (new (require('../src/manager/index.js')));
 
   const options = {
     resolveProcessor: true,
     resolveType: true,
 
     today: '2023-04-28T00:00:00.000Z',
-    
+
     // log: true,
   }
 
@@ -38,7 +38,7 @@ describe(`${package.name}`, () => {
     details: {
       planFrequency: 'monthly',
     }
-  }  
+  }
 
   function log() {
     // console.log(...arguments);
@@ -60,7 +60,10 @@ describe(`${package.name}`, () => {
             status: 'cancelled',
             frequency: 'single',
             resource: { id: '5CA68427PY850452F' },
-            payment: { completed: true },
+            payment: {
+              completed: true,
+              refunded: false,
+            },
             start: { timestamp: '2023-04-27T03:39:50.000Z', timestampUNIX: 1682566790 },
             expires: { timestamp: '2023-04-27T03:39:50.000Z', timestampUNIX: 1682566790 },
             cancelled: { timestamp: '2023-04-27T03:39:50.000Z', timestampUNIX: 1682566790 },
@@ -89,7 +92,10 @@ describe(`${package.name}`, () => {
             status: 'cancelled',
             frequency: 'monthly',
             resource: { id: 'I-6YN0VNT6KM4W' },
-            payment: { completed: false },
+            payment: {
+              completed: false,
+              refunded: false,
+            },
             start: { timestamp: '2023-05-11T10:52:00.000Z', timestampUNIX: 1683802320 },
             expires: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
             cancelled: { timestamp: '2023-05-11T10:52:00.000Z', timestampUNIX: 1683802320 },
@@ -116,7 +122,10 @@ describe(`${package.name}`, () => {
             status: 'active',
             frequency: 'annually',
             resource: { id: 'I-HG5K7XD0BVPJ' },
-            payment: { completed: true },
+            payment: {
+              completed: true,
+              refunded: false,
+            },
             start: { timestamp: '2023-04-28T02:16:58.000Z', timestampUNIX: 1682648218 },
             expires: { timestamp: '2024-06-10T10:00:00.000Z', timestampUNIX: 1718013600 },
             cancelled: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
@@ -143,7 +152,10 @@ describe(`${package.name}`, () => {
             status: 'cancelled',
             frequency: 'monthly',
             resource: { id: 'I-MH92AV4A3EA6' },
-            payment: { completed: true },
+            payment: {
+              completed: true,
+              refunded: false,
+            },
             start: { timestamp: '2023-03-31T14:48:51.000Z', timestampUNIX: 1680274131 },
             expires: { timestamp: '2023-05-14T10:56:15.000Z', timestampUNIX: 1684061775 },
             cancelled: { timestamp: '2023-04-18T10:14:56.000Z', timestampUNIX: 1681812896 },
@@ -170,7 +182,10 @@ describe(`${package.name}`, () => {
             status: 'active',
             frequency: 'monthly',
             resource: { id: 'I-VTXGPKDTMMK2' },
-            payment: { completed: true },
+            payment: {
+              completed: true,
+              refunded: false,
+            },
             start: { timestamp: '2023-04-11T17:37:58.000Z', timestampUNIX: 1681234678 },
             expires: { timestamp: '2024-05-25T10:28:22.000Z', timestampUNIX: 1716632902 },
             cancelled: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
@@ -186,7 +201,7 @@ describe(`${package.name}`, () => {
           it('should resolve correctly', () => {
             return assert.deepStrictEqual(result, expected);
           });
-        });        
+        });
 
         describe('trial => cancelled', () => {
           const item = require('./payment-resolver/paypal/subscriptions/trial-to-cancelled.json');
@@ -197,7 +212,10 @@ describe(`${package.name}`, () => {
             status: 'cancelled',
             frequency: 'monthly',
             resource: { id: 'I-79C4RSSVKN95' },
-            payment: { completed: true },
+            payment: {
+              completed: true,
+              refunded: false,
+            },
             start: { timestamp: '2023-03-31T08:41:35.000Z', timestampUNIX: 1680252095 },
             expires: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
             cancelled: { timestamp: '2023-04-02T23:38:44.000Z', timestampUNIX: 1680478724 },
@@ -224,7 +242,10 @@ describe(`${package.name}`, () => {
             status: 'cancelled',
             frequency: 'monthly',
             resource: { id: 'I-BC83SG8TF205' },
-            payment: { completed: true },
+            payment: {
+              completed: true,
+              refunded: false,
+            },
             start: { timestamp: '2023-06-05T15:16:16.000Z', timestampUNIX: 1685978176 },
             expires: { timestamp: '2023-07-05T15:16:31.000Z', timestampUNIX: 1688570191 },
             cancelled: { timestamp: '2023-06-05T15:16:33.000Z', timestampUNIX: 1685978193 },
@@ -240,8 +261,68 @@ describe(`${package.name}`, () => {
           it('should resolve correctly', () => {
             return assert.deepStrictEqual(result, expected);
           });
-        });          
-      });      
+        });
+
+        describe('trial => refund', () => {
+          const item = require('./payment-resolver/paypal/subscriptions/trial-to-refund.json');
+          const result = Manager.SubscriptionResolver({}, item).resolve(options);
+          const expected = {
+            processor: 'paypal',
+            type: 'subscription',
+            status: 'cancelled',
+            frequency: 'annually',
+            resource: { id: 'I-JW7F1RK5KN8W' },
+            payment: {
+              completed: true,
+              refunded: true,
+            },
+            start: { timestamp: '2023-07-17T14:31:50.000Z', timestampUNIX: 1689604310 },
+            expires: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
+            cancelled: { timestamp: '2023-07-31T11:33:32.000Z', timestampUNIX: 1690803212 },
+            lastPayment: {
+              amount: 191.4,
+              date: { timestamp: '2023-07-31T11:13:59.000Z', timestampUNIX: 1690802039 }
+            },
+            trial: { active: false, daysLeft: 0 }
+          }
+
+          log('result', result);
+
+          it('should resolve correctly', () => {
+            return assert.deepStrictEqual(result, expected);
+          });
+        });
+
+        describe('trial => suspended', () => {
+          const item = require('./payment-resolver/paypal/subscriptions/trial-to-suspended.json');
+          const result = Manager.SubscriptionResolver({}, item).resolve(options);
+          const expected = {
+            processor: 'paypal',
+            type: 'subscription',
+            status: 'suspended',
+            frequency: 'monthly',
+            resource: { id: 'I-A3AS9XBE0JEG' },
+            payment: {
+              completed: true,
+              refunded: false,
+            },
+            start: { timestamp: '2023-07-11T16:52:11.000Z', timestampUNIX: 1689094331 },
+            expires: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
+            cancelled: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
+            lastPayment: {
+              amount: 9.97,
+              date: { timestamp: '2023-07-11T16:53:50.000Z', timestampUNIX: 1689094430 }
+            },
+            trial: { active: false, daysLeft: 0 }
+          }
+
+          log('result', result);
+
+          it('should resolve correctly', () => {
+            return assert.deepStrictEqual(result, expected);
+          });
+        });
+      });
     });
 
     /*
@@ -258,7 +339,10 @@ describe(`${package.name}`, () => {
         //     status: 'cancelled',
         //     frequency: 'single',
         //     resource: { id: '3065' },
-        //     payment: { completed: false },
+        //     payment: {
+        //         completed: false,
+        //         refunded: false,
+        //       },
         //     start: { timestamp: '2023-04-27T09:34:43.000Z', timestampUNIX: 1682588083 },
         //     expires: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
         //     cancelled: { timestamp: '2023-04-27T09:34:43.000Z', timestampUNIX: 1682588083 },
@@ -285,7 +369,10 @@ describe(`${package.name}`, () => {
             status: 'cancelled',
             frequency: 'single',
             resource: { id: '3065' },
-            payment: { completed: false },
+            payment: {
+              completed: false,
+              refunded: false,
+            },
             start: { timestamp: '2023-04-27T09:34:43.000Z', timestampUNIX: 1682588083 },
             expires: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
             cancelled: { timestamp: '2023-04-27T09:34:43.000Z', timestampUNIX: 1682588083 },
@@ -314,7 +401,10 @@ describe(`${package.name}`, () => {
             status: 'active',
             frequency: 'monthly',
             resource: { id: '16CRCcTcWmQYKyT5' },
-            payment: { completed: true },
+            payment: {
+              completed: true,
+              refunded: false,
+            },
             start: { timestamp: '2023-04-26T10:19:48.000Z', timestampUNIX: 1682504388 },
             expires: { timestamp: '2024-06-09T10:19:48.000Z', timestampUNIX: 1717928388 },
             cancelled: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
@@ -323,6 +413,36 @@ describe(`${package.name}`, () => {
               date: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 }
             },
             trial: { active: true, daysLeft: 12 }
+          }
+
+          log('result', result);
+
+          it('should resolve correctly', () => {
+            return assert.deepStrictEqual(result, expected);
+          });
+        });
+
+        describe('trial => active => cancelled', () => {
+          const item = require('./payment-resolver/chargebee/subscriptions/trial-to-active-to-cancelled.json');
+          const result = Manager.SubscriptionResolver({}, item).resolve(options);
+          const expected = {
+            processor: 'chargebee',
+            type: 'subscription',
+            status: 'cancelled',
+            frequency: 'monthly',
+            resource: { id: 'AzqJXiTaQKh4m5Ta7' },
+            payment: {
+              completed: true,
+              refunded: false,
+            },
+            start: { timestamp: '2023-04-04T02:53:37.000Z', timestampUNIX: 1680576817 },
+            expires: { timestamp: '2023-05-18T02:53:37.000Z', timestampUNIX: 1684378417 },
+            cancelled: { timestamp: '2023-04-19T03:42:24.000Z', timestampUNIX: 1681875744 },
+            lastPayment: {
+              amount: 19.95,
+              date: { timestamp: '2023-04-18T02:53:37.000Z', timestampUNIX: 1681786417 }
+            },
+            trial: { active: false, daysLeft: 0 }
           }
 
           log('result', result);
@@ -341,7 +461,10 @@ describe(`${package.name}`, () => {
             status: 'active',
             frequency: 'monthly',
             resource: { id: 'AzyfbtTbMhiFM51DW' },
-            payment: { completed: true },
+            payment: {
+              completed: true,
+              refunded: false,
+            },
             start: { timestamp: '2023-04-14T02:29:56.000Z', timestampUNIX: 1681439396 },
             expires: { timestamp: '2024-05-28T02:29:56.000Z', timestampUNIX: 1716863396 },
             cancelled: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
@@ -368,7 +491,10 @@ describe(`${package.name}`, () => {
             status: 'cancelled',
             frequency: 'monthly',
             resource: { id: 'AzZMshTbnEv7r1Eck' },
-            payment: { completed: true },
+            payment: {
+              completed: true,
+              refunded: false,
+            },
             start: { timestamp: '2023-04-18T15:24:28.000Z', timestampUNIX: 1681831468 },
             expires: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
             cancelled: { timestamp: '2023-04-25T10:41:02.000Z', timestampUNIX: 1682419262 },
@@ -386,22 +512,25 @@ describe(`${package.name}`, () => {
           });
         });
 
-        describe('trial => active => cancelled', () => {
-          const item = require('./payment-resolver/chargebee/subscriptions/trial-to-active-to-cancelled.json');
+        describe('trial => refund', () => {
+          const item = require('./payment-resolver/chargebee/subscriptions/trial-to-refund.json');
           const result = Manager.SubscriptionResolver({}, item).resolve(options);
           const expected = {
             processor: 'chargebee',
             type: 'subscription',
             status: 'cancelled',
             frequency: 'monthly',
-            resource: { id: 'AzqJXiTaQKh4m5Ta7' },
-            payment: { completed: true },
-            start: { timestamp: '2023-04-04T02:53:37.000Z', timestampUNIX: 1680576817 },
-            expires: { timestamp: '2023-05-18T02:53:37.000Z', timestampUNIX: 1684378417 },
-            cancelled: { timestamp: '2023-04-19T03:42:24.000Z', timestampUNIX: 1681875744 },
+            resource: { id: 'AzymDoTjgzDShlvd' },
+            payment: {
+              completed: true,
+              refunded: true,
+            },
+            start: { timestamp: '2023-07-11T09:37:47.000Z', timestampUNIX: 1689068267 },
+            expires: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
+            cancelled: { timestamp: '2023-07-15T13:23:15.000Z', timestampUNIX: 1689427395 },
             lastPayment: {
               amount: 19.95,
-              date: { timestamp: '2023-04-18T02:53:37.000Z', timestampUNIX: 1681786417 }
+              date: { timestamp: '2023-07-11T09:37:54.000Z', timestampUNIX: 1689068274 }
             },
             trial: { active: false, daysLeft: 0 }
           }
@@ -411,8 +540,38 @@ describe(`${package.name}`, () => {
           it('should resolve correctly', () => {
             return assert.deepStrictEqual(result, expected);
           });
-        });        
-      });    
+        });
+
+        describe('trial => suspendeded', () => {
+          const item = require('./payment-resolver/chargebee/subscriptions/trial-to-suspended.json');
+          const result = Manager.SubscriptionResolver({}, item).resolve(options);
+          const expected = {
+            processor: 'chargebee',
+            type: 'subscription',
+            status: 'suspended',
+            frequency: 'monthly',
+            resource: { id: 'Azym2sTkewehg121r' },
+            payment: {
+              completed: true,
+              refunded: false,
+            },
+            start: { timestamp: '2023-07-21T15:40:12.000Z', timestampUNIX: 1689954012 },
+            expires: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
+            cancelled: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
+            lastPayment: {
+              amount: 0,
+              date: { timestamp: '2023-08-04T15:40:12.000Z', timestampUNIX: 1691163612 }
+            },
+            trial: { active: false, daysLeft: 0 }
+          }
+
+          log('result', result);
+
+          it('should resolve correctly', () => {
+            return assert.deepStrictEqual(result, expected);
+          });
+        });
+      });
 
     });
 
@@ -430,7 +589,10 @@ describe(`${package.name}`, () => {
             status: 'cancelled',
             frequency: 'single',
             resource: { id: 'ch_3N1pAXJVFkvVyI7h1FM4wdxL' },
-            payment: { completed: true },
+            payment: {
+              completed: true,
+              refunded: false,
+            },
             start: { timestamp: '2023-04-28T11:08:54.000Z', timestampUNIX: 1682680134 },
             expires: { timestamp: '2023-04-28T11:08:54.000Z', timestampUNIX: 1682680134 },
             cancelled: { timestamp: '2023-04-28T11:08:54.000Z', timestampUNIX: 1682680134 },
@@ -459,7 +621,10 @@ describe(`${package.name}`, () => {
             status: 'active',
             frequency: 'monthly',
             resource: { id: 'sub_1N1a4yEvB7hJrWnuCzx5ssWK' },
-            payment: { completed: true },
+            payment: {
+              completed: true,
+              refunded: false,
+            },
             start: { timestamp: '2023-04-27T19:02:08.000Z', timestampUNIX: 1682622128 },
             expires: { timestamp: '2024-06-10T19:02:08.000Z', timestampUNIX: 1718046128 },
             cancelled: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
@@ -486,7 +651,10 @@ describe(`${package.name}`, () => {
             status: 'active',
             frequency: 'monthly',
             resource: { id: 'sub_1MqedqJVFkvVyI7hYGbJyOFD' },
-            payment: { completed: true },
+            payment: {
+              completed: true,
+              refunded: false,
+            },
             start: { timestamp: '2023-03-28T15:40:58.000Z', timestampUNIX: 1680018058 },
             expires: { timestamp: '2024-04-27T15:40:58.000Z', timestampUNIX: 1714232458 },
             cancelled: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
@@ -502,7 +670,7 @@ describe(`${package.name}`, () => {
           it('should resolve correctly', () => {
             return assert.deepStrictEqual(result, expected);
           });
-        });  
+        });
 
         // ...
 
@@ -515,7 +683,10 @@ describe(`${package.name}`, () => {
             status: 'cancelled',
             frequency: 'monthly',
             resource: { id: 'sub_1Mv9VtCzY9baOpL0I2MRKfoj' },
-            payment: { completed: true },
+            payment: {
+              completed: true,
+              refunded: false,
+            },
             start: { timestamp: '2023-04-10T01:27:21.000Z', timestampUNIX: 1681090041 },
             expires: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
             cancelled: { timestamp: '2023-04-10T01:27:21.000Z', timestampUNIX: 1681090041 },
@@ -531,7 +702,37 @@ describe(`${package.name}`, () => {
           it('should resolve correctly', () => {
             return assert.deepStrictEqual(result, expected);
           });
-        });         
+        });
+
+        describe('trial => refund', () => {
+          const item = require('./payment-resolver/stripe/subscriptions/trial-to-refund.json');
+          const result = Manager.SubscriptionResolver({}, item).resolve(options);
+          const expected = {
+            processor: 'stripe',
+            type: 'subscription',
+            status: 'cancelled',
+            frequency: 'annually',
+            resource: { id: 'sub_1NWA2ZHGybgi7uQGF7ODZNEZ' },
+            payment: {
+              completed: true,
+              refunded: true,
+            },
+            start: { timestamp: '2023-07-21T03:30:03.000Z', timestampUNIX: 1689910203 },
+            expires: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
+            cancelled: { timestamp: '2023-07-21T03:30:03.000Z', timestampUNIX: 1689910203 },
+            lastPayment: {
+              amount: 72,
+              date: { timestamp: '2023-07-21T03:30:03.000Z', timestampUNIX: 1689910203 }
+            },
+            trial: { active: false, daysLeft: 0 }
+          }
+
+          log('result', result);
+
+          it('should resolve correctly', () => {
+            return assert.deepStrictEqual(result, expected);
+          });
+        });
 
         describe('trial => suspended', () => {
           const item = require('./payment-resolver/stripe/subscriptions/trial-to-suspended.json');
@@ -542,7 +743,10 @@ describe(`${package.name}`, () => {
             status: 'suspended',
             frequency: 'monthly',
             resource: { id: 'sub_1MrOiKCzY9baOpL0TNU5sQZQ' },
-            payment: { completed: true },
+            payment: {
+              completed: true,
+              refunded: false,
+            },
             start: { timestamp: '2023-03-30T16:52:40.000Z', timestampUNIX: 1680195160 },
             expires: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
             cancelled: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
@@ -558,8 +762,8 @@ describe(`${package.name}`, () => {
           it('should resolve correctly', () => {
             return assert.deepStrictEqual(result, expected);
           });
-        });                 
-      });    
+        });
+      });
 
     });
 
@@ -577,7 +781,10 @@ describe(`${package.name}`, () => {
             status: 'cancelled',
             frequency: 'single',
             resource: { id: '8f783fa6-eaa3-4460-af64-cac26b183ed1' },
-            payment: { completed: true },
+            payment: {
+              completed: true,
+              refunded: false,
+            },
             start: { timestamp: '2023-04-26T09:59:19.000Z', timestampUNIX: 1682503159 },
             expires: { timestamp: '2023-04-26T09:59:19.000Z', timestampUNIX: 1682503159 },
             cancelled: { timestamp: '2023-04-26T09:59:19.000Z', timestampUNIX: 1682503159 },
@@ -606,7 +813,10 @@ describe(`${package.name}`, () => {
             status: 'cancelled',
             frequency: 'monthly',
             resource: { id: '8f783fa6-eaa3-4460-af64-cac26b183ed1' },
-            payment: { completed: true },
+            payment: {
+              completed: true,
+              refunded: false,
+            },
             start: { timestamp: '2023-04-26T09:59:19.000Z', timestampUNIX: 1682503159 },
             expires: { timestamp: '2023-05-26T09:59:19.000Z', timestampUNIX: 1685095159 },
             cancelled: { timestamp: '2023-04-26T09:59:19.000Z', timestampUNIX: 1682503159 },
@@ -623,8 +833,8 @@ describe(`${package.name}`, () => {
             return assert.deepStrictEqual(result, expected);
           });
         });
-      });      
-    });    
+      });
+    });
 
   });
 
