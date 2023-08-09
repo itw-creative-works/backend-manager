@@ -25,17 +25,18 @@ Module.prototype.main = function() {
     // Wait for all the promises to resolve
     Promise.all([
       // Backup the database
-      fetch(`${Manager.project.functionsUrl}/bm_api`, {
-        method: 'post',
-        response: 'json',
-        body: {
-          backendManagerKey: Manager.config.backend_manager.key,
-          command: 'admin:backup',
-        }
-      })
-      .then(response => {
-        assistant.log(`Successfully executed backup:`, response, {environment: 'production'})
-      }),
+      // TODO: Disabled this because of Firebase's new PITR Disaster Recovery feature
+      // fetch(`${Manager.project.functionsUrl}/bm_api`, {
+      //   method: 'post',
+      //   response: 'json',
+      //   body: {
+      //     backendManagerKey: Manager.config.backend_manager.key,
+      //     command: 'admin:backup',
+      //   }
+      // })
+      // .then(response => {
+      //   assistant.log(`Successfully executed backup:`, response, {environment: 'production'})
+      // }),
 
       // Sync Firestore users to the database
       // TODO: This is not working becaues the pageToken is not relative any more when its saved...

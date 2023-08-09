@@ -98,7 +98,6 @@ Manager.prototype.init = function (exporter, options) {
   // Use the working Firebase logger that they disabled for whatever reason
   if (process.env.GCLOUD_PROJECT && self.assistant.meta.environment !== 'development' && options.useFirebaseLogger) {
     require('firebase-functions/lib/logger/compat');
-
   }
 
   // Handle dev environments
@@ -115,8 +114,8 @@ Manager.prototype.init = function (exporter, options) {
         console.error(...arguments);
       }
       console.log = logFix;
-      console.info = logFix;   
-    }    
+      console.info = logFix;
+    }
 
     // Reject if package.json does not exist
     if (semverUsing !== semverRequired) {
@@ -128,7 +127,7 @@ Manager.prototype.init = function (exporter, options) {
         self.assistant.log(msg, {environment: 'production'});
       }
     }
-  }  
+  }
 
   if (options.log) {
     // self.assistant.log('process.env', process.env, {environment: 'production'})
@@ -179,11 +178,11 @@ Manager.prototype.init = function (exporter, options) {
           databaseURL: self.project.databaseURL || `https://${self.project.projectId}.firebaseio.com`,
         }, options.uniqueAppName);
 
-        // const loadedProjectId = get(self.libraries.initializedAdmin, 'options_.credential.projectId', null);   
-        const loadedProjectId = serviceAccount.project_id;   
+        // const loadedProjectId = get(self.libraries.initializedAdmin, 'options_.credential.projectId', null);
+        const loadedProjectId = serviceAccount.project_id;
         if (!loadedProjectId || !loadedProjectId.includes(appId)) {
           self.assistant.error(`Loaded app may have wrong service account: ${loadedProjectId} =/= ${appId}`, {environment: 'production'});
-        }        
+        }
       }
 
     } catch (e) {
@@ -426,7 +425,7 @@ Manager.prototype.init = function (exporter, options) {
       .get()
       .then(doc => {
         self.assistant.log('meta/stats', doc.data());
-      })         
+      })
     }, 3000);
   }
 
@@ -593,7 +592,7 @@ Manager.prototype.Api = function () {
   // self.libraries.Api = self.libraries.Api || require('./helpers/subscription-resolver.js');
   // return new self.libraries.Api(...arguments);
   // return self._process((new (require(`${core}/actions/api.js`))()).init(self, { req: req, res: res, }))
-  
+
   const Api = (new (require(`${core}/actions/api.js`))()).init(self, { req: {}, res: {}, });
 
   return Api;
@@ -606,7 +605,7 @@ Manager.prototype.Api = function () {
 //   // return self._process((new (require(`${core}/actions/api.js`))()).init(self, { req: req, res: res, }))
 //   return new Promise(function(resolve, reject) {
 //     const Api = (new (require(`${core}/actions/api.js`))()).init(self, { req: {}, res: {}, });
-    
+
 //     Api.main()
 
 //     return Api;
@@ -641,13 +640,13 @@ Manager.prototype.storage = function (options) {
 
     const low = require('lowdb');
     const FileSync = require('lowdb/adapters/FileSync');
-    const dbPath = options.temporary 
+    const dbPath = options.temporary
       ? `${require('os').tmpdir()}/${options.name}.json`
       : `./.data/${options.name}.json`;
     const adapter = new FileSync(dbPath);
-    
+
     if (
-      options.temporary 
+      options.temporary
       && self.assistant.meta.environment === 'development'
       && options.clear
     ) {
