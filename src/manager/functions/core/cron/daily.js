@@ -60,7 +60,7 @@ Module.prototype.main = function() {
       return resolve();
     })
     .catch(e => {
-      assistant.errorManager(`Error executing all proceses: ${e}`, {sentry: true, send: false, log: true})
+      assistant.errorManager(`Error executing all processes: ${e}`, {sentry: true, send: false, log: true})
       return reject(e);
     })
   });
