@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "2.5.109",
+  "version": "2.5.110",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -51,9 +51,9 @@
     "moment": "^2.29.4",
     "nanoid": "^3.3.6",
     "node-fetch": "^2.6.11",
-    "node-powertools": "^1.0.2",
+    "node-powertools": "^1.0.6",
     "npm-api": "^1.0.1",
-    "paypal-server-api": "^1.0.2",
+    "paypal-server-api": "^1.0.3",
     "pushid": "^1.0.0",
     "semver": "^7.5.0",
     "shortid": "^2.2.16",
@@ -62,7 +62,7 @@
     "ultimate-jekyll-poster": "^0.0.15",
     "universal-analytics": "^0.5.3",
     "uuid": "^8.3.2",
-    "wonderful-fetch": "^0.0.17",
+    "wonderful-fetch": "^1.0.0",
     "yargs": "^17.7.2"
   }
 }
