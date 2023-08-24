@@ -111,7 +111,7 @@ describe(`${package.name}`, () => {
             },
             start: { timestamp: '2023-05-11T10:52:00.000Z', timestampUNIX: 1683802320 },
             expires: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
-            cancelled: { timestamp: '2023-05-11T10:52:00.000Z', timestampUNIX: 1683802320 },
+            cancelled: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
             lastPayment: {
               amount: 0,
               date: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 }
@@ -669,7 +669,7 @@ describe(`${package.name}`, () => {
               refunded: false,
             },
             start: { timestamp: '2023-03-28T15:40:58.000Z', timestampUNIX: 1680018058 },
-            expires: { timestamp: '2024-04-27T15:40:58.000Z', timestampUNIX: 1714232458 },
+            expires: { timestamp: '2024-05-11T15:40:58.000Z', timestampUNIX: 1715442058 },
             cancelled: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
             lastPayment: {
               amount: 6,
@@ -702,7 +702,7 @@ describe(`${package.name}`, () => {
             },
             start: { timestamp: '2023-04-10T01:27:21.000Z', timestampUNIX: 1681090041 },
             expires: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
-            cancelled: { timestamp: '2023-04-10T01:27:21.000Z', timestampUNIX: 1681090041 },
+            cancelled: { timestamp: '2023-04-17T07:13:15.000Z', timestampUNIX: 1681715595 },
             lastPayment: {
               amount: 0,
               date: { timestamp: '2023-04-10T01:27:21.000Z', timestampUNIX: 1681090041 }
@@ -732,7 +732,7 @@ describe(`${package.name}`, () => {
             },
             start: { timestamp: '2023-07-21T03:30:03.000Z', timestampUNIX: 1689910203 },
             expires: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
-            cancelled: { timestamp: '2023-07-21T03:30:03.000Z', timestampUNIX: 1689910203 },
+            cancelled: { timestamp: '2023-08-03T19:51:57.000Z', timestampUNIX: 1691092317 },
             lastPayment: {
               amount: 72,
               date: { timestamp: '2023-07-21T03:30:03.000Z', timestampUNIX: 1689910203 }

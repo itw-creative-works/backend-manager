@@ -278,28 +278,35 @@ SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, res
     resolved.status = 'cancelled';
   }
 
+  // Setup preliminary variables
+  const order = get(resource, 'purchase_units[0].payments.captures[0]');
+  const subscription = get(resource, 'billing_info.last_payment');
+  const isOrder = !!order;
+
   // Set resource ID
   resolved.resource.id = resource.id;
 
   // Set start
   resolved.start.timestamp = moment(
     (
-      // Subscription
-      get(resource, 'start_time', 0)
+      isOrder
+        // Order
+        ? get(resource, 'create_time', 0)
 
-      // Order
-      || get(resource, 'create_time', 0)
+        // Subscription
+        : get(resource, 'start_time', 0)
     )
   )
 
   // Set expiration
   resolved.expires.timestamp = moment(
     (
-      // Subscription
-      get(resource, 'billing_info.last_payment.time', 0)
+      isOrder
+        // Order
+        ? get(resource, 'create_time', 0)
 
-      // Order
-      || get(resource, 'create_time', 0)
+        // Subscription
+        : get(resource, 'billing_info.last_payment.time', 0)
     )
   )
 
@@ -307,18 +314,17 @@ SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, res
   if (resolved.status === 'cancelled') {
     resolved.cancelled.timestamp = moment(
       (
-        // Subscription
-        get(resource, 'status_update_time', 0)
+        isOrder
+          // Order
+          ? get(resource, 'create_time', 0)
 
-        // Order
-        || get(resource, 'create_time', 0)
+          // Subscription
+          : get(resource, 'status_update_time', 0)
       )
     )
   }
 
   // Set last payment
-  const order = get(resource, 'purchase_units[0].payments.captures[0]');
-  const subscription = get(resource, 'billing_info.last_payment');
   if (order) {
     resolved.lastPayment.amount = parseFloat(
       get(order, 'amount.value', '0.00')
@@ -419,28 +425,33 @@ SubscriptionResolver.prototype.resolve_chargebee = function (profile, resource, 
     resolved.status = 'cancelled';
   }
 
+  // Setup preliminary variables
+  const isOrder = profile.type === 'order';
+
   // Set resource ID
   resolved.resource.id = resource.id;
 
   // Set start
   resolved.start.timestamp = moment(
     (
-      // Order
-      get(resource, 'date', 0)
+      isOrder
+        // Order
+        ? get(resource, 'date', 0)
 
-      // Subscription
-      || get(resource, 'created_at', 0)
+        // Subscription
+        : get(resource, 'created_at', 0)
     ) * 1000
   )
 
   // Set expiration
   resolved.expires.timestamp = moment(
     (
-      // Order
-      get(resource, 'date', 0)
+      isOrder
+        // Order
+        ? get(resource, 'date', 0)
 
-      // Subscription
-      || get(resource, 'current_term_start', 0)
+        // Subscription
+        : get(resource, 'current_term_start', 0)
     ) * 1000
   )
   // console.log('---resolved.expires 1', resolved.expires);
@@ -458,11 +469,12 @@ SubscriptionResolver.prototype.resolve_chargebee = function (profile, resource, 
   if (resolved.status === 'cancelled') {
     resolved.cancelled.timestamp = moment(
       (
-        // Order
-        get(resource, 'date', 0)
+        isOrder
+          // Order
+          ? get(resource, 'date', 0)
 
-        // Subscription
-        || get(resource, 'cancelled_at', 0)
+          // Subscription
+          : get(resource, 'cancelled_at', 0)
       ) * 1000
     )
   }
@@ -478,30 +490,33 @@ SubscriptionResolver.prototype.resolve_chargebee = function (profile, resource, 
     resolved.lastPayment.amount = 0;
     resolved.lastPayment.date.timestamp = moment(
       (
-        // Order
-        (resource.date || 0)
+        isOrder
+          // Order
+          ? (resource.date || 0)
 
-        // Subscription
-        || (resource.due_since || 0)
+          // Subscription
+          : (resource.due_since || 0)
       ) * 1000
     );
   } else {
     resolved.lastPayment.amount = (
       (
-        // Order
-        (resource.amount_paid)
+        isOrder
+          // Order
+          ? (resource.amount_paid)
 
-        // Order
-        || (resource.plan_amount)
+          // Subscription
+          : (resource.plan_amount)
       ) / 100
     )
     resolved.lastPayment.date.timestamp = moment(
       (
-        // Order
-        (resource.date || 0)
+        isOrder
+          // Order
+          ? (resource.date || 0)
 
-        // Subscription
-        || (resource.current_term_start || 0)
+          // Subscription
+          : (resource.current_term_start || 0)
       ) * 1000
     );
   }
@@ -531,14 +546,14 @@ SubscriptionResolver.prototype.resolve_chargebee = function (profile, resource, 
   }
 
   // Set completed
-  if (profile.type === 'order') {
+  if (isOrder) {
     resolved.payment.completed = !['posted', 'payment_due', 'not_paid', 'voided', 'pending'].includes(resource.status);
   } else {
     resolved.payment.completed = !['future'].includes(resource.status);
   }
 
   // Check if refunded
-  if (profile.type === 'order') {
+  if (isOrder) {
     resolved.payment.refunded = false; // @@@ TODO: check if this is correct
   } else {
     const invoices = get(resource, 'invoices', []);
@@ -597,28 +612,35 @@ SubscriptionResolver.prototype.resolve_stripe = function (profile, resource, res
     resolved.status = 'cancelled';
   }
 
+  // Setup preliminary variables
+  const order = resource.object === 'charge' ? resource : null;
+  const subscription = get(resource, 'latest_invoice');
+  const isOrder = !!order;
+
   // Set resource ID
   resolved.resource.id = resource.id;
 
   // Set start
   resolved.start.timestamp = moment(
     (
-      // Order
-      get(resource, 'created', 0)
+      isOrder
+        // Order
+        ? get(resource, 'created', 0)
 
-      // Subscription
-      || get(resource, 'start_date', 0)
+        // Subscription
+        : get(resource, 'start_date', 0)
     ) * 1000
   );
 
   // Set expiration
   resolved.expires.timestamp = moment(
     (
-      // Order
-      get(resource, 'created', 0)
+      isOrder
+        // Order
+        ? get(resource, 'created', 0)
 
-      // Subscription
-      || get(resource, 'current_period_start', 0)
+        // Subscription
+        : get(resource, 'current_period_start', 0)
     ) * 1000
   );
 
@@ -626,19 +648,18 @@ SubscriptionResolver.prototype.resolve_stripe = function (profile, resource, res
   if (resolved.status === 'cancelled') {
     resolved.cancelled.timestamp = moment(
       (
-        // Order
-        get(resource, 'created', 0)
+        isOrder
+          // Order
+          ? get(resource, 'created', 0)
 
-        // Subscription
-        || get(resource, 'canceled_at', 0)
+          // Subscription
+          : get(resource, 'canceled_at', 0)
       ) * 1000
     )
   }
 
   // Set last payment
   // TODO: check if suspended payments are handled correctly when using resource.latest_invoice.amount_paid
-  const order = resource.object === 'charge' ? resource : null;
-  const subscription = get(resource, 'latest_invoice');
   if (order) {
     resolved.lastPayment.amount = order.amount_captured / 100;
     resolved.lastPayment.date.timestamp = moment(
@@ -694,6 +715,9 @@ SubscriptionResolver.prototype.resolve_stripe = function (profile, resource, res
 
 SubscriptionResolver.prototype.resolve_coinbase = function (profile, resource, resolved) {
   const self = this;
+
+  // Setup preliminary variables
+  const isOrder = profile.type === 'order';
 
   // Set status
   resolved.status = 'cancelled';
