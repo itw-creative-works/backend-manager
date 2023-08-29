@@ -23,6 +23,7 @@ describe(`${package.name}`, () => {
     resolveType: true,
 
     today: '2023-04-28T00:00:00.000Z',
+    // today: '2023-08-28T00:00:00.000Z',
 
     // log: true,
   }
@@ -63,6 +64,7 @@ describe(`${package.name}`, () => {
       * PAYPAL
     */
     describe('paypal', () => {
+      // Orders
       describe('orders', () => {
         describe('regular', () => {
           const item = require('./payment-resolver/paypal/orders/regular.json');
@@ -84,7 +86,11 @@ describe(`${package.name}`, () => {
               amount: 1,
               date: { timestamp: '2023-04-27T03:40:38.000Z', timestampUNIX: 1682566838 }
             },
-            trial: { active: false, daysLeft: 0 }
+            trial: {
+              active: false,
+              claimed: false,
+              daysLeft: 0,
+            },
           }
 
           log('result', result);
@@ -95,28 +101,33 @@ describe(`${package.name}`, () => {
         });
       });
 
+      // Subscriptions
       describe('subscriptions', () => {
-        describe('payment not completed', () => {
-          const item = require('./payment-resolver/paypal/subscriptions/payment-not-complete.json');
+        describe('active', () => {
+          const item = require('./payment-resolver/paypal/subscriptions/active.json');
           const result = Manager.SubscriptionResolver({}, item).resolve(options);
           const expected = {
             processor: 'paypal',
             type: 'subscription',
-            status: 'cancelled',
+            status: 'active',
             frequency: 'monthly',
-            resource: { id: 'I-6YN0VNT6KM4W' },
+            resource: { id: 'I-GLYNACJCERDD' },
             payment: {
-              completed: false,
+              completed: true,
               refunded: false,
             },
-            start: { timestamp: '2023-05-11T10:52:00.000Z', timestampUNIX: 1683802320 },
-            expires: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
+            start: { timestamp: '2023-03-22T22:38:03.000Z', timestampUNIX: 1679524683 },
+            expires: { timestamp: '2024-09-21T11:03:15.000Z', timestampUNIX: 1726916595 },
             cancelled: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
             lastPayment: {
-              amount: 0,
-              date: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 }
+              amount: 59.85,
+              date: { timestamp: '2023-08-22T11:03:15.000Z', timestampUNIX: 1692702195 }
             },
-            trial: { active: false, daysLeft: 0 }
+            trial: {
+              active: false,
+              claimed: false,
+              daysLeft: 0,
+            },
           }
 
           log('result', result);
@@ -146,7 +157,45 @@ describe(`${package.name}`, () => {
               amount: 0,
               date: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 }
             },
-            trial: { active: true, daysLeft: 13 }
+            trial: {
+              active: true,
+              claimed: true,
+              daysLeft: 13,
+            },
+          }
+
+          log('result', result);
+
+          it('should resolve correctly', () => {
+            return assert.deepStrictEqual(result, expected);
+          });
+        });
+
+        describe('trial => payment not completed', () => {
+          const item = require('./payment-resolver/paypal/subscriptions/trial-payment-not-complete.json');
+          const result = Manager.SubscriptionResolver({}, item).resolve(options);
+          const expected = {
+            processor: 'paypal',
+            type: 'subscription',
+            status: 'cancelled',
+            frequency: 'monthly',
+            resource: { id: 'I-6YN0VNT6KM4W' },
+            payment: {
+              completed: false,
+              refunded: false,
+            },
+            start: { timestamp: '2023-05-11T10:52:00.000Z', timestampUNIX: 1683802320 },
+            expires: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
+            cancelled: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
+            lastPayment: {
+              amount: 0,
+              date: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 }
+            },
+            trial: {
+              active: false,
+              claimed: true,
+              daysLeft: 0,
+            },
           }
 
           log('result', result);
@@ -176,7 +225,11 @@ describe(`${package.name}`, () => {
               amount: 19.95,
               date: { timestamp: '2023-04-14T10:56:15.000Z', timestampUNIX: 1681469775 }
             },
-            trial: { active: false, daysLeft: 0 }
+            trial: {
+              active: false,
+              claimed: true,
+              daysLeft: 0,
+            },
           }
 
           log('result', result);
@@ -206,7 +259,11 @@ describe(`${package.name}`, () => {
               amount: 19.95,
               date: { timestamp: '2023-04-25T10:28:22.000Z', timestampUNIX: 1682418502 }
             },
-            trial: { active: false, daysLeft: 0 }
+            trial: {
+              active: false,
+              claimed: false,
+              daysLeft: 0,
+            },
           }
 
           log('result', result);
@@ -236,7 +293,11 @@ describe(`${package.name}`, () => {
               amount: 0,
               date: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 }
             },
-            trial: { active: false, daysLeft: 0 }
+            trial: {
+              active: false,
+              claimed: true,
+              daysLeft: 0,
+            },
           }
 
           log('result', result);
@@ -266,7 +327,11 @@ describe(`${package.name}`, () => {
               amount: 3,
               date: { timestamp: '2023-06-05T15:16:31.000Z', timestampUNIX: 1685978191 }
             },
-            trial: { active: false, daysLeft: 0 }
+            trial: {
+              active: false,
+              claimed: false,
+              daysLeft: 0,
+            },
           }
 
           log('result', result);
@@ -296,7 +361,11 @@ describe(`${package.name}`, () => {
               amount: 191.4,
               date: { timestamp: '2023-07-31T11:13:59.000Z', timestampUNIX: 1690802039 }
             },
-            trial: { active: false, daysLeft: 0 }
+            trial: {
+              active: false,
+              claimed: false,
+              daysLeft: 0,
+            },
           }
 
           log('result', result);
@@ -326,7 +395,11 @@ describe(`${package.name}`, () => {
               amount: 9.97,
               date: { timestamp: '2023-07-11T16:53:50.000Z', timestampUNIX: 1689094430 }
             },
-            trial: { active: false, daysLeft: 0 }
+            trial: {
+              active: false,
+              claimed: false,
+              daysLeft: 0,
+            },
           }
 
           log('result', result);
@@ -342,6 +415,7 @@ describe(`${package.name}`, () => {
       * CHARGEBEE
     */
     describe('chargebee', () => {
+      // Orders
       describe('orders', () => {
         // describe('regular', () => {
         //   const item = require('./payment-resolver/chargebee/orders/regular.json');
@@ -363,7 +437,11 @@ describe(`${package.name}`, () => {
         //       amount: 0,
         //       date: { timestamp: '2023-04-27T09:34:43.000Z', timestampUNIX: 1682588083 }
         //     },
-        //     trial: { active: false, daysLeft: 0 }
+        //     trial: {
+        //       active: false,
+        //       claimed: false,
+        //       daysLeft: 0,
+        //     },
         //   }
 
         //   log('result', result);
@@ -393,7 +471,11 @@ describe(`${package.name}`, () => {
               amount: 0,
               date: { timestamp: '2023-04-27T09:34:43.000Z', timestampUNIX: 1682588083 }
             },
-            trial: { active: false, daysLeft: 0 }
+            trial: {
+              active: false,
+              claimed: false,
+              daysLeft: 0,
+            },
           }
 
           log('result', result);
@@ -404,7 +486,76 @@ describe(`${package.name}`, () => {
         });
       });
 
+      // Subscriptions
       describe('subscriptions', () => {
+        describe('active', () => {
+          const item = require('./payment-resolver/chargebee/subscriptions/active.json');
+          const result = Manager.SubscriptionResolver({}, item).resolve(options);
+          const expected = {
+            processor: 'chargebee',
+            type: 'subscription',
+            status: 'active',
+            frequency: 'monthly',
+            resource: { id: 'AzZMxvTYTQUmw1Iw7' },
+            payment: {
+              completed: true,
+              refunded: false,
+            },
+            start: { timestamp: '2023-03-14T10:37:33.000Z', timestampUNIX: 1678790253 },
+            expires: { timestamp: '2024-09-13T10:37:33.000Z', timestampUNIX: 1726223853 },
+            cancelled: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
+            lastPayment: {
+              amount: 19.95,
+              date: { timestamp: '2023-08-14T10:37:33.000Z', timestampUNIX: 1692009453 }
+            },
+            trial: {
+              active: false,
+              claimed: false,
+              daysLeft: 0,
+            }
+          }
+
+          log('result', result);
+
+          it('should resolve correctly', () => {
+            return assert.deepStrictEqual(result, expected);
+          });
+        });
+
+        describe('trial => skipped-to-active', () => {
+          const item = require('./payment-resolver/chargebee/subscriptions/trial-skipped-to-active.json');
+          const result = Manager.SubscriptionResolver({}, item).resolve(options);
+          const expected = {
+            processor: 'chargebee',
+            type: 'subscription',
+            status: 'active',
+            frequency: 'monthly',
+            resource: { id: '6oqX0TnhKo5R513B' },
+            payment: {
+              completed: true,
+              refunded: false,
+            },
+            start: { timestamp: '2023-08-22T20:55:52.000Z', timestampUNIX: 1692737752 },
+            expires: { timestamp: '2024-09-21T20:55:57.000Z', timestampUNIX: 1726952157 },
+            cancelled: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
+            lastPayment: {
+              amount: 19.95,
+              date: { timestamp: '2023-08-22T20:55:57.000Z', timestampUNIX: 1692737757 }
+            },
+            trial: {
+              active: false,
+              claimed: false,
+              daysLeft: 0,
+            }
+          }
+
+          log('result', result);
+
+          it('should resolve correctly', () => {
+            return assert.deepStrictEqual(result, expected);
+          });
+        });
+
         describe('trial => in-trial', () => {
           const item = require('./payment-resolver/chargebee/subscriptions/trial-in-trial.json');
           const result = Manager.SubscriptionResolver({}, item).resolve(options);
@@ -425,7 +576,11 @@ describe(`${package.name}`, () => {
               amount: 0,
               date: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 }
             },
-            trial: { active: true, daysLeft: 12 }
+            trial: {
+              active: true,
+              claimed: true,
+              daysLeft: 12,
+            },
           }
 
           log('result', result);
@@ -455,7 +610,11 @@ describe(`${package.name}`, () => {
               amount: 19.95,
               date: { timestamp: '2023-04-18T02:53:37.000Z', timestampUNIX: 1681786417 }
             },
-            trial: { active: false, daysLeft: 0 }
+            trial: {
+              active: false,
+              claimed: true,
+              daysLeft: 0,
+            },
           }
 
           log('result', result);
@@ -485,7 +644,11 @@ describe(`${package.name}`, () => {
               amount: 19.95,
               date: { timestamp: '2023-04-28T02:29:56.000Z', timestampUNIX: 1682648996 }
             },
-            trial: { active: false, daysLeft: 0 }
+            trial: {
+              active: false,
+              claimed: true,
+              daysLeft: 0,
+            },
           }
 
           log('result', result);
@@ -515,7 +678,11 @@ describe(`${package.name}`, () => {
               amount: 0,
               date: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 }
             },
-            trial: { active: false, daysLeft: 0 }
+            trial: {
+              active: false,
+              claimed: true,
+              daysLeft: 0,
+            },
           }
 
           log('result', result);
@@ -545,7 +712,11 @@ describe(`${package.name}`, () => {
               amount: 19.95,
               date: { timestamp: '2023-07-11T09:37:54.000Z', timestampUNIX: 1689068274 }
             },
-            trial: { active: false, daysLeft: 0 }
+            trial: {
+              active: false,
+              claimed: false,
+              daysLeft: 0,
+            },
           }
 
           log('result', result);
@@ -575,7 +746,11 @@ describe(`${package.name}`, () => {
               amount: 0,
               date: { timestamp: '2023-08-04T15:40:12.000Z', timestampUNIX: 1691163612 }
             },
-            trial: { active: false, daysLeft: 0 }
+            trial: {
+              active: false,
+              claimed: true,
+              daysLeft: 0,
+            },
           }
 
           log('result', result);
@@ -592,6 +767,7 @@ describe(`${package.name}`, () => {
       * STRIPE
     */
     describe('stripe', () => {
+      // Orders
       describe('orders', () => {
         describe('regular', () => {
           const item = require('./payment-resolver/stripe/orders/regular.json');
@@ -613,7 +789,11 @@ describe(`${package.name}`, () => {
               amount: 1.01,
               date: { timestamp: '2023-04-28T11:08:54.000Z', timestampUNIX: 1682680134 }
             },
-            trial: { active: false, daysLeft: 0 }
+            trial: {
+              active: false,
+              claimed: false,
+              daysLeft: 0,
+            },
           }
 
           log('result', result);
@@ -624,7 +804,42 @@ describe(`${package.name}`, () => {
         });
       });
 
+      // Subscriptions
       describe('subscriptions', () => {
+        describe('active', () => {
+          const item = require('./payment-resolver/stripe/subscriptions/active.json');
+          const result = Manager.SubscriptionResolver({}, item).resolve(options);
+          const expected = {
+            processor: 'stripe',
+            type: 'subscription',
+            status: 'active',
+            frequency: 'monthly',
+            resource: { id: 'sub_1McA4ZEvB7hJrWnu1o7GMybv' },
+            payment: {
+              completed: true,
+              refunded: false,
+            },
+            start: { timestamp: '2023-02-16T16:12:39.000Z', timestampUNIX: 1676563959 },
+            expires: { timestamp: '2024-09-15T16:12:39.000Z', timestampUNIX: 1726416759 },
+            cancelled: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
+            lastPayment: {
+              amount: 6,
+              date: { timestamp: '2023-08-16T16:13:11.000Z', timestampUNIX: 1692202391 }
+            },
+            trial: {
+              active: false,
+              claimed: false,
+              daysLeft: 0,
+            },
+          }
+
+          log('result', result);
+
+          it('should resolve correctly', () => {
+            return assert.deepStrictEqual(result, expected);
+          });
+        });
+
         describe('trial => in trial', () => {
           const item = require('./payment-resolver/stripe/subscriptions/trial-in-trial.json');
           const result = Manager.SubscriptionResolver({}, item).resolve(options);
@@ -645,7 +860,11 @@ describe(`${package.name}`, () => {
               amount: 0,
               date: { timestamp: '2023-04-27T19:02:08.000Z', timestampUNIX: 1682622128 }
             },
-            trial: { active: true, daysLeft: 13 }
+            trial: {
+              active: true,
+              claimed: true,
+              daysLeft: 13,
+            },
           }
 
           log('result', result);
@@ -675,7 +894,11 @@ describe(`${package.name}`, () => {
               amount: 6,
               date: { timestamp: '2023-04-11T15:41:07.000Z', timestampUNIX: 1681227667 }
             },
-            trial: { active: false, daysLeft: 0 }
+            trial: {
+              active: false,
+              claimed: true,
+              daysLeft: 0,
+            },
           }
 
           log('result', result);
@@ -707,7 +930,11 @@ describe(`${package.name}`, () => {
               amount: 0,
               date: { timestamp: '2023-04-10T01:27:21.000Z', timestampUNIX: 1681090041 }
             },
-            trial: { active: false, daysLeft: 0 }
+            trial: {
+              active: false,
+              claimed: true,
+              daysLeft: 0,
+            },
           }
 
           log('result', result);
@@ -737,7 +964,11 @@ describe(`${package.name}`, () => {
               amount: 72,
               date: { timestamp: '2023-07-21T03:30:03.000Z', timestampUNIX: 1689910203 }
             },
-            trial: { active: false, daysLeft: 0 }
+            trial: {
+              active: false,
+              claimed: false,
+              daysLeft: 0,
+            },
           }
 
           log('result', result);
@@ -767,7 +998,11 @@ describe(`${package.name}`, () => {
               amount: 0,
               date: { timestamp: '2023-04-13T16:52:51.000Z', timestampUNIX: 1681404771 }
             },
-            trial: { active: false, daysLeft: 0 }
+            trial: {
+              active: false,
+              claimed: true,
+              daysLeft: 0,
+            },
           }
 
           log('result', result);
@@ -805,7 +1040,11 @@ describe(`${package.name}`, () => {
               amount: 16,
               date: { timestamp: '2023-04-26T10:06:55.000Z', timestampUNIX: 1682503615 }
             },
-            trial: { active: false, daysLeft: 0 }
+            trial: {
+              active: false,
+              claimed: false,
+              daysLeft: 0,
+            },
           }
 
           log('result', result);
@@ -817,7 +1056,7 @@ describe(`${package.name}`, () => {
       });
 
       describe('subscription', () => {
-        describe('active', () => {
+        describe('cancelled', () => {
           const item = require('./payment-resolver/coinbase/subscriptions/cancelled.json');
           const result = Manager.SubscriptionResolver(defaultProfileSubscription, item).resolve(options);
           const expected = {
@@ -837,7 +1076,11 @@ describe(`${package.name}`, () => {
               amount: 16,
               date: { timestamp: '2023-04-26T10:06:55.000Z', timestampUNIX: 1682503615 }
             },
-            trial: { active: false, daysLeft: 0 }
+            trial: {
+              active: false,
+              claimed: false,
+              daysLeft: 0,
+            },
           }
 
           log('result', result);

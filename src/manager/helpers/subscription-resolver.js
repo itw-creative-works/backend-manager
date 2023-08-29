@@ -44,6 +44,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
       }
     },
     trial: {
+      claimed: false,
       active: false,
       daysLeft: 0,
     }
@@ -209,6 +210,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
   if (resolved.status === 'suspended') {
     resolved.expires.timestamp = moment(0);
   }
+
   // console.log('----expires 4', resolved.resource.id, resolved.status, resolved.frequency, resolved.trial.active, resolved.expires.timestamp.toISOString ? resolved.expires.timestamp.toISOString() : resolved.expires.timestamp);
 
   // Fix timestamps
@@ -234,7 +236,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
   }
 
   self.resolved = resolved;
-  // console.log('----expires 5', resolved.resource.id, resolved.status, resolved.frequency, resolved.trial.active, resolved.expires.timestamp.toISOString ? resolved.expires.timestamp.toISOString() : resolved.expires.timestamp);
+  // console.log('----expires 6', resolved.resource.id, resolved.status, resolved.frequency, resolved.trial.active, resolved.expires.timestamp.toISOString ? resolved.expires.timestamp.toISOString() : resolved.expires.timestamp);
 
   return resolved;
 };
@@ -340,6 +342,7 @@ SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, res
   // Get trial
   const trialTenure = get(resource, 'plan.billing_cycles', []).find((cycle) => cycle.tenure_type === 'TRIAL');
   const regularTenure = get(resource, 'plan.billing_cycles', []).find((cycle) => cycle.tenure_type === 'REGULAR');
+  const trialClaimed = !!trialTenure && parseFloat(get(trialTenure, 'pricing_scheme.fixed_price.value', '0.00')) === 0;
 
   // Resolve trial
   /*
@@ -360,6 +363,7 @@ SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, res
       get(resource, 'billing_info.next_billing_time', 0)
     )
   }
+  resolved.trial.claimed = trialClaimed;
 
   // Resolve frequency
   const unit = get(regularTenure, 'frequency.interval_unit');
@@ -568,8 +572,11 @@ SubscriptionResolver.prototype.resolve_chargebee = function (profile, resource, 
 
   // Special chargebee reset lastPayment
   // If trial is active OR if it was cancelled after the trial has ended
-  const trialEnd = get(resource, 'trial_end', 0);
-  const cancelledAt = get(resource, 'cancelled_at', 0);
+  const trialStart = get(resource, 'trial_start', 0) * 1000;
+  const trialEnd = get(resource, 'trial_end', 0) * 1000;
+  const cancelledAt = get(resource, 'cancelled_at', 0) * 1000;
+  const trialDaysDifference = moment(trialEnd).diff(moment(trialStart), 'days');
+  const trialClaimed = !!trialStart && !!trialEnd && trialDaysDifference > 1;
   if (
     resolved.trial.active
     || (trialEnd > 0 && cancelledAt > 0 && cancelledAt === trialEnd)
@@ -577,8 +584,7 @@ SubscriptionResolver.prototype.resolve_chargebee = function (profile, resource, 
     resolved.lastPayment.amount = 0;
     resolved.lastPayment.date.timestamp = moment(0);
   }
-
-  // console.log('----expires 1', resolved.resource.id, resolved.status, resolved.frequency, resolved.trial.active, resolved.expires.timestamp.toISOString ? resolved.expires.timestamp.toISOString() : resolved.expires.timestamp);
+  resolved.trial.claimed = trialClaimed;
 
   return resolved;
 }
@@ -673,16 +679,21 @@ SubscriptionResolver.prototype.resolve_stripe = function (profile, resource, res
   }
 
   // Get trial
+  const trialStart = get(resource, 'trial_start', 0) * 1000;
+  const trialEnd = get(resource, 'trial_end', 0) * 1000;
+  const trialDaysDifference = moment(trialEnd).diff(moment(trialStart), 'days');
+  const trialClaimed = !!trialStart && !!trialEnd && trialDaysDifference > 1;
   if (resource.status === 'trialing') {
     resolved.trial.active = true;
 
     // Set expiration
     resolved.expires.timestamp = moment(
       (
-        get(resource, 'trial_end', 0)
-      ) * 1000
+        trialEnd
+      )
     )
   }
+  resolved.trial.claimed = trialClaimed;
 
   // Resolve frequency
   const unit = get(resource, 'plan.interval');
@@ -753,6 +764,7 @@ SubscriptionResolver.prototype.resolve_coinbase = function (profile, resource, r
   if (true) {
     resolved.trial.active = false;
   }
+  resolved.trial.claimed = false;
 
   // Resolve frequency
   const unit = profile.details.planFrequency;
