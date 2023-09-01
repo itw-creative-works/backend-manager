@@ -61,6 +61,19 @@ describe(`${package.name}`, () => {
   describe('.subscriptionResolver()', () => {
 
     /*
+      GENERIC
+    */
+    // describe('error test', () => {
+    //   const result = Manager.SubscriptionResolver({}, new Error('Test')).resolve(options);
+
+    //   console.log('result', result);
+
+    //   it('should resolve correctly', () => {
+    //     return assert.deepStrictEqual(result, expected);
+    //   });
+    // });
+
+    /*
       * PAYPAL
     */
     describe('paypal', () => {
