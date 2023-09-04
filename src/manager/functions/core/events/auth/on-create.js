@@ -10,8 +10,9 @@ Module.prototype.init = function (Manager, payload) {
   self.libraries = Manager.libraries;
   self.assistant = Manager.Assistant();
   self.user = payload.user
+  self.context = payload.context
 
-  return self;  
+  return self;
 };
 
 Module.prototype.main = function () {
@@ -19,8 +20,11 @@ Module.prototype.main = function () {
   const libraries = self.libraries;
   const assistant = self.assistant;
   const user = self.user;
+  const context = self.context;
 
   return new Promise(async function(resolve, reject) {
+    assistant.log(`Request: ${user.uid}`, user, context, { environment: 'production' });
+
     // Check if exists already
     // It could exist already if user signed up with email and then signed in with Google
     const existingUser = await libraries.admin.firestore().doc(`users/${user.uid}`)
@@ -29,15 +33,18 @@ Module.prototype.main = function () {
       .catch(e => e)
 
     // If user already exists, skip auth-on-create handler
-    if (
-      existingUser instanceof Error
-      || get(existingUser, 'auth.uid', null)
+    if (existingUser instanceof Error) {
+      assistant.error(`Failed to get existing user ${user.uid}:`, existingUser, { environment: 'production' });
+
+      return reject(existingUser);
+    } else if (
+      get(existingUser, 'auth.uid', null)
       || get(existingUser, 'auth.email', null)
     ) {
-      assistant.log(`auth-on-create: Skipping handler because user already exists ${user.uid}:`, existingUser, {environment: 'production'});
+      assistant.log(`Skipping handler because user already exists ${user.uid}:`, existingUser, {environment: 'production'});
 
-      return resolve(self);      
-    }      
+      return resolve(self);
+    }
 
     // Build user object
     const newUser = self.Manager.User({
@@ -45,7 +52,7 @@ Module.prototype.main = function () {
         uid: user.uid,
         email: user.email,
       }
-    }).properties;       
+    }).properties;
 
     // Set up analytics
     const analytics = self.Manager.Analytics({
@@ -64,7 +71,7 @@ Module.prototype.main = function () {
         return true
       }
     }).length < 1) {
-      return resolve(self);      
+      return resolve(self);
     }
 
     // Add metadata
@@ -74,7 +81,7 @@ Module.prototype.main = function () {
     await libraries.admin.firestore().doc(`users/${newUser.auth.uid}`)
       .set(newUser, {merge: true})
       .catch((e) => {
-        assistant.error(`auth-on-create: Failed save user record`, e, {environment: 'production'});
+        assistant.error(`Failed save user record`, e, {environment: 'production'});
       })
 
     // Update user count
@@ -83,12 +90,12 @@ Module.prototype.main = function () {
         'users.total': libraries.admin.firestore.FieldValue.increment(1),
       })
       .catch((e) => {
-        assistant.error(`auth-on-create: Failed to increment user`, e, {environment: 'production'});
+        assistant.error(`Failed to increment user`, e, {environment: 'production'});
       })
 
-    assistant.log(`auth-on-create: User created ${user.uid}:`, newUser, user, {environment: 'production'});
+    assistant.log(`User created ${user.uid}:`, newUser, user, context, {environment: 'production'});
 
-    return resolve(self);      
+    return resolve(self);
   });
 };
 

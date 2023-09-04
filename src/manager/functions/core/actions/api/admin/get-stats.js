@@ -54,7 +54,7 @@ Module.prototype.main = function () {
       })
       .catch(function (e) {
         return reject(assistant.errorManager(`Failed to get: ${e}`, {code: 500, sentry: false, send: false, log: false}).error)
-      })    
+      })
   });
 
 };
@@ -79,6 +79,7 @@ Module.prototype.updateStats = function (existingData) {
     const stats = self.libraries.admin.firestore().doc(`meta/stats`);
     const gatheringOnline = self.libraries.admin.database().ref(`gatherings/online`);
     const sessionsApp = self.libraries.admin.database().ref(`sessions/app`);
+    const sessionsOnline = self.libraries.admin.database().ref(`sessions/online`);
 
     let error = null;
     let update = {
@@ -121,32 +122,29 @@ Module.prototype.updateStats = function (existingData) {
     if (error) {
       return reject(error);
     }
-    
+
+    const _countUsersOnline = async (app) => {
+      await app
+        .once('value')
+        .then((snap) => {
+          const data = snap.val() || {};
+          const keys = Object.keys(data);
+          const existing = _.get(update, 'users.online', 0)
+          _.set(update, 'users.online', existing + keys.length)
+        })
+        .catch(e => {
+          error = new Error(`Failed getting online users: ${e}`);
+        })
+    }
+
     // Count users online (in old gathering)
-    await gatheringOnline
-      .once('value')
-      .then((snap) => {
-        const data = snap.val() || {};
-        const keys = Object.keys(data);
-        const existing = _.get(update, 'users.online', 0)
-        _.set(update, 'users.online', existing + keys.length)
-      })
-      .catch(e => {
-        error = new Error(`Failed getting online users: ${e}`);
-      })
+    await _countUsersOnline(gatheringOnline);
 
     // Count users online (in new session)
-    await sessionsApp
-      .once('value')
-      .then((snap) => {
-        const data = snap.val() || {};
-        const keys = Object.keys(data);
-        const existing = _.get(update, 'users.online', 0)
-        _.set(update, 'users.online', existing + keys.length)
-      })
-      .catch(e => {
-        error = new Error(`Failed getting online users: ${e}`);
-      })
+    await _countUsersOnline(sessionsApp);
+
+    // Count users online (in new session)
+    await _countUsersOnline(sessionsOnine);
 
     if (error) {
       return reject(error);

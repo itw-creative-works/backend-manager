@@ -371,20 +371,36 @@ Manager.prototype.init = function (exporter, options) {
     }
 
     // Events
+    exporter.bm_authBeforeCreate =
+    self.libraries.functions
+    .runWith({memory: '256MB', timeoutSeconds: 60})
+    .auth.user()
+    .beforeCreate(async (user, context) => {
+      return self._process((new (require(`${core}/events/auth/before-create.js`))()).init(self, { user: user, context: context}))
+    });
+
+    exporter.bm_authBeforeSignIn =
+    self.libraries.functions
+    .runWith({memory: '256MB', timeoutSeconds: 60})
+    .auth.user()
+    .beforeSignIn(async (user, context) => {
+      return self._process((new (require(`${core}/events/auth/before-signin.js`))()).init(self, { user: user, context: context}))
+    });
+
     exporter.bm_authOnCreate =
     self.libraries.functions
     .runWith({memory: '256MB', timeoutSeconds: 60})
     .auth.user()
-    .onCreate(async (user) => {
-      return self._process((new (require(`${core}/events/auth/on-create.js`))()).init(self, { user: user, }))
+    .onCreate(async (user, context) => {
+      return self._process((new (require(`${core}/events/auth/on-create.js`))()).init(self, { user: user, context: context}))
     });
 
     exporter.bm_authOnDelete =
     self.libraries.functions
     .runWith({memory: '256MB', timeoutSeconds: 60})
     .auth.user()
-    .onDelete(async (user) => {
-      return self._process((new (require(`${core}/events/auth/on-delete.js`))()).init(self, { user: user, }))
+    .onDelete(async (user, context) => {
+      return self._process((new (require(`${core}/events/auth/on-delete.js`))()).init(self, { user: user, context: context}))
     });
 
     exporter.bm_subOnWrite =

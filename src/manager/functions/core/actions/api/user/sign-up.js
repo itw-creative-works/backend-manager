@@ -111,6 +111,7 @@ Module.prototype.signUp = function (payload) {
           // Main geolocation
           ip: assistant.request.ip,
           continent: assistant.request.continent,
+          region: assistant.request.region,
           country: assistant.request.country,
           city: assistant.request.city,
           latitude: assistant.request.latitude,
@@ -120,6 +121,7 @@ Module.prototype.signUp = function (payload) {
           userAgent: assistant.request.userAgent,
           language: assistant.request.language,
           platform: assistant.request.platform,
+          mobile: assistant.request.mobile,
         },
       },
       affiliate: {
@@ -127,7 +129,7 @@ Module.prototype.signUp = function (payload) {
       },
       metadata: Manager.Metadata().set({tag: 'user:sign-up'}),
     }
-    
+
     assistant.log(`signUp(): user`, user, {environment: 'production'})
 
     // Set the user
@@ -157,7 +159,7 @@ Module.prototype.updateReferral = function (payload) {
     payload = payload || {};
 
     assistant.log(`updateReferral(): payload`, payload, {environment: 'production'})
-        
+
     self.libraries.admin.firestore().collection('users')
     .where('affiliate.code', '==', payload.affiliateCode)
     .get()

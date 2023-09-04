@@ -8,8 +8,9 @@ Module.prototype.init = function (Manager, payload) {
   self.libraries = Manager.libraries;
   self.assistant = Manager.Assistant();
   self.user = payload.user
+  self.context = payload.context
 
-  return self;  
+  return self;
 };
 
 Module.prototype.main = function () {
@@ -17,8 +18,11 @@ Module.prototype.main = function () {
   const libraries = self.libraries;
   const assistant = self.assistant;
   const user = self.user;
+  const context = self.context;
 
   return new Promise(async function(resolve, reject) {
+    assistant.log(`Request: ${user.uid}`, user, context, { environment: 'production' });
+
     // Set up analytics
     const analytics = self.Manager.Analytics({
       assistant: assistant,
@@ -34,7 +38,7 @@ Module.prototype.main = function () {
     await libraries.admin.firestore().doc(`users/${user.uid}`)
       .delete()
       .catch((e) => {
-        assistant.error(`auth-on-delete: Delete user failed`, e, {environment: 'production'});
+        assistant.error(`Delete user failed`, e, {environment: 'production'});
       })
 
     // Update user count
@@ -43,11 +47,11 @@ Module.prototype.main = function () {
         'users.total': libraries.admin.firestore.FieldValue.increment(-1),
       })
       .catch((e) => {
-        assistant.error(`auth-on-delete: Failed to decrement user`, e, {environment: 'production'});
+        assistant.error(`Failed to decrement user`, e, {environment: 'production'});
       })
 
-    assistant.log(`auth-on-delete: User deleted ${user.uid}:`, user, {environment: 'production'}); 
-    
+    assistant.log(`User deleted ${user.uid}:`, user, context, {environment: 'production'});
+
     return resolve(self);
   });
 };
