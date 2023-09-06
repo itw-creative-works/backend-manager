@@ -38,6 +38,7 @@ Manager.prototype.init = function (exporter, options) {
   options.log = typeof options.log === 'undefined' ? false : options.log;
   options.setupFunctions = typeof options.setupFunctions === 'undefined' ? true : options.setupFunctions;
   options.setupFunctionsLegacy = typeof options.setupFunctionsLegacy === 'undefined' ? true : options.setupFunctionsLegacy;
+  options.setupFunctionsIdentity = typeof options.setupFunctionsIdentity === 'undefined' ? true : options.setupFunctionsIdentity;
   options.initializeLocalStorage = typeof options.initializeLocalStorage === 'undefined' ? false : options.initializeLocalStorage;
   options.resourceZone = typeof options.resourceZone === 'undefined' ? 'us-central1' : options.resourceZone;
   options.sentry = typeof options.sentry === 'undefined' ? true : options.sentry;
@@ -371,21 +372,23 @@ Manager.prototype.init = function (exporter, options) {
     }
 
     // Events
-    exporter.bm_authBeforeCreate =
-    self.libraries.functions
-    .runWith({memory: '256MB', timeoutSeconds: 60})
-    .auth.user()
-    .beforeCreate(async (user, context) => {
-      return self._process((new (require(`${core}/events/auth/before-create.js`))()).init(self, { user: user, context: context}))
-    });
+    if (options.setupFunctionsIdentity) {
+      exporter.bm_authBeforeCreate =
+      self.libraries.functions
+      .runWith({memory: '256MB', timeoutSeconds: 60})
+      .auth.user()
+      .beforeCreate(async (user, context) => {
+        return self._process((new (require(`${core}/events/auth/before-create.js`))()).init(self, { user: user, context: context}))
+      });
 
-    exporter.bm_authBeforeSignIn =
-    self.libraries.functions
-    .runWith({memory: '256MB', timeoutSeconds: 60})
-    .auth.user()
-    .beforeSignIn(async (user, context) => {
-      return self._process((new (require(`${core}/events/auth/before-signin.js`))()).init(self, { user: user, context: context}))
-    });
+      exporter.bm_authBeforeSignIn =
+      self.libraries.functions
+      .runWith({memory: '256MB', timeoutSeconds: 60})
+      .auth.user()
+      .beforeSignIn(async (user, context) => {
+        return self._process((new (require(`${core}/events/auth/before-signin.js`))()).init(self, { user: user, context: context}))
+      });
+    }
 
     exporter.bm_authOnCreate =
     self.libraries.functions
