@@ -21,4 +21,3 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Identity Platform auth/before-create.js
 - Identity Platform auth/before-signin.js
 - Disable these by passing `options.setupFunctionsIdentity: false`
-
