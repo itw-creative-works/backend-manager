@@ -50,7 +50,6 @@ let NPM_CLEAN_SCRIPT = 'rm -fr node_modules && rm -fr package-lock.json && npm c
 let NOFIX_TEXT = chalk.red(`There is no automatic fix for this check.`);
 let runtimeconfigTemplate = JSON.parse((jetpack.read(path.resolve(`${__dirname}/../../templates/runtimeconfig.json`))) || '{}');
 let bemConfigTemplate = JSON.parse((jetpack.read(path.resolve(`${__dirname}/../../templates/backend-manager-config.json`))) || '{}');
-let CLI_CONFIG = JSON5.parse((jetpack.read(path.resolve(`${__dirname}/config.json`))) || '{}');
 
 function Main() {
 }
@@ -98,13 +97,10 @@ Main.prototype.process = async function (args) {
   if ((self.options.i || self.options.install) && (self.options.local || self.options.dev || self.options.development)) {
     await uninstallPkg('backend-manager');
     return await installPkg('file:../../../ITW-Creative-Works/backend-manager');
-    // await uninstallPkg('backend-assistant');
-    // return await installPkg('file:../../backend-assistant');
   }
   if ((self.options.i || self.options.install) && (self.options.live || self.options.prod || self.options.production)) {
     await uninstallPkg('backend-manager');
     return await installPkg('backend-manager');
-    // return await installPkg('backend-assistant');
   }
   if (self.options.serve) {
     if (!self.options.quick && !self.options.q) {
@@ -261,7 +257,7 @@ Main.prototype.setup = async function () {
 
   self.bemApiURL = `https://us-central1-${_.get(self.firebaseRC, 'projects.default')}.cloudfunctions.net/bm_api?authenticationToken=${_.get(self.runtimeConfigJSON, 'backend_manager.key')}`;
   // const prepareStatsURL = `https://us-central1-${_.get(self.firebaseRC, 'projects.default')}.cloudfunctions.net/bm_api?authenticationToken=undefined`;
-  
+
   // Log
   log(`ID: `, chalk.bold(`${self.projectName}`));
   log(`URL:`, chalk.bold(`${self.projectUrl}`));
@@ -273,26 +269,33 @@ Main.prototype.setup = async function () {
   // Tests
   await self.test('is a firebase project', async function () {
     let exists = jetpack.exists(`${self.firebaseProjectPath}/firebase.json`);
-    
+
     return exists;
   }, fix_isFirebase);
 
-  await self.test('.nvmrc file has proper version', async function () {
-    // return !!self.package.dependencies && !!self.package.devDependencies;
-    // let gitignore = jetpack.read(path.resolve(`${__dirname}/../../templates/gitignore.md`));
-    let nvmrc = jetpack.read(`${self.firebaseProjectPath}/functions/.nvmrc`) || '';
-    
-    return nvmrc === `v${CLI_CONFIG.node}/*`
-  }, fix_nvmrc);
+  await self.test(`using node ${self.packageJSON.engines.node}`, function () {
+    const engineReqMajor = parseInt(self.packageJSON.engines.node.split('.')[0]);
+    const engineHasMajor = parseInt(self.package.engines.node.split('.')[0]);
+    const processMajor = parseInt(process.versions.node.split('.')[0]);
 
-  await self.test(`using node ${CLI_CONFIG.node}`, function () {
-    let processMajor = parseInt(process.versions.node.split('.')[0]);
-    let engineMajor = parseInt(self.package.engines.node.split('.')[0]);
-    if (processMajor < engineMajor) {
-      return new Error(`Please use Node.js version ${CLI_CONFIG.node} with this project. You can run: nvm use`)
+    if (processMajor < engineReqMajor) {
+      return new Error(`Please use at least version ${engineReqMajor} of Node.js with this project. You need to update your package.json and your .nvmrc file. Then, make sure to run ${chalk.bold(`nvm use ${engineReqMajor}`)}`)
     }
-    return self.package.engines.node.toString() === CLI_CONFIG.node && processMajor >= engineMajor;
+
+    if (engineHasMajor !== engineReqMajor) {
+      console.log(chalk.yellow(`You are using Node.js version ${processMajor} but this project suggests ${engineReqMajor}.`));
+    }
+
+    return engineHasMajor >= engineReqMajor;
   }, fix_nodeVersion);
+
+  await self.test('.nvmrc file has proper version', async function () {
+    const engineReqMajor = parseInt(self.packageJSON.engines.node.split('.')[0]);
+    const nvmrc = parseInt((jetpack.read(`${self.firebaseProjectPath}/functions/.nvmrc`) || '0').trim().replace(/v|\/|\*/g, ''));
+
+    // return nvmrc === `v${self.packageJSON.engines.node}/*`
+    return nvmrc >= engineReqMajor;
+  }, fix_nvmrc);
 
   // await self.test('project level package.json exists', async function () {
   //   return !!(self.projectPackage && self.projectPackage.version && self.projectPackage.name);
@@ -350,20 +353,6 @@ Main.prototype.setup = async function () {
 
     return isLocal(mine) || !(semver.gt(latest, mine)) || majorVersionMismatch;
   }, fix_bem);
-
-  (async function() {
-    let pkg = 'backend-assistant';
-    let latest = semver.clean(await getPkgVersion(pkg));
-    let bemv = cleanPackageVersion(self.packageJSON.dependencies[pkg]);
-    bemPackageVersionWarning(pkg, bemv, latest);
-  }());
-
-  // await self.test('using updated backend-assistant', async function () {
-  //   let pkg = 'backend-assistant';
-  //   let latest = semver.clean(await getPkgVersion(pkg));
-  //   let mine = (self.package.dependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
-  //   return isLocal(mine) || !(semver.gt(latest, mine));
-  // }, fix_bea);
 
   // await self.test('using updated ultimate-jekyll-poster', async function () {
   //   let pkg = 'ultimate-jekyll-poster';
@@ -756,31 +745,32 @@ async function fix_serviceAccount(self) {
 
 function fix_nodeVersion(self) {
   return new Promise(function(resolve, reject) {
-    _.set(self.package, 'engines.node', CLI_CONFIG.node)
+    if (false) {
+      _.set(self.package, 'engines.node', self.packageJSON.engines.node)
+      jetpack.write(`${self.firebaseProjectPath}/functions/package.json`, JSON.stringify(self.package, null, 2) );
 
-    jetpack.write(`${self.firebaseProjectPath}/functions/package.json`, JSON.stringify(self.package, null, 2) );
-    resolve();
+      resolve();
+    }
+
+    throw new Error('Please manually fix your outdated Node.js version')
   });
 };
 
 function fix_nvmrc(self) {
   return new Promise(function(resolve, reject) {
+    var v = self.packageJSON.engines.node;
 
-    jetpack.write(`${self.firebaseProjectPath}/functions/.nvmrc`, `v${CLI_CONFIG.node}/*`);
-    resolve();
+    jetpack.write(`${self.firebaseProjectPath}/functions/.nvmrc`, `v${v}/*`);
+
+    log(chalk.red(`Please run ${chalk.bold(`nmv use ${v}`)} to use the correct version of Node.js`));
+
+    throw '';
   });
 };
 
 async function fix_isFirebase(self) {
-  log(chalk.red(`self is not a firebase project. Please use ${chalk.bold('firebase-init')} to set up.`));
+  log(chalk.red(`This is not a firebase project. Please use ${chalk.bold('firebase-init')} to set up.`));
   throw '';
-  return;
-};
-
-async function fix_isFirebase(self) {
-  log(chalk.red(`self is not a firebase project. Please use ${chalk.bold('firebase-init')} to set up.`));
-  throw '';
-  return;
 };
 
 function fix_projpackage(self) {
@@ -832,9 +822,7 @@ async function fix_bem(self) {
 
   return;
 };
-// async function fix_bea(self) {
-//   return await installPkg('backend-assistant')
-// };
+
 // async function fix_ujp(self) {
 //   return await installPkg('ultimate-jekyll-poster')
 // };
@@ -920,7 +908,7 @@ function fix_indexesSync(self) {
       } else {
         return reject();
       }
-    })    
+    })
   });
 };
 
@@ -941,7 +929,7 @@ function fix_setStoragePolicy(self) {
     .catch(e => {
       console.error(chalk.red(`There is no automatic fix. Please run: \n${chalk.bold('firebase deploy && npx bm setup')}`));
       return reject();
-    });    
+    });
   });
 };
 
@@ -1151,7 +1139,7 @@ async function execute(command, cwd) {
     //   } else {
     //     resolve(stdout);
     //   }
-    // });    
+    // });
 
   });
 }
@@ -1173,7 +1161,7 @@ async function execute(command, cwd) {
 //     //   } else {
 //     //     resolve(stdout);
 //     //   }
-//     // });    
+//     // });
 
 //   });
 // }
@@ -1340,7 +1328,7 @@ async function cmd_setStorageLifecycle(self) {
       .replace(/{bucket}/ig, `us.artifacts.${self.projectName}.appspot.com`)
     const command2 = `gsutil lifecycle set {config} gs://{bucket}`
       .replace(/{config}/ig, path.resolve(`${__dirname}/../../templates/storage-lifecycle-config-30-days.json`))
-      .replace(/{bucket}/ig, `bm-backup-firestore-${self.projectName}`)      
+      .replace(/{bucket}/ig, `bm-backup-firestore-${self.projectName}`)
 
     exec(command, function (error, stdout, stderr) {
       if (error) {

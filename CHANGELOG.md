@@ -15,6 +15,59 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Security` in case of vulnerabilities.
 
 ---
+## [3.0.0] - 2023-09-05
+### ⚠️ BREAKING
+- Updated `firebase-admin` from `9.12.0` --> `11.10.1`
+- Updated `firebase-functions` from `3.24.1` --> `4.4.1`
+- This project now requires `firebase-tools` from `10.9.2` --> `12.5.2`
+
+- Updated required Node.js version from `12` --> `16`
+
+- Updated `@google-cloud/storage` from `5.20.5` --> `7.0.1`
+- Updated `fs-jetpack` from `4.3.1` --> `5.1.0`
+- Updated `uuid` from `8.3.2` --> `9.0.0`
+
+- Removed `backend-assistant` dependency and moved to custom library within this module at `./src/manager/helpers/assistant.js`
+- Updated geolocation and client data retrieval to new format:
+#### New Way
+```js
+  const assistant = new Assistant();
+
+  // Get geolocation data
+  assistant.request.geolocation.ip;
+  assistant.request.geolocation.continent;
+  assistant.request.geolocation.country;
+  assistant.request.geolocation.region;
+  assistant.request.geolocation.city;
+  assistant.request.geolocation.latitude;
+  assistant.request.geolocation.longitude;
+
+  // Get Client data
+  assistant.request.client.userAgent;
+  assistant.request.client.language;
+  assistant.request.client.platform;
+  assistant.request.client.mobile;
+```
+
+#### Old Way
+```js
+  const assistant = new Assistant();
+
+  // Get geolocation data
+  assistant.request.ip;
+  assistant.request.continent;
+  assistant.request.country;
+  assistant.request.region;
+  assistant.request.city;
+  assistant.request.latitude;
+  assistant.request.longitude;
+
+  // Get Client data
+  assistant.request.userAgent;
+  assistant.request.language;
+  assistant.request.platform;
+  assistant.request.mobile;
+```
 
 ## [2.6.0] - 2023-09-05
 ### Added

@@ -71,6 +71,8 @@ Module.prototype.main = function () {
         geolocation: {
           ip: ipAddress,
           language: context.locale,
+        },
+        client: {
           userAgent: context.userAgent,
         },
       },

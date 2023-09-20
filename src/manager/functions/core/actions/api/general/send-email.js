@@ -33,7 +33,7 @@ Module.prototype.main = function () {
       return reject(assistant.errorManager(`Parameter {email} is required.`, {code: 400, sentry: false, send: false, log: false}).error)
     }
 
-    let emailPayload 
+    let emailPayload
     try {
       emailPayload = merge({}, DEFAULT, require(path.join(__dirname, 'emails', `${payload.data.payload.id}.js`))(payload.data.payload, Manager.config));
     } catch (e) {
@@ -41,7 +41,7 @@ Module.prototype.main = function () {
     }
 
     const storage = Manager.storage({temporary: true});
-    const ipPath = ['api:general:send-email', 'ips', assistant.request.ip];
+    const ipPath = ['api:general:send-email', 'ips', assistant.request.geolocation.ip];
     const emailPath = ['api:general:send-email', 'emails', payload.data.payload.email];
 
     const ipData = storage.get(ipPath).value() || {};
@@ -53,7 +53,7 @@ Module.prototype.main = function () {
 
     emailData.count = (emailData.count || 0) + 1;
     emailData.firstRequestTime = emailData.firstRequestTime ? emailData.firstRequestTime : new Date().toISOString();
-    emailData.lastRequestTime = new Date().toISOString();    
+    emailData.lastRequestTime = new Date().toISOString();
 
     storage.set(ipPath, ipData).write();
     storage.set(emailPath, emailData).write();
@@ -63,7 +63,7 @@ Module.prototype.main = function () {
     if (ipData.count >= emailPayload.spamFilter.ip || emailData.count >= emailPayload.spamFilter.email) {
       self.assistant.errorManager(`Spam filter triggered ip=${ipData.count}, email=${emailData.count}`, {code: 429, sentry: false, send: false, log: true})
       return resolve({data: {success: true}});
-    }    
+    }
 
     assistant.log('Email payload:', emailPayload, {environment: 'production'});
 
@@ -94,7 +94,7 @@ Module.prototype.main = function () {
     })
     .catch(e => {
       return reject(assistant.errorManager(`Error sending email: ${e}`, {code: 500, sentry: true, send: false, log: false}).error)
-    })    
+    })
   });
 
 };

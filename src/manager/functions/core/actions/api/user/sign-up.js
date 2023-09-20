@@ -107,22 +107,8 @@ Module.prototype.signUp = function (payload) {
     // Merge the payload and the default user object
     const user = {
       activity: {
-        geolocation: {
-          // Main geolocation
-          ip: assistant.request.ip,
-          continent: assistant.request.continent,
-          region: assistant.request.region,
-          country: assistant.request.country,
-          city: assistant.request.city,
-          latitude: assistant.request.latitude,
-          longitude: assistant.request.longitude,
-
-          // Get User Agent data
-          userAgent: assistant.request.userAgent,
-          language: assistant.request.language,
-          platform: assistant.request.platform,
-          mobile: assistant.request.mobile,
-        },
+        geolocation: assistant.request.geolocation,
+        client: assistant.request.client,
       },
       affiliate: {
         referrer: payload.affiliate.referrer,

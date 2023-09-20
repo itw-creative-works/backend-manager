@@ -187,10 +187,10 @@ ApiManager.prototype.getUser = async function (assistant) {
     // console.log('---authenticatedUser', authenticatedUser);
     const planId = get(authenticatedUser, 'plan.id', 'basic');
     let workingUID = !authenticatedUser.authenticated
-      ? uuidv5(assistant.request.ip, '1b671a64-40d5-491e-99b0-da01ff1f3341')
+      ? uuidv5(assistant.request.geolocation.ip, '1b671a64-40d5-491e-99b0-da01ff1f3341')
       : authenticatedUser.auth.uid
-    authenticatedUser.ip = assistant.request.ip;
-    authenticatedUser.country = assistant.request.country;
+    authenticatedUser.ip = assistant.request.geolocation.ip;
+    authenticatedUser.country = assistant.request.geolocation.country;
     // console.log('---workingUID', workingUID);
     // console.log('----self.userList', self.userList);
     let existingUser = self.userList.find(user => user.auth.uid === workingUID);

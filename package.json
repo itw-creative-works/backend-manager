@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "2.6.0",
+  "version": "3.0.0",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -11,6 +11,9 @@
     "_test": "npm run prepare && ./node_modules/mocha/bin/mocha test/ --recursive --timeout=10000",
     "test": "./node_modules/mocha/bin/mocha test/ --recursive --timeout=10000",
     "start": "node src/index.js"
+  },
+  "engines": {
+    "node": "16"
   },
   "repository": {
     "type": "git",
@@ -29,17 +32,16 @@
   "homepage": "https://itwcreativeworks.com",
   "dependencies": {
     "@firebase/rules-unit-testing": "^2.0.7",
-    "@google-cloud/storage": "^5.20.5",
+    "@google-cloud/storage": "^7.0.1",
     "@sendgrid/mail": "^7.7.0",
     "@sentry/node": "^6.19.7",
-    "backend-assistant": "^1.0.11",
     "busboy": "^1.6.0",
     "chalk": "^4.1.2",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "firebase-admin": "^9.12.0",
-    "firebase-functions": "^3.24.1",
-    "fs-jetpack": "^4.3.1",
+    "firebase-admin": "^11.10.1",
+    "firebase-functions": "^4.4.1",
+    "fs-jetpack": "^5.1.0",
     "hcaptcha": "^0.1.1",
     "inquirer": "^8.2.5",
     "json5": "^2.2.3",
@@ -51,17 +53,18 @@
     "moment": "^2.29.4",
     "nanoid": "^3.3.6",
     "node-fetch": "^2.7.0",
-    "node-powertools": "^1.0.10",
+    "node-powertools": "^1.1.0",
     "npm-api": "^1.0.1",
     "paypal-server-api": "^1.0.3",
     "pushid": "^1.0.0",
+    "resolve-account": "^1.0.2",
     "semver": "^7.5.4",
     "shortid": "^2.2.16",
-    "sizeitup": "^1.0.3",
+    "sizeitup": "^1.0.7",
     "uid-generator": "^2.0.0",
     "ultimate-jekyll-poster": "^0.0.15",
     "universal-analytics": "^0.5.3",
-    "uuid": "^8.3.2",
+    "uuid": "^9.0.1",
     "wonderful-fetch": "^1.0.0",
     "wonderful-log": "^1.0.5",
     "yargs": "^17.7.2"

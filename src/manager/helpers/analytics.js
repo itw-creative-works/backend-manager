@@ -20,10 +20,10 @@ function Analytics(Manager, options) {
   // Set properties
   self._assistant = options.assistant || Manager.Assistant();
   self._request = {
-    ip: get(self._assistant, 'request.ip', '127.0.0.1'),
-    country: get(self._assistant, 'request.country', ''),
+    ip: get(self._assistant, 'request.geolocation.ip', '127.0.0.1'),
+    country: get(self._assistant, 'request.geolocation.country', ''),
     referrer: get(self._assistant, 'request.referrer', ''),
-    userAgent: get(self._assistant, 'request.userAgent', ''),
+    userAgent: get(self._assistant, 'request.client.userAgent', ''),
     name: get(self._assistant, 'meta.name', ''),
   }
 

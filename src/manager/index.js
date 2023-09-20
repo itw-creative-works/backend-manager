@@ -62,7 +62,7 @@ Manager.prototype.init = function (exporter, options) {
     sentry: null,
 
     // First-party
-    Assistant: require('backend-assistant'),
+    Assistant: require('./helpers/assistant.js'),
     localDatabase: null,
     User: null,
     Analytics: null,

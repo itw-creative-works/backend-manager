@@ -85,8 +85,8 @@ Module.prototype.main = function () {
           uuid: uuid,
           signInToken: signInToken,
           timestamp: new Date().toISOString(),
-          ip: assistant.request.ip,
-          country: assistant.request.country,
+          ip: assistant.request.geolocation.ip,
+          country: assistant.request.geolocation.country,
           app: result,
           config: config,
         }
