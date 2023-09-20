@@ -273,7 +273,7 @@ Main.prototype.setup = async function () {
     return exists;
   }, fix_isFirebase);
 
-  await self.test(`using node ${self.packageJSON.engines.node}`, function () {
+  await self.test(`using at least Node.js v${self.packageJSON.engines.node}`, function () {
     const engineReqMajor = parseInt(self.packageJSON.engines.node.split('.')[0]);
     const engineHasMajor = parseInt(self.package.engines.node.split('.')[0]);
     const processMajor = parseInt(process.versions.node.split('.')[0]);

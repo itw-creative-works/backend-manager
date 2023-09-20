@@ -37,7 +37,7 @@ Manager.prototype.init = function (exporter, options) {
   options.initialize = typeof options.initialize === 'undefined' ? true : options.initialize;
   options.log = typeof options.log === 'undefined' ? false : options.log;
   options.setupFunctions = typeof options.setupFunctions === 'undefined' ? true : options.setupFunctions;
-  options.setupFunctionsLegacy = typeof options.setupFunctionsLegacy === 'undefined' ? true : options.setupFunctionsLegacy;
+  options.setupFunctionsLegacy = typeof options.setupFunctionsLegacy === 'undefined' ? false : options.setupFunctionsLegacy;
   options.setupFunctionsIdentity = typeof options.setupFunctionsIdentity === 'undefined' ? true : options.setupFunctionsIdentity;
   options.initializeLocalStorage = typeof options.initializeLocalStorage === 'undefined' ? false : options.initializeLocalStorage;
   options.resourceZone = typeof options.resourceZone === 'undefined' ? 'us-central1' : options.resourceZone;
@@ -97,9 +97,9 @@ Manager.prototype.init = function (exporter, options) {
   process.env.ENVIRONMENT = !process.env.ENVIRONMENT ? self.assistant.meta.environment : process.env.ENVIRONMENT;
 
   // Use the working Firebase logger that they disabled for whatever reason
-  if (process.env.GCLOUD_PROJECT && self.assistant.meta.environment !== 'development' && options.useFirebaseLogger) {
-    require('firebase-functions/lib/logger/compat');
-  }
+  // if (process.env.GCLOUD_PROJECT && self.assistant.meta.environment !== 'development' && options.useFirebaseLogger) {
+  //   require('firebase-functions/lib/logger/compat');
+  // }
 
   // Handle dev environments
   if (self.assistant.meta.environment === 'development') {
@@ -660,8 +660,8 @@ Manager.prototype.storage = function (options) {
     const low = require('lowdb');
     const FileSync = require('lowdb/adapters/FileSync');
     const dbPath = options.temporary
-      ? `${require('os').tmpdir()}/${options.name}.json`
-      : `./.data/${options.name}.json`;
+      ? `${require('os').tmpdir()}/storage/${options.name}.json`
+      : `./.data/storage/${options.name}.json`;
     const adapter = new FileSync(dbPath);
 
     if (

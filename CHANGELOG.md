@@ -28,6 +28,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Updated `uuid` from `8.3.2` --> `9.0.0`
 
 - Removed `backend-assistant` dependency and moved to custom library within this module at `./src/manager/helpers/assistant.js`
+- Removed `require('firebase-functions/lib/logger/compat')`
+- Changed default for `options.setupFunctionsLegacy` from `true` --> `false`
 - Updated geolocation and client data retrieval to new format:
 #### New Way
 ```js
