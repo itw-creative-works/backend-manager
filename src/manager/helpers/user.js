@@ -99,7 +99,7 @@ function User(Manager, settings, options) {
         userAgent: _.get(settings, 'activity.client.userAgent', defaults ? '' : null),
         language: _.get(settings, 'activity.client.language', defaults ? '' : null),
         platform: _.get(settings, 'activity.client.platform', defaults ? '' : null),
-        mobile: _.get(settings, 'activity.client.mobile', defaults ? '' : null),
+        mobile: _.get(settings, 'activity.client.mobile', defaults ? null : null),
       },
     },
     api: {
