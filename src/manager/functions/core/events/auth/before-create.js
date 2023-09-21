@@ -27,6 +27,7 @@ Module.prototype.main = function () {
   return new Promise(async function(resolve, reject) {
     const functions = self.libraries.functions;
     const admin = self.libraries.admin;
+    const storage = self.Manager.storage({ temporary: true, name: 'rate-limiting' });
 
     assistant.log(`Request: ${user.uid}`, user, context, { environment: 'production' });
 
@@ -35,7 +36,7 @@ Module.prototype.main = function () {
     const oneHour = 60 * 60 * 1000; // One hour in milliseconds
 
     // Get current rate-limiting data
-    const rateLimitingData = await self.Manager.storage({ name: 'rate-limiting' }).get(`ipRateLimits.${ipAddress}`);
+    const rateLimitingData = storage.get(`ipRateLimits.${ipAddress}`);
     const count = get(rateLimitingData, 'count', 0);
     const lastTime = get(rateLimitingData, 'lastTime', 0);
 
@@ -48,7 +49,7 @@ Module.prototype.main = function () {
     }
 
     // Update rate-limiting data
-    await self.Manager.storage({ name: 'rate-limiting' }).set(`ipRateLimits.${ipAddress}`, { count: count + 1, lastTime: currentTime });
+   storage.set(`ipRateLimits.${ipAddress}`, { count: count + 1, lastTime: currentTime });
 
     const existingAccount = await admin.firestore().doc(`users/${user.uid}`)
       .get()
