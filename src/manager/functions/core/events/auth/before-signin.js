@@ -23,6 +23,8 @@ Module.prototype.main = function () {
   const context = self.context;
 
   return new Promise(async function(resolve, reject) {
+    const functions = self.libraries.functions;
+    const admin = self.libraries.admin;
 
     assistant.log(`Request: ${user.uid}`, user, context, {environment: 'production'});
 
