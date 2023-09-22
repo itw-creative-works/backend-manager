@@ -36,7 +36,7 @@ Module.prototype.main = function () {
     const oneHour = 60 * 60 * 1000; // One hour in milliseconds
 
     // Get current rate-limiting data
-    const rateLimitingData = storage.get(`ipRateLimits.${ipAddress}`);
+    const rateLimitingData = storage.get(`ipRateLimits.${ipAddress}`).value();
     const count = get(rateLimitingData, 'count', 0);
     const lastTime = get(rateLimitingData, 'lastTime', 0);
 
@@ -49,7 +49,7 @@ Module.prototype.main = function () {
     }
 
     // Update rate-limiting data
-   storage.set(`ipRateLimits.${ipAddress}`, { count: count + 1, lastTime: currentTime });
+   storage.set(`ipRateLimits.${ipAddress}`, { count: count + 1, lastTime: currentTime }).write();
 
     const existingAccount = await admin.firestore().doc(`users/${user.uid}`)
       .get()
