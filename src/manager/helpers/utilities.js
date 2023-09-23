@@ -4,7 +4,7 @@ function Utilities(Manager) {
   const self = this;
 
   self.cache = null;
-  
+
   self.Manager = Manager;
 }
 
@@ -56,7 +56,7 @@ Utilities.prototype.iterateCollection = function (callback, options) {
 
           if (options.log) {
             console.log('Processing batch:', batch);
-          }          
+          }
 
           callback({
             snap: snap, docs: snap.docs.map(x => x)
@@ -81,14 +81,14 @@ Utilities.prototype.iterateCollection = function (callback, options) {
         });
     }
 
-    listAllDocuments();    
+    listAllDocuments();
   });
 };
 
 Utilities.prototype.iterateUsers = function (callback, options) {
   const self = this;
   const Manager = self.Manager;
-  const admin = Manager.libraries.admin;  
+  const admin = Manager.libraries.admin;
 
   return new Promise(function(resolve, reject) {
     let batch = -1;
@@ -97,13 +97,13 @@ Utilities.prototype.iterateUsers = function (callback, options) {
     options.batchSize = options.batchSize || 1000;
     options.log = options.log;
     options.pageToken = options.pageToken;
-    
+
     function listAllUsers(nextPageToken) {
       // List batch of users, 1000 at a time.
       admin.auth()
         .listUsers(options.batchSize, nextPageToken)
         .then(async (listUsersResult) => {
-          
+
           batch++;
 
           if (options.log) {
@@ -111,8 +111,8 @@ Utilities.prototype.iterateUsers = function (callback, options) {
           }
 
           callback({
-            snap: listUsersResult, 
-            users: listUsersResult.users, 
+            snap: listUsersResult,
+            users: listUsersResult.users,
             pageToken: listUsersResult.pageToken,
           }, batch)
             .then(r => {
@@ -125,16 +125,16 @@ Utilities.prototype.iterateUsers = function (callback, options) {
             .catch((e) => {
               console.error('Callback failed', e);
               return reject(e)
-            });        
-          
+            });
+
         })
         .catch((e) => {
           console.error('Query failed', e);
           return reject(e)
-        });      
+        });
     }
-    
-    listAllUsers(options.pageToken);   
+
+    listAllUsers(options.pageToken);
   });
 };
 
@@ -148,7 +148,7 @@ Utilities.prototype.randomId = function (options) {
     nanoId = require('nanoid');
 
     nanoId = nanoId.customAlphabet(
-      nanoId.urlAlphabet.replace(/_|-/g, ''), 
+      nanoId.urlAlphabet.replace(/_|-/g, ''),
       options.size,
     )
   }
@@ -177,18 +177,17 @@ Utilities.prototype.get = function (docPath, options) {
         .then(async (doc) => {
           const data = doc.data();
 
-          if (!data) {
-            throw new Error(`Document with ID ${doc} not found`);
+          if (data) {
+            self.cache.set(docPath, {
+              doc: doc,
+              time: Date.now(),
+            })
+            .write();
           }
-
-          self.cache.set(docPath, {
-            doc: doc,
-            time: Date.now(),
-          })
-          .write();
 
           return resolve(doc);
         })
+        .catch(e => reject(e));
     }
   });
 };
