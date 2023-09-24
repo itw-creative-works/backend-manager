@@ -218,6 +218,40 @@ describe(`${package.name}`, () => {
           });
         });
 
+        describe('trial => payment overdue', () => {
+          const item = require('./payment-resolver/paypal/subscriptions/trial-payment-overdue.json');
+          const result = Manager.SubscriptionResolver({}, item).resolve(options);
+          const expected = {
+            processor: 'paypal',
+            type: 'subscription',
+            status: 'suspended',
+            frequency: 'annually',
+            resource: { id: 'I-PFLFF5TTAN4S' },
+            payment: {
+              completed: true,
+              refunded: false,
+            },
+            start: { timestamp: '2023-09-09T05:58:41.000Z', timestampUNIX: 1694239121 },
+            expires: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
+            cancelled: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
+            lastPayment: {
+              amount: 0,
+              date: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 }
+            },
+            trial: {
+              active: false,
+              claimed: true,
+              daysLeft: 0,
+            },
+          }
+
+          log('result', result);
+
+          it('should resolve correctly', () => {
+            return assert.deepStrictEqual(result, expected);
+          });
+        });
+
         describe('trial => active => cancelled', () => {
           const item = require('./payment-resolver/paypal/subscriptions/trial-to-active-to-cancelled.json');
           const result = Manager.SubscriptionResolver({}, item).resolve(options);

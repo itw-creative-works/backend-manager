@@ -154,7 +154,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
   // Resolve
   const processor = self[`resolve_${profile.processor}`];
   if (processor) {
-    processor(profile, resource, resolved);
+    processor(profile, resource, resolved, options);
   } else {
     throw new Error('Unknown processor');
   }
@@ -241,7 +241,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
   return resolved;
 };
 
-SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, resolved) {
+SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, resolved, options) {
   const self = this;
 
   // Set status
@@ -362,6 +362,17 @@ SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, res
     resolved.expires.timestamp = moment(
       get(resource, 'billing_info.next_billing_time', 0)
     )
+
+    /*
+      Special condition for PayPal #2
+      I want to put the subscription in a suspended state if it's even one day past due
+    */
+    const trialLength = get(trialTenure, 'frequency.interval_count', 0);
+    const daysSinceStart = moment(resolved.start.timestamp).diff(moment(options.today), 'days');
+    if (daysSinceStart > trialLength) {
+      resolved.status = 'suspended';
+      resolved.trial.active = false;
+    }
   }
   resolved.trial.claimed = trialClaimed;
 
@@ -396,7 +407,7 @@ SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, res
   return resolved;
 }
 
-SubscriptionResolver.prototype.resolve_chargebee = function (profile, resource, resolved) {
+SubscriptionResolver.prototype.resolve_chargebee = function (profile, resource, resolved, options) {
   const self = this;
 
   // Set status
@@ -589,7 +600,7 @@ SubscriptionResolver.prototype.resolve_chargebee = function (profile, resource, 
   return resolved;
 }
 
-SubscriptionResolver.prototype.resolve_stripe = function (profile, resource, resolved) {
+SubscriptionResolver.prototype.resolve_stripe = function (profile, resource, resolved, options) {
   const self = this;
 
   // Subscription: https://stripe.com/docs/api/subscriptions/object#subscription_object-status
@@ -724,7 +735,7 @@ SubscriptionResolver.prototype.resolve_stripe = function (profile, resource, res
   return resolved;
 }
 
-SubscriptionResolver.prototype.resolve_coinbase = function (profile, resource, resolved) {
+SubscriptionResolver.prototype.resolve_coinbase = function (profile, resource, resolved, options) {
   const self = this;
 
   // Setup preliminary variables
