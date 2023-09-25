@@ -171,7 +171,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
   if (resolved.status === 'active') {
     // Set days left
     if (resolved.trial.active) {
-      resolved.trial.daysLeft = resolved.expires.timestamp.diff(options.today, 'days');
+      resolved.trial.daysLeft = Math.abs(resolved.expires.timestamp.diff(options.today, 'days'));
     }
 
     // Set expiration
@@ -368,11 +368,16 @@ SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, res
       I want to put the subscription in a suspended state if it's even one day past due
     */
     const trialLength = get(trialTenure, 'frequency.interval_count', 0);
-    const daysSinceStart = moment(resolved.start.timestamp).diff(moment(options.today), 'days');
+    const daysSinceStart = Math.abs(moment(options.today).diff(moment(resolved.start.timestamp), 'days'));
     if (daysSinceStart > trialLength) {
       resolved.status = 'suspended';
       resolved.trial.active = false;
     }
+    console.log('----resolved.resource.id', resolved.resource.id);
+    console.log('----resolved.start.timestamp', resolved.start.timestamp);
+    console.log('----options.today', options.today);
+    console.log('======daysSinceStart', daysSinceStart);
+    console.log('======trialLength', trialLength);
   }
   resolved.trial.claimed = trialClaimed;
 
@@ -586,7 +591,7 @@ SubscriptionResolver.prototype.resolve_chargebee = function (profile, resource, 
   const trialStart = get(resource, 'trial_start', 0) * 1000;
   const trialEnd = get(resource, 'trial_end', 0) * 1000;
   const cancelledAt = get(resource, 'cancelled_at', 0) * 1000;
-  const trialDaysDifference = moment(trialEnd).diff(moment(trialStart), 'days');
+  const trialDaysDifference = Math.abs(moment(trialEnd).diff(moment(trialStart), 'days'));
   const trialClaimed = !!trialStart && !!trialEnd && trialDaysDifference > 1;
   if (
     resolved.trial.active
@@ -692,7 +697,7 @@ SubscriptionResolver.prototype.resolve_stripe = function (profile, resource, res
   // Get trial
   const trialStart = get(resource, 'trial_start', 0) * 1000;
   const trialEnd = get(resource, 'trial_end', 0) * 1000;
-  const trialDaysDifference = moment(trialEnd).diff(moment(trialStart), 'days');
+  const trialDaysDifference = Math.abs(moment(trialEnd).diff(moment(trialStart), 'days'));
   const trialClaimed = !!trialStart && !!trialEnd && trialDaysDifference > 1;
   if (resource.status === 'trialing') {
     resolved.trial.active = true;
