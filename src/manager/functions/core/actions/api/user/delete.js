@@ -22,7 +22,9 @@ Module.prototype.main = function () {
       // }
       const isPlanActive = _.get(user, 'plan.payment.active', null);
       if (isPlanActive === true) {
-        return reject(assistant.errorManager(`Failed to delete user: There is an active paid subscription on this account. Please cancel it first and then try deleting the account again.`, {code: 400, sentry: false, send: false, log: false}).error)
+        // return reject(assistant.errorManager(`Failed to delete user: There is an active paid subscription on this account. Please cancel it first and then try deleting the account again.`, {code: 400, sentry: false, send: false, log: false}).error)
+        // return reject(assistant.errorManager(`This account cannot be deleted until the paid subscription attached to it is cancelled. Please cancel the subscription and then try to delete the account.`, {code: 400, sentry: false, send: false, log: false}).error)
+        return reject(assistant.errorManager(`This account cannot be deleted because it has a paid subscription attached to it. In order to delete the account, you must first cancel the paid subscription.`, {code: 400, sentry: false, send: false, log: false}).error)
       }
 
       await self.libraries.admin.auth().deleteUser(_.get(user, 'auth.uid', null))
