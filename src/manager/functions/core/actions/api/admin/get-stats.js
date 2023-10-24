@@ -144,7 +144,7 @@ Module.prototype.updateStats = function (existingData) {
     await _countUsersOnline(sessionsApp);
 
     // Count users online (in new session)
-    await _countUsersOnline(sessionsOnine);
+    await _countUsersOnline(sessionsOnline);
 
     if (error) {
       return reject(error);
