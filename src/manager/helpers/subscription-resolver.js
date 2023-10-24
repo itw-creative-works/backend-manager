@@ -373,11 +373,11 @@ SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, res
       resolved.status = 'suspended';
       resolved.trial.active = false;
     }
-    console.log('----resolved.resource.id', resolved.resource.id);
-    console.log('----resolved.start.timestamp', resolved.start.timestamp);
-    console.log('----options.today', options.today);
-    console.log('======daysSinceStart', daysSinceStart);
-    console.log('======trialLength', trialLength);
+    // console.log('----resolved.resource.id', resolved.resource.id);
+    // console.log('----resolved.start.timestamp', resolved.start.timestamp);
+    // console.log('----options.today', options.today);
+    // console.log('======daysSinceStart', daysSinceStart);
+    // console.log('======trialLength', trialLength);
   }
   resolved.trial.claimed = trialClaimed;
 
