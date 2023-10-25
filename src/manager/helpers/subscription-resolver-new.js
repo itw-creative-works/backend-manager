@@ -47,9 +47,6 @@ SubscriptionResolver.prototype.resolve = function (options) {
       claimed: false,
       active: false,
       daysLeft: 0,
-    },
-    details: {
-      message: '',
     }
   }
 
@@ -70,7 +67,6 @@ SubscriptionResolver.prototype.resolve = function (options) {
   options.resolveProcessor = typeof options.resolveProcessor === 'undefined' ? false : options.resolveProcessor;
   options.resolveType = typeof options.resolveType === 'undefined' ? false : options.resolveType;
   options.today = typeof options.today === 'undefined' ? moment() : moment(options.today);
-  options.message = typeof options.message === 'undefined' ? true : options.message;
 
   // Set provider if not set
   if (!profile.processor) {
@@ -172,6 +168,46 @@ SubscriptionResolver.prototype.resolve = function (options) {
     throw new Error('Unknown frequency');
   }
 
+  // console.log('----expires 3', resolved.resource.id, resolved.status, resolved.frequency, resolved.trial.active, resolved.expires.timestamp.toISOString ? resolved.expires.timestamp.toISOString() : resolved.expires.timestamp);
+  console.log('--- 1', resolved.resource.id, resolved.status, resolved.expires.timestamp);
+  console.log('---', resolved.trial.active, resolved.trial.claimed, resolved.payment.completed, resolved.lastPayment.amount);
+
+  // If they are not trialing AND there was NEVER any payment sent OR the last payment failed, then set the expiration to 0
+  if (
+    !resolved.trial.active && resolved.trial.claimed
+    && (!resolved.payment.completed || resolved.lastPayment.amount === 0)
+    // && (resolved.status === 'active' || resolved.status === 'suspended')
+  ) {
+    // resolved.expires.timestamp = moment(0);
+    if (resolved.trial.claimed) {
+      resolved.status = 'suspended';
+    } else {
+
+    }
+  }
+
+  // If they are trialing and the authorization charge is failed, set to suspended
+  if (
+    resolved.trial.active
+    && profile.authorization.status === 'failed'
+  ) {
+    resolved.status = 'suspended';
+  }
+
+  // If they got a refund, set the expiration to 0
+  if (resolved.payment.refunded) {
+    // resolved.expires.timestamp = moment(0);
+    resolved.status = 'suspended';
+  }
+
+  // If they are suspended, set the expiration to 0
+  if (resolved.status === 'suspended') {
+    resolved.expires.timestamp = moment(0);
+  }
+  console.log('--- 2', resolved.resource.id, resolved.status, resolved.expires.timestamp);
+
+  // console.log('----expires 4', resolved.resource.id, resolved.status, resolved.frequency, resolved.trial.active, resolved.expires.timestamp.toISOString ? resolved.expires.timestamp.toISOString() : resolved.expires.timestamp);
+
   // Fix expiry by adding time to the date of last payment
   // console.log('----expires 2', resolved.resource.id, resolved.status, resolved.frequency, resolved.trial.active, resolved.expires.timestamp.toISOString ? resolved.expires.timestamp.toISOString() : resolved.expires.timestamp);
   if (resolved.status === 'active') {
@@ -182,9 +218,10 @@ SubscriptionResolver.prototype.resolve = function (options) {
 
     // Set expiration
     resolved.expires.timestamp.add(1, 'year').add(30, 'days');
-  } else {
+  } else if (resolved.status === 'cancelled') {
     // If trial, it's already set to the trial end above
     if (!resolved.trial.active) {
+    // if (!resolved.trial.claimed) {
       if (resolved.frequency === 'annually') {
         resolved.expires.timestamp.add(1, 'year');
       } else if (resolved.frequency === 'monthly') {
@@ -196,39 +233,6 @@ SubscriptionResolver.prototype.resolve = function (options) {
       }
     }
   }
-  // console.log('----expires 3', resolved.resource.id, resolved.status, resolved.frequency, resolved.trial.active, resolved.expires.timestamp.toISOString ? resolved.expires.timestamp.toISOString() : resolved.expires.timestamp);
-
-  // If they are not trialing AND there was NEVER any payment sent OR the last payment failed, then set the expiration to 0
-  if (
-    !resolved.trial.active
-    && (!resolved.payment.completed || resolved.lastPayment.amount === 0)
-  ) {
-    resolved.expires.timestamp = moment(0);
-    // resolved.cancelled.timestamp = moment(0);
-    resolved.details.message = 'Most recent payment failed because there is no working payment method on file.'
-  }
-
-  // If they are trialing and the authorization charge is failed, set to suspended
-  if (
-    resolved.trial.active
-    && profile.authorization.status === 'failed'
-  ) {
-    resolved.status = 'suspended';
-    resolved.details.message = 'Pre-payment authorization failed because there is no working payment method on file.'
-  }
-
-  // If they got a refund, set the expiration to 0
-  if (resolved.payment.refunded) {
-    resolved.expires.timestamp = moment(0);
-    resolved.details.message = 'Refund was issued so subscription is inactive.'
-  }
-
-  // If they are suspended, set the expiration to 0
-  if (resolved.status === 'suspended') {
-    resolved.expires.timestamp = moment(0);
-  }
-
-  // console.log('----expires 4', resolved.resource.id, resolved.status, resolved.frequency, resolved.trial.active, resolved.expires.timestamp.toISOString ? resolved.expires.timestamp.toISOString() : resolved.expires.timestamp);
 
   // Fix timestamps
   resolved.start.timestampUNIX = resolved.start.timestamp.unix();
@@ -248,12 +252,9 @@ SubscriptionResolver.prototype.resolve = function (options) {
   resolved.lastPayment.date.timestamp = resolved.lastPayment.date.timestamp.toISOString();
 
   // Log if needed
+  console.log('--- 3', resolved.resource.id, resolved.status, resolved.expires.timestamp);
   if (options.log) {
     console.log('resolved', resolved);
-  }
-
-  if (!options.message) {
-    resolved.details.message = '[REDACTED]';
   }
 
   self.resolved = resolved;

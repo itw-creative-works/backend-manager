@@ -26,8 +26,6 @@ describe(`${package.name}`, () => {
     // today: '2023-08-28T00:00:00.000Z',
 
     // log: true,
-
-    message: false,
   }
 
   const defaultProfileOrder = {
@@ -106,9 +104,6 @@ describe(`${package.name}`, () => {
               claimed: false,
               daysLeft: 0,
             },
-            details: {
-              message: '[REDACTED]',
-            },
           }
 
           log('result', result);
@@ -146,9 +141,6 @@ describe(`${package.name}`, () => {
               claimed: false,
               daysLeft: 0,
             },
-            details: {
-              message: '[REDACTED]',
-            },
           }
 
           log('result', result);
@@ -183,9 +175,6 @@ describe(`${package.name}`, () => {
               claimed: true,
               daysLeft: 13,
             },
-            details: {
-              message: '[REDACTED]',
-            },
           }
 
           log('result', result);
@@ -201,7 +190,7 @@ describe(`${package.name}`, () => {
           const expected = {
             processor: 'paypal',
             type: 'subscription',
-            status: 'cancelled',
+            status: 'suspended',
             frequency: 'monthly',
             resource: { id: 'I-6YN0VNT6KM4W' },
             payment: {
@@ -219,9 +208,6 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: true,
               daysLeft: 0,
-            },
-            details: {
-              message: '[REDACTED]',
             },
           }
 
@@ -257,9 +243,6 @@ describe(`${package.name}`, () => {
               claimed: true,
               daysLeft: 0,
             },
-            details: {
-              message: '[REDACTED]',
-            },
           }
 
           log('result', result);
@@ -293,9 +276,6 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: true,
               daysLeft: 0,
-            },
-            details: {
-              message: '[REDACTED]',
             },
           }
 
@@ -331,9 +311,6 @@ describe(`${package.name}`, () => {
               claimed: true,
               daysLeft: 0,
             },
-            details: {
-              message: '[REDACTED]',
-            },
           }
 
           log('result', result);
@@ -367,9 +344,6 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: false,
               daysLeft: 0,
-            },
-            details: {
-              message: '[REDACTED]',
             },
           }
 
@@ -405,9 +379,6 @@ describe(`${package.name}`, () => {
               claimed: true,
               daysLeft: 0,
             },
-            details: {
-              message: '[REDACTED]',
-            },
           }
 
           log('result', result);
@@ -441,9 +412,6 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: false,
               daysLeft: 0,
-            },
-            details: {
-              message: '[REDACTED]',
             },
           }
 
@@ -479,9 +447,6 @@ describe(`${package.name}`, () => {
               claimed: false,
               daysLeft: 0,
             },
-            details: {
-              message: '[REDACTED]',
-            },
           }
 
           log('result', result);
@@ -515,9 +480,6 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: false,
               daysLeft: 0,
-            },
-            details: {
-              message: '[REDACTED]',
             },
           }
 
@@ -561,9 +523,6 @@ describe(`${package.name}`, () => {
         //       claimed: false,
         //       daysLeft: 0,
         //     },
-        //     details: {
-        //       message: '[REDACTED]',
-        //     },
         //   }
 
         //   log('result', result);
@@ -597,9 +556,6 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: false,
               daysLeft: 0,
-            },
-            details: {
-              message: '[REDACTED]',
             },
           }
 
@@ -637,10 +593,7 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: false,
               daysLeft: 0,
-            },
-            details: {
-              message: '[REDACTED]',
-            },
+            }
           }
 
           log('result', result);
@@ -674,10 +627,7 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: false,
               daysLeft: 0,
-            },
-            details: {
-              message: '[REDACTED]',
-            },
+            }
           }
 
           log('result', result);
@@ -711,9 +661,6 @@ describe(`${package.name}`, () => {
               active: true,
               claimed: true,
               daysLeft: 12,
-            },
-            details: {
-              message: '[REDACTED]',
             },
           }
 
@@ -749,9 +696,6 @@ describe(`${package.name}`, () => {
               claimed: true,
               daysLeft: 0,
             },
-            details: {
-              message: '[REDACTED]',
-            },
           }
 
           log('result', result);
@@ -785,9 +729,6 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: true,
               daysLeft: 0,
-            },
-            details: {
-              message: '[REDACTED]',
             },
           }
 
@@ -823,9 +764,6 @@ describe(`${package.name}`, () => {
               claimed: true,
               daysLeft: 0,
             },
-            details: {
-              message: '[REDACTED]',
-            },
           }
 
           log('result', result);
@@ -860,9 +798,6 @@ describe(`${package.name}`, () => {
               claimed: false,
               daysLeft: 0,
             },
-            details: {
-              message: '[REDACTED]',
-            },
           }
 
           log('result', result);
@@ -896,9 +831,6 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: true,
               daysLeft: 0,
-            },
-            details: {
-              message: '[REDACTED]',
             },
           }
 
@@ -943,9 +875,6 @@ describe(`${package.name}`, () => {
               claimed: false,
               daysLeft: 0,
             },
-            details: {
-              message: '[REDACTED]',
-            },
           }
 
           log('result', result);
@@ -983,9 +912,6 @@ describe(`${package.name}`, () => {
               claimed: false,
               daysLeft: 0,
             },
-            details: {
-              message: '[REDACTED]',
-            },
           }
 
           log('result', result);
@@ -1020,9 +946,6 @@ describe(`${package.name}`, () => {
               claimed: true,
               daysLeft: 13,
             },
-            details: {
-              message: '[REDACTED]',
-            },
           }
 
           log('result', result);
@@ -1056,9 +979,6 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: true,
               daysLeft: 0,
-            },
-            details: {
-              message: '[REDACTED]',
             },
           }
 
@@ -1096,9 +1016,6 @@ describe(`${package.name}`, () => {
               claimed: true,
               daysLeft: 0,
             },
-            details: {
-              message: '[REDACTED]',
-            },
           }
 
           log('result', result);
@@ -1133,9 +1050,6 @@ describe(`${package.name}`, () => {
               claimed: false,
               daysLeft: 0,
             },
-            details: {
-              message: '[REDACTED]',
-            },
           }
 
           log('result', result);
@@ -1169,9 +1083,6 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: true,
               daysLeft: 0,
-            },
-            details: {
-              message: '[REDACTED]',
             },
           }
 
@@ -1215,9 +1126,6 @@ describe(`${package.name}`, () => {
               claimed: false,
               daysLeft: 0,
             },
-            details: {
-              message: '[REDACTED]',
-            },
           }
 
           log('result', result);
@@ -1253,9 +1161,6 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: false,
               daysLeft: 0,
-            },
-            details: {
-              message: '[REDACTED]',
             },
           }
 
