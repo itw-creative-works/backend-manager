@@ -412,6 +412,8 @@ Main.prototype.setup = async function () {
       return false;
     }
 
+    self.bemConfigJSON = bemConfig;
+
     return !!pass;
   }, fix_bemConfig);
 
@@ -535,7 +537,12 @@ Main.prototype.setup = async function () {
   await self.test('hosting is set to dedicated folder in JSON', function () {
     let hosting = _.get(self.firebaseJSON, 'hosting', {});
     return (hosting.public && (hosting.public === 'public' || hosting.public !== '.'))
-  }, fix_firebaseHosting);
+  }, fix_firebaseHostingFolder);
+
+  // Hosting
+  await self.test('hosting has', async function () {
+    return await fix_firebaseHostingAuth(self);
+  }, NOFIX);
 
   await self.test('update backend-manager-tests.js', function () {
     jetpack.write(`${self.firebaseProjectPath}/test/backend-manager-tests.js`,
@@ -1065,11 +1072,28 @@ function fix_remoteconfigTemplateFile(self) {
 
 
 // Hosting
-function fix_firebaseHosting(self) {
+function fix_firebaseHostingFolder(self) {
   return new Promise(function(resolve, reject) {
     _.set(self.firebaseJSON, 'hosting.public', 'public')
     jetpack.write(`${self.firebaseProjectPath}/firebase.json`, JSON.stringify(self.firebaseJSON, null, 2));
     resolve();
+  });
+};
+
+function fix_firebaseHostingAuth(self) {
+  return new Promise(async function(resolve, reject) {
+    await fetch(`${self.bemConfigJSON.brand.url}/server/auth/handler?cb=${new Date().getTime()}`, {
+      method: 'get',
+      tries: 2,
+      response: 'text',
+    })
+    .then(async (text) => {
+      // Save to file
+      jetpack.write(`${self.firebaseProjectPath}/public/auth/handler/index.html`, text);
+
+      resolve(true)
+    })
+    .catch(reject)
   });
 };
 
