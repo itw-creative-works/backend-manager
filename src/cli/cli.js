@@ -1082,8 +1082,11 @@ function fix_firebaseHostingFolder(self) {
 
 function fix_firebaseHostingAuth(self) {
   return new Promise(async function(resolve, reject) {
-    await fetch(`${self.bemConfigJSON.brand.url}/server/auth/handler?cb=${new Date().getTime()}`, {
+    const url = `${self.bemConfigJSON.brand.url}/server/auth/handler`;
+
+    await fetch(url, {
       method: 'get',
+      cacheBreaker: true,
       tries: 2,
       response: 'text',
     })
@@ -1093,7 +1096,11 @@ function fix_firebaseHostingAuth(self) {
 
       resolve(true)
     })
-    .catch(reject)
+    .catch(async (e) => {
+      log(chalk.red(`Failed to fetch auth handler. Please ensure it is live @ ${url}.`));
+
+      reject(false)
+    })
   });
 };
 
