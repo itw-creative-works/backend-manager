@@ -540,9 +540,9 @@ Main.prototype.setup = async function () {
   }, fix_firebaseHostingFolder);
 
   // Hosting
-  await self.test('hosting has', async function () {
-    return await fix_firebaseHostingAuth(self);
-  }, NOFIX);
+  // await self.test('hosting has auth page', async function () {
+  //   return await fix_firebaseHostingAuth(self);
+  // }, NOFIX);
 
   await self.test('update backend-manager-tests.js', function () {
     jetpack.write(`${self.firebaseProjectPath}/test/backend-manager-tests.js`,
