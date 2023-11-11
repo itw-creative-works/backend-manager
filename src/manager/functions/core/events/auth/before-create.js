@@ -31,6 +31,12 @@ Module.prototype.main = function () {
 
     assistant.log(`Request: ${user.uid}`, user, context, { environment: 'production' });
 
+    // if (context.additionalUserInfo.recaptchaScore < 0.5) {
+    //   assistant.error(`Recaptcha score (${context.additionalUserInfo.recaptchaScore}) too low for ${user.uid}`, { environment: 'production' });
+
+    //   throw new functions.auth.HttpsError('resource-exhausted');
+    // }
+
     const ipAddress = context.ipAddress;
     const currentTime = Date.now();
     const oneHour = 60 * 60 * 1000; // One hour in milliseconds
