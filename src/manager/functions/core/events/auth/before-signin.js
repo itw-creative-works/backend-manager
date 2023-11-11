@@ -51,7 +51,7 @@ Module.prototype.main = function () {
     if (update instanceof Error) {
       assistant.error(`Failed to update user ${user.uid}:`, update, { environment: 'production' });
 
-      throw new functions.auth.HttpsError('internal');
+      throw new functions.auth.HttpsError('internal', `Failed to update user: ${update}`);
     }
 
     assistant.log(`Updated user activity`, {environment: 'production'});

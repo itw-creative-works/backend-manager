@@ -1,6 +1,6 @@
 const { get, merge } = require('lodash');
-const functions = require('firebase-functions');
-const admin = require('firebase-admin');
+
+const ERROR_TOO_MANY_ATTEMPTS = 'You have created too many accounts with our service. Please try again later.';
 
 function Module() {
   const self = this;
@@ -34,7 +34,7 @@ Module.prototype.main = function () {
     // if (context.additionalUserInfo.recaptchaScore < 0.5) {
     //   assistant.error(`Recaptcha score (${context.additionalUserInfo.recaptchaScore}) too low for ${user.uid}`, { environment: 'production' });
 
-    //   throw new functions.auth.HttpsError('resource-exhausted');
+    //   throw new functions.auth.HttpsError('resource-exhausted', ERROR_TOO_MANY_ATTEMPTS);
     // }
 
     const ipAddress = context.ipAddress;
@@ -51,7 +51,7 @@ Module.prototype.main = function () {
     if (currentTime - lastTime < oneHour && count >= 2) {
       assistant.error(`Too many attemps to create an account for ${ipAddress}`, { environment: 'production' });
 
-      throw new functions.auth.HttpsError('resource-exhausted');
+      throw new functions.auth.HttpsError('resource-exhausted', ERROR_TOO_MANY_ATTEMPTS);
     }
 
     // Update rate-limiting data
@@ -66,7 +66,7 @@ Module.prototype.main = function () {
     if (existingAccount instanceof Error) {
       assistant.error(`Failed to get existing account ${user.uid}:`, existingAccount, { environment: 'production' });
 
-      throw new functions.auth.HttpsError('internal');
+      throw new functions.auth.HttpsError('internal', `Failed to get existing account: ${existingAccount}`);
     }
 
     let account = {
@@ -111,7 +111,7 @@ Module.prototype.main = function () {
     if (update instanceof Error) {
       assistant.error(`Failed to update user ${user.uid}:`, update, { environment: 'production' });
 
-      throw new functions.auth.HttpsError('internal');
+      throw new functions.auth.HttpsError('internal', `Failed to update user: ${update}`);
     }
 
     assistant.log(`User created at users/${user.uid}`, account, { environment: 'production' });
