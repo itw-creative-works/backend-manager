@@ -374,6 +374,13 @@ Main.prototype.setup = async function () {
   //   let mine = (self.package.devDependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
   //   return isLocal(mine) || !(semver.gt(latest, mine));
   // }, fix_mocha);
+  await self.test(`has "npm start" script`, function () {
+    return self.package.scripts.start
+  }, fix_startScript);
+
+  await self.test(`has "npm dist" script`, function () {
+    return self.package.scripts.dist
+  }, fix_distScript);
 
   await self.test('using proper .runtimeconfig', async function () {
     let runtimeconfig = JSON.parse(jetpack.read(`${self.firebaseProjectPath}/functions/.runtimeconfig.json`) || '{}');
@@ -749,6 +756,30 @@ async function fix_serviceAccount(self) {
 //     resolve();
 //   });
 // }
+
+function fix_startScript(self) {
+  return new Promise(function(resolve, reject) {
+    _.set(self.package, 'scripts.start', 'firebase serve');
+    jetpack.write(`${self.firebaseProjectPath}/functions/package.json`, JSON.stringify(self.package, null, 2) );
+    resolve();
+  });
+}
+
+function fix_distScript(self) {
+  return new Promise(function(resolve, reject) {
+    _.set(self.package, 'scripts.dist', 'firebase deploy');
+    jetpack.write(`${self.firebaseProjectPath}/functions/package.json`, JSON.stringify(self.package, null, 2) );
+    resolve();
+  });
+}
+
+function fix_setupScript(self) {
+  return new Promise(function(resolve, reject) {
+    _.set(self.package, 'scripts.setup', 'npx bm setup');
+    jetpack.write(`${self.firebaseProjectPath}/functions/package.json`, JSON.stringify(self.package, null, 2) );
+    resolve();
+  });
+}
 
 function fix_nodeVersion(self) {
   return new Promise(function(resolve, reject) {
