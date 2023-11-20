@@ -44,7 +44,7 @@ let Module = {
         // label: '',
       });
 
-      assistant.log('Creating campagin with data', assistant.request.data)      
+      assistant.log('Creating campagin with data', assistant.request.data)
 
       if (!user.roles.admin) {
         response.status = 401;
@@ -102,7 +102,7 @@ let Module = {
         })
         .then(async (campaign) => {
           assistant.log('Created campaign', campaign);
-          await fetch(`https://email.itwcreativeworks.com/general/mailchimp-blog-syndication/?cb=${Math.random()}`)
+          await fetch(`https://email.itwcreativeworks.com/general/mailchimp-blog-syndication?cb=${Math.random()}`)
           .then(async (fetchResponse) => {
             if (fetchResponse.status >= 200 && fetchResponse.status < 300) {
               let html = await fetchResponse.text();

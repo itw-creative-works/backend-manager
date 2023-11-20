@@ -33,15 +33,15 @@ module.exports = function (payload, config) {
               city: 'Redondo Beach',
               state: 'CA',
               zip: '90278',
-              'unsubscribe-link': `https://itwcreativeworks.com/email-preferences/?email=${encodeURIComponent(payload.email)}&asmId=${encodeURIComponent(groupId)}&templateId=${encodeURIComponent(templateId)}&appName=${encodeURIComponent(config.brand.name)}`,
+              'unsubscribe-link': `https://itwcreativeworks.com/email-preferences?email=${encodeURIComponent(payload.email)}&asmId=${encodeURIComponent(groupId)}&templateId=${encodeURIComponent(templateId)}&appName=${encodeURIComponent(config.brand.name)}`,
             },
-          },                    
+          },
         }
       ],
       from: {
         name: config.brand.name,
         email: config.brand.email,
-      },        
+      },
       reply_to: {
         name: config.brand.name,
         email: config.brand.email,
