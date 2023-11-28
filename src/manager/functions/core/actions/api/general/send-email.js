@@ -19,12 +19,16 @@ Module.prototype.main = function () {
     payload.data.payload.name = payload.data.payload.name;
 
     const DEFAULT = {
+
       spamFilter: {
         ip: 3,
         email: 3,
       },
       delay: 1,
-      body: {},
+      payload: {
+        backendManagerKey: Manager.config.backend_manager.key,
+        app: Manager.config.app.id,
+      },
     }
 
     if (!payload.data.payload.id) {
@@ -35,7 +39,12 @@ Module.prototype.main = function () {
 
     let emailPayload
     try {
-      emailPayload = merge({}, DEFAULT, require(path.join(__dirname, 'emails', `${payload.data.payload.id}.js`))(payload.data.payload, Manager.config));
+      const script = require(path.join(__dirname, 'emails', `${payload.data.payload.id}.js`))
+      emailPayload = merge(
+        {},
+        DEFAULT,
+        script(payload.data.payload, Manager.config),
+      );
     } catch (e) {
       return reject(assistant.errorManager(`${payload.data.payload.id} is not a valid email ID.`, {code: 400, sentry: false, send: false, log: false}).error)
     }
@@ -65,26 +74,23 @@ Module.prototype.main = function () {
       return resolve({data: {success: true}});
     }
 
-    assistant.log('Email payload:', emailPayload, {environment: 'production'});
-
-    const sendableBody = {
-      backendManagerKey: Manager.config.backend_manager.key,
-      service: 'sendgrid',
-      command: `v3/mail/send`,
-      method: 'post',
-      delay: emailPayload.delay,
-      body: emailPayload.body,
+    if (emailPayload.delay) {
+      // emailPayload.payload.sendAt = new Date(new Date().getTime() + (emailPayload.delay * 1000)).toISOString();
+      emailPayload.payload.sendAt = Math.round((new Date().getTime() + emailPayload.delay) / 1000);
     }
 
-    fetch('https://us-central1-itw-creative-works.cloudfunctions.net/wrapper', {
+    // Log the email payload
+    assistant.log('Email payload:', emailPayload, {environment: 'production'});
+
+    // Send the email
+    await fetch(`https://us-central1-itw-creative-works.cloudfunctions.net/sendEmail`, {
       method: 'post',
-      timeout: 30000,
-      tries: 1,
       response: 'json',
-      body: sendableBody,
+      log: true,
+      body: emailPayload.payload,
     })
-    .then(res => {
-      assistant.log('Response:', res, {environment: 'production'});
+    .then(async (json) => {
+      assistant.log('Response:', json, {environment: 'production'});
 
       return resolve({
         data: {
@@ -94,7 +100,8 @@ Module.prototype.main = function () {
     })
     .catch(e => {
       return reject(assistant.errorManager(`Error sending email: ${e}`, {code: 500, sentry: true, send: false, log: false}).error)
-    })
+    });
+
   });
 
 };
