@@ -36,10 +36,20 @@ describe(`${package.name}`, () => {
     }
   }
 
-  const defaultProfileSubscription = {
+  const profileSubscriptionDefault = {
     type: 'subscription',
     details: {
       planFrequency: 'monthly',
+    }
+  }
+
+  const profileSubscriptionFailedAuthorization = {
+    type: 'subscription',
+    details: {
+      planFrequency: 'monthly',
+    },
+    authorization: {
+      status: 'failed',
     }
   }
 
@@ -1069,7 +1079,42 @@ describe(`${package.name}`, () => {
           });
         });
 
-        // ...
+        describe('trial => active-failed-authorization', () => {
+          const item = require('./payment-resolver/stripe/subscriptions/trial-to-active-failed-authorization.json');
+          const result = Manager.SubscriptionResolver(profileSubscriptionFailedAuthorization, item).resolve(options);
+          const expected = {
+            processor: 'stripe',
+            type: 'subscription',
+            status: 'active',
+            frequency: 'monthly',
+            resource: { id: 'sub_1OAJjOHGybgi7uQGicdK4TGm' },
+            payment: {
+              completed: true,
+              refunded: false,
+            },
+            start: { timestamp: '2023-11-08T21:56:14.000Z', timestampUNIX: 1699480574 },
+            expires: { timestamp: '2024-12-22T21:56:14.000Z', timestampUNIX: 1734904574 },
+            cancelled: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
+            lastPayment: {
+              amount: 8,
+              date: { timestamp: '2023-11-22T21:56:26.000Z', timestampUNIX: 1700690186 }
+            },
+            trial: {
+              active: false,
+              claimed: true,
+              daysLeft: 0,
+            },
+            details: {
+              message: '[REDACTED]',
+            },
+          }
+
+          log('result', result);
+
+          it('should resolve correctly', () => {
+            return assert.deepStrictEqual(result, expected);
+          });
+        });
 
         describe('trial => cancelled', () => {
           const item = require('./payment-resolver/stripe/subscriptions/trial-to-cancelled.json');
@@ -1231,7 +1276,7 @@ describe(`${package.name}`, () => {
       describe('subscription', () => {
         describe('cancelled', () => {
           const item = require('./payment-resolver/coinbase/subscriptions/cancelled.json');
-          const result = Manager.SubscriptionResolver(defaultProfileSubscription, item).resolve(options);
+          const result = Manager.SubscriptionResolver(profileSubscriptionDefault, item).resolve(options);
           const expected = {
             processor: 'coinbase',
             type: 'subscription',

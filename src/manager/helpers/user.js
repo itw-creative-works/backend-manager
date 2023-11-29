@@ -29,13 +29,9 @@ function User(Manager, settings, options) {
       email: _.get(settings, 'auth.email', null),
       temporary: _.get(settings, 'auth.temporary', defaults ? false : null),
     },
-    roles: {
-      admin: _.get(settings, 'roles.admin', defaults ? false : null),
-      betaTester: _.get(settings, 'roles.betaTester', defaults ? false : null),
-      developer: _.get(settings, 'roles.developer', defaults ? false : null),
-    },
     plan: {
       id: _.get(settings, 'plan.id', defaults ? 'basic' : null), // intro | basic | advanced | premium
+      status: _.get(settings, 'plan.status', defaults ? 'cancelled' : null), // active | suspended | cancelled
       expires: {
         timestamp: _.get(settings, 'plan.expires.timestamp', defaults ? oldDate : null),
         timestampUNIX: _.get(settings, 'plan.expires.timestampUNIX', defaults ? oldDateUNIX : null),
@@ -55,11 +51,11 @@ function User(Manager, settings, options) {
         orderId: _.get(settings, 'plan.payment.orderId', null), // xxx-xxx-xxx
         resourceId: _.get(settings, 'plan.payment.resourceId', null), // x-xxxxxx
         frequency: _.get(settings, 'plan.payment.frequency', null), // monthly || annually
+        active: _.get(settings, 'plan.payment.active', defaults ? false : null), // true | false
         startDate: {
           timestamp: _.get(settings, 'plan.payment.startDate.timestamp', defaults ? now : null), // x-xxxxxx
           timestampUNIX: _.get(settings, 'plan.payment.startDate.timestampUNIX', defaults ? nowUNIX : null), // x-xxxxxx
         },
-        active: _.get(settings, 'plan.payment.active', defaults ? false : null), // true | false
         updatedBy: {
           event: {
             name: _.get(settings, 'plan.payment.updatedBy.event.name', null), // x-xxxxxx
@@ -72,9 +68,14 @@ function User(Manager, settings, options) {
         },
       }
     },
+    roles: {
+      admin: _.get(settings, 'roles.admin', defaults ? false : null),
+      betaTester: _.get(settings, 'roles.betaTester', defaults ? false : null),
+      developer: _.get(settings, 'roles.developer', defaults ? false : null),
+    },
     affiliate: {
       code: _.get(settings, 'affiliate.code', defaults ? shortid.generate() : null),
-      referrals: [],
+      referrals: _.get(settings, 'affiliate.referrals', []),
       referrer: _.get(settings, 'affiliate.referrer', null),
     },
     activity: {
