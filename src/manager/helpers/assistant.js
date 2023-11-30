@@ -116,6 +116,7 @@ BackendAssistant.prototype.init = function (ref, options) {
   self.request.type = (self.ref.req.xhr || _.get(self.ref.req, 'headers.accept', '').indexOf('json') > -1) || (_.get(self.ref.req, 'headers.content-type', '').indexOf('json') > -1) ? 'ajax' : 'form';
   self.request.path = (self.ref.req.path || '');
   self.request.user = self.resolveAccount({authenticated: false});
+
   if (options.accept === 'json') {
     self.request.body = tryParse(self.ref.req.body || '{}');
     self.request.query = tryParse(self.ref.req.query || '{}');
@@ -188,16 +189,24 @@ BackendAssistant.prototype.logProd = function () {
 BackendAssistant.prototype.log = function () {
   const self = this;
 
-  let args = Array.prototype.slice.call(arguments);
-  let last = args[args.length - 1];
-  let override = last && typeof last === 'object' && last.environment === 'production';
+  const args = Array.prototype.slice.call(arguments);
+  const last = args[args.length - 1];
+  // const override = last && typeof last === 'object' && last.environment === 'production';
+  const pop = last?.environment === 'production' || last?.environment === 'development';
 
-  if (self.meta.environment === 'development' || override) {
-    if (override) {
-      args.pop();
-    }
-    self._log.apply(self, args);
+  // if (self.meta.environment === 'development' || override) {
+  //   if (override) {
+  //     args.pop();
+  //   }
+  //   self._log.apply(self, args);
+  // }
+
+  // This makes all OLD logs work even if they use the old {environemnt: 'production'} syntax
+  if (pop) {
+    args.pop();
   }
+
+  self._log.apply(self, args);
 };
 
 BackendAssistant.prototype.error = function () {
