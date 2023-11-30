@@ -54,12 +54,17 @@ Utilities.prototype.iterateCollection = function (callback, options) {
 
           batch++;
 
+          if (snap.docs.length === 0) {
+            return resolve();
+          }
+
           if (options.log) {
             console.log('Processing batch:', batch);
           }
 
           callback({
-            snap: snap, docs: snap.docs.map(x => x)
+            snap: snap,
+            docs: snap.docs.map(x => x),
           }, batch)
             .then(r => {
               // Construct a new query starting at this document
@@ -105,6 +110,10 @@ Utilities.prototype.iterateUsers = function (callback, options) {
         .then(async (listUsersResult) => {
 
           batch++;
+
+          if (listUsersResult.users.length === 0) {
+            return resolve();
+          }
 
           if (options.log) {
             console.log('Processing batch:', batch);
