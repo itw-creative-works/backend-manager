@@ -211,7 +211,7 @@ BackendAssistant.prototype.log = function () {
 BackendAssistant.prototype.error = function () {
   const self = this;
 
-  let args = Array.prototype.slice.call(arguments);
+  const args = Array.prototype.slice.call(arguments);
 
   args.unshift('error');
   self.log.apply(self, args);
@@ -220,9 +220,54 @@ BackendAssistant.prototype.error = function () {
 BackendAssistant.prototype.warn = function () {
   const self = this;
 
-  let args = Array.prototype.slice.call(arguments);
+  const args = Array.prototype.slice.call(arguments);
 
   args.unshift('warn');
+  self.log.apply(self, args);
+};
+
+BackendAssistant.prototype.info = function () {
+  const self = this;
+
+  const args = Array.prototype.slice.call(arguments);
+
+  args.unshift('info');
+  self.log.apply(self, args);
+};
+
+BackendAssistant.prototype.debug = function () {
+  const self = this;
+
+  const args = Array.prototype.slice.call(arguments);
+
+  args.unshift('debug');
+  self.log.apply(self, args);
+};
+
+BackendAssistant.prototype.notice = function () {
+  const self = this;
+
+  const args = Array.prototype.slice.call(arguments);
+
+  args.unshift('notice');
+  self.log.apply(self, args);
+};
+
+BackendAssistant.prototype.critical = function () {
+  const self = this;
+
+  const args = Array.prototype.slice.call(arguments);
+
+  args.unshift('critical');
+  self.log.apply(self, args);
+};
+
+BackendAssistant.prototype.emergency = function () {
+  const self = this;
+
+  const args = Array.prototype.slice.call(arguments);
+
+  args.unshift('emergency');
   self.log.apply(self, args);
 };
 
@@ -230,7 +275,8 @@ BackendAssistant.prototype._log = function() {
   const self = this;
 
   // 1. Convert args to a normal array
-  let logs = [...Array.prototype.slice.call(arguments)];
+  const isDevelopment = self.meta.environment === 'development';
+  const logs = [...Array.prototype.slice.call(arguments)];
 
   // 2. Prepend log prefix log string
   logs.unshift(`[${self.meta.name}/${self.id} @ ${new Date().toISOString()}]:`);
@@ -242,6 +288,42 @@ BackendAssistant.prototype._log = function() {
   } else if (logs[1] === 'warn') {
     logs.splice(1,1)
     console.warn.apply(console, logs);
+  } else if (logs[1] === 'info') {
+    logs.splice(1,1)
+    console.info.apply(console, logs);
+  } else if (logs[1] === 'debug') {
+    logs.splice(1,1)
+    console.debug.apply(console, logs);
+  } else if (logs[1] === 'notice') {
+    logs.splice(1,1)
+    if (isDevelopment) {
+      console.log.apply(console, logs);
+    } else {
+      self.ref.functions.logger.write({
+        severity: 'NOTICE',
+        message: logs,
+      });
+    }
+  } else if (logs[1] === 'critical') {
+    logs.splice(1,1)
+    if (isDevelopment) {
+      console.log.apply(console, logs);
+    } else {
+      self.ref.functions.logger.write({
+        severity: 'CRITICAL',
+        message: logs,
+      });
+    }
+  } else if (logs[1] === 'emergency') {
+    logs.splice(1,1)
+    if (isDevelopment) {
+      console.log.apply(console, logs);
+    } else {
+      self.ref.functions.logger.write({
+        severity: 'EMERGENCY',
+        message: logs,
+      });
+    }
   } else if (logs[1] === 'log') {
     logs.splice(1,1)
     console.log.apply(console, logs);
