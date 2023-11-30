@@ -107,7 +107,7 @@ Module.prototype.main = function () {
       promises.push(request(provider))
     });
 
-    assistant.log('Checking providers...', {environment: 'production'});
+    assistant.log('Checking providers...');
 
     await Promise.all(promises)
     .then(response => {
@@ -130,7 +130,7 @@ Module.prototype.main = function () {
 
           if (typeof response.authentication[provider].enabled !== 'undefined') {
             payload.response.data[provider] = response.authentication[provider].enabled;
-            assistant.log(`Overwriting ${provider} to ${payload.response.data[provider]}...`, {environment: 'development'});
+            assistant.log(`Overwriting ${provider} to ${payload.response.data[provider]}...`);
           }
         });
 

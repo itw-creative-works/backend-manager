@@ -53,7 +53,7 @@ Module.prototype.main = function () {
 
       }
 
-      assistant.log('Saved backup successfully:', response.metadata.outputUriPrefix, meta, {environment: 'development'})
+      assistant.log('Saved backup successfully:', response.metadata.outputUriPrefix, meta)
 
       await self._setMetaStats(null, meta);
 
@@ -62,7 +62,7 @@ Module.prototype.main = function () {
     .catch(async (e) => {
       await self._setMetaStats(e);
       return reject(assistant.errorManager(e, {code: 500, sentry: false, send: false, log: true}).error)
-    });    
+    });
 
   });
 
@@ -113,7 +113,7 @@ Module.prototype.createBucket = function (bucketName, resourceZone) {
   return new Promise(function(resolve, reject) {
     storage.bucket(bucketName).getMetadata()
       .then(async (meta) => {
-        assistant.log(`${bucketName} metadata`, meta[0], {environment: 'development'})
+        assistant.log(`${bucketName} metadata`, meta[0])
         return resolve();
       })
       .catch(async (e) => {
@@ -125,7 +125,7 @@ Module.prototype.createBucket = function (bucketName, resourceZone) {
         .then(r => r)
         .catch(e => e)
 
-        assistant.log('storageCreation', storageCreation, {environment: 'development'})
+        assistant.log('storageCreation', storageCreation)
 
         return resolve();
       })
@@ -168,8 +168,8 @@ Module.prototype.__RETRY_deleteOldFiles = function (bucketName, resourceZone) {
       const date = moment(fileName.split('T')[0]);
       const day = date.date();
       const month = date.month();
-      const age = now.diff(date, 'days', false);      
-      
+      const age = now.diff(date, 'days', false);
+
       if (age >= 30) {
         if (day === 1) { return }
         deletePromises.push(deleteFileFromBucket(bucketName, backup.fileName))
@@ -289,7 +289,7 @@ Module.prototype._deleteOldFiles = function (bucketName, resourceZone) {
     // get the file names as an array
     let [allFiles] = await storage.bucket(bucketName).getFiles();
     allFiles = allFiles.map(file => file.name);
-    
+
     assistant.log(`All files: ${allFiles.join(', ')}`);
 
     // transform to array of objects with creation timestamp { fileName: xyz, created: }
@@ -302,9 +302,9 @@ Module.prototype._deleteOldFiles = function (bucketName, resourceZone) {
     allFiles.forEach(backup => {
       const createdDate = new Date(backup.created);
       createdDate.setHours( createdDate.getHours() + numHoursToKeepRecentBackups );
-      
-      if (createdDate > new Date()) { 
-        filesToKeep.add(backup.fileName) 
+
+      if (createdDate > new Date()) {
+        filesToKeep.add(backup.fileName)
       };
     })
 
@@ -324,7 +324,7 @@ Module.prototype._deleteOldFiles = function (bucketName, resourceZone) {
     // filesToKeep.forEach(item => console.log(item));
 
     const filesToDelete = allFiles.filter(backup => !filesToKeep.has(backup.fileName));
-    
+
     assistant.log(`Deleting ${filesToDelete.length} files: ${filesToDelete.map(backup => backup.fileName).join(', ')}`);
 
     const deletePromises = filesToDelete.map(backup => deleteFileFromBucket(bucketName, backup.fileName));

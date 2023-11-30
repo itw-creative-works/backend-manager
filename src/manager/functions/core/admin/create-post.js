@@ -44,7 +44,7 @@ let Module = {
       if (!user.roles.admin) {
         response.status = 401;
         response.error = new Error('Unauthenticated, admin required.');
-        assistant.error(response.error, {environment: 'production'})
+        assistant.error(response.error)
       } else {
         // Poster = Poster || require('/Users/ianwiedenman/Documents/GitHub/ITW-Creative-Works/ultimate-jekyll-poster');
         Poster = Poster || require('ultimate-jekyll-poster');
@@ -71,11 +71,11 @@ let Module = {
         .catch((e) => {
           response.status = 400;
           response.error = new Error('Failed to post: ' + e);
-          assistant.error(response.error, {environment: 'production'})
+          assistant.error(response.error)
         })
       }
 
-      assistant.log('Post', assistant.request.data, response, {environment: 'production'});
+      assistant.log('Post', assistant.request.data, response);
 
       if (response.status === 200) {
         return res.status(response.status).json(response.data);

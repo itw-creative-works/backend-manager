@@ -137,8 +137,7 @@ BackendAssistant.prototype.init = function (ref, options) {
   // if (Object.keys(self.request.data).length > 0) {
   //   self.log('Request:', self.request.data, {
   //     ip: self.request.ip,
-
-  //   }, {environment: 'production'});
+  //   });
   // }
 
   // Constants

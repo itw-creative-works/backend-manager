@@ -38,11 +38,11 @@ let Module = {
         action: 'query',
         // label: '',
       });
-            
+
       if (!user.roles.admin) {
         response.status = 401;
         response.error = new Error('Unauthenticated, admin required.');
-        assistant.error(response.error, {environment: 'production'})
+        assistant.error(response.error)
       } else {
         self.docs = [];
         // assistant.log('Queries', assistant.request.data.queries);
@@ -62,11 +62,11 @@ let Module = {
           .catch((e) => {
             response.error = e;
             response.status = 400;
-            assistant.error(response.error, {environment: 'production'})
+            assistant.error(response.error)
           })
       }
 
-      assistant.log('Query', assistant.request.data, response, {environment: 'production'});
+      assistant.log('Query', assistant.request.data, response);
 
       if (response.status === 200) {
         return res.status(response.status).json(response.data);
@@ -152,7 +152,7 @@ async function runQuery(payload) {
       return resolve(self.docs);
     })
     .catch(function (error) {
-      self.assistant.error(error, {environment: 'production'})
+      self.assistant.error(error)
       return reject(error);
     });
   });

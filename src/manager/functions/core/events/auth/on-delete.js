@@ -38,7 +38,7 @@ Module.prototype.main = function () {
     await libraries.admin.firestore().doc(`users/${user.uid}`)
       .delete()
       .catch((e) => {
-        assistant.error(`Delete user failed`, e, {environment: 'production'});
+        assistant.error(`Delete user failed`, e);
       })
 
     // Update user count
@@ -47,10 +47,10 @@ Module.prototype.main = function () {
         'users.total': libraries.admin.firestore.FieldValue.increment(-1),
       })
       .catch((e) => {
-        assistant.error(`Failed to decrement user`, e, {environment: 'production'});
+        assistant.error(`Failed to decrement user`, e);
       })
 
-    assistant.log(`User deleted ${user.uid}:`, user, context, {environment: 'production'});
+    assistant.log(`User deleted ${user.uid}:`, user, context);
 
     return resolve(self);
   });

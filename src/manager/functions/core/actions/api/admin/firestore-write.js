@@ -38,7 +38,7 @@ Module.prototype.main = function () {
     })
     .catch(e => {
       return reject(assistant.errorManager(e, {code: 500, sentry: false, send: false, log: false}).error)
-    })    
+    })
   });
 
 };

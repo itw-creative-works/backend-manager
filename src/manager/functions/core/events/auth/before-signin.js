@@ -26,7 +26,7 @@ Module.prototype.main = function () {
     const functions = self.libraries.functions;
     const admin = self.libraries.admin;
 
-    assistant.log(`Request: ${user.uid}`, user, context, {environment: 'production'});
+    assistant.log(`Request: ${user.uid}`, user, context);
 
     const now = new Date();
 
@@ -54,7 +54,7 @@ Module.prototype.main = function () {
       throw new functions.auth.HttpsError('internal', `Failed to update user: ${update}`);
     }
 
-    assistant.log(`Updated user activity`, {environment: 'production'});
+    assistant.log(`Updated user activity`);
 
     return resolve(self);
   });

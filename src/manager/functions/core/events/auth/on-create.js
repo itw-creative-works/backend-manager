@@ -41,7 +41,7 @@ Module.prototype.main = function () {
       get(existingUser, 'auth.uid', null)
       || get(existingUser, 'auth.email', null)
     ) {
-      assistant.log(`Skipping handler because user already exists ${user.uid}:`, existingUser, {environment: 'production'});
+      assistant.log(`Skipping handler because user already exists ${user.uid}:`, existingUser);
 
       return resolve(self);
     }
@@ -81,7 +81,7 @@ Module.prototype.main = function () {
     await libraries.admin.firestore().doc(`users/${newUser.auth.uid}`)
       .set(newUser, {merge: true})
       .catch((e) => {
-        assistant.error(`Failed save user record`, e, {environment: 'production'});
+        assistant.error(`Failed save user record`, e);
       })
 
     // Update user count
@@ -90,10 +90,10 @@ Module.prototype.main = function () {
         'users.total': libraries.admin.firestore.FieldValue.increment(1),
       })
       .catch((e) => {
-        assistant.error(`Failed to increment user`, e, {environment: 'production'});
+        assistant.error(`Failed to increment user`, e);
       })
 
-    assistant.log(`User created ${user.uid}:`, newUser, user, context, {environment: 'production'});
+    assistant.log(`User created ${user.uid}:`, newUser, user, context);
 
     return resolve(self);
   });

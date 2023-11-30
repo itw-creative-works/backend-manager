@@ -30,7 +30,7 @@ Module.prototype.main = function () {
       return reject(assistant.errorManager(`v${payload.data.payload.version} is not a valid version.`, {code: 400, sentry: false, send: false, log: false}).error)
     }
 
-    assistant.log('UUID Generated', payload.data.payload, result, {environment: 'production'});
+    assistant.log('UUID Generated', payload.data.payload, result);
 
     return resolve({data: {uuid: result}});
 

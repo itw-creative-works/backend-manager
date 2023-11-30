@@ -31,7 +31,7 @@ Module.prototype.init = function (Manager, data) {
   self.assistant.request.data.options = self.assistant.request.data.options || {};
 
   if (Manager.options.log) {
-    self.assistant.log(`Executing (log): ${resolved.command}`, self.assistant.request, JSON.stringify(self.assistant.request), {environment: 'production'})
+    self.assistant.log(`Executing (log): ${resolved.command}`, self.assistant.request, JSON.stringify(self.assistant.request))
   }
 
   return self;
@@ -58,8 +58,8 @@ Module.prototype.main = function() {
       // Resolve command
       const resolved = self.resolveCommand(self.payload.data.command);
 
-      self.assistant.log(`Executing: ${resolved.command}`, self.payload, JSON.stringify(self.payload), {environment: 'production'})
-      self.assistant.log(`Resolved URL: ${Manager.project.functionsUrl}?command=${encodeURIComponent(resolved.command)}&payload=${encodeURIComponent(JSON.stringify(self.assistant.request.data.payload))}`, {environment: 'development'})
+      self.assistant.log(`Executing: ${resolved.command}`, self.payload, JSON.stringify(self.payload))
+      self.assistant.log(`Resolved URL: ${Manager.project.functionsUrl}?command=${encodeURIComponent(resolved.command)}&payload=${encodeURIComponent(JSON.stringify(self.assistant.request.data.payload))}`)
 
       // Set up options
       self.payload.data.options = self.payload.data.options || {};
@@ -70,7 +70,7 @@ Module.prototype.main = function() {
         let delay = Math.floor(self.payload.data.options.delay / 1000);
 
         await powertools.poll(() => {
-          self.assistant.log(`Delaying for ${delay--} seconds...`, {environment: 'production'});
+          self.assistant.log(`Delaying for ${delay--} seconds...`);
         }, {interval: 1000, timeout: self.payload.data.options.delay})
         .catch(e => e);
       }
@@ -113,7 +113,7 @@ Module.prototype.main = function() {
       res.status(self.payload.response.status)
 
       if (self.payload.response.status >= 200 && self.payload.response.status < 300) {
-        self.assistant.log(`Finished ${resolved.command} (status=${self.payload.response.status})`, self.payload, JSON.stringify(self.payload), {environment: 'production'})
+        self.assistant.log(`Finished ${resolved.command} (status=${self.payload.response.status})`, self.payload, JSON.stringify(self.payload))
 
         if (self.payload.response.redirect) {
           res.redirect(self.payload.response.redirect);
@@ -248,7 +248,7 @@ Module.prototype.resolveCommand = function (command) {
 
   // if (!command || command === 'error:error') {
   if (!resolvedPath) {
-    self.assistant.log(`This command does not exist: ${originalCommand} => ${command} @ ${resolvedPath}`, {environment: 'production'})
+    self.assistant.log(`This command does not exist: ${originalCommand} => ${command} @ ${resolvedPath}`)
   }
 
   return {

@@ -52,7 +52,7 @@ Module.prototype.main = function () {
     try {
       const url = get(self.Manager.config, 'brand.url');
       const encoded = encodeURIComponent(`${url}/sitemap.xml`);
-      
+
       wonderfulFetch(`https://www.google.com/ping?sitemap=${encoded}`)
 
       // TODO
@@ -154,7 +154,7 @@ function makeRequest(options) {
   return new Promise(function(resolve, reject) {
     options.headers = options.headers || {};
     options.headers['Content-Type'] = 'application/json';
-    
+
     let hasBody = Object.keys(options.body || {}).length > 0
 
     fetch(options.url, {

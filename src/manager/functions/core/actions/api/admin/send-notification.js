@@ -40,7 +40,7 @@ Module.prototype.main = function () {
       assistant.errorManager(`Failed to add cb to URL: ${e}`, {code: 500, sentry: false, send: false, log: true})
     }
 
-    assistant.log('Resolved notification payload', self._notificationPayload, {environment: 'production'})
+    assistant.log('Resolved notification payload', self._notificationPayload)
 
     if (!payload.user.roles.admin) {
       return reject(assistant.errorManager(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
@@ -105,7 +105,7 @@ Module.prototype.getTokens = function (options) {
         });
       })
       .catch(function(e) {
-        self.assistant.error('Error querying tokens: ', e, {environment: 'production'})
+        self.assistant.error('Error querying tokens: ', e)
         reject(error);
       });
 
@@ -114,7 +114,7 @@ Module.prototype.getTokens = function (options) {
         self.assistant.log('Finished all batches.');
       })
       .catch(function(e) {
-        self.assistant.error('Error sending batches: ', e, {environment: 'production'})
+        self.assistant.error('Error sending batches: ', e)
       });
     resolve();
 
@@ -143,7 +143,7 @@ Module.prototype.sendBatch = function (batch, id) {
         resolve();
       })
       .catch(function (e) {
-        self.assistant.error('Error sending batch #' + id, e, {environment: 'production'});
+        self.assistant.error('Error sending batch #' + id, e);
         // self.result.status = 'fail';
         reject(e);
       })

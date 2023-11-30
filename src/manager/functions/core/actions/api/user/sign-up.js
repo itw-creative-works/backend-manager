@@ -82,7 +82,7 @@ Module.prototype.signUp = function (payload) {
 
     payload = payload || {};
 
-    assistant.log(`signUp(): payload`, payload, {environment: 'production'})
+    assistant.log(`signUp(): payload`, payload)
 
     // Check if the user has a UID and email
     if (!_.get(payload, 'auth.uid', null) || !_.get(payload, 'auth.email', null)) {
@@ -116,7 +116,7 @@ Module.prototype.signUp = function (payload) {
       metadata: Manager.Metadata().set({tag: 'user:sign-up'}),
     }
 
-    assistant.log(`signUp(): user`, user, {environment: 'production'})
+    assistant.log(`signUp(): user`, user)
 
     // Set the user
     self.libraries.admin.firestore().doc(`users/${payload.auth.uid}`)
@@ -144,7 +144,7 @@ Module.prototype.updateReferral = function (payload) {
     }
     payload = payload || {};
 
-    assistant.log(`updateReferral(): payload`, payload, {environment: 'production'})
+    assistant.log(`updateReferral(): payload`, payload)
 
     self.libraries.admin.firestore().collection('users')
     .where('affiliate.code', '==', payload.affiliateCode)
@@ -170,7 +170,7 @@ Module.prototype.updateReferral = function (payload) {
             timestamp: self.assistant.meta.startTime.timestamp,
           })
 
-          assistant.log(`updateReferral(): appending referrals...`, doc.ref.id, referrals, {environment: 'production'})
+          assistant.log(`updateReferral(): appending referrals...`, doc.ref.id, referrals)
 
           await self.libraries.admin.firestore().doc(`users/${doc.ref.id}`)
           .set({

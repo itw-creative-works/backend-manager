@@ -33,10 +33,10 @@ let Module = {
         user: user,
       }
 
-      self.assistant.log('Executing', command, {environment: 'production'})
+      self.assistant.log('Executing', command)
 
       function _errorLog(e) {
-        self.assistant.error(e, {environment: 'production'})
+        self.assistant.error(e)
       }
 
       // Actions
@@ -85,7 +85,7 @@ let Module = {
         response.error = new Error(`Improper command supplied: ${command}`);
       }
 
-      self.assistant.log('Api payload', {object: payload, string: JSON.stringify(payload)}, {environment: 'production'})
+      self.assistant.log('Api payload', {object: payload, string: JSON.stringify(payload)})
 
       if (response.status === 200) {
         return res.status(response.status).json(response.data);
@@ -111,7 +111,7 @@ let Module = {
         processor = new (require(processorPath));
         processor.Manager = self.Manager;
       } catch (e) {
-        self.assistant.error('Error loading processor', processorPath, e, {environment: 'production'})
+        self.assistant.error('Error loading processor', processorPath, e)
         return resolve()
       }
 
@@ -208,7 +208,7 @@ let Module = {
           const keys = Object.keys(data || {});
           for (var i = 0; i < keys.length; i++) {
             const key = keys[i];
-            self.assistant.log(`Signing out: ${key}`, {environment: 'production'});
+            self.assistant.log(`Signing out: ${key}`);
             await self.libraries.admin.database().ref(`gatherings/online/${key}/command`).set('signout').catch(e => self.assistant.error(`Failed to signout ${key}`, e))
             await powertools.wait(3000);
             await self.libraries.admin.database().ref(`gatherings/online/${key}`).remove().catch(e => self.assistant.error(`Failed to delete ${key}`, e))
@@ -222,7 +222,7 @@ let Module = {
           .auth()
           .revokeRefreshTokens(uid)
           .then(() => {
-            self.assistant.log('Signed user out of all sessions', payload.user.auth.uid, {environment: 'production'})
+            self.assistant.log('Signed user out of all sessions', payload.user.auth.uid)
             payload.data = {message: `Successfully signed ${payload.user.auth.uid} out of all sessions`}
             return resolve(payload.data);
           })

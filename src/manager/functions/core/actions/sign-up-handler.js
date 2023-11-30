@@ -26,7 +26,7 @@ let Module = {
 
     return libraries.cors(req, res, async () => {
       let user = await assistant.authenticate();
-      
+
       if (!user.authenticated) {
         response.status = 401;
         response.error = new Error('Account does not exist in Auth.');
@@ -63,12 +63,12 @@ let Module = {
         })
       }
 
-      assistant.log('Signup handler:', assistant.request.data, response, {environment: 'production'});
+      assistant.log('Signup handler:', assistant.request.data, response);
 
       if (response.status === 200) {
         return res.status(response.status).json(response.data);
       } else {
-        assistant.error('Failed to signup:', assistant.request.data, user, {environment: 'production'});
+        assistant.error('Failed to signup:', assistant.request.data, user);
         return res.status(response.status).send(response.error.message);
       }
     });

@@ -12,7 +12,7 @@ Module.prototype.main = function () {
   const payload = self.payload;
 
   return new Promise(async function(resolve, reject) {
-    
+
     // If the user is not an admin, reject
     if (!payload.user.roles.admin && assistant.meta.environment === 'production') {
       return reject(assistant.errorManager(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
@@ -41,7 +41,7 @@ Module.prototype.main = function () {
               const created = new Date(account.metadata.creationTime);
               const activity = new Date(account.metadata.lastSignInTime);
               const isAnonymous = account.providerData.length === 0;
-            
+
               // Skip anonymous users
               if (isAnonymous) {
                 return
@@ -66,7 +66,7 @@ Module.prototype.main = function () {
                       lastActivity: {
                         timestamp: activity.toISOString(),
                         timestampUNIX: Math.floor(activity.getTime() / 1000),
-                      },              
+                      },
                     }
                   });
 
@@ -104,7 +104,7 @@ Module.prototype.main = function () {
                 .catch(e => {
                   assistant.error('Failed to update lastPageToken', e);
                 })
-            }            
+            }
 
             return resolve();
           })

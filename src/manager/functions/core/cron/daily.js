@@ -35,7 +35,7 @@ Module.prototype.main = function() {
       //   }
       // })
       // .then(response => {
-      //   assistant.log(`Successfully executed backup:`, response, {environment: 'production'})
+      //   assistant.log(`Successfully executed backup:`, response)
       // }),
 
       // Sync Firestore users to the database
@@ -49,14 +49,14 @@ Module.prototype.main = function() {
       //   }
       // })
       // .then(response => {
-      //   assistant.log(`Successfully executed sync-users:`, response, {environment: 'production'})
+      //   assistant.log(`Successfully executed sync-users:`, response)
       // }),
 
       // More daily processes
       // ...
     ])
     .then(() => {
-      assistant.log(`Successfully executed all daily processes:`, {environment: 'production'})
+      assistant.log(`Successfully executed all daily processes:`)
       return resolve();
     })
     .catch(e => {

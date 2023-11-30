@@ -49,7 +49,7 @@ let Module = {
       if (!user.roles.admin) {
         response.status = 401;
         response.error = new Error('Unauthenticated, admin required.');
-        assistant.error(response.error, {environment: 'production'})
+        assistant.error(response.error)
       } else {
         mailchimp = new Mailchimp(get(self.Manager.config, 'mailchimp.key', ''));
         await fetch(`https://us-central1-${self.Manager.project.projectId}.cloudfunctions.net/bm_sendNotification`, {
@@ -124,7 +124,7 @@ let Module = {
               })
               .then(async (content) => {
                 await mailchimp.post(`/campaigns/${campaign.id}/actions/send`)
-                assistant.log('Mailchimp campaign created and sent', campaign, {environment: 'production'});
+                assistant.log('Mailchimp campaign created and sent', campaign);
               })
             } else {
               throw new Error('Failed to fetch.');

@@ -67,7 +67,7 @@ Module.prototype.main = function () {
     storage.set(ipPath, ipData).write();
     storage.set(emailPath, emailData).write();
 
-    assistant.log('Storage:', storage.getState()['api:general:send-email'], {environment: 'production'});
+    assistant.log('Storage:', storage.getState()['api:general:send-email']);
 
     if (ipData.count >= emailPayload.spamFilter.ip || emailData.count >= emailPayload.spamFilter.email) {
       self.assistant.errorManager(`Spam filter triggered ip=${ipData.count}, email=${emailData.count}`, {code: 429, sentry: false, send: false, log: true})
@@ -80,7 +80,7 @@ Module.prototype.main = function () {
     }
 
     // Log the email payload
-    assistant.log('Email payload:', emailPayload, {environment: 'production'});
+    assistant.log('Email payload:', emailPayload);
 
     // Send the email
     await fetch(`https://us-central1-itw-creative-works.cloudfunctions.net/sendEmail`, {
@@ -90,7 +90,7 @@ Module.prototype.main = function () {
       body: emailPayload.payload,
     })
     .then(async (json) => {
-      assistant.log('Response:', json, {environment: 'production'});
+      assistant.log('Response:', json);
 
       return resolve({
         data: {

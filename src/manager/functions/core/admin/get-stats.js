@@ -35,11 +35,11 @@ let Module = {
         action: 'get-stats',
         // label: '',
       });
-            
+
       if (!user.roles.admin) {
         response.status = 401;
         response.error = new Error('Unauthenticated, admin required.');
-        assistant.error(response.error, {environment: 'production'})
+        assistant.error(response.error)
       } else {
         let stats = libraries.admin.firestore().doc(`meta/stats`)
 
@@ -51,14 +51,14 @@ let Module = {
               .catch(e => {
                 response.status = 500;
                 response.error = new Error(`Failed fixing stats: ${e.message}`);
-                assistant.error(response.error, {environment: 'production'})
+                assistant.error(response.error)
               })
 
             await self.updateStats()
               .catch(e => {
                 response.status = 500;
                 response.error = new Error(`Failed updating stats: ${e.message}`);
-                assistant.error(response.error, {environment: 'production'})
+                assistant.error(response.error)
               })
 
             await stats
@@ -69,19 +69,19 @@ let Module = {
               .catch(function (e) {
                 response.status = 500;
                 response.error = e;
-                assistant.error(response.error, {environment: 'production'})
+                assistant.error(response.error)
               })
           })
           .catch(function (e) {
             response.status = 500;
             response.error = e;
-            assistant.error(response.error, {environment: 'production'})
+            assistant.error(response.error)
           })
       }
 
       // response.data = data;
 
-      assistant.log('Stats', assistant.request.data, response, {environment: 'production'});
+      assistant.log('Stats', assistant.request.data, response);
 
       if (response.status === 200) {
         return res.status(response.status).json(response.data);
@@ -105,7 +105,7 @@ let Module = {
           .catch(e => {
             response.status = 500;
             response.error = new Error(`Failed fixing stats: ${e.message}`);
-            self.assistant.error(response.error, {environment: 'production'});
+            self.assistant.error(response.error);
           })
         await self.getAllSubscriptions()
           .then(r => {
@@ -114,7 +114,7 @@ let Module = {
           .catch(e => {
             response.status = 500;
             response.error = new Error(`Failed fixing stats: ${e.message}`);
-            self.assistant.error(response.error, {environment: 'production'});
+            self.assistant.error(response.error);
           })
         await stats
           .set({

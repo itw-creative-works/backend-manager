@@ -55,7 +55,7 @@ Module.prototype.main = function () {
           decision.promptReview = false;
         }
 
-        assistant.log('Feedback submitted', docId, {appReviewData: response.reviews, request: request, decision: decision}, {environment: 'production'});
+        assistant.log('Feedback submitted', docId, {appReviewData: response.reviews, request: request, decision: decision});
 
         // Save feedback to firestore
         self.libraries.admin.firestore().doc(`feedback/${docId}`)
@@ -72,13 +72,13 @@ Module.prototype.main = function () {
           return resolve({
             data: {
               review: decision,
-              originalRequest: request,              
+              originalRequest: request,
             }
           });
         })
         .catch((e) => {
           return reject(assistant.errorManager(`Failed to save feedback: ${e.message}`, {code: 500, sentry: true, send: false, log: true}).error)
-        })  
+        })
       })
       .catch((e) => {
         return reject(assistant.errorManager(`Failed to get app: ${e.message}`, {code: 500, sentry: true, send: false, log: true}).error)

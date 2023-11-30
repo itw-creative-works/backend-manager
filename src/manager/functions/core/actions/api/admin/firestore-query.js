@@ -13,7 +13,7 @@ Module.prototype.main = function () {
   const payload = self.payload;
 
   return new Promise(async function(resolve, reject) {
-    // Perform checks    
+    // Perform checks
     if (!payload.user.roles.admin) {
       return reject(assistant.errorManager(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
     }
@@ -116,7 +116,7 @@ Module.prototype.runQuery = function (query) {
       return resolve(self.docs);
     })
     .catch(function (error) {
-      self.assistant.error(error, {environment: 'production'})
+      self.assistant.error(error)
       return reject(error);
     });
   });

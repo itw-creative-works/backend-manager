@@ -123,16 +123,16 @@ Manager.prototype.init = function (exporter, options) {
     if (semverUsing !== semverRequired) {
       const msg = `Node.js version mismatch: using ${semverUsing} but asked for ${semverRequired}`;
       if (options.checkNodeVersion) {
-        self.assistant.error(new Error(msg), {environment: 'production'});
+        self.assistant.error(new Error(msg));
         return process.exit(1);
       } else {
-        self.assistant.log(msg, {environment: 'production'});
+        self.assistant.log(msg);
       }
     }
   }
 
   if (options.log) {
-    // self.assistant.log('process.env', process.env, {environment: 'production'})
+    // self.assistant.log('process.env', process.env)
     self.assistant.log('Resolved serviceAccountPath', self.project.serviceAccountPath);
     self.assistant.log('Resolved backendManagerConfigPath', self.project.backendManagerConfigPath);
   }
@@ -153,7 +153,7 @@ Manager.prototype.init = function (exporter, options) {
       release: sentryRelease,
       beforeSend(event, hint) {
         if (self.assistant.meta.environment === 'development' && !self.options.reportErrorsInDev) {
-          self.assistant.error(new Error('[Sentry] Skipping Sentry because we\'re in development'), hint, {environment: 'production'})
+          self.assistant.error(new Error('[Sentry] Skipping Sentry because we\'re in development'), hint)
           return null;
         }
         event.tags = event.tags || {};
@@ -183,12 +183,12 @@ Manager.prototype.init = function (exporter, options) {
         // const loadedProjectId = get(self.libraries.initializedAdmin, 'options_.credential.projectId', null);
         const loadedProjectId = serviceAccount.project_id;
         if (!loadedProjectId || !loadedProjectId.includes(appId)) {
-          self.assistant.error(`Loaded app may have wrong service account: ${loadedProjectId} =/= ${appId}`, {environment: 'production'});
+          self.assistant.error(`Loaded app may have wrong service account: ${loadedProjectId} =/= ${appId}`);
         }
       }
 
     } catch (e) {
-      self.assistant.error('Failed to call .initializeApp()', e, {environment: 'production'});
+      self.assistant.error('Failed to call .initializeApp()', e);
     }
     // admin.firestore().settings({/* your settings... */ timestampsInSnapshots: true})
   }
@@ -214,7 +214,7 @@ Manager.prototype.init = function (exporter, options) {
         return self._preProcess(Module)
         .then(r => Module.main())
         .catch(e => {
-          self.assistant.error(e, {environment: 'production'});
+          self.assistant.error(e);
           return res.status(500).send(e.message);
         });
       });
@@ -230,7 +230,7 @@ Manager.prototype.init = function (exporter, options) {
         return self._preProcess(Module)
         .then(r => Module.main())
         .catch(e => {
-          self.assistant.error(e, {environment: 'production'});
+          self.assistant.error(e);
           return res.status(500).send(e.message);
         });
       });
@@ -245,7 +245,7 @@ Manager.prototype.init = function (exporter, options) {
         return self._preProcess(Module)
         .then(r => Module.main())
         .catch(e => {
-          self.assistant.error(e, {environment: 'production'});
+          self.assistant.error(e);
           return res.status(500).send(e.message);
         });
       });
@@ -260,7 +260,7 @@ Manager.prototype.init = function (exporter, options) {
         return self._preProcess(Module)
         .then(r => Module.main())
         .catch(e => {
-          self.assistant.error(e, {environment: 'production'});
+          self.assistant.error(e);
           return res.status(500).send(e.message);
         });
       });
@@ -275,7 +275,7 @@ Manager.prototype.init = function (exporter, options) {
         return self._preProcess(Module)
         .then(r => Module.main())
         .catch(e => {
-          self.assistant.error(e, {environment: 'production'});
+          self.assistant.error(e);
           return res.status(500).send(e.message);
         });
       });
@@ -290,7 +290,7 @@ Manager.prototype.init = function (exporter, options) {
         return self._preProcess(Module)
         .then(r => Module.main())
         .catch(e => {
-          self.assistant.error(e, {environment: 'production'});
+          self.assistant.error(e);
           return res.status(500).send(e.message);
         });
       });
@@ -305,7 +305,7 @@ Manager.prototype.init = function (exporter, options) {
         return self._preProcess(Module)
         .then(r => Module.main())
         .catch(e => {
-          self.assistant.error(e, {environment: 'production'});
+          self.assistant.error(e);
           return res.status(500).send(e.message);
         });
       });
@@ -320,7 +320,7 @@ Manager.prototype.init = function (exporter, options) {
         return self._preProcess(Module)
         .then(r => Module.main())
         .catch(e => {
-          self.assistant.error(e, {environment: 'production'});
+          self.assistant.error(e);
           return res.status(500).send(e.message);
         });
       });
@@ -336,7 +336,7 @@ Manager.prototype.init = function (exporter, options) {
         return self._preProcess(Module)
         .then(r => Module.main())
         .catch(e => {
-          self.assistant.error(e, {environment: 'production'});
+          self.assistant.error(e);
           return res.status(500).send(e.message);
         });
       });
@@ -351,7 +351,7 @@ Manager.prototype.init = function (exporter, options) {
         return self._preProcess(Module)
         .then(r => Module.main())
         .catch(e => {
-          self.assistant.error(e, {environment: 'production'});
+          self.assistant.error(e);
           return res.status(500).send(e.message);
         });
       });
@@ -366,7 +366,7 @@ Manager.prototype.init = function (exporter, options) {
         return self._preProcess(Module)
         .then(r => Module.main())
         .catch(e => {
-          self.assistant.error(e, {environment: 'production'});
+          self.assistant.error(e);
           return res.status(500).send(e.message);
         });
       });
@@ -429,7 +429,7 @@ Manager.prototype.init = function (exporter, options) {
   try {
     require('dotenv').config();
   } catch (e) {
-    self.assistant.error(new Error('Failed to set up environment variables from .env file'), {environment: 'production'});
+    self.assistant.error(new Error('Failed to set up environment variables from .env file'));
   }
 
   // Setup LocalDatabase
@@ -465,7 +465,7 @@ Manager.prototype._process = function (mod) {
 
     function _reject(e, log) {
       if (log) {
-        // self.assistant.error(e, {environment: 'production'});
+        // self.assistant.error(e);
         mod.assistant.errorManager(e, {code: 500, sentry: true, send: false, log: true});
       }
       // res.status(500).send(e.message);
@@ -690,16 +690,16 @@ Manager.prototype.storage = function (options) {
     try {
       _setup()
     } catch (e) {
-      self.assistant.error(`Could not setup storage: ${dbPath}`, e, {environment: 'production'});
+      self.assistant.error(`Could not setup storage: ${dbPath}`, e);
 
       try {
         if (options.clearInvalid) {
-          self.assistant.log(`Clearing invalid storage: ${dbPath}`, {environment: 'production'});
+          self.assistant.log(`Clearing invalid storage: ${dbPath}`);
           jetpack.write(dbPath, {});
         }
         _setup()
       } catch (e) {
-        self.assistant.error(`Failed to clear invalid storage: ${dbPath}`, e, {environment: 'production'});
+        self.assistant.error(`Failed to clear invalid storage: ${dbPath}`, e);
       }
     }
   }

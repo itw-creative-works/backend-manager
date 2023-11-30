@@ -69,7 +69,7 @@ Module.prototype.main = function () {
         redirectUrl: payload.data.payload.redirect_uri,
       }
 
-      assistant.log('OAuth2 payload', payload.data.payload, {environment: 'production'});
+      assistant.log('OAuth2 payload', payload.data.payload);
 
       if (!payload.data.payload.provider) {
         return reject(new Error(`The provider parameter is required.`));
@@ -102,7 +102,7 @@ Module.prototype.main = function () {
             newUrl.searchParams.set('response_type', typeof payload.data.payload.response_type === 'undefined' ? 'code' : payload.data.payload.response_type)
           }
 
-          assistant.log('OAuth2 newUrl', newUrl, {environment: 'production'});
+          assistant.log('OAuth2 newUrl', newUrl);
 
           await self.oauth2.buildUrl(payload.data.payload.state, newUrl)
           .then(url => {
@@ -129,7 +129,7 @@ Module.prototype.main = function () {
       } else if (payload.data.payload.state === 'refresh') {
         self.processState_refresh(newUrl, user)
         .then(r => {resolve(r)})
-        .catch(e => {reject(e)})        
+        .catch(e => {reject(e)})
       } else if (payload.data.payload.state === 'deauthorize') {
         self.processState_deauthorize(newUrl, user)
         .then(r => {resolve(r)})
@@ -176,7 +176,7 @@ Module.prototype.processState_tokenize = function (newUrl, user) {
   return new Promise(async function(resolve, reject) {
     const finalUrl = newUrl.toString();
 
-    assistant.log('Running processState_tokenize()', {environment: 'production'});
+    assistant.log('Running processState_tokenize()');
 
     const body = {
       client_id: _.get(Manager.config, `oauth2.${payload.data.payload.provider}.client_id`),
@@ -187,7 +187,7 @@ Module.prototype.processState_tokenize = function (newUrl, user) {
       // scope: '',
     };
 
-    assistant.log('body', body, {environment: 'production'});
+    assistant.log('body', body);
 
     const tokenizeResponse = await fetch(finalUrl, {
       method: 'POST',
@@ -204,7 +204,7 @@ Module.prototype.processState_tokenize = function (newUrl, user) {
     .then(json => json)
     .catch(e => e)
 
-    assistant.log('tokenizeResponse', tokenizeResponse, {environment: 'production'});
+    assistant.log('tokenizeResponse', tokenizeResponse);
 
     if (tokenizeResponse instanceof Error) {
       return reject(tokenizeResponse);
@@ -215,7 +215,7 @@ Module.prototype.processState_tokenize = function (newUrl, user) {
     .then(identity => identity)
     .catch(e => e);
 
-    assistant.log('verifiedIdentity', verifiedIdentity, {environment: 'production'});
+    assistant.log('verifiedIdentity', verifiedIdentity);
 
     if (verifiedIdentity instanceof Error) {
       return reject(verifiedIdentity);
@@ -244,7 +244,7 @@ Module.prototype.processState_tokenize = function (newUrl, user) {
       .then(r => r)
       .catch(e => e)
 
-    assistant.log('storeResponse', user.auth.uid, storeResponse, {environment: 'production'});
+    assistant.log('storeResponse', user.auth.uid, storeResponse);
 
     if (storeResponse instanceof Error) {
       return reject(storeResponse);
@@ -267,7 +267,7 @@ Module.prototype.processState_refresh = function (newUrl, user) {
   return new Promise(async function(resolve, reject) {
     const finalUrl = newUrl.toString();
 
-    assistant.log('Running processState_refresh()', {environment: 'production'});
+    assistant.log('Running processState_refresh()');
 
     const body = {
       client_id: _.get(Manager.config, `oauth2.${payload.data.payload.provider}.client_id`),
@@ -276,7 +276,7 @@ Module.prototype.processState_refresh = function (newUrl, user) {
       refresh_token: _.get(user, `oauth2.${payload.data.payload.provider}.token.refresh_token`),
     };
 
-    assistant.log('body', body, {environment: 'production'});
+    assistant.log('body', body);
 
     const refreshResponse = await fetch(finalUrl, {
       method: 'POST',
@@ -293,7 +293,7 @@ Module.prototype.processState_refresh = function (newUrl, user) {
     .then(json => json)
     .catch(e => e)
 
-    assistant.log('refreshResponse', refreshResponse, {environment: 'production'});
+    assistant.log('refreshResponse', refreshResponse);
 
     if (refreshResponse instanceof Error) {
       return reject(refreshResponse);
@@ -305,7 +305,7 @@ Module.prototype.processState_refresh = function (newUrl, user) {
     // .then(identity => identity)
     // .catch(e => e);
 
-    // assistant.log('verifiedIdentity', verifiedIdentity, {environment: 'production'});
+    // assistant.log('verifiedIdentity', verifiedIdentity);
 
     // if (verifiedIdentity instanceof Error) {
     //   return reject(verifiedIdentity);
@@ -330,7 +330,7 @@ Module.prototype.processState_refresh = function (newUrl, user) {
       .then(r => r)
       .catch(e => e)
 
-    assistant.log('storeResponse', user.auth.uid, storeResponse, {environment: 'production'});
+    assistant.log('storeResponse', user.auth.uid, storeResponse);
 
     if (storeResponse instanceof Error) {
       return reject(storeResponse);

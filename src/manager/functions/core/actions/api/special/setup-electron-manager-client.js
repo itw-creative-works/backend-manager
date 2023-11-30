@@ -64,7 +64,7 @@ Module.prototype.main = function () {
     }
 
     if (config.backendManagerKey === Manager.config.backend_manager.key && Manager.config.backend_manager.key) {
-      assistant.log('Validated config', config, {environment: 'production'})
+      assistant.log('Validated config', config)
     } else {
       config = {};
     }

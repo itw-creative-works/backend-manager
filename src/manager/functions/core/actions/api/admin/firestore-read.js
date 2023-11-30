@@ -12,7 +12,7 @@ Module.prototype.main = function () {
   return new Promise(async function(resolve, reject) {
     // Set defaults
     payload.data.payload.path = `${payload.data.payload.path || ''}`;
-    payload.data.payload.options = payload.data.payload.options || {};    
+    payload.data.payload.options = payload.data.payload.options || {};
 
     // Perform checks
     if (!payload.user.roles.admin) {
@@ -29,7 +29,7 @@ Module.prototype.main = function () {
     })
     .catch(e => {
       return reject(assistant.errorManager(e, {code: 500, sentry: false, send: false, log: false}).error)
-    })    
+    })
   });
 
 };

@@ -35,7 +35,7 @@ let Module = {
         action: 'generate-uuid',
         // label: '',
       });
-            
+
       const namespace = assistant.request.data.namespace || self.Manager.config.backend_manager.namespace;
       assistant.request.data.version = `${assistant.request.data.version || '5'}`.replace('v', '');
       assistant.request.data.name = assistant.request.data.name || assistant.request.data.input;
@@ -49,7 +49,7 @@ let Module = {
         response.data.uuid = uuid.v4();
       }
 
-      assistant.log('UUID Generated', assistant.request.data, response, {environment: 'production'});
+      assistant.log('UUID Generated', assistant.request.data, response);
 
       if (response.status === 200) {
         return res.status(response.status).json(response.data);

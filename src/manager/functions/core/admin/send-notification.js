@@ -37,7 +37,7 @@ let Module = {
       });
 
       let payload = self.assistant.request.data.payload || {};
-            
+
       if (!payload.title || !payload.body) {
         response.status = 400;
         response.error = new Error('Not enough notification parameters supplied.');
@@ -54,7 +54,7 @@ let Module = {
         await self.getTokens({tags: false});
       }
 
-      assistant.log('Notification', assistant.request.data, response, {environment: 'production'});
+      assistant.log('Notification', assistant.request.data, response);
 
       if (response.status === 200) {
         return res.status(response.status).json(response.data);
@@ -104,7 +104,7 @@ function sendBatch(batch, id) {
         resolve();
       })
       .catch(function (e) {
-        self.assistant.error('Error sending batch #' + id, e, {environment: 'production'});
+        self.assistant.error('Error sending batch #' + id, e);
         // self.result.status = 'fail';
         reject(e);
       })
@@ -150,7 +150,7 @@ function getTokens(options) {
         });
       })
       .catch(function(e) {
-        self.assistant.error('Error querying tokens: ', e, {environment: 'production'})
+        self.assistant.error('Error querying tokens: ', e)
         reject(error);
       });
 
@@ -159,7 +159,7 @@ function getTokens(options) {
         self.assistant.log('Finished all batches.');
       })
       .catch(function(e) {
-        self.assistant.error('Error sending batches: ', e, {environment: 'production'})
+        self.assistant.error('Error sending batches: ', e)
       });
     resolve();
 

@@ -25,7 +25,7 @@ Module.prototype.main = function () {
       const settings = _.merge({}, payload.data.payload.existingSettings, payload.data.payload.newSettings);
 
       const resolvedPath = path.join(process.cwd(), `defaults.js`);
-      
+
       // Check if the file exists
       if (!jetpack.exists(resolvedPath)) {
         return reject(assistant.errorManager(`Defaults file at ${resolvedPath} does not exist, please add it manually.`, {code: 500, sentry: true, send: false, log: true}).error);
@@ -36,7 +36,7 @@ Module.prototype.main = function () {
         const defaults = _.get(require(resolvedPath)(), payload.data.payload.defaultsPath);
         const combined = combine(defaults.all, defaults[user.plan.id] || {})
 
-        assistant.log('Combined settings', combined, {environment: 'development'})
+        assistant.log('Combined settings', combined)
 
         return resolve({data: powertools.defaults(settings, combined)});
       } catch (e) {
@@ -74,7 +74,7 @@ function combine(one, two) {
 
       // If the path is an object, merge the two object using lodash
       _.set(one, pathMinusLast, valueAtParent)
-      
+
       done.push(pathMinusLast);
     })
   return one;

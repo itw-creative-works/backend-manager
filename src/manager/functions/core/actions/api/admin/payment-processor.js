@@ -28,14 +28,14 @@ Module.prototype.main = function () {
 
     try {
       if (!jetpack.exists(processorPath)) {
-        self.assistant.warn('Subprocessor does not exist:', processorPath, {environment: 'production'})
+        self.assistant.warn('Subprocessor does not exist:', processorPath)
 
         return resolve({data: {}})
       }
       processor = new (require(processorPath));
       processor.Manager = self.Manager;
     } catch (e) {
-      self.assistant.error('Subprocessor failed to load:', processorPath, e, {environment: 'production'})
+      self.assistant.error('Subprocessor failed to load:', processorPath, e)
 
       return resolve({data: {}})
     }

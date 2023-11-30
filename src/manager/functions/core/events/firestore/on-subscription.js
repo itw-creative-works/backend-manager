@@ -10,7 +10,7 @@ Module.prototype.init = function (Manager, payload) {
   self.change = payload.change
   self.context = payload.context
 
-  return self;  
+  return self;
 };
 
 Module.prototype.main = function () {
@@ -18,8 +18,8 @@ Module.prototype.main = function () {
   const libraries = self.libraries;
   const assistant = self.assistant;
   const change = self.change;
-  const context = self.context;  
-  
+  const context = self.context;
+
   return new Promise(async function(resolve, reject) {
     const _ = self.Manager.require('lodash');
 
@@ -43,7 +43,7 @@ Module.prototype.main = function () {
       eventType: eventType,
       resource: context.resource,
       params: context.params,
-    }, {environment: 'production'});
+    });
 
     // Delete event
     if (eventType === 'delete') {
@@ -62,12 +62,12 @@ Module.prototype.main = function () {
             // label: 'regular',
           });
 
-          assistant.log('Notification subscription deleted:', dataBefore, {environment: 'production'});
+          assistant.log('Notification subscription deleted:', dataBefore);
 
           return resolve(dataBefore);
         })
         .catch(e => {
-          assistant.error(e, {environment: 'production'});
+          assistant.error(e);
           return reject(e);
         })
 
@@ -92,12 +92,12 @@ Module.prototype.main = function () {
             // label: 'regular',
           });
 
-          assistant.log('Notification subscription created:', dataAfter, {environment: 'production'});
+          assistant.log('Notification subscription created:', dataAfter);
 
           return resolve(dataAfter);
         })
         .catch(e => {
-          assistant.error(e, {environment: 'production'});
+          assistant.error(e);
           return reject(e);
         })
     }

@@ -51,7 +51,7 @@ let Module = {
         await admin.firestore().doc(options.path)
         .set(options.document, options.options)
         .then(r => {
-          assistant.log(`Wrote to ${options.path}:`, options.document, options.options, {environment: 'production'})
+          assistant.log(`Wrote to ${options.path}:`, options.document, options.options)
         })
         .catch(e => {
           response.status = 500;
@@ -62,7 +62,7 @@ let Module = {
       if (response.status === 200) {
         return res.status(response.status).json(response.data);
       } else {
-        assistant.error(response.error, {environment: 'production'})
+        assistant.error(response.error)
         return res.status(response.status).send(response.error.message);
       }
     });

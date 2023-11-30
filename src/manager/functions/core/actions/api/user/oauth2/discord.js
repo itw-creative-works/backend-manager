@@ -52,7 +52,7 @@ OAuth2.prototype.verifyIdentity = function (tokenizeResult) {
     .then(json => json)
     .catch(e => e)
 
-    assistant.log('identityResponse', identityResponse, {environment: 'development'});
+    assistant.log('identityResponse', identityResponse);
 
     if (identityResponse instanceof Error) {
       return reject(identityResponse);

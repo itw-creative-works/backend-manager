@@ -19,7 +19,7 @@ Module.prototype.main = function () {
       const id = _.get(payload.data.payload, 'id', 'app');
       const session = `sessions/${id}`;
 
-      assistant.log(`Getting active sessions for ${uid} @ ${session}`, {environment: 'production'})
+      assistant.log(`Getting active sessions for ${uid} @ ${session}`)
 
       await self.libraries.admin.database().ref(session)
       .orderByChild('uid')

@@ -29,9 +29,9 @@ Module.prototype.main = function () {
             activated: _.get(user, 'plan.trial.activated', false),
             date: {
               timestamp: _.get(user, 'plan.trial.date.timestamp', oldDate),
-              timestampUNIX: _.get(user, 'plan.trial.date.timestampUNIX', oldDateUNIX),          
+              timestampUNIX: _.get(user, 'plan.trial.date.timestampUNIX', oldDateUNIX),
             }
-          },          
+          },
           payment: {
             active: _.get(user, 'plan.payment.active', false),
           },

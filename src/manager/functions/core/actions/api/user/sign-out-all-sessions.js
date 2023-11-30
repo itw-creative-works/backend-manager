@@ -38,7 +38,7 @@ Module.prototype.main = function () {
           })
           .catch(e => {
             return reject(assistant.errorManager(`Failed to sign out of all sessions: ${e}`, {code: 500, sentry: false, send: false, log: false}).error)
-          })        
+          })
       } catch (e) {
         return reject(assistant.errorManager(`Failed to sign out of all sessions: ${e}`, {code: 500, sentry: false, send: false, log: false}).error)
       }
@@ -70,18 +70,18 @@ Module.prototype.signOutOfSession = function (uid, session) {
 
         const promises = [];
 
-        assistant.log(`Signing out of ${keys.length} active sessions for ${uid} @ ${session}`, {environment: 'production'})
+        assistant.log(`Signing out of ${keys.length} active sessions for ${uid} @ ${session}`)
 
         for (var i = 0; i < keys.length; i++) {
           promises.push((async () => {
             const key = keys[i];
 
-            assistant.log(`Signing out ${session}/${key}...`, {environment: 'production'});
-            
+            assistant.log(`Signing out ${session}/${key}...`);
+
             // Send signout command
             await self.libraries.admin.database().ref(`${session}/${key}/command`)
               .set('signout')
-              .catch(e => assistant.error(`Failed to signout of session ${key}`, e, {environment: 'production'}))
+              .catch(e => assistant.error(`Failed to signout of session ${key}`, e))
 
             // Delay so the client has time to react to the command
             await powertools.wait(5000);
@@ -89,9 +89,9 @@ Module.prototype.signOutOfSession = function (uid, session) {
             // Delete session
             await self.libraries.admin.database().ref(`${session}/${key}`)
               .remove()
-              .catch(e => assistant.error(`Failed to delete session ${key}`, e, {environment: 'production'}))          
+              .catch(e => assistant.error(`Failed to delete session ${key}`, e))
 
-            assistant.log(`Signed out successfully: ${key}`, {environment: 'production'});
+            assistant.log(`Signed out successfully: ${key}`);
 
             count++;
           })())
@@ -101,7 +101,7 @@ Module.prototype.signOutOfSession = function (uid, session) {
         await Promise.all(promises)
         .then(() => {
           return resolve(count);
-        })        
+        })
         .catch((e) => {
           return reject(e);
         })
@@ -109,7 +109,7 @@ Module.prototype.signOutOfSession = function (uid, session) {
       })
       .catch(e => {
         assistant.errorManager(`Session query error for session ${session}: ${e}`, {code: 500, sentry: true, send: false, log: true})
-        
+
         return reject(e);
       })
   });
