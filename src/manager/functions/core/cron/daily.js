@@ -1,4 +1,5 @@
 const fetch = require('wonderful-fetch');
+const jetpack = require('fs-jetpack');
 
 function Module() {
 
@@ -22,47 +23,42 @@ Module.prototype.main = function() {
   const context = self.context;
 
   return new Promise(async function(resolve, reject) {
-    // Wait for all the promises to resolve
-    Promise.all([
-      // Backup the database
-      // TODO: Disabled this because of Firebase's new PITR Disaster Recovery feature
-      // fetch(`${Manager.project.functionsUrl}/bm_api`, {
-      //   method: 'post',
-      //   response: 'json',
-      //   body: {
-      //     backendManagerKey: Manager.config.backend_manager.key,
-      //     command: 'admin:backup',
-      //   }
-      // })
-      // .then(response => {
-      //   assistant.log(`Successfully executed backup:`, response)
-      // }),
+    assistant.log(`cron/daily(): Starting...`);
 
-      // Sync Firestore users to the database
-      // TODO: This is not working becaues the pageToken is not relative any more when its saved...
-      // fetch(`${Manager.project.functionsUrl}/bm_api`, {
-      //   method: 'post',
-      //   response: 'json',
-      //   body: {
-      //     backendManagerKey: Manager.config.backend_manager.key,
-      //     command: 'admin:sync-users',
-      //   }
-      // })
-      // .then(response => {
-      //   assistant.log(`Successfully executed sync-users:`, response)
-      // }),
+    const jobsPath = `${__dirname}/daily`;
+    const jobs = jetpack.list(jobsPath);
+    let caught;
 
-      // More daily processes
-      // ...
-    ])
-    .then(() => {
-      assistant.log(`Successfully executed all daily processes:`)
-      return resolve();
-    })
-    .catch(e => {
-      assistant.errorManager(`Error executing all processes: ${e}`, {sentry: true, send: false, log: true})
-      return reject(e);
-    })
+    // For of loop for jobs, load the job, execute it, and log the result
+    for (let i = 0; i < jobs.length; i++) {
+      const job = jobs[i];
+      const jobName = job.replace('.js', '');
+
+      // Log
+      assistant.log(`cron/daily(): Job ${jobName} starting...`);
+
+      // Load the job
+      const Job = require(`${jobsPath}/${job}`);
+      const jobInstance = new Job();
+      jobInstance.init(Manager, { context: context, });
+
+      // Execute the job
+      await jobInstance.main()
+      .then(res => {
+        assistant.log(`cron/daily(): Job ${jobName} completed...`);
+      })
+      .catch(e => {
+        assistant.errorManager(`Error executing ${jobName}: ${e}`, {sentry: true, send: false, log: true});
+        caught = e;
+      })
+    }
+
+    if (caught) {
+      return reject(caught);
+    }
+
+    // Return
+    return resolve();
   });
 }
 

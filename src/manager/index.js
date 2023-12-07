@@ -74,8 +74,8 @@ Manager.prototype.init = function (exporter, options) {
   self.options = options;
   self.project = options.firebaseConfig || JSON.parse(process.env.FIREBASE_CONFIG || '{}');
   self.project.resourceZone = options.resourceZone;
-  self.project.serviceAccountPath = path.resolve(self.cwd, options.serviceAccountPath)
-  self.project.backendManagerConfigPath = path.resolve(self.cwd, options.backendManagerConfigPath)
+  self.project.serviceAccountPath = path.resolve(self.cwd, options.serviceAccountPath);
+  self.project.backendManagerConfigPath = path.resolve(self.cwd, options.backendManagerConfigPath);
 
   self.package = resolveProjectPackage();
   self.config = merge(
@@ -600,6 +600,18 @@ Manager.prototype.SubscriptionResolver = function () {
   return new self.libraries.SubscriptionResolver(self, ...arguments);
 };
 
+Manager.prototype.Usage = function () {
+  const self = this;
+  self.libraries.Usage = self.libraries.Usage || require('./helpers/usage.js');
+  return new self.libraries.Usage(self, ...arguments);
+};
+
+Manager.prototype.Settings = function () {
+  const self = this;
+  self.libraries.Settings = self.libraries.Settings || require('./helpers/settings.js');
+  return new self.libraries.Settings(self, ...arguments);
+};
+
 Manager.prototype.Metadata = function () {
   const self = this;
   self.libraries.Metadata = self.libraries.Metadata || require('./helpers/metadata.js');
@@ -657,21 +669,26 @@ Manager.prototype.storage = function (options) {
   if (!self._internal.storage[options.name]) {
     options.temporary = typeof options.temporary === 'undefined' ? false : options.temporary;
     options.clear = typeof options.clear === 'undefined' ? true : options.clear;
+    options.log = typeof options.log === 'undefined' ? false : options.log;
 
     const low = require('lowdb');
     const FileSync = require('lowdb/adapters/FileSync');
-    const dbPath = options.temporary
+    const location = options.temporary
       ? `${require('os').tmpdir()}/storage/${options.name}.json`
       : `./.data/storage/${options.name}.json`;
-    const adapter = new FileSync(dbPath);
+    const adapter = new FileSync(location);
+
+    if (options.log) {
+      self.assistant.log('storage(): Location', location);
+    }
 
     if (
       options.temporary
       && self.assistant.meta.environment === 'development'
       && options.clear
     ) {
-      self.assistant.log('Removed temporary file @', dbPath);
-      jetpack.remove(dbPath);
+      self.assistant.log('Removed temporary file @', location);
+      jetpack.remove(location);
     }
 
     options.clearInvalid = typeof options.clearInvalid === 'undefined'
@@ -679,56 +696,33 @@ Manager.prototype.storage = function (options) {
       : options.clearInvalid;
 
     function _setup() {
-      if (!jetpack.exists(dbPath)) {
-        jetpack.write(dbPath, {});
+      if (!jetpack.exists(location)) {
+        jetpack.write(location, {});
       }
       self._internal.storage[options.name] = low(adapter);
 
-      self._internal.storage[options.name].set('_location', dbPath)
+      self._internal.storage[options.name].set('_location', location)
     }
 
     try {
       _setup()
     } catch (e) {
-      self.assistant.error(`Could not setup storage: ${dbPath}`, e);
+      self.assistant.error(`Could not setup storage: ${location}`, e);
 
       try {
         if (options.clearInvalid) {
-          self.assistant.log(`Clearing invalid storage: ${dbPath}`);
-          jetpack.write(dbPath, {});
+          self.assistant.log(`Clearing invalid storage: ${location}`);
+          jetpack.write(location, {});
         }
         _setup()
       } catch (e) {
-        self.assistant.error(`Failed to clear invalid storage: ${dbPath}`, e);
+        self.assistant.error(`Failed to clear invalid storage: ${location}`, e);
       }
     }
   }
 
   return self._internal.storage[options.name]
 };
-
-// Manager.prototype.LocalDatabase = function () {
-//   const self = this;
-//   if (!self.libraries.LocalDatabase) {
-//     const low = require('lowdb');
-//     const FileSync = require('lowdb/adapters/FileSync');
-//     // const dbPath = path.resolve(process.cwd(), './.data/db.json');
-//     const dbPath = './.data/db.json';
-//     const adapter = new FileSync(dbPath);
-//     const jetpack = require('fs-jetpack');
-//
-//     try {
-//       if (!jetpack.exists(dbPath)) {
-//         jetpack.write(dbPath, {});
-//       }
-//       self.localDatabase = low(adapter);
-//     } catch (e) {
-//       console.error('Could not load .data', e);
-//     }
-//   }
-//   self.libraries.LocalDatabase = self.libraries.LocalDatabase || require('./helpers/api-manager.js');
-//   return new self.libraries.LocalDatabase(self, ...arguments);
-// };
 
 Manager.prototype.require = function (p) {
   return require(p);

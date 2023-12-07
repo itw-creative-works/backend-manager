@@ -107,6 +107,17 @@ function User(Manager, settings, options) {
       clientId: _.get(settings, 'api.clientId', defaults ? `${uuid4()}` : null),
       privateKey: _.get(settings, 'api.privateKey', defaults ? `${uidgen.generateSync()}` : null),
     },
+    usage: {
+      requests: {
+        period: _.get(settings, 'usage.requests.period', defaults ? 0 : null),
+        total: _.get(settings, 'usage.requests.total', defaults ? 0 : null),
+        last: {
+          id: _.get(settings, 'usage.requests.last.id', defaults ? '' : null),
+          timestamp: _.get(settings, 'usage.requests.last.timestamp', defaults ? oldDate : null),
+          timestampUNIX: _.get(settings, 'usage.requests.last.timestampUNIX', defaults ? oldDateUNIX : null),
+        },
+      },
+    },
     personal: {
       birthday: {
         timestamp: _.get(settings, 'personal.birthday.timestamp', defaults ? oldDate : null),
