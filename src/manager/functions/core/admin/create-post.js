@@ -99,7 +99,6 @@ async function createFile(user, repoUser, repoName, key, path, contents) {
     let sha;
     try {
 
-      // let pathGet = `https://api.github.com/repos/iwiedenm/ultimate-jekyll/git/trees/template:${encodeURIComponent(path_noExt)}`;
       let branch = (repoName === 'ultimate-jekyll') ? 'template' : 'master';
 
       let pathGet = `https://api.github.com/repos/${repoUser}/${repoName}/git/trees/${branch}:${encodeURIComponent(pathApi.dirname(path))}`;

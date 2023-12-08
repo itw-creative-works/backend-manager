@@ -7,12 +7,13 @@ function Module() {
 
 Module.prototype.main = function () {
   const self = this;
-  const Manager = self.Manager;
-  const Api = self.Api;
-  const assistant = self.assistant;
-  const payload = self.payload;
 
   return new Promise(async function(resolve, reject) {
+    const Manager = self.Manager;
+    const Api = self.Api;
+    const assistant = self.assistant;
+    const payload = self.payload;
+
     self.Api.resolveUser({adminRequired: true})
     .then(async (user) => {
         // Get auth user from firebase
@@ -69,11 +70,12 @@ Module.prototype.main = function () {
 
 Module.prototype.signUp = function (payload) {
   const self = this;
-  const Manager = self.Manager;
-  const Api = self.Api;
-  const assistant = self.assistant;
 
   return new Promise(async function(resolve, reject) {
+    const Manager = self.Manager;
+    const Api = self.Api;
+    const assistant = self.assistant;
+
     const result = {
       signedUp: false,
       referrerUid: undefined,
@@ -137,6 +139,10 @@ Module.prototype.updateReferral = function (payload) {
   const self = this;
 
   return new Promise(function(resolve, reject) {
+    const Manager = self.Manager;
+    const Api = self.Api;
+    const assistant = self.assistant;
+
     const result = {
       count: 0,
       updatedReferral: false,
