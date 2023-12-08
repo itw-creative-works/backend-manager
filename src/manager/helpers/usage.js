@@ -208,7 +208,7 @@ Usage.prototype.update = function () {
 
     // Write self.user to firestore or local if no user
     if (self.user.auth.uid) {
-      Manager.libraries.admin.firestore(`users/${self.user.auth.uid}`)
+      Manager.libraries.admin.firestore().doc(`users/${self.user.auth.uid}`)
         .set({
           usage: self.user.usage,
         }, {merge: true})
