@@ -194,7 +194,22 @@ Usage.prototype.increment = function (path, value, options) {
   });
 
   // Log the updated user
-  self.log(`Usage.init(): Incremented user`, self.user);
+  self.log(`Usage.init(): Incremented ${path} for user`, self.user);
+
+  return self;
+};
+
+Usage.prototype.set = function (path, value) {
+  const self = this;
+  const Manager = self.Manager;
+  const assistant = self.assistant;
+
+  // Update total and period
+  const resolved = `usage.${path}.${key}`;
+  _.set(self.user, resolved, value);
+
+  // Log the updated user
+  self.log(`Usage.init(): Set ${path} for user`, self.user);
 
   return self;
 };
