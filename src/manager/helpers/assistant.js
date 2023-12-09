@@ -341,7 +341,9 @@ BackendAssistant.prototype.errorManager = function(e, options) {
   options.sentry = typeof options.sentry === 'undefined' ? true : options.sentry;
   options.send = typeof options.send === 'undefined' ? true : options.send;
 
-  const newError = e instanceof Error ? e : new Error(e);
+  const newError = e instanceof Error
+    ? e
+    : new Error(stringify(e));
 
   // Attach properties
   Object.keys(options)
@@ -367,6 +369,14 @@ BackendAssistant.prototype.errorManager = function(e, options) {
 
   return {
     error: newError,
+  }
+}
+
+function stringify(e) {
+  if (typeof e === 'string') {
+    return e;
+  } else {
+    return JSON.stringify(e);
   }
 }
 

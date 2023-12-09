@@ -105,9 +105,6 @@ Usage.prototype.init = function (assistant, options) {
     self.log(`Usage.init(): Got app data`, self.app);
     self.log(`Usage.init(): Got user`, self.user);
 
-    // Resolve with the user to get their current plan limits
-    // If there is no user, go forward with their IP and make them a basic plan user
-
     // Set initialized to true
     self.initialized = true;
 
@@ -127,8 +124,8 @@ Usage.prototype.validate = function (path, options) {
     options.useCaptchaResponse = typeof options.useCaptchaResponse === 'undefined' ? true : options.useCaptchaResponse;
 
     // Check for required options
-    const period = _.get(self.user, `usage.${path}.period`, 0);
-    const allowed = _.get(self.app, `products.${self.options.app}-${self.user.plan.id}.limits.${path}`, 0);
+    const period = self.getUsage(path)
+    const allowed = self.getLimits(path);
 
     // Log
     self.log(`Usage.validate(): Checking ${period}/${allowed} for ${path}...`);
@@ -212,6 +209,22 @@ Usage.prototype.set = function (path, value) {
   self.log(`Usage.init(): Set ${path} for user`, self.user);
 
   return self;
+};
+
+Usage.prototype.getUsage = function (path) {
+  const self = this;
+  const Manager = self.Manager;
+  const assistant = self.assistant;
+
+  return _.get(self.user, `usage.${path}.period`, 0);
+};
+
+Usage.prototype.getLimit = function (path) {
+  const self = this;
+  const Manager = self.Manager;
+  const assistant = self.assistant;
+
+  return _.get(self.app, `products.${self.options.app}-${self.user.plan.id}.limits.${path}`, 0);
 };
 
 Usage.prototype.update = function () {
