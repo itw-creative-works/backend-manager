@@ -125,7 +125,7 @@ Usage.prototype.validate = function (path, options) {
 
     // Check for required options
     const period = self.getUsage(path)
-    const allowed = self.getLimits(path);
+    const allowed = self.getLimit(path);
 
     // Log
     self.log(`Usage.validate(): Checking ${period}/${allowed} for ${path}...`);
