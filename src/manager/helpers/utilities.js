@@ -189,19 +189,41 @@ Utilities.prototype.get = function (docPath, options) {
   const self = this;
 
   return new Promise(function(resolve, reject) {
+    const Manager = self.Manager;
+    const { admin } = Manager.libraries;
 
     options = options || {};
     options.maxAge = options.maxAge || (1000 * 60 * 5); // 5 minutes
+    options.readTime = typeof options.readTime === 'undefined' ? null : options.readTime;
+    options.log = typeof options.log === 'undefined' ? false : options.log;
 
-    self.cache = self.cache || self.Manager.storage({name: 'cache', temporary: true, clear: false});
+    self.cache = self.cache || Manager.storage({name: 'cache', temporary: true, clear: false});
 
     const item = self.cache.get(docPath).value();
     const age = item ? Date.now() - item.time : null;
 
-    if (item && age && age < options.maxAge) {
+    if (options.readTime) {
+      const { Timestamp } = require('firebase-admin/firestore')
+      const time = Math.round(new Date(options.readTime).getTime() / 1000 / 60);
+      const logg = new Date(time * 1000 * 60);
+
+      if (options.log) {
+        console.log('Read time:', logg);
+      }
+
+      // loop docs
+      admin.firestore().runTransaction(
+        updateFunction => updateFunction.get(admin.firestore().doc(docPath)),
+        {readOnly: true, readTime: new Timestamp(time * 60, 0)}
+      )
+      .then(snap => {
+        return resolve(snap);
+      })
+      .catch(e => reject(e));
+    } else if (item && age && age < options.maxAge) {
       return resolve(item.doc);
     } else {
-      self.Manager.libraries.admin.firestore().doc(docPath)
+      admin.firestore().doc(docPath)
         .get()
         .then(async (doc) => {
           const data = doc.data();
