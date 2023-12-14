@@ -22,9 +22,13 @@ Utilities.prototype.iterateCollection = function (callback, options) {
     options.where = options.where || [];
     options.orderBy = options.orderBy || null;
     options.startAt = options.startAt || null;
+    options.startAfter = options.startAfter || null;
+    options.prefetchCursor = typeof options.prefetchCursor === 'undefined'
+      ? (!!options.startAt || !!options.startAfter) && !options.orderBy
+      : options.prefetchCursor;
     options.log = options.log;
 
-    function listAllDocuments(nextPageToken) {
+    async function listAllDocuments(nextPageToken) {
       let query = admin.firestore().collection(options.collection)
 
       options.where
@@ -36,8 +40,24 @@ Utilities.prototype.iterateCollection = function (callback, options) {
         query = query.orderBy(options.orderBy);
       }
 
-      if (batch === -1 && options.startAt) {
-        query = query.startAt(options.startAt);
+      if (batch === -1) {
+        let prefetchedCursor = null;
+
+        if (options.prefetchCursor) {
+          prefetchedCursor = await admin.firestore().doc(`${options.collection}/${options.startAt || options.startAfter}`)
+          .get()
+          .catch(e => e);
+
+          if (prefetchedCursor instanceof Error) {
+            return reject(prefetchedCursor);
+          }
+        }
+
+        if (options.startAt) {
+          query = query.startAt(prefetchedCursor || options.startAt);
+        } else if (options.startAfter) {
+          query = query.startAfter(prefetchedCursor || options.startAfter);
+        }
       }
 
       // Start at next page
