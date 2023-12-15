@@ -1,4 +1,4 @@
-const { get } = require('lodash');
+const { get, merge } = require('lodash');
 
 function Module() {
   const self = this;
@@ -37,22 +37,17 @@ Module.prototype.main = function () {
       assistant.error(`Failed to get existing user ${user.uid}:`, existingUser, { environment: 'production' });
 
       return reject(existingUser);
-    } else if (
-      get(existingUser, 'auth.uid', null)
-      || get(existingUser, 'auth.email', null)
-    ) {
-      assistant.log(`Skipping handler because user already exists ${user.uid}:`, existingUser);
-
-      return resolve(self);
     }
 
     // Build user object
-    const newUser = self.Manager.User({
+    let newUser = self.Manager.User().properties;
+
+    newUser = merge(newUser, existingUser, {
       auth: {
         uid: user.uid,
         email: user.email,
-      }
-    }).properties;
+      },
+    });
 
     // Set up analytics
     const analytics = self.Manager.Analytics({
