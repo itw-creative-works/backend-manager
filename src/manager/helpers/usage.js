@@ -49,9 +49,6 @@ Usage.prototype.init = function (assistant, options) {
       return reject(new Error('Missing required {assistant} parameter'));
     }
 
-    const localKey = (options.localKey || self.assistant.request.geolocation.ip || '')
-      .replace(/[\.:]/g, '_');
-
     // Set options
     self.options = options;
 
@@ -61,6 +58,11 @@ Usage.prototype.init = function (assistant, options) {
     // Setup storage
     self.storage = Manager.storage({name: 'usage', temporary: true, clear: options.clear, log: options.log});
 
+    // Set local key
+    const localKey = (options.localKey || self.assistant.request.geolocation.ip || '')
+      .replace(/[\.:]/g, '_');
+
+    // Set paths
     self.paths.user = `users.${localKey}`;
     self.paths.app = `apps.${options.app}`;
 
