@@ -40,13 +40,17 @@ Usage.prototype.init = function (assistant, options) {
     options.app = options.app || Manager.config.app.id;
     options.refetch = typeof options.refetch === 'undefined' ? false : options.refetch;
     options.clear = typeof options.clear === 'undefined' ? false : options.clear;
-    options.today = options.today || undefined;
+    options.today = typeof options.today === 'undefined' ? undefined : options.today;
+    options.localKey = typeof options.localKey === 'undefined' ? undefined : options.localKey;
     options.log = typeof options.log === 'undefined' ? false : options.log;
 
     // Check for required options
     if (!assistant) {
       return reject(new Error('Missing required {assistant} parameter'));
     }
+
+    const localKey = (options.localKey || self.assistant.request.geolocation.ip || '')
+      .replace(/[\.:]/g, '_');
 
     // Set options
     self.options = options;
@@ -57,7 +61,7 @@ Usage.prototype.init = function (assistant, options) {
     // Setup storage
     self.storage = Manager.storage({name: 'usage', temporary: true, clear: options.clear, log: options.log});
 
-    self.paths.user = `users.${self.assistant.request.geolocation.ip.replace(/[\.:]/g, '_')}`;
+    self.paths.user = `users.${localKey}`;
     self.paths.app = `apps.${options.app}`;
 
     // Get storage data
