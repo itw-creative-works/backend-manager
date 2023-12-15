@@ -17,19 +17,36 @@ Module.prototype.main = function () {
     self.Api.resolveUser({adminRequired: true})
     .then(async (user) => {
         // Get auth user from firebase
-        const authUser = await self.libraries.admin.auth().getUser(user.auth.uid).catch(e => e);
+        const ip = assistant.request.geolocation.ip;
+        const authUser = await Manager.libraries.admin.auth().getUser(user.auth.uid).catch(e => e);
+        const usage = await Manager.Usage().init(assistant, {log: true, localKey: ip});
 
         if (authUser instanceof Error) {
           return reject(assistant.errorManager(`Failed to get auth user: ${authUser}`, {code: 500, sentry: false, send: false, log: false}).error)
         }
 
-        // Difference in hours
-        const diff = (Date.now() - new Date(authUser.metadata.creationTime)) / 36e5;
+        // Difference in minutes
+        const ageInMinutes = (Date.now() - new Date(authUser.metadata.creationTime)) / 1000 / 60;
 
         // If the user is not new, reject
-        if (diff > 0.5) {
+        if (ageInMinutes > 3) {
           return reject(assistant.errorManager(`User is not new.`, {code: 400, sentry: false, send: false, log: false}).error)
         }
+
+        // Check if IP has signed up too many times
+        const signups = usage.getUsage('signups');
+
+        // If over limit, reject and delete the user
+        if (signups >= 3) {
+          await Api.import('user:delete')
+            .then(async (lib) => {
+              await lib.main().catch(e => e);
+            })
+          return reject(assistant.errorManager(`Too many signups from this IP (${ip}).`, {code: 429, sentry: false, send: false, log: false}).error)
+        }
+
+        // Increment signups
+        usage.increment('signups');
 
         await self.signUp({
           auth: {
@@ -78,7 +95,7 @@ Module.prototype.signUp = function (payload) {
 
     const result = {
       signedUp: false,
-      referrerUid: undefined,
+      referrerUid: null,
       // updatedReferral: true,
     };
 
@@ -146,7 +163,7 @@ Module.prototype.updateReferral = function (payload) {
     const result = {
       count: 0,
       updatedReferral: false,
-      referrerUid: undefined,
+      referrerUid: null,
     }
     payload = payload || {};
 
@@ -181,7 +198,7 @@ Module.prototype.updateReferral = function (payload) {
           await self.libraries.admin.firestore().doc(`users/${doc.ref.id}`)
           .set({
             affiliate: {
-              referrals: referrals
+              referrals: referrals,
             }
           }, {merge: true})
           .catch(e => {
@@ -192,7 +209,7 @@ Module.prototype.updateReferral = function (payload) {
 
           result.count = count;
           result.updatedReferral = true;
-          result.referrerUid = doc.ref.id
+          result.referrerUid = doc.ref.id;
           found = true
         }
       }

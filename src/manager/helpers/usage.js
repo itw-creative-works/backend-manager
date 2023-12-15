@@ -128,7 +128,7 @@ Usage.prototype.validate = function (path, options) {
     options.useCaptchaResponse = typeof options.useCaptchaResponse === 'undefined' ? true : options.useCaptchaResponse;
 
     // Check for required options
-    const period = self.getUsage(path)
+    const period = self.getUsage(path);
     const allowed = self.getLimit(path);
 
     // Log
@@ -238,8 +238,11 @@ Usage.prototype.update = function () {
     const Manager = self.Manager;
     const assistant = self.assistant;
 
-    // Write self.user to firestore or local if no user
-    if (self.user.auth.uid) {
+    // Write self.user to firestore or local if no user or if localKey is set
+    if (
+      self.user.auth.uid
+      && !self.options.localKey
+    ) {
       Manager.libraries.admin.firestore().doc(`users/${self.user.auth.uid}`)
         .set({
           usage: self.user.usage,
