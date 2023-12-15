@@ -1,4 +1,7 @@
 const { get, merge } = require('lodash');
+const powertools = require('node-powertools');
+
+const MAX_AGE = 30;
 
 function Module() {
   const self = this;
@@ -23,18 +26,37 @@ Module.prototype.main = function () {
   const context = self.context;
 
   return new Promise(async function(resolve, reject) {
-    assistant.log(`Request: ${user.uid}`, user, context, { environment: 'production' });
+    // ⛔️⛔️⛔️ This function could be triggered when the user signs up with Google after already having a email/password account
+
+    assistant.log(`Request: ${user.uid}`, user, context);
+
+    const ageInSeconds = (Date.now() - new Date(user.metadata.creationTime)) / 1000;
 
     // Check if exists already
-    // It could exist already if user signed up with email and then signed in with Google
-    const existingUser = await libraries.admin.firestore().doc(`users/${user.uid}`)
-      .get()
-      .then((doc) => doc.data() || {})
-      .catch(e => e)
+    let existingUser;
+    await powertools.poll(async () => {
+      existingUser = await libraries.admin.firestore().doc(`users/${user.uid}`)
+        .get()
+        .then((doc) => doc.data())
+        .catch(e => e);
+
+      assistant.log(`Polling for existing user ${user.uid}...`, existingUser);
+
+      return existingUser && !(existingUser instanceof Error);
+    }, {interval: 1000, timeout: 30000})
+    .catch(e => {
+      assistant.error(`Timeout for existing user expired`, e);
+    });
+
+    assistant.log(`Existing user ${user.uid} found (age=${ageInSeconds}):`, existingUser);
+
+    if (ageInSeconds >= MAX_AGE) {
+      existingUser = new Error(`User is not new (age=${ageInSeconds}).`);
+    }
 
     // If user already exists, skip auth-on-create handler
     if (existingUser instanceof Error) {
-      assistant.error(`Failed to get existing user ${user.uid}:`, existingUser, { environment: 'production' });
+      assistant.error(`Failed to get existing user ${user.uid}:`, existingUser);
 
       return reject(existingUser);
     }

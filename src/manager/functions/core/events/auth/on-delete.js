@@ -21,7 +21,7 @@ Module.prototype.main = function () {
   const context = self.context;
 
   return new Promise(async function(resolve, reject) {
-    assistant.log(`Request: ${user.uid}`, user, context, { environment: 'production' });
+    assistant.log(`Request: ${user.uid}`, user, context);
 
     // Set up analytics
     const analytics = self.Manager.Analytics({

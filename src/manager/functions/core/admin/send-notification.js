@@ -41,14 +41,14 @@ let Module = {
       if (!payload.title || !payload.body) {
         response.status = 400;
         response.error = new Error('Not enough notification parameters supplied.');
-        assistant.error(response.error, { environment: 'production' })
+        assistant.error(response.error)
         return res.status(response.status).send(response.error.message);
       }
 
       if (!user.roles.admin) {
         response.status = 401;
         response.error = new Error('Unauthenticated, admin required.');
-        assistant.error(response.error, { environment: 'production' })
+        assistant.error(response.error)
         return res.status(response.status).send(response.error.message);
       } else {
         await self.getTokens({tags: false});

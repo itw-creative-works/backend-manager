@@ -49,7 +49,7 @@ Module.prototype.main = function () {
       }, { merge: true });
 
     if (update instanceof Error) {
-      assistant.error(`Failed to update user ${user.uid}:`, update, { environment: 'production' });
+      assistant.error(`Failed to update user ${user.uid}:`, update);
 
       throw new functions.auth.HttpsError('internal', `Failed to update user: ${update}`);
     }

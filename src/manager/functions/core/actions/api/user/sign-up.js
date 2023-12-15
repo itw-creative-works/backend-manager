@@ -1,6 +1,9 @@
 const _ = require('lodash')
 const fetch = require('node-fetch');
 
+const MAX_SIGNUPS = 3;
+const MAX_AGE = 30;
+
 function Module() {
 
 }
@@ -16,6 +19,7 @@ Module.prototype.main = function () {
 
     self.Api.resolveUser({adminRequired: true})
     .then(async (user) => {
+        // ⛔️⛔️⛔️ This function could be triggered when the user signs up with Google after already having a email/password account
         // Get auth user from firebase
         const ip = assistant.request.geolocation.ip;
         const authUser = await Manager.libraries.admin.auth().getUser(user.auth.uid).catch(e => e);
@@ -25,19 +29,22 @@ Module.prototype.main = function () {
           return reject(assistant.errorManager(`Failed to get auth user: ${authUser}`, {code: 500, sentry: false, send: false, log: false}).error)
         }
 
-        // Difference in minutes
-        const ageInMinutes = (Date.now() - new Date(authUser.metadata.creationTime)) / 1000 / 60;
+        // Age in seconds
+        const ageInSeconds = (Date.now() - new Date(authUser.metadata.creationTime)) / 1000;
 
         // If the user is not new, reject
-        if (ageInMinutes > 3) {
+        if (ageInSeconds >= MAX_AGE) {
           return reject(assistant.errorManager(`User is not new.`, {code: 400, sentry: false, send: false, log: false}).error)
         }
 
         // Check if IP has signed up too many times
         const signups = usage.getUsage('signups');
 
+        // Log the signup
+        usage.log(`Validating signups ${signups}/${MAX_SIGNUPS}`,);
+
         // If over limit, reject and delete the user
-        if (signups >= 3) {
+        if (signups >= MAX_SIGNUPS) {
           await Api.import('user:delete')
             .then(async (lib) => {
               await lib.main().catch(e => e);

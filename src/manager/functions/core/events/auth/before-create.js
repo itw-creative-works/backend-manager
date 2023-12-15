@@ -29,10 +29,10 @@ Module.prototype.main = function () {
     const admin = self.libraries.admin;
     const storage = self.Manager.storage({ temporary: true, name: 'rate-limiting' });
 
-    assistant.log(`Request: ${user.uid}`, user, context, { environment: 'production' });
+    assistant.log(`Request: ${user.uid}`, user, context);
 
     // if (context.additionalUserInfo.recaptchaScore < 0.5) {
-    //   assistant.error(`Recaptcha score (${context.additionalUserInfo.recaptchaScore}) too low for ${user.uid}`, { environment: 'production' });
+    //   assistant.error(`Recaptcha score (${context.additionalUserInfo.recaptchaScore}) too low for ${user.uid}`);
 
     //   throw new functions.auth.HttpsError('resource-exhausted', ERROR_TOO_MANY_ATTEMPTS);
     // }
@@ -46,10 +46,10 @@ Module.prototype.main = function () {
     const count = get(rateLimitingData, 'count', 0);
     const lastTime = get(rateLimitingData, 'lastTime', 0);
 
-    assistant.log(`Rate limiting for ${ipAddress}:`, rateLimitingData, { environment: 'production' });
+    assistant.log(`Rate limiting for ${ipAddress}:`, rateLimitingData);
 
     if (currentTime - lastTime < oneHour && count >= 2) {
-      assistant.error(`Too many attemps to create an account for ${ipAddress}`, { environment: 'production' });
+      assistant.error(`Too many attemps to create an account for ${ipAddress}`);
 
       throw new functions.auth.HttpsError('resource-exhausted', ERROR_TOO_MANY_ATTEMPTS);
     }
@@ -64,7 +64,7 @@ Module.prototype.main = function () {
 
     // If user already exists, skip auth-on-create handler
     if (existingAccount instanceof Error) {
-      assistant.error(`Failed to get existing account ${user.uid}:`, existingAccount, { environment: 'production' });
+      assistant.error(`Failed to get existing account ${user.uid}:`, existingAccount);
 
       throw new functions.auth.HttpsError('internal', `Failed to get existing account: ${existingAccount}`);
     }
@@ -109,12 +109,12 @@ Module.prototype.main = function () {
       .set(account, { merge: true });
 
     if (update instanceof Error) {
-      assistant.error(`Failed to update user ${user.uid}:`, update, { environment: 'production' });
+      assistant.error(`Failed to update user ${user.uid}:`, update);
 
       throw new functions.auth.HttpsError('internal', `Failed to update user: ${update}`);
     }
 
-    assistant.log(`User created at users/${user.uid}`, account, { environment: 'production' });
+    assistant.log(`User created at users/${user.uid}`, account);
 
     return resolve(self);
   });
