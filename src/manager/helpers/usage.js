@@ -172,12 +172,15 @@ Usage.prototype.increment = function (path, value, options) {
   const Manager = self.Manager;
   const assistant = self.assistant;
 
+  value = value || 1;
+
   options = options || {};
   options.id = options.id || null;
 
   // Update total and period
   ['total', 'period', 'last'].forEach((key) => {
     const resolved = `usage.${path}.${key}`;
+    const existing = _.get(self.user, resolved, 0);
 
     if (key === 'last') {
       const now = moment(
@@ -190,9 +193,7 @@ Usage.prototype.increment = function (path, value, options) {
         timestampUNIX: now.unix(),
       });
     } else {
-      _.set(self.user, resolved,
-        _.get(self.user, resolved, 0) + value
-      );
+      _.set(self.user, resolved, existing + value);
     }
   });
 
@@ -209,6 +210,10 @@ Usage.prototype.set = function (path, value) {
 
   // Update total and period
   const resolved = `usage.${path}.${key}`;
+
+  value = value || 0;
+
+  // Set the value
   _.set(self.user, resolved, value);
 
   // Log the updated user

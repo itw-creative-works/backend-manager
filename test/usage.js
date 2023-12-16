@@ -141,6 +141,28 @@ describe(`${package.name}`, () => {
           },
         }, lib.storage.get('users.127_0_0_1.usage').value());
       });
+
+
+      // Local
+      it('should update local correctly', async () => {
+        const lib = await instance({localKey: '123.123.123.123'});
+
+        lib.increment('signups', 1, {id: 'singups'});
+
+        console.log('---lib.user.usage', lib.user.usage);
+
+        return assert.deepStrictEqual({
+          signups: {
+            total: 1,
+            period: 1,
+            last: {
+              id: 'singups',
+              timestamp: '2024-01-01T01:00:00.000Z',
+              timestampUNIX: 1704070800,
+            },
+          },
+        }, lib.user.usage);
+      });
     });
 
   });
