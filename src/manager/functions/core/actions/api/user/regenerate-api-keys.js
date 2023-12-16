@@ -16,7 +16,7 @@ Module.prototype.main = function () {
   const payload = self.payload;
 
   return new Promise(async function(resolve, reject) {
-    self.Api.resolveUser({adminRequired: true})
+    Api.resolveUser({adminRequired: true})
     .then(async (user) => {
       const keys = powertools.arrayify(_.get(payload.data.payload, 'keys') || ['clientId', 'privateKey']);
       const newKeys = {};

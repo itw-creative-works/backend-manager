@@ -12,7 +12,7 @@ Module.prototype.main = function () {
   const payload = self.payload;
 
   return new Promise(async function(resolve, reject) {
-    self.Api.resolveUser({adminRequired: true})
+    Api.resolveUser({adminRequired: true})
     .then(async (user) => {
       // TODO: resolve the account and send back
       // - Limits for the account

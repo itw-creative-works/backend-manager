@@ -12,7 +12,7 @@ Module.prototype.main = function () {
   const payload = self.payload;
 
   return new Promise(async function(resolve, reject) {
-    self.Api.resolveUser({adminRequired: true})
+    Api.resolveUser({adminRequired: true})
     .then(async (user) => {
       // Disallow deleting users with subscriptions in any state other than cancelled or active payments
       if (
@@ -21,12 +21,6 @@ Module.prototype.main = function () {
       ) {
         return reject(assistant.errorManager(`This account cannot be deleted because it has a paid subscription attached to it. In order to delete the account, you must first cancel the paid subscription.`, {code: 400, sentry: false, send: false, log: false}).error)
       }
-
-      // Signout of all sessions
-      await Api.import('user:sign-out-all-sessions')
-      .then(async (lib) => {
-        await lib.main().catch(e => e);
-      })
 
       // Perform the delete
       await self.libraries.admin.auth().deleteUser(_.get(user, 'auth.uid', null))

@@ -16,7 +16,7 @@ Module.prototype.main = function () {
     const oldDate = powertools.timestamp(new Date(0), {output: 'string'})
     const oldDateUNIX = powertools.timestamp(oldDate, {output: 'unix'});
 
-    self.Api.resolveUser({adminRequired: false})
+    Api.resolveUser({adminRequired: false})
     .then(async (user) => {
       const result = {
         plan: {

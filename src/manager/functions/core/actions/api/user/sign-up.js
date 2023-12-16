@@ -17,7 +17,7 @@ Module.prototype.main = function () {
     const assistant = self.assistant;
     const payload = self.payload;
 
-    self.Api.resolveUser({adminRequired: true})
+    Api.resolveUser({adminRequired: true})
     .then(async (user) => {
         // ⛔️⛔️⛔️ This function could be triggered when the user signs up with Google after already having a email/password account
         // Get auth user from firebase

@@ -14,7 +14,7 @@ Module.prototype.main = function () {
 
   return new Promise(async function(resolve, reject) {
 
-    self.Api.resolveUser({adminRequired: true})
+    Api.resolveUser({adminRequired: true})
     .then(async (user) => {
       const uid = _.get(user, 'auth.uid', null);
       const id = _.get(payload.data.payload, 'id', 'app');
