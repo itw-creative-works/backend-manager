@@ -1,5 +1,5 @@
 const _ = require('lodash')
-const fetch = require('node-fetch');
+const fetch = require('wonderful-fetch');
 
 const MAX_SIGNUPS = 3;
 const MAX_AGE = 30;
@@ -54,6 +54,9 @@ Module.prototype.main = function () {
 
         // Increment signups
         usage.increment('signups');
+
+        // Update signups
+        await usage.update();
 
         await self.signUp({
           auth: {
@@ -236,17 +239,17 @@ function addToMCList(key, listId, email) {
     let datacenter = key.split('-')[1];
     fetch(`https://${datacenter}.api.mailchimp.com/3.0/lists/${listId}/members`, {
         method: 'post',
-        body: JSON.stringify({
+        timeout: 30000,
+        response: 'json',
+        body: {
           email_address: email,
           status: 'subscribed',
-        }),
-        timeout: 10000,
+        },
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Basic ${key}`,
         },
       })
-      .then(res => res.json())
       .then(json => {
         if (json.status !== 'subscribed') {
           return reject(new Error(json.status));

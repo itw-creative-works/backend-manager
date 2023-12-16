@@ -47,29 +47,6 @@ Module.prototype.main = function () {
         assistant.error(`Delete user record failed`, e);
       })
 
-    // Signout of all sessions
-    assistant.log(`Signout of all sessions...`);
-    await fetch(`https://us-central1-${self.Manager.project.projectId}.cloudfunctions.net/bm_api`, {
-      method: 'post',
-      timeout: 30000,
-      response: 'json',
-      tries: 2,
-      log: true,
-      body: {
-        backendManagerKey: self.Manager.config.backend_manager.key,
-        command: 'user:sign-out-all-sessions',
-        payload: {
-          uid: user.uid,
-        }
-      },
-    })
-    .then((json) => {
-      assistant.log(`Signout of all sessions success`, json);
-    })
-    .catch(e => {
-      assistant.error(`Signout of all sessions failed`, e);
-    })
-
     // Update user count
     assistant.log(`Decrement user count...`);
     await libraries.admin.firestore().doc(`meta/stats`)
