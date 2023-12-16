@@ -41,7 +41,7 @@ Module.prototype.main = function () {
         const signups = usage.getUsage('signups');
 
         // Log the signup
-        usage.log(`Validating signups ${signups}/${MAX_SIGNUPS}`,);
+        usage.log(`Validating signups ${signups}/${MAX_SIGNUPS} for ip ${ip}`,);
 
         // If over limit, reject and delete the user
         if (signups >= MAX_SIGNUPS) {

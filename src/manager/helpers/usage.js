@@ -250,7 +250,7 @@ Usage.prototype.update = function () {
           usage: self.user.usage,
         }, {merge: true})
         .then(() => {
-          self.log(`Usage.update(): Updated user in firestore`);
+          self.log(`Usage.update(): Updated user.usage in firestore`, self.user.usage);
 
           return resolve();
         })
@@ -260,7 +260,7 @@ Usage.prototype.update = function () {
     } else {
       self.storage.set(`${self.paths.user}.usage`, self.user.usage).write();
 
-      self.log(`Usage.update(): Updated user in local storage`);
+      self.log(`Usage.update(): Updated user.usage in local storage`, self.user.usage);
 
       return resolve();
     }
