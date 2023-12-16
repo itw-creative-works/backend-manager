@@ -49,6 +49,43 @@ Module.prototype.main = function () {
             .then(async (lib) => {
               await lib.main().catch(e => e);
             })
+
+          // Send email
+          fetch(`https://us-central1-itw-creative-works.cloudfunctions.net/sendEmail`, {
+            method: 'post',
+            response: 'json',
+            log: true,
+            body: {
+              backendManagerKey: Manager.config.backend_manager.key,
+              app: Manager.config.app.id,
+              to: {
+                email: Manager.config.brand.email,
+              },
+              categories: [`user/too-many-signups`],
+              subject: `Your ${Manager.config.brand.name} account has been deleted`,
+              template: 'd-57aad40b0c20466aba08feb9892910cf',
+              group: 24077,
+              data: {
+                title: 'Account deleted',
+                message: `
+                  Your account at ${Manager.config.brand.name} has been deleted because you have signed up for too many accounts.
+                  <br>
+                  <br>
+                  If you believe this is a mistake, please contact us at ${Manager.config.brand.email}.
+                `
+              },
+            },
+          })
+          .then(async (json) => {
+            self.assistant.log('sendEmail(): Success', json)
+            return resolve(json);
+          })
+          .catch(e => {
+            self.assistant.error('sendEmail(): Failed', e)
+            return resolve(e);
+          });
+
+          // Reject
           return reject(assistant.errorManager(`Too many signups from this IP (${ip}).`, {code: 429, sentry: false, send: false, log: false}).error)
         }
 
