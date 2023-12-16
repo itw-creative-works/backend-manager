@@ -15,6 +15,8 @@ Module.prototype.main = function () {
   return new Promise(async function(resolve, reject) {
     Api.resolveUser({adminRequired: true})
     .then(async (user) => {
+      const uid = user?.auth?.uid;
+
       // Disallow deleting users with subscriptions in any state other than cancelled or active payments
       if (
         (user?.plan?.status && user?.plan?.status !== 'cancelled')
@@ -35,7 +37,7 @@ Module.prototype.main = function () {
           backendManagerKey: self.Manager.config.backend_manager.key,
           command: 'user:sign-out-all-sessions',
           payload: {
-            uid: user.uid,
+            uid: uid,
           }
         },
       })
@@ -47,7 +49,7 @@ Module.prototype.main = function () {
       })
 
       // Perform the delete
-      await self.libraries.admin.auth().deleteUser(_.get(user, 'auth.uid', null))
+      await self.libraries.admin.auth().deleteUser(uid)
       .then(() => {
         return resolve({data: {success: true}});
       })
