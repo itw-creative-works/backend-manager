@@ -392,10 +392,12 @@ BackendAssistant.prototype.errorManager = function(e, options) {
   if (options.send && self.ref.res && self.ref.res.status) {
     self.ref.res
       .status(options.code)
-      .send(newError
-        ? newError.message || newError
-        : 'Unknown error'
-      );
+      .send((
+        newError?.message
+          // ? newError.stack
+          ? newError.message
+          : newError
+      ) || 'Unknown error');
   }
 
   return {
@@ -488,11 +490,11 @@ BackendAssistant.prototype.authenticate = async function (options) {
     }
   }
 
-  if (req.headers && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+  if (req?.headers?.authorization?.startsWith('Bearer ')) {
     // Read the ID Token from the Authorization header.
     idToken = req.headers.authorization.split('Bearer ')[1];
     self.log('Found "Authorization" header', idToken, logOptions);
-  } else if (req.cookies && req.cookies.__session) {
+  } else if (req?.cookies?.__session) {
     // Read the ID Token from cookie.
     idToken = req.cookies.__session;
     self.log('Found "__session" cookie', idToken, logOptions);
@@ -517,29 +519,31 @@ BackendAssistant.prototype.authenticate = async function (options) {
     }
   } else if (options.apiKey) {
     self.log('Found "options.apiKey"', options.apiKey, logOptions);
+
     if (options.apiKey.includes('test')) {
       return _resolve(self.request.user);
     }
+
     await admin.firestore().collection(`users`)
-    .where('api.privateKey', '==', options.apiKey)
-    .get()
-    .then(function(querySnapshot) {
-      querySnapshot.forEach(function(doc) {
-        self.request.user = doc.data();
-        self.request.user.authenticated = true;
+      .where('api.privateKey', '==', options.apiKey)
+      .get()
+      .then(function(querySnapshot) {
+        querySnapshot.forEach(function(doc) {
+          self.request.user = doc.data();
+          self.request.user.authenticated = true;
+        });
+      })
+      .catch(function(error) {
+        console.error('Error getting documents: ', error);
       });
-    })
-    .catch(function(error) {
-      console.error('Error getting documents: ', error);
-    });
 
     return _resolve(self.request.user);
   } else {
-    self.log('No Firebase ID token was able to be extracted.',
-      'Make sure you authenticate your request by providing either the following HTTP header:',
-      'Authorization: Bearer <Firebase ID Token>',
-      'or by passing a "__session" cookie',
-      'or by passing backendManagerKey or authenticationToken in the body or query', logOptions);
+    // self.log('No Firebase ID token was able to be extracted.',
+    //   'Make sure you authenticate your request by providing either the following HTTP header:',
+    //   'Authorization: Bearer <Firebase ID Token>',
+    //   'or by passing a "__session" cookie',
+    //   'or by passing backendManagerKey or authenticationToken in the body or query', logOptions);
 
     return _resolve(self.request.user);
   }
