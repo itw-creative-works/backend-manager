@@ -145,7 +145,7 @@ describe(`${package.name}`, () => {
 
       // Local
       it('should update local correctly', async () => {
-        const lib = await instance({localKey: '123.123.123.123'});
+        const lib = await instance({key: '123.123.123.123'});
 
         lib.increment('signups', 1, {id: 'singups'});
 

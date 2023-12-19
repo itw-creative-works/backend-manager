@@ -31,6 +31,8 @@ Module.prototype.main = function () {
 
     assistant.log(`Request: ${user.uid}`, user, context);
 
+    // TODO: ⛔️⛔️⛔️ UTILIZE THE NEW .usage() system (similar to src/manager/functions/core/actions/api/user/sign-up.js)
+
     // if (context.additionalUserInfo.recaptchaScore < 0.5) {
     //   assistant.error(`Recaptcha score (${context.additionalUserInfo.recaptchaScore}) too low for ${user.uid}`);
 

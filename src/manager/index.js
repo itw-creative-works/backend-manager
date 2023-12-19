@@ -606,6 +606,12 @@ Manager.prototype.Usage = function () {
   return new self.libraries.Usage(self, ...arguments);
 };
 
+Manager.prototype.Middleware = function () {
+  const self = this;
+  self.libraries.Middleware = self.libraries.Middleware || require('./helpers/middleware.js');
+  return new self.libraries.Middleware(self, ...arguments);
+};
+
 Manager.prototype.Settings = function () {
   const self = this;
   self.libraries.Settings = self.libraries.Settings || require('./helpers/settings.js');

@@ -41,7 +41,8 @@ Usage.prototype.init = function (assistant, options) {
     options.refetch = typeof options.refetch === 'undefined' ? false : options.refetch;
     options.clear = typeof options.clear === 'undefined' ? false : options.clear;
     options.today = typeof options.today === 'undefined' ? undefined : options.today;
-    options.localKey = typeof options.localKey === 'undefined' ? undefined : options.localKey;
+    options.key = typeof options.key === 'undefined' ? undefined : options.key;
+    options.unauthenticatedMode = typeof options.unauthenticatedMode === 'undefined' ? 'firestore' : options.unauthenticatedMode;
     options.log = typeof options.log === 'undefined' ? false : options.log;
 
     // Check for required options
@@ -59,11 +60,11 @@ Usage.prototype.init = function (assistant, options) {
     self.storage = Manager.storage({name: 'usage', temporary: true, clear: options.clear, log: options.log});
 
     // Set local key
-    const localKey = (options.localKey || self.assistant.request.geolocation.ip || '')
+    self.key = (options.key || self.assistant.request.geolocation.ip || '')
       .replace(/[\.:]/g, '_');
 
     // Set paths
-    self.paths.user = `users.${localKey}`;
+    self.paths.user = `users.${self.key}`;
     self.paths.app = `apps.${options.app}`;
 
     // Get storage data
@@ -73,10 +74,26 @@ Usage.prototype.init = function (assistant, options) {
     // Authenticate user (user will be resolved as well)
     self.user = await assistant.authenticate();
 
-    // Replce with local if no user
-    if (!self.user.auth.uid) {
-      const existingLocal = self.storage.get(self.paths.user, {}).value();
-      self.user.usage = existingLocal && existingLocal.usage ? existingLocal.usage : self.user.usage;
+    self.useUnauthenticatedStorage = !self.user.auth.uid || self.options.key;
+
+    // Load usage with temporary if unauthenticated
+    if (self.useUnauthenticatedStorage) {
+      let foundUsage;
+
+      if (options.unauthenticatedMode === 'firestore') {
+        foundUsage = await Manager.libraries.admin.firestore().doc(`temporary/usage`)
+          .get()
+          .then((r) => {
+            return r.data()?.[`${self.key}`];
+          })
+          .catch((e) => {
+            assistant.errorManager(`Usage.init(): Error fetching usage data: ${e}`, {sentry: true, send: false, log: true});
+          });
+      } else {
+        foundUsage = self.storage.get(`${self.paths.user}.usage`, {}).value();
+      }
+
+      self.user.usage = foundUsage ? foundUsage : self.user.usage;
     }
 
     // Log
@@ -209,7 +226,7 @@ Usage.prototype.set = function (path, value) {
   const assistant = self.assistant;
 
   // Update total and period
-  const resolved = `usage.${path}.${key}`;
+  const resolved = `usage.${path}.period`;
 
   value = value || 0;
 
@@ -227,7 +244,11 @@ Usage.prototype.getUsage = function (path) {
   const Manager = self.Manager;
   const assistant = self.assistant;
 
-  return _.get(self.user, `usage.${path}.period`, 0);
+  if (path) {
+    return _.get(self.user, `usage.${path}.period`, 0);
+  } else {
+    return self.user.usage;
+  }
 };
 
 Usage.prototype.getLimit = function (path) {
@@ -235,7 +256,13 @@ Usage.prototype.getLimit = function (path) {
   const Manager = self.Manager;
   const assistant = self.assistant;
 
-  return _.get(self.app, `products.${self.options.app}-${self.user.plan.id}.limits.${path}`, 0);
+  const key = `products.${self.options.app}-${self.user.plan.id}.limits`;
+
+  if (path) {
+    return _.get(self.app, `${key}.${path}`, 0);
+  } else {
+    return _.get(self.app, key, {});
+  }
 };
 
 Usage.prototype.update = function () {
@@ -245,11 +272,29 @@ Usage.prototype.update = function () {
     const Manager = self.Manager;
     const assistant = self.assistant;
 
-    // Write self.user to firestore or local if no user or if localKey is set
-    if (
-      self.user.auth.uid
-      && !self.options.localKey
-    ) {
+    // Write self.user to firestore or local if no user or if key is set
+    if (self.useUnauthenticatedStorage) {
+      if (self.options.unauthenticatedMode === 'firestore') {
+        Manager.libraries.admin.firestore().doc(`temporary/usage`)
+          .set({
+            [`${self.key}`]: self.user.usage,
+          }, {merge: true})
+          .then(() => {
+            self.log(`Usage.update(): Updated user.usage in firestore`, self.user.usage);
+
+            return resolve();
+          })
+          .catch(e => {
+            return reject(assistant.errorManager(e, {sentry: true, send: false, log: false}));
+          });
+      } else {
+        self.storage.set(`${self.paths.user}.usage`, self.user.usage).write();
+
+        self.log(`Usage.update(): Updated user.usage in local storage`, self.user.usage);
+
+        return resolve();
+      }
+    } else {
       Manager.libraries.admin.firestore().doc(`users/${self.user.auth.uid}`)
         .set({
           usage: self.user.usage,
@@ -262,12 +307,6 @@ Usage.prototype.update = function () {
         .catch(e => {
           return reject(assistant.errorManager(e, {sentry: true, send: false, log: false}));
         });
-    } else {
-      self.storage.set(`${self.paths.user}.usage`, self.user.usage).write();
-
-      self.log(`Usage.update(): Updated user.usage in local storage`, self.user.usage);
-
-      return resolve();
     }
   });
 };

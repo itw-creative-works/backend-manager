@@ -163,6 +163,15 @@ Module.prototype.clearFirestore = function() {
       })
     }
 
+    // Clear temporary/usage in firestore by deleting the doc
+    await libraries.admin.firestore().doc(`temporary/usage`).delete()
+    .then(r => {
+      assistant.log(`cron/daily/reset-usage() [firestore]: Deleted temporary/usage`);
+    })
+    .catch(e => {
+      assistant.errorManager(`Error deleting temporary/usage: ${e}`, {sentry: false, send: false, log: true})
+    })
+
     return resolve();
   });
 }

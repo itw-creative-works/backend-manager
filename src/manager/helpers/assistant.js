@@ -33,6 +33,11 @@ BackendAssistant.prototype.init = function (ref, options) {
 
   const now = new Date();
 
+  // Attached libraries - used in .errorify()
+  self.analytics = null;
+  self.usage = null;
+
+  // Set meta
   self.meta = {};
 
   self.meta.startTime = {};
@@ -43,6 +48,7 @@ BackendAssistant.prototype.init = function (ref, options) {
   self.meta.environment = options.environment || self.getEnvironment();
   self.meta.type = options.functionType || process.env.FUNCTION_SIGNATURE_TYPE || 'unknown';
 
+  // Set ref
   self.ref = {};
   ref = ref || {};
   self.ref.res = ref.res || {};
@@ -50,13 +56,16 @@ BackendAssistant.prototype.init = function (ref, options) {
   self.ref.admin = ref.admin || {};
   self.ref.functions = ref.functions || {};
   self.ref.Manager = ref.Manager || {};
+  self.Manager = self.ref.Manager;
 
   // Set ID
   try {
-    self.id = self.ref.Manager.Utilities().randomId();
+    self.id = self.Manager.Utilities().randomId();
   } catch {
     self.id = now.getTime();
   }
+
+  self.tag = `${self.meta.name}/${self.id}`;
 
   // Set stuff about request
   self.request = {};
@@ -146,6 +155,7 @@ BackendAssistant.prototype.init = function (ref, options) {
   self.constant.pastTime.timestamp = '1999-01-01T00:00:00Z';
   self.constant.pastTime.timestampUNIX = 915148800;
 
+  // Log options
   if (
     (self.meta.environment === 'development')
     && ((self.request.method !== 'OPTIONS') || (self.request.method === 'OPTIONS' && options.showOptionsLog))
@@ -155,8 +165,10 @@ BackendAssistant.prototype.init = function (ref, options) {
     console.log(options.optionsLogString);
   }
 
+  // Set tmpdir
   self.tmpdir = path.resolve(os.tmpdir(), options.fileSavePath, uuid.v4());
 
+  // Set initialized
   self.initialized = true;
 
   return self;
@@ -279,7 +291,7 @@ BackendAssistant.prototype._log = function() {
   const logs = [...Array.prototype.slice.call(arguments)];
 
   // 2. Prepend log prefix log string
-  logs.unshift(`[${self.meta.name}/${self.id} @ ${new Date().toISOString()}]:`);
+  logs.unshift(`[${self.tag} @ ${new Date().toISOString()}]:`);
 
   // 3. Pass along arguments to console.log
   if (logs[1] === 'error') {
@@ -335,22 +347,36 @@ BackendAssistant.prototype._log = function() {
 BackendAssistant.prototype.errorManager = function(e, options) {
   const self = this;
 
+  // Set options
   options = options || {};
-  options.code = typeof options.code === 'undefined' ? 500 : options.code;
-  options.log = typeof options.log === 'undefined' ? true : options.log;
-  options.sentry = typeof options.sentry === 'undefined' ? true : options.sentry;
-  options.send = typeof options.send === 'undefined' ? true : options.send;
+  options.code = typeof options.code === 'undefined'
+    ? 500
+    : options.code;
+  options.log = typeof options.log === 'undefined'
+    ? true
+    : options.log;
+  options.sentry = typeof options.sentry === 'undefined'
+    ? true
+    : options.sentry;
+  options.send = typeof options.send === 'undefined'
+    ? true
+    : options.send;
 
+  // Construct error
   const newError = e instanceof Error
     ? e
     : new Error(stringify(e));
 
+  options.code = newError.code || options.code;
+
   // Attach properties
   Object.keys(options)
   .forEach((item, i) => {
-    Object.assign(newError , { [item]: options[item] })
+    Object.assign(newError, { [item]: options[item] });
   });
 
+  // Attach properties
+  _attachHeaderProperties(self, options);
 
   // Log the error
   if (options.log) {
@@ -359,16 +385,53 @@ BackendAssistant.prototype.errorManager = function(e, options) {
 
   // Send error to Sentry
   if (options.sentry) {
-    self.ref.Manager.libraries.sentry.captureException(newError);
+    self.Manager.libraries.sentry.captureException(newError);
   }
 
   // Quit and respond to the request
   if (options.send && self.ref.res && self.ref.res.status) {
-    self.ref.res.status(options.code).send(newError ? newError.message || newError : 'Unknown error');
+    self.ref.res
+      .status(options.code)
+      .send(newError
+        ? newError.message || newError
+        : 'Unknown error'
+      );
   }
 
   return {
     error: newError,
+  }
+}
+
+BackendAssistant.prototype.errorify = BackendAssistant.prototype.errorManager;
+
+BackendAssistant.prototype.respond = function(response, options) {
+  const self = this;
+
+  // Set options
+  options = options || {};
+  options.code = typeof options.code === 'undefined'
+    ? 200
+    : options.code;
+  options.log = typeof options.log === 'undefined'
+    ? true
+    : options.log;
+
+  // Attach properties
+  _attachHeaderProperties(self, options);
+
+  // Log the error
+  if (options.log) {
+    self.log(`Responding with ${options.code} code:`, JSON.stringify(response));
+  }
+
+  // Send response
+  self.ref.res.status(options.code);
+
+  if (typeof response === 'string') {
+    self.ref.res.send(response);
+  } else {
+    self.ref.res.json(response);
   }
 }
 
@@ -380,6 +443,21 @@ function stringify(e) {
   }
 }
 
+function _attachHeaderProperties(self, options) {
+  // Create headers
+  const headers = {
+    code: options.code,
+    tag: self.tag,
+    usage: {
+      current: self?.usage?.getUsage() || {},
+      limits: self?.usage?.getLimit() || {},
+    },
+    additional: options.additional || {},
+  }
+
+  // Attach properties
+  self.ref.res.header('bm-properties', JSON.stringify(headers));
+}
 
 BackendAssistant.prototype.authenticate = async function (options) {
   const self = this;
@@ -422,7 +500,7 @@ BackendAssistant.prototype.authenticate = async function (options) {
     // Check with custom BEM Token
     let storedApiKey;
     try {
-      const workingConfig = _.get(self.ref.Manager, 'config') || functions.config();
+      const workingConfig = _.get(self.Manager, 'config') || functions.config();
       storedApiKey = _.get(workingConfig, 'backend_manager.key', '')
     } catch (e) {
 

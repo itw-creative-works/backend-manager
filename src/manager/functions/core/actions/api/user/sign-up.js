@@ -23,7 +23,7 @@ Module.prototype.main = function () {
         // Get auth user from firebase
         const ip = assistant.request.geolocation.ip;
         const authUser = await Manager.libraries.admin.auth().getUser(user.auth.uid).catch(e => e);
-        const usage = await Manager.Usage().init(assistant, {log: true, localKey: ip});
+        const usage = await Manager.Usage().init(assistant, {log: true, key: ip});
 
         if (authUser instanceof Error) {
           return reject(assistant.errorManager(`Failed to get auth user: ${authUser}`, {code: 500, sentry: false, send: false, log: false}).error)
