@@ -54,7 +54,7 @@ Middleware.prototype.run = function (library, req, res, options) {
 
     // Process
     try {
-      library.main(assistant, req, res)
+      library.main(assistant)
       // .then(result => {
       //   return res.status(200).json(result);
       // })

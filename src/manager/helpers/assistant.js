@@ -419,6 +419,14 @@ BackendAssistant.prototype.respond = function(response, options) {
     ? true
     : options.log;
 
+  // Handle error
+  if (
+    response instanceof Error
+    || (options.code >= 400 && options.code <= 599)
+  ) {
+    return self.errorify(response, options);
+  }
+
   // Attach properties
   _attachHeaderProperties(self, options);
 

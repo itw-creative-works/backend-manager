@@ -17,7 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ---
 ## [3.1.0] - 2023-12-19
 ### Added
-- Added `.analytics()` GA4 support.
+- Added `.analytics()` API GA4 support.
 
 #### New Analytics Format
 ```js
@@ -30,8 +30,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     },
   });
 ```
-- Added `.usage()` to track API usage.
-- Added `.middleware()` to help setup http functions.
+- Added `.usage()` API to track user usage.
+- Added `.middleware()` API to help setup http functions.
+- Added `.respond()` function to `assistant.js` to help with http responses.
 
 ## [3.0.0] - 2023-09-05
 ### ⚠️ BREAKING
