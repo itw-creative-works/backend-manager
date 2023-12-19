@@ -283,7 +283,7 @@ BackendAssistant.prototype.emergency = function () {
   self.log.apply(self, args);
 };
 
-BackendAssistant.prototype._log = function() {
+BackendAssistant.prototype._log = function () {
   const self = this;
 
   // 1. Convert args to a normal array
@@ -344,7 +344,7 @@ BackendAssistant.prototype._log = function() {
   }
 }
 
-BackendAssistant.prototype.errorManager = function(e, options) {
+BackendAssistant.prototype.errorManager = function (e, options) {
   const self = this;
 
   // Set options
