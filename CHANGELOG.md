@@ -15,6 +15,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Security` in case of vulnerabilities.
 
 ---
+## [3.1.0] - 2023-12-19
+### Added
+- Added `.analytics()` GA4 support.
+
+#### New Analytics Format
+```js
+  analytics.send({
+    name: 'tutorial_begin',
+    params: {
+      tutorial_id: 'tutorial_1',
+      tutorial_name: 'the_beginning',
+      tutorial_step: 1,
+    },
+  });
+```
+- Added `.usage()` to track API usage.
+- Added `.middleware()` to help setup http functions.
+
 ## [3.0.0] - 2023-09-05
 ### ⚠️ BREAKING
 - Updated `firebase-admin` from `9.12.0` --> `11.10.1`
@@ -30,6 +48,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Removed `backend-assistant` dependency and moved to custom library within this module at `./src/manager/helpers/assistant.js`
 - Replaced `require('firebase-functions/lib/logger/compat')` with the updated `require('firebase-functions/logger/compat')`
 - Changed default for `options.setupFunctionsLegacy` from `true` --> `false`
+- `.analytics()` is broken due to GA4 updates and should not be used until the next feature release
 - Updated geolocation and client data retrieval to new format:
 #### New Way
 ```js
