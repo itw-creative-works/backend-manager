@@ -371,7 +371,9 @@ BackendAssistant.prototype.errorify = function (e, options) {
     ? e
     : new Error(stringify(e));
 
+  // Fix code
   options.code = newError.code || options.code;
+  options.code = isBetween(options.code, 400, 599) ? options.code : 500;
 
   // Attach properties
   _attachHeaderProperties(self, options, newError);
@@ -428,10 +430,12 @@ BackendAssistant.prototype.respond = function(response, options) {
     : options.log;
 
   // Handle error
+  const isErrorCode = isBetween(options.code, 400, 599);
   if (
     response instanceof Error
-    || (options.code >= 400 && options.code <= 599)
+    || isErrorCode
   ) {
+    options.code = !isErrorCode ? undefined : options.code;
     return self.errorify(response, options);
   }
 
@@ -452,6 +456,10 @@ BackendAssistant.prototype.respond = function(response, options) {
   } else {
     res.send(response);
   }
+}
+
+function isBetween(value, min, max) {
+  return value >= min && value <= max;
 }
 
 function stringify(e) {
