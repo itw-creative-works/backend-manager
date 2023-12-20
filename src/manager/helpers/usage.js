@@ -81,13 +81,14 @@ Usage.prototype.init = function (assistant, options) {
       let foundUsage;
 
       if (options.unauthenticatedMode === 'firestore') {
+        // TODO: Make it request using .where() query so it doesnt use a read if it doesnt have to
         foundUsage = await Manager.libraries.admin.firestore().doc(`temporary/usage`)
           .get()
           .then((r) => {
             return r.data()?.[`${self.key}`];
           })
           .catch((e) => {
-            assistant.errorManager(`Usage.init(): Error fetching usage data: ${e}`, {sentry: true, send: false, log: true});
+            assistant.errorify(`Usage.init(): Error fetching usage data: ${e}`, {sentry: true, send: false, log: true});
           });
       } else {
         foundUsage = self.storage.get(`${self.paths.user}.usage`, {}).value();
@@ -114,7 +115,7 @@ Usage.prototype.init = function (assistant, options) {
         self.storage.set(`${self.paths.app}.lastFetched`, new Date().toISOString()).write();
       })
       .catch(e => {
-        assistant.errorManager(`Usage.init(): Error fetching app data: ${e}`, {sentry: true, send: false, log: true});
+        assistant.errorify(`Usage.init(): Error fetching app data: ${e}`, {sentry: true, send: false, log: true});
       })
     }
 
@@ -172,14 +173,14 @@ Usage.prototype.validate = function (path, options) {
       // If the captcha is valid, resolve
       if (!captchaResult || captchaResult instanceof Error || !captchaResult.success) {
         return reject(
-          assistant.errorManager(`Captcha verification failed.`, {code: 400, sentry: false, send: false, log: false}).error
+          assistant.errorify(`Captcha verification failed.`, {code: 400, sentry: false, send: false, log: false}).error
         );
       }
     }
 
     // Otherwise, they are over the limit, reject
     return reject(
-      assistant.errorManager(`You have exceeded your ${path} usage limit of ${period}/${allowed}.`, {code: 429, sentry: false, send: false, log: false}).error
+      assistant.errorify(`You have exceeded your ${path} usage limit of ${period}/${allowed}.`, {code: 429, sentry: false, send: false, log: false}).error
     );
   });
 };
@@ -282,17 +283,17 @@ Usage.prototype.update = function () {
           .then(() => {
             self.log(`Usage.update(): Updated user.usage in firestore`, self.user.usage);
 
-            return resolve();
+            return resolve(self.user.usage);
           })
           .catch(e => {
-            return reject(assistant.errorManager(e, {sentry: true, send: false, log: false}));
+            return reject(assistant.errorify(e, {sentry: true, send: false, log: false}));
           });
       } else {
         self.storage.set(`${self.paths.user}.usage`, self.user.usage).write();
 
         self.log(`Usage.update(): Updated user.usage in local storage`, self.user.usage);
 
-        return resolve();
+        return resolve(self.user.usage);
       }
     } else {
       Manager.libraries.admin.firestore().doc(`users/${self.user.auth.uid}`)
@@ -302,10 +303,10 @@ Usage.prototype.update = function () {
         .then(() => {
           self.log(`Usage.update(): Updated user.usage in firestore`, self.user.usage);
 
-          return resolve();
+          return resolve(self.user.usage);
         })
         .catch(e => {
-          return reject(assistant.errorManager(e, {sentry: true, send: false, log: false}));
+          return reject(assistant.errorify(e, {sentry: true, send: false, log: false}));
         });
     }
   });

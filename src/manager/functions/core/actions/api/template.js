@@ -12,7 +12,7 @@ Module.prototype.main = function () {
   return new Promise(async function(resolve, reject) {
 
     if (!payload.user.roles.admin) {
-      return reject(assistant.errorManager(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
     }
 
     // self.Api.resolveUser({adminRequired: false})

@@ -19,7 +19,7 @@ Module.prototype.main = function () {
     payload.data.payload.deletionRegex = payload.data.payload.deletionRegex ? powertools.regexify(payload.data.payload.deletionRegex) : payload.data.payload.deletionRegex;
 
     if (!payload.user.roles.admin && assistant.meta.environment === 'production') {
-      return reject(assistant.errorManager(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
     }
 
     // https://googleapis.dev/nodejs/firestore/latest/v1.FirestoreAdminClient.html#exportDocuments
@@ -61,7 +61,7 @@ Module.prototype.main = function () {
     })
     .catch(async (e) => {
       await self._setMetaStats(e);
-      return reject(assistant.errorManager(e, {code: 500, sentry: false, send: false, log: true}).error)
+      return reject(assistant.errorify(e, {code: 500, sentry: false, send: false, log: true}).error)
     });
 
   });
@@ -96,7 +96,7 @@ Module.prototype._setMetaStats = function (error, meta) {
       metadata: Manager.Metadata().set({tag: 'admin:backup'}),
     }, {merge: true})
     .catch(e => {
-      assistant.errorManager(e, {code: 500, sentry: false, send: false, log: true});
+      assistant.errorify(e, {code: 500, sentry: false, send: false, log: true});
     })
 
     return resolve();

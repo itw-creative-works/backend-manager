@@ -48,7 +48,7 @@ Module.prototype.main = function() {
         assistant.log(`cron/daily(): Job ${jobName} completed...`);
       })
       .catch(e => {
-        assistant.errorManager(`Error executing ${jobName}: ${e}`, {sentry: true, send: false, log: true});
+        assistant.errorify(`Error executing ${jobName}: ${e}`, {sentry: true, send: false, log: true});
         caught = e;
       })
     }

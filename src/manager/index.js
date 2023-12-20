@@ -198,8 +198,8 @@ Manager.prototype.init = function (exporter, options) {
     exporter.bm_api =
     self.libraries.functions
     .runWith({memory: '256MB', timeoutSeconds: 60})
-    .https
-    .onRequest(async (req, res) => {
+    // TODO: Replace this with new API
+    .https.onRequest(async (req, res) => {
       return self._process((new (require(`${core}/actions/api.js`))()).init(self, { req: req, res: res, }))
     });
 
@@ -466,7 +466,7 @@ Manager.prototype._process = function (mod) {
     function _reject(e, log) {
       if (log) {
         // self.assistant.error(e);
-        mod.assistant.errorManager(e, {code: 500, sentry: true, send: false, log: true});
+        mod.assistant.errorify(e, {code: 500, sentry: true, send: false, log: true});
       }
       // res.status(500).send(e.message);
       return resolve()

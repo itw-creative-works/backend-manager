@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "3.1.1",
+  "version": "3.1.3",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -65,7 +65,7 @@
     "uid-generator": "^2.0.0",
     "ultimate-jekyll-poster": "^0.0.15",
     "uuid": "^9.0.1",
-    "wonderful-fetch": "^1.0.1",
+    "wonderful-fetch": "^1.1.0",
     "wonderful-log": "^1.0.5",
     "yargs": "^17.7.2"
   }

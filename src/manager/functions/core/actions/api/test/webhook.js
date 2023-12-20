@@ -19,7 +19,7 @@ Module.prototype.main = function () {
     if (payload.data.payload.status >= 200 && payload.data.payload.status <= 299) {
       return resolve({data: payload.data.payload.response, status: payload.data.payload.status});
     } else if (payload.data.payload.status >= 400 && payload.data.payload.status <= 599) {
-      return reject(assistant.errorManager(payload.data.payload.response || 'Unknown error message provided', {code: payload.data.payload.status, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(payload.data.payload.response || 'Unknown error message provided', {code: payload.data.payload.status, sentry: false, send: false, log: false}).error)
     }
 
   });

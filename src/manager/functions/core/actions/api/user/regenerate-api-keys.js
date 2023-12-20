@@ -39,7 +39,7 @@ Module.prototype.main = function () {
         return resolve({data: newKeys});
       })
       .catch(e => {
-        return reject(assistant.errorManager(`Failed to generate keys: ${e}`, {code: 500, sentry: true, send: false, log: false}).error)
+        return reject(assistant.errorify(`Failed to generate keys: ${e}`, {code: 500, sentry: true, send: false, log: false}).error)
       })
 
     })

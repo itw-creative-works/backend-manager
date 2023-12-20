@@ -15,7 +15,7 @@ Module.prototype.main = function () {
   return new Promise(async function(resolve, reject) {
 
     if (!payload.user.roles.admin) {
-      return reject(assistant.errorManager(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
     }
 
     payload.response.data = {
@@ -83,7 +83,7 @@ Module.prototype.main = function () {
       .catch(e => e);
 
       if (createdInvoice instanceof Error) {
-        return reject(assistant.errorManager(createdInvoice, {code: 400, sentry: false, send: false, log: false}).error)
+        return reject(assistant.errorify(createdInvoice, {code: 400, sentry: false, send: false, log: false}).error)
       }
 
       // Send invoice
@@ -104,7 +104,7 @@ Module.prototype.main = function () {
       .catch(e => e);
 
       if (sentInvoice instanceof Error) {
-        return reject(assistant.errorManager(sentInvoice, {code: 500, sentry: false, send: false, log: false}).error)
+        return reject(assistant.errorify(sentInvoice, {code: 500, sentry: false, send: false, log: false}).error)
       }
 
       payload.response.data.invoice = {

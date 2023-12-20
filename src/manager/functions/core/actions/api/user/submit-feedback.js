@@ -77,11 +77,11 @@ Module.prototype.main = function () {
           });
         })
         .catch((e) => {
-          return reject(assistant.errorManager(`Failed to save feedback: ${e.message}`, {code: 500, sentry: true, send: false, log: true}).error)
+          return reject(assistant.errorify(`Failed to save feedback: ${e.message}`, {code: 500, sentry: true, send: false, log: true}).error)
         })
       })
       .catch((e) => {
-        return reject(assistant.errorManager(`Failed to get app: ${e.message}`, {code: 500, sentry: true, send: false, log: true}).error)
+        return reject(assistant.errorify(`Failed to get app: ${e.message}`, {code: 500, sentry: true, send: false, log: true}).error)
       })
 
     })

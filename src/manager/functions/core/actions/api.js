@@ -271,7 +271,7 @@ Module.prototype.resolveUser = function (options) {
 
     if (options.uid) {
       if (options.adminRequired && !options.admin) {
-        user = self.assistant.errorManager('Admin required', {code: 401, sentry: false, send: false, log: false}).error;
+        user = self.assistant.errorify('Admin required', {code: 401, sentry: false, send: false, log: false}).error;
       } else {
         await self.libraries.admin.firestore().doc(`users/${options.uid}`)
         .get()
@@ -280,11 +280,11 @@ Module.prototype.resolveUser = function (options) {
           if (data) {
             user = data;
           } else {
-            user = self.assistant.errorManager(`User does not exist: ${options.uid}`, {code: 400, sentry: false, send: false, log: false}).error;
+            user = self.assistant.errorify(`User does not exist: ${options.uid}`, {code: 400, sentry: false, send: false, log: false}).error;
           }
         })
         .catch(function (e) {
-          user = self.assistant.errorManager(e, {code: 500, sentry: false, send: false, log: false}).error;
+          user = self.assistant.errorify(e, {code: 500, sentry: false, send: false, log: false}).error;
         })
       }
     } else if (self.payload.user.authenticated) {
@@ -296,7 +296,7 @@ Module.prototype.resolveUser = function (options) {
     if (user instanceof Error) {
       return reject(user);
     } else if (!user) {
-      return reject(self.assistant.errorManager('Unable to resolve user', {code: 500, sentry: false, send: false, log: false}).error);
+      return reject(self.assistant.errorify('Unable to resolve user', {code: 500, sentry: false, send: false, log: false}).error);
     } else {
       return resolve(user);
     }

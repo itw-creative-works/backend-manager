@@ -16,9 +16,9 @@ Module.prototype.main = function () {
 
     // Perform checks
     if (!payload.user.roles.admin) {
-      return reject(assistant.errorManager(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
     } else if (!payload.data.payload.path) {
-      return reject(assistant.errorManager(`<path> parameter required`, {code: 400, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(`<path> parameter required`, {code: 400, sentry: false, send: false, log: false}).error)
     }
 
     // Read from Firestore
@@ -28,7 +28,7 @@ Module.prototype.main = function () {
       return resolve({data: doc.data()});
     })
     .catch(e => {
-      return reject(assistant.errorManager(e, {code: 500, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(e, {code: 500, sentry: false, send: false, log: false}).error)
     })
   });
 

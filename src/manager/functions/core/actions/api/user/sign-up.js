@@ -26,7 +26,7 @@ Module.prototype.main = function () {
         const usage = await Manager.Usage().init(assistant, {log: true, key: ip});
 
         if (authUser instanceof Error) {
-          return reject(assistant.errorManager(`Failed to get auth user: ${authUser}`, {code: 500, sentry: false, send: false, log: false}).error)
+          return reject(assistant.errorify(`Failed to get auth user: ${authUser}`, {code: 500, sentry: false, send: false, log: false}).error)
         }
 
         // Age in seconds
@@ -34,7 +34,7 @@ Module.prototype.main = function () {
 
         // If the user is not new, reject
         if (ageInSeconds >= MAX_AGE) {
-          return reject(assistant.errorManager(`User is not new.`, {code: 400, sentry: false, send: false, log: false}).error)
+          return reject(assistant.errorify(`User is not new.`, {code: 400, sentry: false, send: false, log: false}).error)
         }
 
         // Check if IP has signed up too many times
@@ -86,7 +86,7 @@ Module.prototype.main = function () {
           });
 
           // Reject
-          return reject(assistant.errorManager(`Too many signups from this IP (${ip}).`, {code: 429, sentry: false, send: false, log: false}).error)
+          return reject(assistant.errorify(`Too many signups from this IP (${ip}).`, {code: 429, sentry: false, send: false, log: false}).error)
         }
 
         // Increment signups
@@ -121,7 +121,7 @@ Module.prototype.main = function () {
           return resolve({data: result});
         })
         .catch(function (e) {
-          return reject(assistant.errorManager(`Failed to sign up: ${e}`, {code: 500, sentry: false, send: false, log: false}).error)
+          return reject(assistant.errorify(`Failed to sign up: ${e}`, {code: 500, sentry: false, send: false, log: false}).error)
         })
     })
     .catch(e => {

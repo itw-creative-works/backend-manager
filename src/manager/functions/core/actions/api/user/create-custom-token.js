@@ -19,7 +19,7 @@ Module.prototype.main = function () {
         return resolve({data: {token: token}});
       })
       .catch(e => {
-        return reject(assistant.errorManager(`Failed to create custom token: ${e}`, {code: 400, sentry: false, send: false, log: false}).error)
+        return reject(assistant.errorify(`Failed to create custom token: ${e}`, {code: 400, sentry: false, send: false, log: false}).error)
       })
     })
     .catch(e => {

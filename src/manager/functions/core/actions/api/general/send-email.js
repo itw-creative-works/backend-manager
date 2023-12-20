@@ -32,9 +32,9 @@ Module.prototype.main = function () {
     }
 
     if (!payload.data.payload.id) {
-      return reject(assistant.errorManager(`Parameter {id} is required.`, {code: 400, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(`Parameter {id} is required.`, {code: 400, sentry: false, send: false, log: false}).error)
     } else if (!payload.data.payload.email) {
-      return reject(assistant.errorManager(`Parameter {email} is required.`, {code: 400, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(`Parameter {email} is required.`, {code: 400, sentry: false, send: false, log: false}).error)
     }
 
     let emailPayload
@@ -46,7 +46,7 @@ Module.prototype.main = function () {
         script(payload.data.payload, Manager.config),
       );
     } catch (e) {
-      return reject(assistant.errorManager(`${payload.data.payload.id} is not a valid email ID.`, {code: 400, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(`${payload.data.payload.id} is not a valid email ID.`, {code: 400, sentry: false, send: false, log: false}).error)
     }
 
     const storage = Manager.storage({temporary: true});
@@ -70,7 +70,7 @@ Module.prototype.main = function () {
     assistant.log('Storage:', storage.getState()['api:general:send-email']);
 
     if (ipData.count >= emailPayload.spamFilter.ip || emailData.count >= emailPayload.spamFilter.email) {
-      self.assistant.errorManager(`Spam filter triggered ip=${ipData.count}, email=${emailData.count}`, {code: 429, sentry: false, send: false, log: true})
+      self.assistant.errorify(`Spam filter triggered ip=${ipData.count}, email=${emailData.count}`, {code: 429, sentry: false, send: false, log: true})
       return resolve({data: {success: true}});
     }
 
@@ -99,7 +99,7 @@ Module.prototype.main = function () {
       });
     })
     .catch(e => {
-      return reject(assistant.errorManager(`Error sending email: ${e}`, {code: 500, sentry: true, send: false, log: false}).error)
+      return reject(assistant.errorify(`Error sending email: ${e}`, {code: 500, sentry: true, send: false, log: false}).error)
     });
 
   });

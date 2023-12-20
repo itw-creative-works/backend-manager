@@ -37,17 +37,17 @@ Module.prototype.main = function () {
       self._notificationPayload.notification.click_action.searchParams.set('cb', new Date().getTime())
       self._notificationPayload.notification.click_action = self._notificationPayload.notification.click_action.toString()
     } catch (e) {
-      assistant.errorManager(`Failed to add cb to URL: ${e}`, {code: 500, sentry: false, send: false, log: true})
+      assistant.errorify(`Failed to add cb to URL: ${e}`, {code: 500, sentry: false, send: false, log: true})
     }
 
     assistant.log('Resolved notification payload', self._notificationPayload)
 
     if (!payload.user.roles.admin) {
-      return reject(assistant.errorManager(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
     }
 
     if (!payload.data.payload.title || !payload.data.payload.body) {
-      return reject(assistant.errorManager(`Parameters <title> and <body> required`, {code: 400, sentry: true, send: false, log: false}).error)
+      return reject(assistant.errorify(`Parameters <title> and <body> required`, {code: 400, sentry: true, send: false, log: false}).error)
     }
 
     await self.getTokens({tags: false})
@@ -55,7 +55,7 @@ Module.prototype.main = function () {
       return resolve({data: payload.response.data})
     })
     .catch(e => {
-      return reject(assistant.errorManager(`Failed to send notification: ${e}`, {code: 400, sentry: true, send: false, log: false}).error)
+      return reject(assistant.errorify(`Failed to send notification: ${e}`, {code: 400, sentry: true, send: false, log: false}).error)
     })
   });
 

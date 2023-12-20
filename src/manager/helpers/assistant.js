@@ -60,7 +60,7 @@ BackendAssistant.prototype.init = function (ref, options) {
 
   // Set ID
   try {
-    self.id = self.Manager.Utilities().randomId();
+    self.id = self.ref.req.headers['function-execution-id'] || self.Manager.Utilities().randomId();
   } catch {
     self.id = now.getTime();
   }
@@ -344,8 +344,9 @@ BackendAssistant.prototype._log = function () {
   }
 }
 
-BackendAssistant.prototype.errorManager = function (e, options) {
+BackendAssistant.prototype.errorify = function (e, options) {
   const self = this;
+  const res = self.ref.res;
 
   // Set options
   options = options || {};
@@ -361,6 +362,9 @@ BackendAssistant.prototype.errorManager = function (e, options) {
   options.send = typeof options.send === 'undefined'
     ? true
     : options.send;
+  options.stack = typeof options.stack === 'undefined'
+    ? false
+    : options.stack;
 
   // Construct error
   const newError = e instanceof Error
@@ -370,13 +374,7 @@ BackendAssistant.prototype.errorManager = function (e, options) {
   options.code = newError.code || options.code;
 
   // Attach properties
-  Object.keys(options)
-  .forEach((item, i) => {
-    Object.assign(newError, { [item]: options[item] });
-  });
-
-  // Attach properties
-  _attachHeaderProperties(self, options);
+  _attachHeaderProperties(self, options, newError);
 
   // Log the error
   if (options.log) {
@@ -389,15 +387,24 @@ BackendAssistant.prototype.errorManager = function (e, options) {
   }
 
   // Quit and respond to the request
-  if (options.send && self.ref.res && self.ref.res.status) {
-    self.ref.res
+  if (options.send && res && res.status) {
+    let sendable = newError?.stack && options.stack
+      ? newError?.stack
+      : newError?.message;
+
+    // Set error
+    sendable = `${sendable || newError || 'Unknown error'}`;
+
+    // Attach tag
+    if (newError.tag) {
+      // sendable = `(${newError.tag}) ${sendable}`;
+      sendable = `${sendable} (${newError.tag})`;
+    }
+
+    // Send response
+    res
       .status(options.code)
-      .send((
-        newError?.message
-          // ? newError.stack
-          ? newError.message
-          : newError
-      ) || 'Unknown error');
+      .send(sendable);
   }
 
   return {
@@ -405,10 +412,11 @@ BackendAssistant.prototype.errorManager = function (e, options) {
   }
 }
 
-BackendAssistant.prototype.errorify = BackendAssistant.prototype.errorManager;
+BackendAssistant.prototype.errorManager = BackendAssistant.prototype.errorify;
 
 BackendAssistant.prototype.respond = function(response, options) {
   const self = this;
+  const res = self.ref.res;
 
   // Set options
   options = options || {};
@@ -436,12 +444,13 @@ BackendAssistant.prototype.respond = function(response, options) {
   }
 
   // Send response
-  self.ref.res.status(options.code);
+  res.status(options.code);
 
-  if (typeof response === 'string') {
-    self.ref.res.send(response);
+  // If it is an object, send as json
+  if (response && typeof response === 'object') {
+    res.json(response);
   } else {
-    self.ref.res.json(response);
+    res.send(response);
   }
 }
 
@@ -453,7 +462,7 @@ function stringify(e) {
   }
 }
 
-function _attachHeaderProperties(self, options) {
+function _attachHeaderProperties(self, options, error) {
   // Create headers
   const headers = {
     code: options.code,
@@ -467,6 +476,14 @@ function _attachHeaderProperties(self, options) {
 
   // Attach properties
   self.ref.res.header('bm-properties', JSON.stringify(headers));
+
+  // Attach properties
+  if (error) {
+    Object.keys(headers)
+    .forEach((item, i) => {
+      error[item] = headers[item];
+    });
+  }
 }
 
 BackendAssistant.prototype.authenticate = async function (options) {
@@ -498,7 +515,7 @@ BackendAssistant.prototype.authenticate = async function (options) {
     }
   }
 
-  if (req?.headers?.authorization?.startsWith('Bearer ')) {
+  if (req?.headers?.authorization && req?.headers?.authorization?.startsWith('Bearer ')) {
     // Read the ID Token from the Authorization header.
     idToken = req.headers.authorization.split('Bearer ')[1];
     self.log('Found "Authorization" header', idToken, logOptions);

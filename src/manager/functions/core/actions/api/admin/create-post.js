@@ -18,7 +18,7 @@ Module.prototype.main = function () {
   return new Promise(async function(resolve, reject) {
     // Perform checks
     if (!payload.user.roles.admin && !payload.user.roles.blogger) {
-      return reject(assistant.errorManager(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
     }
 
     const repoInfo = assistant.parseRepo(get(self.Manager.config, 'github.repo_website'));
@@ -45,7 +45,7 @@ Module.prototype.main = function () {
     const finalPost = await poster.create(payload.data).catch(e => e);
 
     if (finalPost instanceof Error) {
-      return reject(assistant.errorManager(`Failed to post: ${finalPost}`, {code: 500, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(`Failed to post: ${finalPost}`, {code: 500, sentry: false, send: false, log: false}).error)
     }
 
     // Request indexing
@@ -68,7 +68,7 @@ Module.prototype.main = function () {
       return resolve({data: finalPost});
     })
     .catch((e) => {
-      return reject(assistant.errorManager(`Failed to post: ${e}`, {code: 500, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(`Failed to post: ${e}`, {code: 500, sentry: false, send: false, log: false}).error)
     })
 
   });

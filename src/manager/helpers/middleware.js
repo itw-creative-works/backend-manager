@@ -36,15 +36,7 @@ Middleware.prototype.run = function (library, req, res, options) {
       library = path.resolve(process.cwd(), `${library}.js`);
       library = new (require(library))();
     } catch (e) {
-      assistant.errorManager(`Unable to load library @ (${library}): ${e.message}`, {sentry: true, send: true, log: true});
-    }
-
-    // Setup analytics
-    if (options.setupAnalytics) {
-      assistant.analytics = Manager.Analytics({
-        assistant: assistant,
-        uuid: assistant.request.geolocation.ip,
-      })
+      assistant.errorify(`Unable to load library @ (${library}): ${e.message}`, {sentry: true, send: true, log: true});
     }
 
     // Setup usage
@@ -52,17 +44,34 @@ Middleware.prototype.run = function (library, req, res, options) {
       assistant.usage = await Manager.Usage().init(assistant);
     }
 
+    // Setup analytics
+    if (options.setupAnalytics) {
+      const uuid = assistant?.usage?.user?.auth?.uid
+        || assistant.request.user.auth.uid
+        || assistant.request.geolocation.ip
+
+      assistant.analytics = Manager.Analytics({
+        assistant: assistant,
+        uuid: uuid,
+      })
+    }
+
     // Process
     try {
-      library.main(assistant)
+      // Set properties
+      library.Manager = Manager;
+      library.assistant = assistant;
+
+      // Run library
+      library.main(assistant, req, res)
       // .then(result => {
       //   return res.status(200).json(result);
       // })
       .catch(e => {
-        assistant.errorManager(e, {sentry: true, send: true, log: true});
+        assistant.errorify(e, {sentry: true, send: true, log: true});
       });
     } catch (e) {
-      assistant.errorManager(e, {sentry: true, send: true, log: true});
+      assistant.errorify(e, {sentry: true, send: true, log: true});
     }
   });
 };
