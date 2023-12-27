@@ -137,6 +137,12 @@ function User(Manager, settings, options) {
         national: _.get(settings, 'personal.telephone.national', defaults ? 0 : null),
       },
     },
+    oauth2: {
+      // updated: {
+      //   timestamp: _.get(settings, 'oauth2.updated.timestamp', defaults ? oldDate : null),
+      //   timestampUNIX: _.get(settings, 'oauth2.updated.timestampUNIX', defaults ? oldDateUNIX : null),
+      // },
+    },
   }
 
   if (options.prune) {

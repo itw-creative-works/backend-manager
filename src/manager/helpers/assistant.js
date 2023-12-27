@@ -483,7 +483,11 @@ function _attachHeaderProperties(self, options, error) {
   }
 
   // Attach properties
-  self.ref.res.header('bm-properties', JSON.stringify(headers));
+  try {
+    self.ref.res.header('bm-properties', JSON.stringify(headers));
+  } catch (e) {
+    self.warn('Error attaching properties to header', e);
+  }
 
   // Attach properties
   if (error) {

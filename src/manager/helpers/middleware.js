@@ -4,6 +4,7 @@
  */
 
 const path = require('path');
+const powertools = require('node-powertools');
 
 function Middleware(m) {
   const self = this;
@@ -27,21 +28,30 @@ Middleware.prototype.run = function (library, req, res, options) {
     options = options || {};
     options.setupAnalytics = typeof options.setupAnalytics === 'boolean' ? options.setupAnalytics : true;
     options.setupUsage = typeof options.setupUsage === 'boolean' ? options.setupUsage : true;
+    options.authenticate = typeof options.authenticate === 'boolean' ? options.authenticate : true;
+    options.setupSettings = typeof options.setupSettings === 'undefined' ? true : options.setupSettings;
 
     // Log
     assistant.log(`Middleware.process(): Request (${geolocation.ip} @ ${geolocation.country}, ${geolocation.region}, ${geolocation.city})`, JSON.stringify(data));
 
+    const basePath = path.resolve(process.cwd(), `methods/${library.replace('.js', '')}`);
+
     // Load library
     try {
-      library = path.resolve(process.cwd(), `${library}.js`);
+      library = path.resolve(basePath, `index.js`);
       library = new (require(library))();
     } catch (e) {
-      assistant.errorify(`Unable to load library @ (${library}): ${e.message}`, {sentry: true, send: true, log: true});
+      return assistant.errorify(`Unable to load library @ (${library}): ${e.message}`, {sentry: true, send: true, log: true});
     }
 
     // Setup usage
     if (options.setupUsage) {
       assistant.usage = await Manager.Usage().init(assistant);
+    }
+
+    // Setup user
+    if (!options.setupUsage && options.authenticate) {
+      await assistant.authenticate();
     }
 
     // Setup analytics
@@ -56,6 +66,18 @@ Middleware.prototype.run = function (library, req, res, options) {
       })
     }
 
+    // Resolve settings
+    if (options.setupSettings) {
+      // try {
+      //   const planId = assistant.request.user.plan.id;
+      //   let settings = path.resolve(basePath, `settings.js`);
+      //   settings = require(settings)(assistant)[planId];
+      //   assistant.request.data = powertools.defaults(data, settings);
+      // } catch (e) {
+      //   return assistant.errorify(`Unable to resolve settings @ (${library}): ${e.message}`, {sentry: true, send: true, log: true});
+      // }
+    }
+
     // Process
     try {
       // Set properties
@@ -68,10 +90,10 @@ Middleware.prototype.run = function (library, req, res, options) {
       //   return res.status(200).json(result);
       // })
       .catch(e => {
-        assistant.errorify(e, {sentry: true, send: true, log: true});
+        return assistant.errorify(e, {sentry: true, send: true, log: true});
       });
     } catch (e) {
-      assistant.errorify(e, {sentry: true, send: true, log: true});
+      return assistant.errorify(e, {sentry: true, send: true, log: true});
     }
   });
 };

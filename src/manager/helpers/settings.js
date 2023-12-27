@@ -12,7 +12,7 @@ function Settings(m) {
   self.initialized = false;
 }
 
-Settings.prototype.init = function (assistant, options) {
+Settings.prototype.resolve = function (assistant, options) {
   const self = this;
 
   return new Promise(async function(resolve, reject) {
