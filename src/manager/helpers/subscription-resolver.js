@@ -14,6 +14,8 @@ function SubscriptionResolver(Manager, profile, resource) {
 SubscriptionResolver.prototype.resolve = function (options) {
   const self = this;
 
+  const datePast = moment(0);
+
   const resolved = {
     status: '',
     frequency: '',
@@ -25,28 +27,32 @@ SubscriptionResolver.prototype.resolve = function (options) {
       refunded: false,
     },
     start: {
-      timestamp: moment(0),
-      timestampUNIX: moment(0),
+      timestamp: datePast,
+      timestampUNIX: datePast,
     },
     expires: {
-      timestamp: moment(0),
-      timestampUNIX: moment(0),
+      timestamp: datePast,
+      timestampUNIX: datePast,
     },
     cancelled: {
-      timestamp: moment(0),
-      timestampUNIX: moment(0),
+      timestamp: datePast,
+      timestampUNIX: datePast,
     },
     lastPayment: {
       amount: 0,
       date: {
-        timestamp: moment(0),
-        timestampUNIX: moment(0),
+        timestamp: datePast,
+        timestampUNIX: datePast,
       }
     },
     trial: {
       claimed: false,
       active: false,
       daysLeft: 0,
+      expires: {
+        timestamp: datePast,
+        timestampUNIX: datePast,
+      },
     },
     details: {
       message: '',
@@ -178,6 +184,7 @@ SubscriptionResolver.prototype.resolve = function (options) {
     // Set days left
     if (resolved.trial.active) {
       resolved.trial.daysLeft = Math.abs(resolved.expires.timestamp.diff(options.today, 'days'));
+      resolved.trial.expires.timestamp = moment(resolved.start.timestamp).add(14, 'days');
     }
 
     // Set expiration
@@ -239,6 +246,9 @@ SubscriptionResolver.prototype.resolve = function (options) {
 
   resolved.cancelled.timestampUNIX = resolved.cancelled.timestamp.unix();
   resolved.cancelled.timestamp = resolved.cancelled.timestamp.toISOString();
+
+  resolved.trial.expires.timestampUNIX = resolved.trial.expires.timestamp.unix();
+  resolved.trial.expires.timestamp = resolved.trial.expires.timestamp.toISOString();
 
   // Fix trial days
   resolved.trial.daysLeft = resolved.trial.daysLeft < 0 ? 0 : resolved.trial.daysLeft;

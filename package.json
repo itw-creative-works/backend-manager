@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "3.1.10",
+  "version": "3.1.11",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -11,6 +11,7 @@
     "_test": "npm run prepare && ./node_modules/mocha/bin/mocha test/ --recursive --timeout=10000",
     "test": "./node_modules/mocha/bin/mocha test/ --recursive --timeout=10000",
     "test:usage": "./node_modules/mocha/bin/mocha test/usage.js --timeout=10000",
+    "test:payment-resolver": "./node_modules/mocha/bin/mocha test/payment-resolver.js --timeout=10000",
     "start": "node src/index.js"
   },
   "engines": {
@@ -41,7 +42,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "firebase-admin": "^11.11.1",
-    "firebase-functions": "^4.5.0",
+    "firebase-functions": "^4.6.0",
     "fs-jetpack": "^5.1.0",
     "hcaptcha": "^0.1.1",
     "inquirer": "^8.2.5",

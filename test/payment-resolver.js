@@ -115,6 +115,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: false,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -155,6 +159,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: false,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -192,6 +200,10 @@ describe(`${package.name}`, () => {
               active: true,
               claimed: true,
               daysLeft: 13,
+              expires: {
+                timestamp: '2023-05-12T02:16:58.000Z',
+                timestampUNIX: 1683857818,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -229,6 +241,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: true,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -266,6 +282,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: true,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -303,6 +323,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: true,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -340,6 +364,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: true,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -377,6 +405,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: false,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -414,6 +446,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: true,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -451,6 +487,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: false,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -488,6 +528,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: false,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -525,6 +569,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: false,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -570,6 +618,10 @@ describe(`${package.name}`, () => {
         //       active: false,
         //       claimed: false,
         //       daysLeft: 0,
+        //       expires: {
+        //         timestamp: '1970-01-01T00:00:00.000Z',
+        //         timestampUNIX: 0,
+        //       },
         //     },
         //     details: {
         //       message: '[REDACTED]',
@@ -607,6 +659,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: false,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -647,6 +703,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: false,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -684,6 +744,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: false,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -721,6 +785,10 @@ describe(`${package.name}`, () => {
               active: true,
               claimed: true,
               daysLeft: 12,
+              expires: {
+                timestamp: '2023-05-10T10:19:48.000Z',
+                timestampUNIX: 1683713988,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -758,6 +826,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: true,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -795,6 +867,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: true,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -832,6 +908,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: true,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -869,6 +949,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: false,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -906,6 +990,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: true,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -952,6 +1040,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: false,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -992,6 +1084,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: false,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -1029,6 +1125,10 @@ describe(`${package.name}`, () => {
               active: true,
               claimed: true,
               daysLeft: 13,
+              expires: {
+                timestamp: '2023-05-11T19:02:08.000Z',
+                timestampUNIX: 1683831728,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -1066,6 +1166,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: true,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -1103,6 +1207,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: true,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -1140,6 +1248,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: true,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -1177,6 +1289,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: false,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -1214,6 +1330,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: true,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -1259,6 +1379,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: false,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
@@ -1298,6 +1422,10 @@ describe(`${package.name}`, () => {
               active: false,
               claimed: false,
               daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
             },
             details: {
               message: '[REDACTED]',
