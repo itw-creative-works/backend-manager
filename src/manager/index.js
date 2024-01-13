@@ -730,6 +730,47 @@ Manager.prototype.storage = function (options) {
   return self._internal.storage[options.name]
 };
 
+Manager.prototype.install = function (controller, options) {
+  const self = this;
+
+  // Set options defaults
+  options = options || {};
+  options.prefix = typeof options.prefix === 'undefined' ? null : options.prefix;
+  options.dir = typeof options.dir === 'undefined' ? '' : options.dir;
+  options.log = typeof options.log === 'undefined' ? false : options.log;
+
+  // Fix dir
+  options.dir = path.resolve(self.cwd, options.dir);
+
+  // If dir is a single file, install it. if its a directory, install all
+  const isDirectory = jetpack.exists(options.dir) === 'dir';
+
+  if (options.log) {
+    self.assistant.log(`Installing from ${options.dir}, prefix=${options.prefix}, isDirectory=${isDirectory}...`);
+  }
+
+  function _install(prefix, file) {
+    if (!file.includes('.js')) {return}
+    const name = file.replace('.js', '');
+    const _prefix = prefix ? `${prefix}_${name}` : name;
+
+    const fullPath = path.resolve(options.dir, file);
+
+    if (options.log) {
+      self.assistant.log(`Installing ${_prefix} from ${fullPath}...`);
+    }
+
+    controller[`${_prefix}`] = require(fullPath);
+  }
+
+  if (isDirectory) {
+    jetpack.list(options.dir)
+    .forEach(file => _install(options.prefix, file))
+  } else {
+    _install(options.prefix, options.dir);
+  }
+};
+
 Manager.prototype.require = function (p) {
   return require(p);
 };

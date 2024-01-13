@@ -7,11 +7,13 @@ function Module() {
 
 Module.prototype.init = function (Manager, data) {
   const self = this;
+
   self.Manager = Manager;
   self.libraries = Manager.libraries;
-  self.assistant = Manager.Assistant()
+  self.assistant = Manager.Assistant();
 
   self.context = data.context;
+
   return self;
 }
 

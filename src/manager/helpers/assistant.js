@@ -201,21 +201,6 @@ BackendAssistant.prototype.log = function () {
   const self = this;
 
   const args = Array.prototype.slice.call(arguments);
-  const last = args[args.length - 1];
-  // const override = last && typeof last === 'object' && last.environment === 'production';
-  const pop = last?.environment === 'production' || last?.environment === 'development';
-
-  // if (self.meta.environment === 'development' || override) {
-  //   if (override) {
-  //     args.pop();
-  //   }
-  //   self._log.apply(self, args);
-  // }
-
-  // This makes all OLD logs work even if they use the old {environemnt: 'production'} syntax
-  if (pop) {
-    args.pop();
-  }
 
   self._log.apply(self, args);
 };
