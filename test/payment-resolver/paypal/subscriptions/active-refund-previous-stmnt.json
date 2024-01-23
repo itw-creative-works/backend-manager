@@ -1,0 +1,323 @@
+{
+  "status": "ACTIVE",
+  "status_update_time": "2024-01-18T12:32:53Z",
+  "id": "I-PXC8BVN91X5W",
+  "plan_id": "P-10V185024H967894YMBE2XEQ",
+  "start_time": "2023-02-12T13:34:46Z",
+  "quantity": "1",
+  "shipping_amount": {
+    "currency_code": "USD",
+    "value": "0.0"
+  },
+  "subscriber": {
+    "email_address": "valueyournetwork@gmail.com",
+    "payer_id": "CVPVMLXCN65JU",
+    "name": {
+      "given_name": "Bertrand",
+      "surname": "Dolbeau"
+    }
+  },
+  "billing_info": {
+    "outstanding_balance": {
+      "currency_code": "USD",
+      "value": "0.0"
+    },
+    "cycle_executions": [{
+      "tenure_type": "REGULAR",
+      "sequence": 1,
+      "cycles_completed": 12,
+      "cycles_remaining": 0,
+      "current_pricing_scheme_version": 2,
+      "total_cycles": 0
+    }],
+    "last_payment": {
+      "amount": {
+        "currency_code": "USD",
+        "value": "19.95"
+      },
+      "time": "2024-01-12T10:29:45Z"
+    },
+    "failed_payments_count": 0
+  },
+  "create_time": "2023-02-12T13:35:12Z",
+  "update_time": "2024-01-18T12:32:53Z",
+  "custom_id": "1676208874533-0516",
+  "plan_overridden": false,
+  "plan": {
+    "product_id": "somiibo-premium-1",
+    "name": "Somiibo Premium (Monthly)",
+    "description": "A free social media automation platform that organically grows your online presence and gets you more followers.",
+    "billing_cycles": [{
+      "pricing_scheme": {
+        "fixed_price": {
+          "currency_code": "USD",
+          "value": "19.95"
+        }
+      },
+      "frequency": {
+        "interval_unit": "MONTH",
+        "interval_count": 1
+      },
+      "tenure_type": "REGULAR",
+      "sequence": 1,
+      "total_cycles": 0
+    }],
+    "payment_preferences": {
+      "service_type": "PREPAID",
+      "auto_bill_outstanding": true,
+      "setup_fee": {
+        "currency_code": "USD",
+        "value": "0.0"
+      },
+      "setup_fee_failure_action": "CANCEL",
+      "payment_failure_threshold": 0
+    },
+    "quantity_supported": true
+  },
+  "links": [{
+    "href": "https://api.paypal.com/v1/billing/subscriptions/I-PXC8BVN91X5W?fields=plan",
+    "rel": "self",
+    "method": "GET"
+  }],
+  "transactions": [{
+    "status": "HELD",
+    "id": "5VJ49181YC978572C",
+    "amount_with_breakdown": {
+      "gross_amount": {
+        "currency_code": "USD",
+        "value": "19.95"
+      },
+      "fee_amount": {
+        "currency_code": "USD",
+        "value": "1.49"
+      },
+      "net_amount": {
+        "currency_code": "USD",
+        "value": "18.46"
+      }
+    },
+    "payer_name": {},
+    "payer_email": "valueyournetwork@gmail.com",
+    "time": "2024-01-12T10:29:45.000Z"
+  }, {
+    "status": "COMPLETED",
+    "id": "76E70166T15960016",
+    "amount_with_breakdown": {
+      "gross_amount": {
+        "currency_code": "USD",
+        "value": "19.95"
+      },
+      "fee_amount": {
+        "currency_code": "USD",
+        "value": "1.49"
+      },
+      "net_amount": {
+        "currency_code": "USD",
+        "value": "18.46"
+      }
+    },
+    "payer_name": {},
+    "payer_email": "valueyournetwork@gmail.com",
+    "time": "2023-12-12T11:07:05.000Z"
+  }, {
+    "status": "COMPLETED",
+    "id": "10E00037LN3466131",
+    "amount_with_breakdown": {
+      "gross_amount": {
+        "currency_code": "USD",
+        "value": "19.95"
+      },
+      "fee_amount": {
+        "currency_code": "USD",
+        "value": "1.49"
+      },
+      "net_amount": {
+        "currency_code": "USD",
+        "value": "18.46"
+      }
+    },
+    "payer_name": {},
+    "payer_email": "valueyournetwork@gmail.com",
+    "time": "2023-11-12T11:22:39.000Z"
+  }, {
+    "status": "COMPLETED",
+    "id": "02D13956H0210330C",
+    "amount_with_breakdown": {
+      "gross_amount": {
+        "currency_code": "USD",
+        "value": "19.95"
+      },
+      "fee_amount": {
+        "currency_code": "USD",
+        "value": "1.49"
+      },
+      "net_amount": {
+        "currency_code": "USD",
+        "value": "18.46"
+      }
+    },
+    "payer_name": {},
+    "payer_email": "valueyournetwork@gmail.com",
+    "time": "2023-10-12T11:20:24.000Z"
+  }, {
+    "status": "REFUNDED",
+    "id": "13X09084AW3591226",
+    "amount_with_breakdown": {
+      "gross_amount": {
+        "currency_code": "USD",
+        "value": "19.95"
+      },
+      "fee_amount": {
+        "currency_code": "USD",
+        "value": "1.49"
+      },
+      "net_amount": {
+        "currency_code": "USD",
+        "value": "18.46"
+      }
+    },
+    "payer_name": {},
+    "payer_email": "valueyournetwork@gmail.com",
+    "time": "2023-09-12T11:30:15.000Z"
+  }, {
+    "status": "REFUNDED",
+    "id": "7WK170085B2522010",
+    "amount_with_breakdown": {
+      "gross_amount": {
+        "currency_code": "USD",
+        "value": "19.95"
+      },
+      "fee_amount": {
+        "currency_code": "USD",
+        "value": "1.49"
+      },
+      "net_amount": {
+        "currency_code": "USD",
+        "value": "18.46"
+      }
+    },
+    "payer_name": {},
+    "payer_email": "valueyournetwork@gmail.com",
+    "time": "2023-08-12T10:46:12.000Z"
+  }, {
+    "status": "REFUNDED",
+    "id": "67C16195BG287701E",
+    "amount_with_breakdown": {
+      "gross_amount": {
+        "currency_code": "USD",
+        "value": "19.95"
+      },
+      "fee_amount": {
+        "currency_code": "USD",
+        "value": "1.49"
+      },
+      "net_amount": {
+        "currency_code": "USD",
+        "value": "18.46"
+      }
+    },
+    "payer_name": {},
+    "payer_email": "valueyournetwork@gmail.com",
+    "time": "2023-07-12T10:48:22.000Z"
+  }, {
+    "status": "COMPLETED",
+    "id": "03G34761BH814324U",
+    "amount_with_breakdown": {
+      "gross_amount": {
+        "currency_code": "USD",
+        "value": "19.95"
+      },
+      "fee_amount": {
+        "currency_code": "USD",
+        "value": "1.49"
+      },
+      "net_amount": {
+        "currency_code": "USD",
+        "value": "18.46"
+      }
+    },
+    "payer_name": {},
+    "payer_email": "valueyournetwork@gmail.com",
+    "time": "2023-06-12T10:22:59.000Z"
+  }, {
+    "status": "COMPLETED",
+    "id": "7VJ692573X8193742",
+    "amount_with_breakdown": {
+      "gross_amount": {
+        "currency_code": "USD",
+        "value": "19.95"
+      },
+      "fee_amount": {
+        "currency_code": "USD",
+        "value": "1.49"
+      },
+      "net_amount": {
+        "currency_code": "USD",
+        "value": "18.46"
+      }
+    },
+    "payer_name": {},
+    "payer_email": "valueyournetwork@gmail.com",
+    "time": "2023-05-12T10:47:07.000Z"
+  }, {
+    "status": "COMPLETED",
+    "id": "1MU53011BA108752K",
+    "amount_with_breakdown": {
+      "gross_amount": {
+        "currency_code": "USD",
+        "value": "19.95"
+      },
+      "fee_amount": {
+        "currency_code": "USD",
+        "value": "1.49"
+      },
+      "net_amount": {
+        "currency_code": "USD",
+        "value": "18.46"
+      }
+    },
+    "payer_name": {},
+    "payer_email": "valueyournetwork@gmail.com",
+    "time": "2023-04-12T11:32:48.000Z"
+  }, {
+    "status": "COMPLETED",
+    "id": "3SM59944C89293912",
+    "amount_with_breakdown": {
+      "gross_amount": {
+        "currency_code": "USD",
+        "value": "14.95"
+      },
+      "fee_amount": {
+        "currency_code": "USD",
+        "value": "1.24"
+      },
+      "net_amount": {
+        "currency_code": "USD",
+        "value": "13.71"
+      }
+    },
+    "payer_name": {},
+    "payer_email": "valueyournetwork@gmail.com",
+    "time": "2023-03-12T10:41:40.000Z"
+  }, {
+    "status": "COMPLETED",
+    "id": "9W200388HJ765311C",
+    "amount_with_breakdown": {
+      "gross_amount": {
+        "currency_code": "USD",
+        "value": "14.95"
+      },
+      "fee_amount": {
+        "currency_code": "USD",
+        "value": "1.24"
+      },
+      "net_amount": {
+        "currency_code": "USD",
+        "value": "13.71"
+      }
+    },
+    "payer_name": {},
+    "payer_email": "valueyournetwork@gmail.com",
+    "time": "2023-02-12T13:35:12.000Z"
+  }]
+}

@@ -176,6 +176,47 @@ describe(`${package.name}`, () => {
           });
         });
 
+        describe('active => refund previous stmnt', () => {
+          const item = require('./payment-resolver/paypal/subscriptions/active-refund-previous-stmnt.json');
+          const result = Manager.SubscriptionResolver({}, item).resolve(options);
+          const expected = {
+            processor: 'paypal',
+            type: 'subscription',
+            status: 'active',
+            frequency: 'monthly',
+            resource: { id: 'I-PXC8BVN91X5W' },
+            payment: {
+              completed: true,
+              refunded: true,
+            },
+            start: { timestamp: '2023-02-12T13:34:46.000Z', timestampUNIX: 1676208886 },
+            expires: { timestamp: '2025-02-11T10:29:45.000Z', timestampUNIX: 1739269785 },
+            cancelled: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
+            lastPayment: {
+              amount: 19.95,
+              date: { timestamp: '2024-01-12T10:29:45.000Z', timestampUNIX: 1705055385 }
+            },
+            trial: {
+              active: false,
+              claimed: false,
+              daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
+            },
+            details: {
+              message: '[REDACTED]',
+            },
+          }
+
+          log('result', result);
+
+          it('should resolve correctly', () => {
+            return assert.deepStrictEqual(result, expected);
+          });
+        });
+
         describe('trial => in-trial', () => {
           const item = require('./payment-resolver/paypal/subscriptions/trial-in-trial.json');
           const result = Manager.SubscriptionResolver({}, item).resolve(options);

@@ -224,8 +224,9 @@ SubscriptionResolver.prototype.resolve = function (options) {
     resolved.details.message = 'Pre-payment authorization failed because there is no working payment method on file.'
   }
 
-  // If they got a refund, set the expiration to 0
-  if (resolved.payment.refunded) {
+  // If they got a refund (AND cancelled), set the expiration to 0
+  // This allows for partial refunds without disabling the subscription
+  if (resolved.payment.refunded && resolved.status === 'cancelled') {
     resolved.expires.timestamp = moment(0);
     resolved.details.message = 'Refund was issued so subscription is inactive.'
   }

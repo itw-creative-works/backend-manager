@@ -36,6 +36,7 @@ BackendAssistant.prototype.init = function (ref, options) {
   // Attached libraries - used in .errorify()
   self.analytics = null;
   self.usage = null;
+  self.settings = null;
 
   // Set meta
   self.meta = {};

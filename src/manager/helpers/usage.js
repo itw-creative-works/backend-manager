@@ -84,9 +84,7 @@ Usage.prototype.init = function (assistant, options) {
         // TODO: Make it request using .where() query so it doesnt use a read if it doesnt have to
         foundUsage = await Manager.libraries.admin.firestore().doc(`temporary/usage`)
           .get()
-          .then((r) => {
-            return r.data()?.[`${self.key}`];
-          })
+          .then((r) => _.get(r.data(), self.key))
           .catch((e) => {
             assistant.errorify(`Usage.init(): Error fetching usage data: ${e}`, {sentry: true, send: false, log: true});
           });

@@ -15,6 +15,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Security` in case of vulnerabilities.
 
 ---
+## [3.2.0] - 2023-12-19
+### Added
+- Added `.settings()` API. Put your settings in `./schema/*.js` and access them with `assistant.settings.*`.
+
+
 ## [3.1.0] - 2023-12-19
 ### Added
 - Added `.analytics()` API GA4 support.

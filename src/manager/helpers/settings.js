@@ -2,31 +2,81 @@
  * Settings
  *
  */
+// const jetpack = require('fs-jetpack');
+const path = require('path');
+const powertools = require('node-powertools');
+const _ = require('lodash');
+const moment = require('moment');
+
 function Settings(m) {
   const self = this;
 
   self.Manager = m;
 
-  self.user = null;
-
-  self.initialized = false;
+  self.settings = null;
 }
 
-Settings.prototype.resolve = function (assistant, options) {
+Settings.prototype.resolve = function (assistant, schema, settings) {
   const self = this;
+  const Manager = self.Manager;
 
-  return new Promise(async function(resolve, reject) {
-    const Manager = self.Manager;
+  // Set settings
+  schema = schema || {};
+  settings = settings || {};
 
-    // Set options
-    options = options || {};
+  // Reset settings
+  self.settings = null;
 
-    // Set initialized to true
-    self.initialized = true;
+  assistant.log('Resolving settings for', schema, settings);
 
-    // Resolve
-    return resolve(self);
-  });
+  if (typeof schema === 'string') {
+    const schemaPath = path.resolve(process.cwd(), `schemas/${schema.replace('.js', '')}.js`);
+
+    schema = loadSchema(assistant, schemaPath, settings);
+  }
+
+  self.settings = powertools.defaults(settings, schema);
+
+  // Resolve
+  return self.settings;
 };
+
+Settings.prototype.constant = function (name, options) {
+  const self = this;
+  const Manager = self.Manager;
+
+  options = options || {};
+  options.date = typeof options.date === 'undefined' ? moment() : moment(options.date);
+
+  if (name === 'timestamp') {
+    return {
+      types: ['string'],
+      value: undefined,
+      default: options.date.toISOString(),
+    }
+  } else if (name === 'timestampUNIX') {
+    return {
+      types: ['number'],
+      value: undefined,
+      default: options.date.unix(),
+    }
+  } else if (name === 'timestampFULL') {
+    return {
+      timestamp: self.constant('timestamp', options),
+      timestampUNIX: self.constant('timestampUNIX', options),
+    }
+  }
+};
+
+function loadSchema(assistant, schema, settings) {
+  const planId = assistant.request.user.plan.id;
+
+  const lib = require(schema)(assistant);
+  const def = lib.defaults;
+  const plan = lib[planId];
+
+  // Merge
+  return _.merge({}, def, plan);
+}
 
 module.exports = Settings;

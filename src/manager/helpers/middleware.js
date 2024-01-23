@@ -26,10 +26,11 @@ Middleware.prototype.run = function (library, req, res, options) {
 
     // Set options
     options = options || {};
+    options.authenticate = typeof options.authenticate === 'boolean' ? options.authenticate : true;
     options.setupAnalytics = typeof options.setupAnalytics === 'boolean' ? options.setupAnalytics : true;
     options.setupUsage = typeof options.setupUsage === 'boolean' ? options.setupUsage : true;
-    options.authenticate = typeof options.authenticate === 'boolean' ? options.authenticate : true;
     options.setupSettings = typeof options.setupSettings === 'undefined' ? true : options.setupSettings;
+    options.schema = typeof options.schema === 'undefined' ? '' : options.schema;
 
     // Log
     assistant.log(`Middleware.process(): Request (${geolocation.ip} @ ${geolocation.country}, ${geolocation.region}, ${geolocation.city})`, JSON.stringify(data));
@@ -44,14 +45,14 @@ Middleware.prototype.run = function (library, req, res, options) {
       return assistant.errorify(`Unable to load library @ (${library}): ${e.message}`, {sentry: true, send: true, log: true});
     }
 
-    // Setup usage
-    if (options.setupUsage) {
-      assistant.usage = await Manager.Usage().init(assistant);
-    }
-
     // Setup user
     if (!options.setupUsage && options.authenticate) {
       await assistant.authenticate();
+    }
+
+    // Setup usage
+    if (options.setupUsage) {
+      assistant.usage = await Manager.Usage().init(assistant);
     }
 
     // Setup analytics
@@ -63,19 +64,16 @@ Middleware.prototype.run = function (library, req, res, options) {
       assistant.analytics = Manager.Analytics({
         assistant: assistant,
         uuid: uuid,
-      })
+      });
     }
 
     // Resolve settings
     if (options.setupSettings) {
-      // try {
-      //   const planId = assistant.request.user.plan.id;
-      //   let settings = path.resolve(basePath, `settings.js`);
-      //   settings = require(settings)(assistant)[planId];
-      //   assistant.request.data = powertools.defaults(data, settings);
-      // } catch (e) {
-      //   return assistant.errorify(`Unable to resolve settings @ (${library}): ${e.message}`, {sentry: true, send: true, log: true});
-      // }
+      try {
+        assistant.settings = Manager.Settings().resolve(assistant, options.schema, assistant.request.data);
+      } catch (e) {
+        return assistant.errorify(`Unable to resolve settings @ (${options.schema}): ${e.message}`, {sentry: true, send: true, log: true});
+      }
     }
 
     // Process
