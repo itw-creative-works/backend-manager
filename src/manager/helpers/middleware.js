@@ -76,7 +76,7 @@ Middleware.prototype.run = function (library, options) {
       try {
         assistant.settings = Manager.Settings().resolve(assistant, options.schema, assistant.request.data);
       } catch (e) {
-        return assistant.errorify(`Unable to resolve settings @ (${options.schema}): ${e.message}`, {sentry: true, send: true, log: true});
+        return assistant.errorify(`Unable to resolve schema @ (${options.schema}): ${e.message}`, {sentry: true, send: true, log: true});
       }
     }
 
