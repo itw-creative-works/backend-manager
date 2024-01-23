@@ -6,15 +6,19 @@
 const path = require('path');
 const powertools = require('node-powertools');
 
-function Middleware(m) {
+function Middleware(m, req, res) {
   const self = this;
 
   self.Manager = m;
+  self.req = req;
+  self.res = res;
 }
 
-Middleware.prototype.run = function (library, req, res, options) {
+Middleware.prototype.run = function (library, options) {
   const self = this;
   const Manager = self.Manager;
+  const req = self.req;
+  const res = self.res;
   const { cors } = Manager.libraries;
 
   return cors(req, res, async () => {
