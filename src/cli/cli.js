@@ -496,10 +496,10 @@ Main.prototype.setup = async function () {
     return !localIndexes_exists || equal
   }, fix_indexesSync);
 
-  await self.test('add roles/datastore.importExportAdmin', async function () {
-    const result = await cmd_iamImportExport(self).catch(e => e);
-    return !(result instanceof Error);
-  }, NOFIX);
+  // await self.test('add roles/datastore.importExportAdmin', async function () {
+  //   const result = await cmd_iamImportExport(self).catch(e => e);
+  //   return !(result instanceof Error);
+  // }, NOFIX);
 
   await self.test('set storage lifecycle policy', async function () {
     const result = await cmd_setStorageLifecycle(self).catch(e => e);
