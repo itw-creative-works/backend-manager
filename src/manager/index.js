@@ -167,8 +167,7 @@ Manager.prototype.init = function (exporter, options) {
 
   // Setup options features
   if (self.options.initialize) {
-    // console.log('Initializing:', self.project);
-    // console.log('----process.env.GOOGLE_APPLICATION_CREDENTIALS', process.env.GOOGLE_APPLICATION_CREDENTIALS);
+    // Initialize Firebase
     try {
       // console.log('---process.env.GOOGLE_APPLICATION_CREDENTIALS', process.env.GOOGLE_APPLICATION_CREDENTIALS);
       if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
@@ -190,6 +189,20 @@ Manager.prototype.init = function (exporter, options) {
     } catch (e) {
       self.assistant.error('Failed to call .initializeApp()', e);
     }
+
+    // Update firebase settings
+    try {
+      // Update project config
+      self.libraries.admin.auth().projectConfigManager().updateProjectConfig({
+        emailPrivacyConfig: {
+          enableImprovedEmailPrivacy: true,
+        },
+      });
+    } catch (e) {
+      self.assistant.error('Failed to call .updateProjectConfig()', e);
+    } finally {
+
+    }
     // admin.firestore().settings({/* your settings... */ timestampsInSnapshots: true})
   }
 
@@ -199,9 +212,7 @@ Manager.prototype.init = function (exporter, options) {
     self.libraries.functions
     .runWith({memory: '256MB', timeoutSeconds: 60})
     // TODO: Replace this with new API
-    .https.onRequest(async (req, res) => {
-      return self._process((new (require(`${core}/actions/api.js`))()).init(self, { req: req, res: res, }))
-    });
+    .https.onRequest(async (req, res) => self._process((new (require(`${core}/actions/api.js`))()).init(self, { req: req, res: res, })));
 
     if (options.setupFunctionsLegacy) {
       exporter.bm_signUpHandler =
@@ -378,51 +389,39 @@ Manager.prototype.init = function (exporter, options) {
       self.libraries.functions
       .runWith({memory: '256MB', timeoutSeconds: 60})
       .auth.user()
-      .beforeCreate(async (user, context) => {
-        return self._process((new (require(`${core}/events/auth/before-create.js`))()).init(self, { user: user, context: context}))
-      });
+      .beforeCreate(async (user, context) => self._process((new (require(`${core}/events/auth/before-create.js`))(), {middleware: false}).init(self, { user: user, context: context})));
 
       exporter.bm_authBeforeSignIn =
       self.libraries.functions
       .runWith({memory: '256MB', timeoutSeconds: 60})
       .auth.user()
-      .beforeSignIn(async (user, context) => {
-        return self._process((new (require(`${core}/events/auth/before-signin.js`))()).init(self, { user: user, context: context}))
-      });
+      .beforeSignIn(async (user, context) => self._process((new (require(`${core}/events/auth/before-signin.js`))(), {middleware: false}).init(self, { user: user, context: context})));
     }
 
     exporter.bm_authOnCreate =
     self.libraries.functions
     .runWith({memory: '256MB', timeoutSeconds: 60})
     .auth.user()
-    .onCreate(async (user, context) => {
-      return self._process((new (require(`${core}/events/auth/on-create.js`))()).init(self, { user: user, context: context}))
-    });
+    .onCreate(async (user, context) => self._process((new (require(`${core}/events/auth/on-create.js`))(), {middleware: false}).init(self, { user: user, context: context})));
 
     exporter.bm_authOnDelete =
     self.libraries.functions
     .runWith({memory: '256MB', timeoutSeconds: 60})
     .auth.user()
-    .onDelete(async (user, context) => {
-      return self._process((new (require(`${core}/events/auth/on-delete.js`))()).init(self, { user: user, context: context}))
-    });
+    .onDelete(async (user, context) => self._process((new (require(`${core}/events/auth/on-delete.js`))(), {middleware: false}).init(self, { user: user, context: context})));
 
     exporter.bm_subOnWrite =
     self.libraries.functions
     .runWith({memory: '256MB', timeoutSeconds: 60})
     .firestore.document('notifications/subscriptions/all/{token}')
-    .onWrite(async (change, context) => {
-      return self._process((new (require(`${core}/events/firestore/on-subscription.js`))()).init(self, { change: change, context: context, }))
-    });
+    .onWrite(async (change, context) => self._process((new (require(`${core}/events/firestore/on-subscription.js`))(), {middleware: false}).init(self, { change: change, context: context, })));
 
     // Cron
     exporter.bm_cronDaily =
     self.libraries.functions
     .runWith({ memory: '256MB', timeoutSeconds: 120 })
     .pubsub.schedule('every 24 hours')
-    .onRun(async (context) => {
-      return self._process((new (require(`${core}/cron/daily.js`))()).init(self, { context: context, }))
-    });
+    .onRun(async (context) => self._process((new (require(`${core}/cron/daily.js`))(), {middleware: false}).init(self, { context: context, })));
   }
 
   // Set dotenv
@@ -453,14 +452,14 @@ Manager.prototype.init = function (exporter, options) {
 };
 
 // HELPERS
-Manager.prototype._process = function (mod) {
+Manager.prototype._process = function (mod, options) {
   const self = this;
-  const name = mod.assistant.meta.name;
-  const hook = self.handlers && self.handlers[name];
-  const req = mod.req;
-  const res = mod.res;
 
   return new Promise(async function(resolve, reject) {
+    const name = mod.assistant.meta.name;
+    const hook = self.handlers && self.handlers[name];
+    const req = mod.req;
+    const res = mod.res;
     let error;
 
     function _reject(e, log) {

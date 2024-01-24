@@ -33,7 +33,6 @@ Module.prototype.main = function () {
     assistant.log('UUID Generated', payload.data.payload, result);
 
     return resolve({data: {uuid: result}});
-
   });
 
 };

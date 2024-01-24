@@ -108,11 +108,14 @@ Module.prototype.main = function() {
         })
       }
 
+      // Fix status
       self.payload.response.status = _fixStatus(self.payload.response.status);
 
+      // Set status
       res.status(self.payload.response.status)
 
-      if (self.payload.response.status >= 200 && self.payload.response.status < 300) {
+      // Send response
+      if (self.payload.response.status >= 200 && self.payload.response.status < 399) {
         self.assistant.log(`Finished ${resolved.command} (status=${self.payload.response.status})`, self.payload, JSON.stringify(self.payload))
 
         if (self.payload.response.redirect) {
@@ -124,7 +127,6 @@ Module.prototype.main = function() {
         }
       } else {
         self.assistant.error(`Error executing ${resolved.command} @ ${resolved.path} (status=${self.payload.response.status}):`, self.payload.response.error)
-        // return res.send(self.payload.response.error.message);
         res.send(`${self.payload.response.error}`)
         return reject(self.payload.response.error);
       }

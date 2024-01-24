@@ -402,6 +402,19 @@ BackendAssistant.prototype.errorify = function (e, options) {
 
 BackendAssistant.prototype.errorManager = BackendAssistant.prototype.errorify;
 
+BackendAssistant.prototype.redirect = function(response, options) {
+  const self = this;
+  const res = self.ref.res;
+
+  // Set options
+  options = options || {};
+  options.code = typeof options.code === 'undefined'
+    ? 302
+    : options.code;
+
+  return self.respond(response, options);
+}
+
 BackendAssistant.prototype.respond = function(response, options) {
   const self = this;
   const res = self.ref.res;
@@ -428,19 +441,33 @@ BackendAssistant.prototype.respond = function(response, options) {
   // Attach properties
   _attachHeaderProperties(self, options);
 
-  // Log the error
-  if (options.log) {
-    self.log(`Responding with ${options.code} code:`, JSON.stringify(response));
-  }
-
   // Send response
   res.status(options.code);
 
+  function _log(text) {
+    if (options.log) {
+      self.log(`${text} (${options.code}):`, JSON.stringify(response));
+    }
+  }
+
+  // Redirect
+  const isRedirect = isBetween(options.code, 300, 399);
+  if (isRedirect) {
+    // Log
+    _log(`Redirecting`);
+
+    // Send
+    return res.redirect(response);
+  }
+
+  // Log
+  _log(`Sending response`);
+
   // If it is an object, send as json
   if (response && typeof response === 'object') {
-    res.json(response);
+    return res.json(response);
   } else {
-    res.send(response);
+    return res.send(response);
   }
 }
 
