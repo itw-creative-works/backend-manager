@@ -1479,6 +1479,47 @@ describe(`${package.name}`, () => {
             return assert.deepStrictEqual(result, expected);
           });
         });
+
+        describe('paid 2', () => {
+          const item = require('./payment-resolver/coinbase/subscriptions/paid-2.json');
+          const result = Manager.SubscriptionResolver(profileSubscriptionDefault, item).resolve(options);
+          const expected = {
+            processor: 'coinbase',
+            type: 'subscription',
+            status: 'cancelled',
+            frequency: 'monthly',
+            resource: { id: '1baa71fb-318c-400c-9020-08b894a1fa6e' },
+            payment: {
+              completed: true,
+              refunded: false,
+            },
+            start: { timestamp: '2024-01-23T21:59:03.000Z', timestampUNIX: 1706047143 },
+            expires: { timestamp: '2024-02-23T21:59:03.000Z', timestampUNIX: 1708725543 },
+            cancelled: { timestamp: '2024-01-23T21:59:03.000Z', timestampUNIX: 1706047143 },
+            lastPayment: {
+              amount: 10,
+              date: { timestamp: '2024-01-23T22:40:35.000Z', timestampUNIX: 1706049635 }
+            },
+            trial: {
+              active: false,
+              claimed: false,
+              daysLeft: 0,
+              expires: {
+                timestamp: '1970-01-01T00:00:00.000Z',
+                timestampUNIX: 0,
+              },
+            },
+            details: {
+              message: '[REDACTED]',
+            },
+          }
+
+          log('result', result);
+
+          it('should resolve correctly', () => {
+            return assert.deepStrictEqual(result, expected);
+          });
+        });
       });
     });
 

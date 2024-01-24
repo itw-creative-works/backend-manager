@@ -1,0 +1,125 @@
+{
+  "brand_color": "#122332",
+  "brand_logo_url": "https://res.cloudinary.com/commerce/image/upload/v1669469783/o5msi7avehknjrpyjwts.png",
+  "charge_kind": "WEB3",
+  "code": "2ZHK2BXQ",
+  "collected_email": true,
+  "confirmed_at": "2024-01-23T22:42:27Z",
+  "created_at": "2024-01-23T21:59:03Z",
+  "description": "StudyMonkey Homework Helper Plus Essay",
+  "expires_at": "2024-01-25T21:59:03Z",
+  "hosted_url": "https://commerce.coinbase.com/pay/1baa71fb-318c-400c-9020-08b894a1fa6e",
+  "id": "1baa71fb-318c-400c-9020-08b894a1fa6e",
+  "metadata": {
+    "uid": "oHrxWjSX87OenjCOxzE4PFw0JNy2",
+    "planId": "homework-helper-plus-essay",
+    "clientOrderId": "1706046998706-0362",
+    "email": "savaignjat@gmail.com"
+  },
+  "name": "StudyMonkey Homework Helper Plus Essay",
+  "organization_name": "ITW Creative Works",
+  "payments": [{
+    "payment_id": "0x479cda3dc208156a7ce99093c2de583997cad04081542e753e70210fb0a4b250",
+    "network": "ethereum",
+    "transaction_id": "0x479cda3dc208156a7ce99093c2de583997cad04081542e753e70210fb0a4b250",
+    "status": "confirmed",
+    "detected_at": "2024-01-23T22:40:35Z",
+    "value": {
+      "local": {
+        "amount": "10.00",
+        "currency": "USD"
+      },
+      "crypto": {
+        "amount": "10",
+        "currency": "USDC"
+      }
+    },
+    "payer_addresses": ["0x1b4747367a4259573dde79745b66f16fac2b5aa0"]
+  }],
+  "pricing": {
+    "local": {
+      "amount": "10.00",
+      "currency": "USD"
+    },
+    "settlement": {
+      "amount": "10",
+      "currency": "USDC"
+    }
+  },
+  "pricing_type": "fixed_price",
+  "redirects": {
+    "cancel_url": "",
+    "success_url": "",
+    "will_redirect_after_success": false
+  },
+  "support_email": "support@itwcreativeworks.com",
+  "timeline": [{
+    "status": "NEW",
+    "time": "2024-01-23T21:59:03Z"
+  }, {
+    "status": "SIGNED",
+    "time": "2024-01-23T22:29:08Z"
+  }, {
+    "status": "PENDING",
+    "time": "2024-01-23T22:41:43Z"
+  }, {
+    "status": "COMPLETED",
+    "time": "2024-01-23T22:42:27Z"
+  }],
+  "web3_data": {
+    "transfer_intent": {
+      "call_data": {
+        "deadline": "2024-01-25T21:59:03Z",
+        "fee_amount": "100000",
+        "id": "0x9e72e7f23f3f42bfbb6370766172ba5b",
+        "operator": "0x8fccc78dae0a8f93b0fe6799de888d4c57e273db",
+        "prefix": "0x4b3220496e666f726d6174696f6e616c204d6573736167653a20333220",
+        "recipient": "0x2a37eB9C24e73fAFFd30383adB894e2529Ad41Be",
+        "recipient_amount": "9900000",
+        "recipient_currency": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        "refund_destination": "0x1b4747367a4259573DDE79745B66F16fAc2b5Aa0",
+        "signature": "0x3fd8cea54247b157cf226a86dd56bd134595ce03568320471cda0c1e3ec1179f232eb4b78dd1956e9110cba85cf36c00119e74f53ecc994f1642006e7c6585991c"
+      },
+      "metadata": {
+        "chain_id": 1,
+        "contract_address": "0x7915f087685fffD71608E5d118f3B70c27D9eF4e",
+        "sender": "0x1b4747367a4259573DDE79745B66F16fAc2b5Aa0"
+      }
+    },
+    "success_events": [{
+      "chain_id": 1,
+      "finalized": false,
+      "input_token_address": "0x0000000000000000000000000000000000000000",
+      "input_token_amount": "4504845007298104",
+      "network_fee_paid": "2212192382700300",
+      "network_fee_paid_local": "4.918411568304985862",
+      "recipient": "0x2a37eb9c24e73faffd30383adb894e2529ad41be",
+      "sender": "0x1b4747367a4259573dde79745b66f16fac2b5aa0",
+      "timestamp": "2024-01-23T22:40:35Z",
+      "tx_hsh": "0x479cda3dc208156a7ce99093c2de583997cad04081542e753e70210fb0a4b250"
+    }, {
+      "chain_id": 1,
+      "finalized": true,
+      "input_token_address": "0x0000000000000000000000000000000000000000",
+      "input_token_amount": "4504845007298104",
+      "network_fee_paid": "2212192382700300",
+      "network_fee_paid_local": "4.918411568304985862",
+      "recipient": "0x2a37eb9c24e73faffd30383adb894e2529ad41be",
+      "sender": "0x1b4747367a4259573dde79745b66f16fac2b5aa0",
+      "timestamp": "2024-01-23T22:40:35Z",
+      "tx_hsh": "0x479cda3dc208156a7ce99093c2de583997cad04081542e753e70210fb0a4b250"
+    }],
+    "failure_events": [],
+    "contract_addresses": {
+      "1": "0x7915f087685fffD71608E5d118f3B70c27D9eF4e",
+      "137": "0x7f52269092F2a5EF06C36C91e46F9196deb90336",
+      "8453": "0x9Bb4D44e6963260A1850926E8f6bEB8d5803836F"
+    },
+    "settlement_currency_addresses": {
+      "1": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "137": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+      "8453": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+    }
+  },
+  "web3_retail_payments_enabled": true
+}

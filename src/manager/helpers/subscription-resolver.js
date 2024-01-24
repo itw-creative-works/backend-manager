@@ -800,7 +800,8 @@ SubscriptionResolver.prototype.resolve_coinbase = function (profile, resource, r
   )
 
   // Retrieve last payment
-  const lastPayment = resource.payments.find(p => p.status === 'CONFIRMED');
+  // Coinbase at some point changed status from being UPPER to lower case!!! FUCK YOU!
+  const lastPayment = resource.payments.find(p => p.status.toLowerCase() === 'confirmed');
 
   // Set last payment
   if (lastPayment) {
