@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "3.2.4",
+  "version": "3.2.5",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -40,7 +40,7 @@
     "busboy": "^1.6.0",
     "chalk": "^4.1.2",
     "cors": "^2.8.5",
-    "dotenv": "^16.3.2",
+    "dotenv": "^16.4.0",
     "firebase-admin": "^11.11.1",
     "firebase-functions": "^4.6.0",
     "fs-jetpack": "^5.1.0",
