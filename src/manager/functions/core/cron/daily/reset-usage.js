@@ -105,7 +105,7 @@ Module.prototype.clearFirestore = function() {
     assistant.log(`cron/daily/reset-usage() [firestore]: Resetting metrics`, metrics);
 
     if (metrics instanceof Error) {
-      return reject(assistant.errorify(`Failed to check providers: ${metrics}`, {code: 500, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(`Failed to check providers: ${metrics}`, {code: 500, sentry: false, send: false, log: false}));
     }
 
     // Reset all metrics with for loop of metrics
@@ -140,7 +140,7 @@ Module.prototype.clearFirestore = function() {
               assistant.log(`cron/daily/reset-usage() [firestore]: Reset ${metric} for ${doc.id} (${original} -> 0)`);
             })
             .catch(e => {
-              assistant.errorify(`Error resetting ${metric} for ${doc.id}: ${e}`, {sentry: false, send: false, log: true})
+              assistant.errorify(`Error resetting ${metric} for ${doc.id}: ${e}`, {sentry: false, send: false, log: true});
             })
           }
 
@@ -159,7 +159,7 @@ Module.prototype.clearFirestore = function() {
         assistant.log(`cron/daily/reset-usage() [firestore]: Reset ${metric} for all users complete!`);
       })
       .catch(e => {
-        assistant.errorify(`Error resetting ${metric} for all users: ${e}`, {sentry: false, send: false, log: true})
+        assistant.errorify(`Error resetting ${metric} for all users: ${e}`, {sentry: false, send: false, log: true});
       })
     }
 
@@ -169,7 +169,7 @@ Module.prototype.clearFirestore = function() {
       assistant.log(`cron/daily/reset-usage() [firestore]: Deleted temporary/usage`);
     })
     .catch(e => {
-      assistant.errorify(`Error deleting temporary/usage: ${e}`, {sentry: false, send: false, log: true})
+      assistant.errorify(`Error deleting temporary/usage: ${e}`, {sentry: false, send: false, log: true});
     })
 
     return resolve();

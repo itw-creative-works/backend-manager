@@ -34,7 +34,7 @@ Middleware.prototype.run = function (library, options) {
     options.setupAnalytics = typeof options.setupAnalytics === 'boolean' ? options.setupAnalytics : true;
     options.setupUsage = typeof options.setupUsage === 'boolean' ? options.setupUsage : true;
     options.setupSettings = typeof options.setupSettings === 'undefined' ? true : options.setupSettings;
-    options.schema = typeof options.schema === 'undefined' ? '' : options.schema;
+    options.schema = typeof options.schema === 'undefined' ? undefined : options.schema;
 
     // Log
     assistant.log(`Middleware.process(): Request (${geolocation.ip} @ ${geolocation.country}, ${geolocation.region}, ${geolocation.city})`, JSON.stringify(data));
@@ -73,11 +73,15 @@ Middleware.prototype.run = function (library, options) {
 
     // Resolve settings
     if (options.setupSettings) {
+      // assistant.log(`Middleware.process(): Resolving settings with schema ${options.schema}...`);
+
       try {
-        assistant.settings = Manager.Settings().resolve(assistant, options.schema, assistant.request.data);
+        assistant.settings = Manager.Settings().resolve(assistant, options.schema, data);
       } catch (e) {
-        return assistant.errorify(`Unable to resolve schema @ (${options.schema}): ${e.message}`, {sentry: true, send: true, log: true});
+        return assistant.errorify(`Unable to resolve schema ${options.schema}: ${e.message}`, {code: e.code, sentry: true, send: true, log: true});
       }
+
+      assistant.log(`Middleware.process(): Resolved settings with schema ${options.schema}`, JSON.stringify(assistant.settings));
     }
 
     // Process

@@ -44,7 +44,7 @@ Module.prototype.main = function () {
     payload.data.payload.firebaseApiKey = payload.data.payload.firebaseApiKey || _.get(Manager, 'config.firebaseConfig.apiKey') || false;
 
     if (!payload.data.payload.firebaseApiKey) {
-      return reject(assistant.errorify(`The firebaseApiKey parameter is required.`, {code: 400, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(`The firebaseApiKey parameter is required.`, {code: 400, sentry: false, send: false, log: false}));
     }
 
     // Default
@@ -91,7 +91,7 @@ Module.prototype.main = function () {
 
             payload.response.data[provider.name] = result;
           } catch (e) {
-            assistant.errorify(`Error parsing error: ${e}`, {sentry: true, send: false, log: true})
+            assistant.errorify(`Error parsing error: ${e}`, {sentry: true, send: false, log: true});
             payload.response.data[provider.name] = false;
           }
         })
@@ -144,7 +144,7 @@ Module.prototype.main = function () {
 
     })
     .catch(e => {
-      return reject(assistant.errorify(`Failed to check providers: ${e}`, {code: 500, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(`Failed to check providers: ${e}`, {code: 500, sentry: false, send: false, log: false}));
     })
 
   });

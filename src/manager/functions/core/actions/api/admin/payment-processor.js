@@ -15,12 +15,12 @@ Module.prototype.main = function () {
   return new Promise(async function(resolve, reject) {
 
     if (!payload.user.roles.admin) {
-      return reject(assistant.errorify(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(`Admin required.`, {code: 401, sentry: false, send: false, log: false}));
     }
 
     const productId = _.get(payload, 'data.payload.payload.details.productIdGlobal');
     if (!productId) {
-      return reject(assistant.errorify(`No productId`, {code: 400, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(`No productId`, {code: 400, sentry: false, send: false, log: false}));
     }
     const processorPath = `${process.cwd()}/payment-processors/${productId}.js`
     let processor;
@@ -45,7 +45,7 @@ Module.prototype.main = function () {
       return resolve({data: result});
     })
     .catch(e => {
-      return reject(assistant.errorify(`Payment processor @ "${processorPath}" failed: ${e}`, {code: 400, sentry: true, send: false, log: false}).error)
+      return reject(assistant.errorify(`Payment processor @ "${processorPath}" failed: ${e}`, {code: 400, sentry: true, send: false, log: false}));
     })
   });
 

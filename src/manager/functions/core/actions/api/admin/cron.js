@@ -13,12 +13,12 @@ Module.prototype.main = function () {
 
     // Check if the user is an admin
     if (!payload.user.roles.admin && assistant.meta.environment === 'production') {
-      return reject(assistant.errorify(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(`Admin required.`, {code: 401, sentry: false, send: false, log: false}));
     }
 
     // Check if the ID is set
     if (!payload.data.payload.id) {
-      return reject(assistant.errorify(`Missing parameter {id}`, {code: 400, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(`Missing parameter {id}`, {code: 400, sentry: false, send: false, log: false}));
     }
 
     // Run the cron job
@@ -27,7 +27,7 @@ Module.prototype.main = function () {
       return resolve({data: res});
     })
     .catch(e => {
-      return reject(assistant.errorify(e, {code: 400, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(e, {code: 400, sentry: false, send: false, log: false}));
     })
   });
 

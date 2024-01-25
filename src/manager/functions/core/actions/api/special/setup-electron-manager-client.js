@@ -32,11 +32,11 @@ Module.prototype.main = function () {
           signInToken = token;
         })
         .catch(e => {
-          error = assistant.errorify(`Failed to create custom token: ${e}`, {code: 500, sentry: false, send: false, log: false}).error
+          error = assistant.errorify(`Failed to create custom token: ${e}`, {code: 500, sentry: false, send: false, log: false});
         })
       })
       .catch(e => {
-        assistant.errorify(`Failed to resolve user: ${e}`, {code: 500, sentry: false, send: false, log: true})
+        assistant.errorify(`Failed to resolve user: ${e}`, {code: 500, sentry: false, send: false, log: true});
       })
 
       if (error) {
@@ -93,15 +93,11 @@ Module.prototype.main = function () {
       });
     })
     .catch(e => {
-      return reject(assistant.errorify(`Error fetching app details: ${e}`, {code: 500, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(`Error fetching app details: ${e}`, {code: 500, sentry: false, send: false, log: false}));
     })
-
-
-
 
   });
 
 };
-
 
 module.exports = Module;

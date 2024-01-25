@@ -22,7 +22,7 @@ Module.prototype.main = function () {
         (user?.plan?.status && user?.plan?.status !== 'cancelled')
         || user?.plan?.payment?.active
       ) {
-        return reject(assistant.errorify(`This account cannot be deleted because it has a paid subscription attached to it. In order to delete the account, you must first cancel the paid subscription.`, {code: 400, sentry: false, send: false, log: false}).error)
+        return reject(assistant.errorify(`This account cannot be deleted because it has a paid subscription attached to it. In order to delete the account, you must first cancel the paid subscription.`, {code: 400, sentry: false, send: false, log: false}));
       }
 
       // Signout of all sessions
@@ -54,7 +54,7 @@ Module.prototype.main = function () {
         return resolve({data: {success: true}});
       })
       .catch(e => {
-        return reject(assistant.errorify(`Failed to delete user: ${e}`, {code: 400, sentry: false, send: false, log: false}).error)
+        return reject(assistant.errorify(`Failed to delete user: ${e}`, {code: 400, sentry: false, send: false, log: false}));
       })
     })
     .catch(e => {

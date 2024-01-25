@@ -37,10 +37,10 @@ Module.prototype.main = function () {
             return resolve({data: {sessions: count, message: `Successfully signed ${uid} out of all sessions`}});
           })
           .catch(e => {
-            return reject(assistant.errorify(`Failed to sign out of all sessions: ${e}`, {code: 500, sentry: false, send: false, log: false}).error)
+            return reject(assistant.errorify(`Failed to sign out of all sessions: ${e}`, {code: 500, sentry: false, send: false, log: false}));
           })
       } catch (e) {
-        return reject(assistant.errorify(`Failed to sign out of all sessions: ${e}`, {code: 500, sentry: false, send: false, log: false}).error)
+        return reject(assistant.errorify(`Failed to sign out of all sessions: ${e}`, {code: 500, sentry: false, send: false, log: false}));
       }
     })
     .catch(e => {
@@ -108,7 +108,7 @@ Module.prototype.signOutOfSession = function (uid, session) {
 
       })
       .catch(e => {
-        assistant.errorify(`Session query error for session ${session}: ${e}`, {code: 500, sentry: true, send: false, log: true})
+        assistant.errorify(`Session query error for session ${session}: ${e}`, {code: 500, sentry: true, send: false, log: true});
 
         return reject(e);
       })

@@ -15,7 +15,7 @@ Module.prototype.main = function () {
 
     // If the user is not an admin, reject
     if (!payload.user.roles.admin && assistant.meta.environment === 'production') {
-      return reject(assistant.errorify(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(`Admin required.`, {code: 401, sentry: false, send: false, log: false}));
     }
 
     // Get lastPageToken from meta/stats
@@ -116,7 +116,7 @@ Module.prototype.main = function () {
         return resolve();
       })
       .catch(e => {
-        return reject(assistant.errorify(e, {code: 500, sentry: false, send: false, log: false}).error)
+        return reject(assistant.errorify(e, {code: 500, sentry: false, send: false, log: false}));
       })
   });
 

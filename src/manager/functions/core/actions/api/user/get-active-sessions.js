@@ -30,7 +30,7 @@ Module.prototype.main = function () {
         return resolve({data: data});
       })
       .catch(e => {
-        return reject(assistant.errorify(`Session query error: ${e}`, {code: 500, sentry: false, send: false, log: false}).error)
+        return reject(assistant.errorify(`Session query error: ${e}`, {code: 500, sentry: false, send: false, log: false}));
       })
 
     })

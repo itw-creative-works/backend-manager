@@ -395,9 +395,10 @@ BackendAssistant.prototype.errorify = function (e, options) {
       .send(sendable);
   }
 
-  return {
-    error: newError,
-  }
+  // return {
+  //   error: newError,
+  // }
+  return newError;
 }
 
 BackendAssistant.prototype.errorManager = BackendAssistant.prototype.errorify;

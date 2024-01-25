@@ -28,7 +28,7 @@ Module.prototype.main = function () {
 
       // Check if the file exists
       if (!jetpack.exists(resolvedPath)) {
-        return reject(assistant.errorify(`Defaults file at ${resolvedPath} does not exist, please add it manually.`, {code: 500, sentry: true, send: false, log: true}).error);
+        return reject(assistant.errorify(`Defaults file at ${resolvedPath} does not exist, please add it manually.`, {code: 500, sentry: true, send: false, log: true}));
       }
 
       // Load the file
@@ -40,7 +40,7 @@ Module.prototype.main = function () {
 
         return resolve({data: powertools.defaults(settings, combined)});
       } catch (e) {
-        return reject(assistant.errorify(`Unable to load file at ${resolvedPath}: ${e}`, {code: 500, sentry: true, send: false, log: true}).error);
+        return reject(assistant.errorify(`Unable to load file at ${resolvedPath}: ${e}`, {code: 500, sentry: true, send: false, log: true}));
       }
 
     })

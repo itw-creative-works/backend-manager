@@ -15,7 +15,7 @@ Module.prototype.main = function () {
   return new Promise(async function(resolve, reject) {
     // Perform checks
     if (!payload.user.roles.admin) {
-      return reject(assistant.errorify(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(`Admin required.`, {code: 401, sentry: false, send: false, log: false}));
     }
 
     // Run queries
@@ -35,7 +35,7 @@ Module.prototype.main = function () {
         return resolve({data: self.docs});
       })
       .catch((e) => {
-        return reject(assistant.errorify(e, {code: 500, sentry: false, send: false, log: false}).error)
+        return reject(assistant.errorify(e, {code: 500, sentry: false, send: false, log: false}));
       })
 
   });

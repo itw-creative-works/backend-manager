@@ -171,14 +171,14 @@ Usage.prototype.validate = function (path, options) {
       // If the captcha is valid, resolve
       if (!captchaResult || captchaResult instanceof Error || !captchaResult.success) {
         return reject(
-          assistant.errorify(`Captcha verification failed.`, {code: 400, sentry: false, send: false, log: false}).error
+          assistant.errorify(`Captcha verification failed.`, {code: 400, sentry: false, send: false, log: false})
         );
       }
     }
 
     // Otherwise, they are over the limit, reject
     return reject(
-      assistant.errorify(`You have exceeded your ${path} usage limit of ${period}/${allowed}.`, {code: 429, sentry: false, send: false, log: false}).error
+      assistant.errorify(`You have exceeded your ${path} usage limit of ${period}/${allowed}.`, {code: 429, sentry: false, send: false, log: false})
     );
   });
 };

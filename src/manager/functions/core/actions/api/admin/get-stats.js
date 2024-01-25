@@ -17,7 +17,7 @@ Module.prototype.main = function () {
 
     // Perform checks
     if (!payload.user.roles.admin) {
-      return reject(assistant.errorify(`Admin required.`, {code: 401, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(`Admin required.`, {code: 401, sentry: false, send: false, log: false}));
     }
 
     // Get stats
@@ -34,7 +34,7 @@ Module.prototype.main = function () {
         }
 
         if (data instanceof Error) {
-          return reject(assistant.errorify(data, {code: 500, sentry: false, send: false, log: false}).error)
+          return reject(assistant.errorify(data, {code: 500, sentry: false, send: false, log: false}));
         }
 
         // Retrieve the stats again after updating
@@ -47,13 +47,13 @@ Module.prototype.main = function () {
 
 
         if (data instanceof Error) {
-          return reject(assistant.errorify(data, {code: 500, sentry: false, send: false, log: false}).error)
+          return reject(assistant.errorify(data, {code: 500, sentry: false, send: false, log: false}));
         }
 
         return resolve({data: data})
       })
       .catch(function (e) {
-        return reject(assistant.errorify(`Failed to get: ${e}`, {code: 500, sentry: false, send: false, log: false}).error)
+        return reject(assistant.errorify(`Failed to get: ${e}`, {code: 500, sentry: false, send: false, log: false}));
       })
   });
 

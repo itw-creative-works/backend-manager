@@ -20,14 +20,14 @@ Module.prototype.main = function () {
 
     if (payload.data.payload.version === '5') {
       if (!payload.data.payload.name) {
-        return reject(assistant.errorify(`You must provide a name to hash for uuid v5.`, {code: 400, sentry: false, send: false, log: false}).error)
+        return reject(assistant.errorify(`You must provide a name to hash for uuid v5.`, {code: 400, sentry: false, send: false, log: false}));
       } else {
         result = uuid.v5(payload.data.payload.name, payload.data.payload.namespace);
       }
     } else if (payload.data.payload.version === '4') {
       result = uuid.v4();
     } else {
-      return reject(assistant.errorify(`v${payload.data.payload.version} is not a valid version.`, {code: 400, sentry: false, send: false, log: false}).error)
+      return reject(assistant.errorify(`v${payload.data.payload.version} is not a valid version.`, {code: 400, sentry: false, send: false, log: false}));
     }
 
     assistant.log('UUID Generated', payload.data.payload, result);
