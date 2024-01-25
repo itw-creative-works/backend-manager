@@ -17,6 +17,7 @@ const { spawn, child, exec, fork } = require('child_process');
 const JSON5 = require('json5');
 const fetch = require('wonderful-fetch');
 const argv = require('yargs').argv;
+const powertools = require('node-powertools');
 
 // function parseArgumentsIntoOptions(rawArgs) {
 //   const args = arg(
@@ -554,6 +555,22 @@ Main.prototype.setup = async function () {
   await self.test('update backend-manager-tests.js', function () {
     jetpack.write(`${self.firebaseProjectPath}/test/backend-manager-tests.js`,
       (jetpack.read(path.resolve(`${__dirname}/../../templates/backend-manager-tests.js`)))
+    )
+    return true;
+  }, NOFIX);
+
+  await self.test('create public .html files', function () {
+    const options = {url: self.bemConfigJSON.brand.url}
+    // index.html
+    const templateIndex = jetpack.read(path.resolve(`${__dirname}/../../templates/public/index.html`));
+    jetpack.write(`${self.firebaseProjectPath}/public/index.html`,
+      powertools.template(templateIndex, options)
+    )
+
+    // 404.html
+    const template404 = jetpack.read(path.resolve(`${__dirname}/../../templates/public/404.html`));
+    jetpack.write(`${self.firebaseProjectPath}/public/404.html`,
+      powertools.template(template404, options)
     )
     return true;
   }, NOFIX);
