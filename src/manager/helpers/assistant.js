@@ -495,12 +495,22 @@ function _attachHeaderProperties(self, options, error) {
     },
     additional: options.additional || {},
   }
+  const req = self.ref.req;
+  const res = self.ref.res;
 
   // Attach properties
   try {
-    self.ref.res.header('bm-properties', JSON.stringify(headers));
+    res.header('bm-properties', JSON.stringify(headers));
   } catch (e) {
     self.warn('Error attaching properties to header', e);
+  }
+
+  // Add bm-properties to Access-Control-Expose-Headers
+  const existingExposed = res.get('Access-Control-Expose-Headers') || '';
+  const newExposed = `${existingExposed}, bm-properties`.replace(/^, /, '');
+
+  if (!existingExposed.match(/bm-properties/i)) {
+    res.header('Access-Control-Expose-Headers', newExposed);
   }
 
   // Attach properties
