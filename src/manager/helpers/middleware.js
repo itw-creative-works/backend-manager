@@ -59,6 +59,10 @@ Middleware.prototype.run = function (library, options) {
       assistant.usage = await Manager.Usage().init(assistant);
     }
 
+    // Log working user
+    const workingUser = assistant?.usage?.user || assistant.request.user;
+    assistant.log(`Middleware.process(): User (${workingUser.auth.uid}, ${workingUser.auth.email}, ${workingUser.plan.id}=${workingUser.plan.status}):`, JSON.stringify(workingUser));
+
     // Setup analytics
     if (options.setupAnalytics) {
       const uuid = assistant?.usage?.user?.auth?.uid
