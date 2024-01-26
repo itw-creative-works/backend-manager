@@ -27,6 +27,7 @@ Middleware.prototype.run = function (library, options) {
     const data = assistant.request.data;
     const geolocation = assistant.request.geolocation;
     const client = assistant.request.client;
+    const isProduction = assistant.meta.environment === 'production';
 
     // Set options
     options = options || {};
@@ -56,11 +57,11 @@ Middleware.prototype.run = function (library, options) {
 
     // Setup usage
     if (options.setupUsage) {
-      assistant.usage = await Manager.Usage().init(assistant);
+      assistant.usage = await Manager.Usage().init(assistant, {log: isProduction});
     }
 
     // Log working user
-    const workingUser = assistant?.usage?.user || assistant.request.user;
+    const workingUser = assistant.getUser();
     assistant.log(`Middleware.process(): User (${workingUser.auth.uid}, ${workingUser.auth.email}, ${workingUser.plan.id}=${workingUser.plan.status}):`, JSON.stringify(workingUser));
 
     // Setup analytics

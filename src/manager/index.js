@@ -389,39 +389,39 @@ Manager.prototype.init = function (exporter, options) {
       self.libraries.functions
       .runWith({memory: '256MB', timeoutSeconds: 60})
       .auth.user()
-      .beforeCreate(async (user, context) => self._process((new (require(`${core}/events/auth/before-create.js`))(), {middleware: false}).init(self, { user: user, context: context})));
+      .beforeCreate(async (user, context) => self._process((new (require(`${core}/events/auth/before-create.js`))()).init(self, { user: user, context: context})));
 
       exporter.bm_authBeforeSignIn =
       self.libraries.functions
       .runWith({memory: '256MB', timeoutSeconds: 60})
       .auth.user()
-      .beforeSignIn(async (user, context) => self._process((new (require(`${core}/events/auth/before-signin.js`))(), {middleware: false}).init(self, { user: user, context: context})));
+      .beforeSignIn(async (user, context) => self._process((new (require(`${core}/events/auth/before-signin.js`))()).init(self, { user: user, context: context})));
     }
 
     exporter.bm_authOnCreate =
     self.libraries.functions
     .runWith({memory: '256MB', timeoutSeconds: 60})
     .auth.user()
-    .onCreate(async (user, context) => self._process((new (require(`${core}/events/auth/on-create.js`))(), {middleware: false}).init(self, { user: user, context: context})));
+    .onCreate(async (user, context) => self._process((new (require(`${core}/events/auth/on-create.js`))()).init(self, { user: user, context: context})));
 
     exporter.bm_authOnDelete =
     self.libraries.functions
     .runWith({memory: '256MB', timeoutSeconds: 60})
     .auth.user()
-    .onDelete(async (user, context) => self._process((new (require(`${core}/events/auth/on-delete.js`))(), {middleware: false}).init(self, { user: user, context: context})));
+    .onDelete(async (user, context) => self._process((new (require(`${core}/events/auth/on-delete.js`))()).init(self, { user: user, context: context})));
 
     exporter.bm_subOnWrite =
     self.libraries.functions
     .runWith({memory: '256MB', timeoutSeconds: 60})
     .firestore.document('notifications/subscriptions/all/{token}')
-    .onWrite(async (change, context) => self._process((new (require(`${core}/events/firestore/on-subscription.js`))(), {middleware: false}).init(self, { change: change, context: context, })));
+    .onWrite(async (change, context) => self._process((new (require(`${core}/events/firestore/on-subscription.js`))()).init(self, { change: change, context: context, })));
 
     // Cron
     exporter.bm_cronDaily =
     self.libraries.functions
     .runWith({ memory: '256MB', timeoutSeconds: 120 })
     .pubsub.schedule('every 24 hours')
-    .onRun(async (context) => self._process((new (require(`${core}/cron/daily.js`))(), {middleware: false}).init(self, { context: context, })));
+    .onRun(async (context) => self._process((new (require(`${core}/cron/daily.js`))()).init(self, { context: context, })));
   }
 
   // Set dotenv

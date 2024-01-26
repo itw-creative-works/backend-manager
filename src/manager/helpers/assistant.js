@@ -330,6 +330,12 @@ BackendAssistant.prototype._log = function () {
   }
 }
 
+BackendAssistant.prototype.getUser = function () {
+  const self = this;
+
+  return self?.usage?.user || self.request.user;
+}
+
 BackendAssistant.prototype.errorify = function (e, options) {
   const self = this;
   const res = self.ref.res;
