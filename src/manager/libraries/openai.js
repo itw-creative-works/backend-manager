@@ -87,6 +87,9 @@ OpenAI.prototype.request = function (options) {
       options.message.settings,
     ).trim();
     const user = options.user?.auth?.uid || assistant.request.geolocation.ip;
+    const responseFormat = options.response === 'json' && !options.model.includes('gpt-3.5')
+      ? { type: 'json_object' }
+      : undefined;
 
     assistant.log('callOpenAI(): Prompt', prompt);
     assistant.log('callOpenAI(): Message', message);
@@ -125,7 +128,7 @@ OpenAI.prototype.request = function (options) {
 
           request.body = {
             model: options.model,
-            response_format: options.response === 'json' ? { type: 'json_object' } : undefined,
+            response_format: responseFormat,
             messages: options.history.messages,
             temperature: options.temperature,
             max_tokens: options.maxTokens,
@@ -193,6 +196,8 @@ OpenAI.prototype.request = function (options) {
           moderation: moderation,
         })
       } catch (e) {
+        assistant.warn('callOpenAI(): Error parsing response', r, e);
+
         return reject(e);
       }
     })
