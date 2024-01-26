@@ -158,7 +158,7 @@ BackendAssistant.prototype.init = function (ref, options) {
 
   // Log options
   if (
-    (self.meta.environment === 'development')
+    (self.isDevelopment())
     && ((self.request.method !== 'OPTIONS') || (self.request.method === 'OPTIONS' && options.showOptionsLog))
     && (self.request.method !== 'undefined')
     // && (self.request.method !== 'undefined' && typeof self.request.method !== 'undefined')
@@ -191,6 +191,18 @@ BackendAssistant.prototype.getEnvironment = function () {
     return 'production'
   }
 };
+
+BackendAssistant.prototype.isDevelopment = function () {
+  const self = this;
+
+  return self.meta.environment === 'development';
+}
+
+BackendAssistant.prototype.isProduction = function () {
+  const self = this;
+
+  return self.meta.environment === 'production';
+}
 
 BackendAssistant.prototype.logProd = function () {
   const self = this;
@@ -273,7 +285,6 @@ BackendAssistant.prototype._log = function () {
   const self = this;
 
   // 1. Convert args to a normal array
-  const isDevelopment = self.meta.environment === 'development';
   const logs = [...Array.prototype.slice.call(arguments)];
 
   // 2. Prepend log prefix log string
@@ -294,7 +305,7 @@ BackendAssistant.prototype._log = function () {
     console.debug.apply(console, logs);
   } else if (logs[1] === 'notice') {
     logs.splice(1,1)
-    if (isDevelopment) {
+    if (self.isDevelopment()) {
       console.log.apply(console, logs);
     } else {
       self.ref.functions.logger.write({

@@ -29,7 +29,7 @@ let Module = {
         action: 'create-test-accounts',
         // label: '',
       });
-            
+
       let assistant = self.assistant;
 
       let response = {
@@ -51,7 +51,7 @@ let Module = {
       }
 
 
-      if (assistant.meta.environment === 'development') {
+      if (assistant.isDevelopment()) {
         assistant.log(response);
         return res.status(response.status).json(response);
       } else {

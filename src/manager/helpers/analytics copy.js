@@ -37,7 +37,7 @@ function Analytics(Manager, options) {
   self._ds = 'app';
   self._uuid = options.uuid || self._request.ip || self.Manager.SERVER_UUID;
   self._uuid = self._uuid.match(uuidRegex) ? self._uuid : self.generateId(self._uuid);
-  self._debug = typeof options.debug === 'undefined' ? (self.Manager.assistant.meta.environment === 'development') : options.debug;
+  self._debug = typeof options.debug === 'undefined' ? (self.Manager.assistant.isDevelopment()) : options.debug;
   self._pageview = typeof options.pageview === 'undefined' ? true : options.pageview;
   self._version = self.Manager.package.version;
   self._initialized = false;

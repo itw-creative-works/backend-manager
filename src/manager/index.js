@@ -90,7 +90,7 @@ Manager.prototype.init = function (exporter, options) {
   self.assistant = self.Assistant().init(undefined, options.assistant);
 
   // Set more properties (need to wait for assistant to determine if DEV)
-  self.project.functionsUrl = self.assistant.meta.environment === 'development'
+  self.project.functionsUrl = self.assistant.isDevelopment()
     ? `http://localhost:5001/${self.project.projectId}/${self.project.resourceZone}`
     : `https://${self.project.resourceZone}-${self.project.projectId}.cloudfunctions.net`;
 
@@ -103,7 +103,7 @@ Manager.prototype.init = function (exporter, options) {
   }
 
   // Handle dev environments
-  if (self.assistant.meta.environment === 'development') {
+  if (self.assistant.isDevelopment()) {
     const semverMajor = require('semver/functions/major')
     const semverCoerce = require('semver/functions/coerce')
     const semverUsing = semverMajor(semverCoerce(process.versions.node));
@@ -152,7 +152,7 @@ Manager.prototype.init = function (exporter, options) {
       dsn: sentryDSN,
       release: sentryRelease,
       beforeSend(event, hint) {
-        if (self.assistant.meta.environment === 'development' && !self.options.reportErrorsInDev) {
+        if (self.assistant.isDevelopment() && !self.options.reportErrorsInDev) {
           self.assistant.error(new Error('[Sentry] Skipping Sentry because we\'re in development'), hint)
           return null;
         }
@@ -436,7 +436,7 @@ Manager.prototype.init = function (exporter, options) {
     self.storage();
   }
 
-  if (self.assistant.meta.environment === 'development' && options.fetchStats) {
+  if (self.assistant.isDevelopment() && options.fetchStats) {
     setTimeout(function () {
       self.assistant.log('Fetching meta/stats...');
       self.libraries.admin
@@ -689,7 +689,7 @@ Manager.prototype.storage = function (options) {
 
     if (
       options.temporary
-      && self.assistant.meta.environment === 'development'
+      && self.assistant.isDevelopment()
       && options.clear
     ) {
       self.assistant.log('Removed temporary file @', location);

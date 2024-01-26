@@ -37,7 +37,7 @@ function Analytics(Manager, options) {
   self._data_soruce = 'server';
   self._uuid = options.uuid || self._request.ip || self.Manager.SERVER_UUID;
   self._uuid = self._uuid.match(uuidRegex) ? self._uuid : self.generateId(self._uuid);
-  self._debug = typeof options.debug === 'undefined' ? self._assistant.meta.environment === 'development' : options.debug;
+  self._debug = typeof options.debug === 'undefined' ? self._assistant.isDevelopment() : options.debug;
   self._pageview = typeof options.pageview === 'undefined' ? true : options.pageview;
   self._version = self.Manager.package.version;
   self._initialized = false;
@@ -207,7 +207,7 @@ Analytics.prototype.send = function (event) {
   }
 
   // Log
-  if (self._assistant.meta.environment === 'development') {
+  if (self._assistant.isDevelopment()) {
     self._assistant.log('analytics().send(): Sending...', JSON.stringify(body));
   }
 
@@ -221,7 +221,7 @@ Analytics.prototype.send = function (event) {
     body: body,
   })
   .then((r) => {
-    if (self._assistant.meta.environment === 'development') {
+    if (self._assistant.isDevelopment()) {
       self._assistant.log('analytics().send(): Success', r);
     }
   })

@@ -25,7 +25,7 @@ Module.prototype.main = function () {
     Api.resolveUser({adminRequired: true})
     .then(async (user) => {
 
-      self.ultimateJekyllOAuth2Url = assistant.meta.environment === 'development'
+      self.ultimateJekyllOAuth2Url = assistant.isDevelopment()
         ? `http://localhost:4000/oauth2`
         : `${Manager.config.brand.url}/oauth2`
       self.oauth2 = null;
@@ -40,11 +40,11 @@ Module.prototype.main = function () {
         : payload.data.payload.redirect
 
       payload.data.payload.referrer = typeof payload.data.payload.referrer === 'undefined'
-        ? (assistant.meta.environment === 'development' ? `http://localhost:4000/account` : `${Manager.config.brand.url}/account`)
+        ? (assistant.isDevelopment() ? `http://localhost:4000/account` : `${Manager.config.brand.url}/account`)
         : payload.data.payload.referrer
 
       payload.data.payload.serverUrl = typeof payload.data.payload.serverUrl === 'undefined'
-        ? (assistant.meta.environment === 'development' ? `${Manager.project.functionsUrl}/bm_api` : `${Manager.project.functionsUrl}/bm_api`)
+        ? (assistant.isDevelopment() ? `${Manager.project.functionsUrl}/bm_api` : `${Manager.project.functionsUrl}/bm_api`)
         : payload.data.payload.serverUrl
 
       payload.data.payload.provider = payload.data.payload.provider || '';

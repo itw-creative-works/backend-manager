@@ -18,7 +18,7 @@ Module.prototype.main = function () {
 
     payload.data.payload.deletionRegex = payload.data.payload.deletionRegex ? powertools.regexify(payload.data.payload.deletionRegex) : payload.data.payload.deletionRegex;
 
-    if (!payload.user.roles.admin && assistant.meta.environment === 'production') {
+    if (!payload.user.roles.admin && assistant.isProduction()) {
       return reject(assistant.errorify(`Admin required.`, {code: 401, sentry: false, send: false, log: false}));
     }
 

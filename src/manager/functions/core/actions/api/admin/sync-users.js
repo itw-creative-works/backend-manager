@@ -14,7 +14,7 @@ Module.prototype.main = function () {
   return new Promise(async function(resolve, reject) {
 
     // If the user is not an admin, reject
-    if (!payload.user.roles.admin && assistant.meta.environment === 'production') {
+    if (!payload.user.roles.admin && assistant.isProduction()) {
       return reject(assistant.errorify(`Admin required.`, {code: 401, sentry: false, send: false, log: false}));
     }
 

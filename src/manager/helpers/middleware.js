@@ -27,7 +27,6 @@ Middleware.prototype.run = function (library, options) {
     const data = assistant.request.data;
     const geolocation = assistant.request.geolocation;
     const client = assistant.request.client;
-    const isProduction = assistant.meta.environment === 'production';
 
     // Set options
     options = options || {};
@@ -57,7 +56,7 @@ Middleware.prototype.run = function (library, options) {
 
     // Setup usage
     if (options.setupUsage) {
-      assistant.usage = await Manager.Usage().init(assistant, {log: isProduction});
+      assistant.usage = await Manager.Usage().init(assistant, {log: assistant.isProduction()});
     }
 
     // Log working user
