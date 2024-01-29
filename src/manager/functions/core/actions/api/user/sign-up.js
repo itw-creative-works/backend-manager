@@ -395,7 +395,7 @@ Module.prototype.sendWelcomeEmail = function (user) {
         template: 'd-b7f8da3c98ad49a2ad1e187f3a67b546',
         group: 25928,
         copy: false,
-        sendAt: moment().add(1, 'day').unix(),
+        sendAt: moment().add(1, 'hour').unix(),
         data: {
           email: {
             preview: `Welcome aboard! I'm Ian, the CEO and founder of ${Manager.config.brand.name}. I'm here to ensure your journey with us gets off to a great start.`,
