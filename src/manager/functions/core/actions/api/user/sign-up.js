@@ -266,8 +266,11 @@ Module.prototype.addToSendGridList = function (user) {
       body: {
         backendManagerKey: Manager.config.backend_manager.key,
         service: 'sendgrid',
-        command: `/v3/marketing/contacts`,
+        command: `v3/marketing/contacts`,
         method: `put`,
+        supplemental: {
+          user: user,
+        },
         body: {
           contacts: [
             {
