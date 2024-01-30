@@ -595,15 +595,16 @@ BackendAssistant.prototype.authenticate = async function (options) {
       self.request.user.roles.admin = true;
       return _resolve(self.request.user);
     }
-  } else if (options.apiKey) {
-    self.log('Found "options.apiKey"', options.apiKey, logOptions);
+  } else if (options.apiKey || data.apiKey) {
+    const apiKey = apiKey || data.apiKey;
+    self.log('Found "options.apiKey"', apiKey, logOptions);
 
-    if (options.apiKey.includes('test')) {
+    if (apiKey.includes('test')) {
       return _resolve(self.request.user);
     }
 
     await admin.firestore().collection(`users`)
-      .where('api.privateKey', '==', options.apiKey)
+      .where('api.privateKey', '==', apiKey)
       .get()
       .then(function(querySnapshot) {
         querySnapshot.forEach(function(doc) {
