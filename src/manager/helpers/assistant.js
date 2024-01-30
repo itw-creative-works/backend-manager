@@ -596,7 +596,7 @@ BackendAssistant.prototype.authenticate = async function (options) {
       return _resolve(self.request.user);
     }
   } else if (options.apiKey || data.apiKey) {
-    const apiKey = apiKey || data.apiKey;
+    const apiKey = options.apiKey || data.apiKey;
     self.log('Found "options.apiKey"', apiKey, logOptions);
 
     if (apiKey.includes('test')) {
