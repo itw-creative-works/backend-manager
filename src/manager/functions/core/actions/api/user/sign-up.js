@@ -291,12 +291,12 @@ Module.prototype.addToSendGridList = function (user) {
         },
       },
     })
-    .then(function (res) {
-      assistant.log('Sucessfully added user to SendGrid list.')
+    .then((r) => {
+      assistant.log('addToSendGridList(): Success', r)
       return resolve(res);
     })
-    .catch(function (e) {
-      assistant.log('Failed to add user to SendGrid list.', e)
+    .catch((e) => {
+      assistant.error('addToSendGridList(): Failed', e)
       return resolve(e);
     })
 
@@ -340,6 +340,7 @@ Module.prototype.sendRateEmail = function (user) {
         subject: `Your ${Manager.config.brand.name} account has been deleted`,
         template: 'd-b7f8da3c98ad49a2ad1e187f3a67b546',
         group: 25927,
+        copy: true,
         data: {
           email: {
             preview: `You have signed up for too many accounts at ${Manager.config.brand.name}! Your account has been deleted.`,
@@ -361,11 +362,11 @@ Module.prototype.sendRateEmail = function (user) {
         },
       },
     })
-    .then(async (json) => {
+    .then((json) => {
       assistant.log('sendEmail(): Success', json)
       return resolve(json);
     })
-    .catch(e => {
+    .catch((e) => {
       assistant.error('sendEmail(): Failed', e)
       return resolve(e);
     });
@@ -424,11 +425,11 @@ Module.prototype.sendWelcomeEmail = function (user) {
         },
       },
     })
-    .then(async (json) => {
+    .then((json) => {
       assistant.log('sendEmail(): Success', json)
       return resolve(json);
     })
-    .catch(e => {
+    .catch((e) => {
       assistant.error('sendEmail(): Failed', e)
       return resolve(e);
     });
@@ -487,11 +488,11 @@ Module.prototype.sendCheckupEmail = function (user) {
         },
       },
     })
-    .then(async (json) => {
+    .then((json) => {
       assistant.log('sendEmail(): Success', json)
       return resolve(json);
     })
-    .catch(e => {
+    .catch((e) => {
       assistant.error('sendEmail(): Failed', e)
       return resolve(e);
     });
@@ -524,11 +525,11 @@ Module.prototype.sendFeedbackEmail = function (user) {
         sendAt: moment().add(14, 'days').unix(),
       },
     })
-    .then(async (json) => {
+    .then((json) => {
       assistant.log('sendEmail(): Success', json)
       return resolve(json);
     })
-    .catch(e => {
+    .catch((e) => {
       assistant.error('sendEmail(): Failed', e)
       return resolve(e);
     });

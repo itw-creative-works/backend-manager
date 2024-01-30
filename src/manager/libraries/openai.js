@@ -5,6 +5,10 @@ const _ = require('lodash');
 
 const TOKEN_COST_TABLE = {
   // Nov 6th, 2023
+  'gpt-4-turbo-preview': {
+    input: 0.0100,
+    output: 0.0300,
+  },
   'gpt-4-1106-preview': {
     input: 0.0100,
     output: 0.0300,
@@ -60,10 +64,12 @@ OpenAI.prototype.request = function (options) {
 
     options.prompt = options.prompt || {};
     options.prompt.path = options.prompt.path || '';
+    options.prompt.content = options.prompt.content || '';
     options.prompt.settings = options.prompt.settings || {};
 
     options.message = options.message || {};
     options.message.path = options.message.path || '';
+    options.message.content = options.message.content || '';
     options.message.settings = options.message.settings || {};
 
     options.history = options.history || {};
@@ -77,15 +83,17 @@ OpenAI.prototype.request = function (options) {
     assistant.log('callOpenAI(): Starting', self.key);
     assistant.log('callOpenAI(): Starting', options);
 
+    function _load(input) {
+      return powertools.template(
+        input.content || jetpack.read(input.path),
+        input.settings,
+      )
+      .trim();
+    }
+
     // Load prompt
-    const prompt = powertools.template(
-      jetpack.read(options.prompt.path),
-      options.prompt.settings,
-    ).trim();
-    const message = powertools.template(
-      jetpack.read(options.message.path),
-      options.message.settings,
-    ).trim();
+    const prompt = _load(options.prompt);
+    const message = _load(options.message);
     const user = options.user?.auth?.uid || assistant.request.geolocation.ip;
     const responseFormat = options.response === 'json' && !options.model.includes('gpt-3.5')
       ? { type: 'json_object' }
