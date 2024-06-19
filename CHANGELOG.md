@@ -15,14 +15,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Security` in case of vulnerabilities.
 
 ---
-## [3.2.30] - 2023-01-30
-### Added
+## [3.2.109] - 2024-05-08
+### Changed
+- Replaced all `methods` references with `routes`. This should be changed in your code as well.
+
+## [3.2.32] - 2024-01-30
+### Changed
+- Modified `.assistant().errorify()` to have defaults of `log`, `sentry`, and `send` to `false` if not specified to prevent accidental logging and premature sending of errors.
+
+## [3.2.30] - 2024-01-30
+### Changed
 - Modified `.assistant()` token/key check to use `options.apiKey || data.apiKey`
 
-## [3.2.0] - 2023-01-19
+## [3.2.0] - 2024-01-19
 ### Added
-- Added `.settings()` API. Put your settings in `./schema/*.js` and access them with `assistant.settings.*`.
-
+- Added `.settings()` API. Put your settings in `./schemas/*.js` and access them with `assistant.settings.*`.
 
 ## [3.1.0] - 2023-12-19
 ### Added

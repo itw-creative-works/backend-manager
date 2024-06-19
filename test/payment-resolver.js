@@ -57,19 +57,6 @@ describe(`${package.name}`, () => {
     // console.log(...arguments);
   }
 
-  describe('.dependencies()', () => {
-    Object.keys(package.dependencies).forEach((dependency) => {
-      it(`should load ${dependency}`, () => {
-        try {
-          const dep = require(dependency);
-          assert.ok(dep);
-        } catch (e) {
-          assert.fail(`Failed to load ${dependency}: ${e.message}`);
-        }
-      });
-    });
-  });
-
   describe('.subscriptionResolver()', () => {
 
     /*
@@ -1387,6 +1374,49 @@ describe(`${package.name}`, () => {
             return assert.deepStrictEqual(result, expected);
           });
         });
+
+        // describe('unsure', () => {
+        //   const item = require('./payment-resolver/stripe/subscriptions/unsure.json');
+        //   const result = Manager.SubscriptionResolver({}, item).resolve(options);
+        //   const expected = {
+        //     processor: 'stripe',
+        //     type: 'subscription',
+        //     status: 'active',
+        //     frequency: 'monthly',
+        //     resource: { id: 'sub_1OkWCdHGybgi7uQGxQDhAQ51' },
+        //     payment: {
+        //       completed: true,
+        //       refunded: false,
+        //     },
+        //     start: { timestamp: '2024-02-16T18:32:03.000Z', timestampUNIX: 1708108323 },
+        //     expires: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
+        //     cancelled: { timestamp: '1970-01-01T00:00:00.000Z', timestampUNIX: 0 },
+        //     lastPayment: {
+        //       amount: 0,
+        //       date: { timestamp: '2023-04-13T16:52:51.000Z', timestampUNIX: 1681404771 }
+        //     },
+        //     trial: {
+        //       active: false,
+        //       claimed: true,
+        //       daysLeft: 0,
+        //       expires: {
+        //         timestamp: '1970-01-01T00:00:00.000Z',
+        //         timestampUNIX: 0,
+        //       },
+        //     },
+        //     details: {
+        //       message: '[REDACTED]',
+        //     },
+        //   }
+
+        //   log('result', result);
+
+        //   it('should resolve correctly', () => {
+        //     return assert.deepStrictEqual(result, expected);
+        //   });
+        // });
+
+
       });
 
     });

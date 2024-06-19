@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://cdn.itwcreativeworks.com/assets/itw-creative-works/images/logo/itw-creative-works-brandmark-black-x.svg">
+  <a href="https://itwcreativeworks.com">
     <img src="https://cdn.itwcreativeworks.com/assets/itw-creative-works/images/logo/itw-creative-works-brandmark-black-x.svg" width="100px">
   </a>
 </p>
@@ -24,18 +24,18 @@
   <strong>Backend Manager</strong> is an NPM module for Firebase developers that instantly implements powerful backend features. Be sure to look at which functions it exposes before using it!
 </p>
 
-## Install
+## 📦 Install Backend Manager
 <!-- First, install the global command line utility with npm: -->
 First, install the package via npm:
 ```shell
 npm i backend-manager
 ```
 
-## Features
+## 🦄 Features
 * Automatically create and deploy powerful management and marketing functions
 * Automatically keep your Firebase dependencies up to date
 
-## Example Setup
+## 📘 Example Setup
 After installing via npm, simply paste this script in your Firebase `functions/index.js` file.
 ```js
 // In your functions/index.js file
@@ -53,7 +53,7 @@ npx bm setup
 
 Your project will be checked for errors and any tips and fixes will be provided to you!
 
-## Example CLI Usage
+## 💻 Example CLI Usage
 Note: you may have to run cli commands with `npx bm <command>` if you install this package locally.
   * `npx bm v`: Check version of backend-manager.
   * `npx bm setup`: Runs some checks and sets up your Firebase project.
@@ -70,10 +70,10 @@ Note: you may have to run cli commands with `npx bm <command>` if you install th
   * `npx bm clean:npm`: Delete, clean, and reinstall npm modules.
 
 
-## Final Words
+## 🗨️ Final Words
 If you are still having difficulty, we would love for you to post a question to [the Backend Manager issues page](https://github.com/itw-creative-works/backend-manager/issues). It is much easier to answer questions that include your code and relevant files! So if you can provide them, we'd be extremely grateful (and more likely to help you find the answer!)
 
-## Projects Using this Library
+## 📚 Projects Using this Library
 [Somiibo](https://somiibo.com/): A Social Media Bot with an open-source module library. <br>
 [JekyllUp](https://jekyllup.com/): A website devoted to sharing the best Jekyll themes. <br>
 [Slapform](https://slapform.com/): A backend processor for your HTML forms on static sites. <br>

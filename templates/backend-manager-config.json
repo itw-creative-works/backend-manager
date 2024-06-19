@@ -1,36 +1,51 @@
 {
-  "app": {
-    "id": "my-app"
+  app: {
+    id: 'my-app',
   },
-  "brand": {
-    "name": "My Brand",
-    "url": "https://example.com",
-    "email": "support@example.com",
-    "wordmark": "https://example.com/wordmark.png",
-    "brandmark": "https://example.com/wordmark.png",
-    "combomark": "https://example.com/combomark.png"
+  brand: {
+    name: 'My Brand',
+    url: 'https://example.com',
+    email: 'support@example.com',
+    wordmark: 'https://example.com/wordmark.png',
+    brandmark: 'https://example.com/wordmark.png',
+    combomark: 'https://example.com/combomark.png',
   },
-  "mailchimp": {
-    "list_id": "36774bf825"
+  mailchimp: {
+    list_id: '36774bf825',
   },
-  "github": {
-    "user": "username",
-    "repo_website": "https://github.com/username/backend-manager"
+  github: {
+    user: 'username',
+    repo_website: 'https://github.com/username/backend-manager',
   },
-  "sentry": {
-    "dsn": "https://d965557418748jd749d837asf00552f@o777489.ingest.sentry.io/8789941"
+  sentry: {
+    dsn: 'https://d965557418748jd749d837asf00552f@o777489.ingest.sentry.io/8789941',
   },
-  "google_analytics": {
-    "id": "UA-123456789-1",
-    "secret": "ABCx1234567890ABCDEFGH"
+  google_analytics: {
+    id: 'UA-123456789-1',
+    secret: 'ABCx1234567890ABCDEFGH',
   },
-  "firebaseConfig": {
-    "apiKey": "123-456",
-    "authDomain": "PROJECT-ID.firebaseapp.com",
-    "projectId": "PROJECT-ID",
-    "storageBucket": "PROJECT-ID.appspot.com",
-    "messagingSenderId": "123",
-    "appId": "1:123:web:456",
-    "measurementId": "G-0123456789"
-  }
+  firebaseConfig: {
+    apiKey: '123-456',
+    authDomain: 'PROJECT-ID.firebaseapp.com',
+    projectId: 'PROJECT-ID',
+    storageBucket: 'PROJECT-ID.appspot.com',
+    messagingSenderId: '123',
+    appId: '1:123:web:456',
+    measurementId: 'G-0123456789',
+  },
+  ghostii: [
+    {
+      articles: 1,
+      sources: [
+        '$app',
+        // Add more sources here
+      ],
+      links: [
+        // ...
+      ],
+      prompt: '',
+      chance: 1.0,
+      author: 'alex',
+    }
+  ],
 }
