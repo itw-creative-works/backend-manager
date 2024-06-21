@@ -36,8 +36,8 @@
   },
   "homepage": "https://itwcreativeworks.com",
   "preparePackage": {
-    "input": "./src",
-    "output": "./dist",
+    "input": "./src_",
+    "output": "./dist_",
     "replace": {}
   },
   "dependencies": {
