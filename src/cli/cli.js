@@ -269,13 +269,13 @@ Main.prototype.setup = async function () {
   bem_giRegex = new RegExp(jetpack.read(path.resolve(`${__dirname}/../../templates/gitignore.md`)), 'm' )
 
   // tests
-  self.projectName = self.firebaseRC.projects.default;
-  self.projectUrl = `https://console.firebase.google.com/project/${self.projectName}`;
+  self.projectId = self.firebaseRC.projects.default;
+  self.projectUrl = `https://console.firebase.google.com/project/${self.projectId}`;
 
   self.bemApiURL = `https://us-central1-${self?.firebaseRC?.projects?.default}.cloudfunctions.net/bm_api?authenticationToken=${self?.runtimeConfigJSON?.backend_manager?.key}`;
 
   // Log
-  log(`ID: `, chalk.bold(`${self.projectName}`));
+  log(`ID: `, chalk.bold(`${self.projectId}`));
   log(`URL:`, chalk.bold(`${self.projectUrl}`));
 
   if (!self.package || !self.package.engines || !self.package.engines.node) {
@@ -436,7 +436,7 @@ Main.prototype.setup = async function () {
 
   await self.test('has correct ID in backend-manager-config.json', async function () {
     // Check if the project name matches the projectId
-    if (self.projectName !== self.bemConfigJSON?.firebaseConfig?.projectId) {
+    if (self.projectId !== self.bemConfigJSON?.firebaseConfig?.projectId) {
       console.error(chalk.red('Mismatch between project name and firebaseConfig.projectId in backend-manager-config.json'));
       return false;
     }
@@ -445,9 +445,25 @@ Main.prototype.setup = async function () {
     return true;
   }, NOFIX);
 
-  await self.test('has service-account.json', function () {
-    let exists = jetpack.exists(`${self.firebaseProjectPath}/functions/service-account.json`);
-    return !!exists;
+  await self.test('has correct service-account.json', function () {
+    let serviceAccount = jetpack.read(`${self.firebaseProjectPath}/functions/service-account.json`);
+
+    // Make sure the service account exists
+    if (!serviceAccount) {
+      console.error(chalk.red('Missing service-account.json'));
+      return false;
+    }
+
+    // Parse the service account
+    serviceAccount = JSON5.parse(serviceAccount);
+
+    // Check if project_id matches the project's ID
+    if (self.projectId !== serviceAccount.project_id) {
+      console.error(chalk.red('Mismatch between project name and service account project_id'));
+      return false;
+    }
+
+    return true;
   }, fix_serviceAccount);
 
   await self.test('has correct .gitignore', function () {
@@ -824,7 +840,7 @@ async function fix_isFirebase(self) {
 function fix_projpackage(self) {
   return new Promise(function(resolve, reject) {
     self.projectPackage = self.projectPackage || {};
-    self.projectPackage.name = self.projectPackage.name || self.projectName;
+    self.projectPackage.name = self.projectPackage.name || self.projectId;
     self.projectPackage.version = self.projectPackage.version || '0.0.1';
     self.projectPackage.dependencies = self.projectPackage.dependencies || {};
     self.projectPackage.devDependencies = self.projectPackage.devDependencies || {};
@@ -1413,7 +1429,7 @@ async function cmd_iamImportExport(self) {
           --member serviceAccount:{projectId}@appspot.gserviceaccount.com \
           --role roles/datastore.importExportAdmin
     `
-    .replace(/{projectId}/ig, self.projectName)
+    .replace(/{projectId}/ig, self.projectId)
 
     let cmd = exec(command, function (error, stdout, stderr) {
       if (error) {
@@ -1431,10 +1447,10 @@ async function cmd_setStorageLifecycle(self) {
   return new Promise(function(resolve, reject) {
     const command = `gsutil lifecycle set {config} gs://{bucket}`
       .replace(/{config}/ig, path.resolve(`${__dirname}/../../templates/storage-lifecycle-config-1-day.json`))
-      .replace(/{bucket}/ig, `us.artifacts.${self.projectName}.appspot.com`)
+      .replace(/{bucket}/ig, `us.artifacts.${self.projectId}.appspot.com`)
     const command2 = `gsutil lifecycle set {config} gs://{bucket}`
       .replace(/{config}/ig, path.resolve(`${__dirname}/../../templates/storage-lifecycle-config-30-days.json`))
-      .replace(/{bucket}/ig, `bm-backup-firestore-${self.projectName}`)
+      .replace(/{bucket}/ig, `bm-backup-firestore-${self.projectId}`)
 
     exec(command, function (error, stdout, stderr) {
       if (error) {
