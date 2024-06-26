@@ -4,6 +4,17 @@ const _ = require('lodash');
 const uuid = require('uuid');
 let JSON5;
 
+const LOG_LEVELS = {
+  error: 'error',
+  warn: 'warn',
+  info: 'info',
+  debug: 'debug',
+  log: 'log',
+  notice: 'NOTICE',
+  critical: 'CRITICAL',
+  emergency: 'EMERGENCY'
+};
+
 function BackendAssistant() {
   const self = this;
 
@@ -12,7 +23,24 @@ function BackendAssistant() {
   self.initialized = false;
 
   // Add log methods
-  addLogMethods();
+  Object.keys(LOG_LEVELS)
+  .forEach((level) => {
+    // Skip log because it is already a method
+    // if (level === 'log') {
+    //   return;
+    // }
+
+    // Add log method
+    BackendAssistant.prototype[level] = function() {
+      const self = this;
+      const args = Array.prototype.slice.call(arguments);
+
+      // Prepend level to args
+      args.unshift(level);
+      // self.log.apply(this, args);
+      self._log.apply(this, args);
+    };
+  });
 
   return self;
 }
@@ -33,12 +61,14 @@ function tryParse(input) {
 BackendAssistant.prototype.init = function (ref, options) {
   const self = this;
 
+  // Set options
   options = options || {};
   options.accept = options.accept || 'json';
   options.showOptionsLog = typeof options.showOptionsLog !== 'undefined' ? options.showOptionsLog : false;
   options.optionsLogString = typeof options.optionsLogString !== 'undefined' ? options.optionsLogString : '\n\n\n\n\n';
   options.fileSavePath = options.fileSavePath || process.env.npm_package_name || '';
 
+  // Set now
   const now = new Date();
 
   // Attached libraries - used in .errorify()
@@ -236,96 +266,41 @@ BackendAssistant.prototype.logProd = function () {
   self._log.apply(self, args);
 };
 
-BackendAssistant.prototype.log = function () {
-  const self = this;
-
-  const args = Array.prototype.slice.call(arguments);
-
-  self._log.apply(self, args);
-};
-
-function addLogMethods() {
-  const levels = ['error', 'warn', 'info', 'debug', 'notice', 'critical', 'emergency'];
-
-  // Add log methods
-  levels.forEach((level) => {
-    BackendAssistant.prototype[level] = function() {
-      const self = this;
-      const args = Array.prototype.slice.call(arguments);
-
-      // Prepend level to args
-      args.unshift(level);
-      self.log.apply(this, args);
-    };
-  });
-}
-
 BackendAssistant.prototype._log = function () {
   const self = this;
+  const logs = [...arguments];
+  const prefix = self.logPrefix ? ` ${self.logPrefix}:` : ':';
 
-  // 1. Convert args to a normal array
-  const logs = [...Array.prototype.slice.call(arguments)];
+  // Prepend log prefix log string
+  logs.unshift(`[${self.tag} @ ${new Date().toISOString()}]${prefix}`);
 
-  // Add log prefix
-  const prefix = self.logPrefix
-    ? ` ${self.logPrefix}:`
-    : ':';
+  // Get the log level
+  const level = logs[1];
 
-  // 2. Prepend log prefix log string
-  logs.unshift(
-    `[${self.tag} @ ${new Date().toISOString()}]${prefix}`
-  );
+  // Pass along arguments to console.log
+  if (LOG_LEVELS[level]) {
+    logs.splice(1, 1);
 
-  // 3. Pass along arguments to console.log
-  if (logs[1] === 'error') {
-    logs.splice(1,1)
-    console.error.apply(console, logs);
-  } else if (logs[1] === 'warn') {
-    logs.splice(1,1)
-    console.warn.apply(console, logs);
-  } else if (logs[1] === 'info') {
-    logs.splice(1,1)
-    console.info.apply(console, logs);
-  } else if (logs[1] === 'debug') {
-    logs.splice(1,1)
-    console.debug.apply(console, logs);
-  } else if (logs[1] === 'notice') {
-    logs.splice(1,1)
-    if (self.isDevelopment()) {
+    // Determine how to log
+    if (level in console) {
+      console[level].apply(console, logs);
+    } else if (self.isDevelopment()) {
       console.log.apply(console, logs);
     } else {
       self.ref.functions.logger.write({
-        severity: 'NOTICE',
+        severity: LOG_LEVELS[level].toUpperCase(),
         message: logs,
       });
     }
-  } else if (logs[1] === 'critical') {
-    logs.splice(1,1)
-    if (isDevelopment) {
-      console.log.apply(console, logs);
-    } else {
-      self.ref.functions.logger.write({
-        severity: 'CRITICAL',
-        message: logs,
-      });
+
+    // Write with wonderful-log
+    if (self.Manager?.libraries?.logger?.[level]) {
+      self.Manager?.libraries?.logger?.[level](...logs)
     }
-  } else if (logs[1] === 'emergency') {
-    logs.splice(1,1)
-    if (isDevelopment) {
-      console.log.apply(console, logs);
-    } else {
-      self.ref.functions.logger.write({
-        severity: 'EMERGENCY',
-        message: logs,
-      });
-    }
-  } else if (logs[1] === 'log') {
-    logs.splice(1,1)
-    console.log.apply(console, logs);
   } else {
     console.log.apply(console, logs);
   }
-}
+};
 
 BackendAssistant.prototype.setLogPrefix = function (s) {
   const self = this;

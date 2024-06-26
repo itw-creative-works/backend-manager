@@ -70,6 +70,7 @@ Manager.prototype.init = function (exporter, options) {
   options.assistant = options.assistant || {};
   options.cwd = typeof options.cwd === 'undefined' ? process.cwd() : options.cwd;
   options.projectPackageDirectory = typeof options.projectPackageDirectory === 'undefined' ? undefined : options.projectPackageDirectory;
+  options.logSavePath = typeof options.logSavePath === 'undefined' ? false : options.logSavePath;
   // options.assistant.optionsLogString = options.assistant.optionsLogString || undefined;
 
   // Load libraries
@@ -87,6 +88,7 @@ Manager.prototype.init = function (exporter, options) {
     localDatabase: null,
     User: null,
     Analytics: null,
+    logger: null,
   };
 
   // Set properties
@@ -118,8 +120,27 @@ Manager.prototype.init = function (exporter, options) {
   // Get app ID
   const appId = self.config?.app?.id;
 
+  // Set log
+  if (options.logSavePath) {
+    self.libraries.logger = new (require('wonderful-log'))({
+      console: {
+        enabled: false,
+      },
+      file: {
+        enabled: true,
+        path: options.logSavePath,
+      },
+    });
+  }
+
   // Init assistant
-  self.assistant = self.Assistant().init(undefined, options.assistant);
+  self.assistant = self.Assistant().init({
+    req: null,
+    res: null,
+    admin: self.libraries.admin,
+    functions: self.libraries.functions,
+    Manager: self,
+  }, options.assistant);
 
   // Set more properties (need to wait for assistant to determine if DEV)
   self.project.functionsUrl = self.assistant.isDevelopment()
