@@ -434,8 +434,8 @@ Module.prototype.sendWelcomeEmail = function (user) {
               I'm Ian, the founder and CEO of <strong>${Manager.config.brand.name}</strong>, and I'm thrilled to have you with us.
               Your journey begins today, and we are committed to supporting you every step of the way.
               <br><br>
+              We are dedicated to ensuring your experience is exceptional.
               Feel free to reply directly to this email with any questions you may have.
-              Our team and I are dedicated to ensuring your experience is exceptional.
               <br><br>
               Thank you for choosing <strong>${Manager.config.brand.name}</strong>. Here's to new beginnings!
             `

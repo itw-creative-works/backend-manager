@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "3.2.174",
+  "version": "3.2.175",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -42,7 +42,7 @@
   },
   "dependencies": {
     "@firebase/rules-unit-testing": "^2.0.7",
-    "@google-cloud/storage": "^7.11.2",
+    "@google-cloud/storage": "^7.11.3",
     "@octokit/rest": "^19.0.13",
     "@sendgrid/mail": "^7.7.0",
     "@sentry/node": "^6.19.7",
@@ -52,13 +52,13 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "firebase-admin": "^12.1.1",
+    "firebase-admin": "^12.2.0",
     "firebase-functions": "^5.0.1",
     "fs-jetpack": "^5.1.0",
-    "glob": "^10.4.2",
+    "glob": "^11.0.0",
     "hcaptcha": "^0.1.1",
     "inquirer": "^8.2.5",
-    "itwcw-package-analytics": "^1.0.4",
+    "itwcw-package-analytics": "^1.0.6",
     "json5": "^2.2.3",
     "jwt-decode": "^3.1.2",
     "lodash": "^4.17.21",
@@ -69,7 +69,7 @@
     "moment": "^2.30.1",
     "nanoid": "^3.3.7",
     "node-fetch": "^2.7.0",
-    "node-powertools": "^1.4.4",
+    "node-powertools": "^1.4.5",
     "npm-api": "^1.0.1",
     "paypal-server-api": "^2.0.14",
     "pushid": "^1.0.0",
@@ -85,6 +85,6 @@
     "yargs": "^17.7.2"
   },
   "devDependencies": {
-    "prepare-package": "^1.1.12"
+    "prepare-package": "^1.1.13"
   }
 }

@@ -88,10 +88,10 @@ function Analytics(Manager, options) {
         : 'None',
     },
     country: {
-      value: self.request.country
+      value: self.request.country,
     },
     city: {
-      value: self.request.city
+      value: self.request.city,
     },
     gender: {
       value: authUser?.personal?.gender
@@ -228,7 +228,7 @@ Analytics.prototype.event = function (payload) {
   payload = payload || {};
 
   // Fix event name
-  payload.name = (payload.name || '')
+  payload.name = `${payload.name}`
     // Replace anything not a letter, number, or underscore with an underscore
     .replace(/[^a-zA-Z0-9_]/g, '_')
     // Remove leading and trailing underscores

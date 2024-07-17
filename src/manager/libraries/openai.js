@@ -4,6 +4,8 @@ const powertools = require('node-powertools');
 const _ = require('lodash');
 const JSON5 = require('json5');
 
+// Constants
+const DEFAULT_MODEL = 'gpt-4o';
 const TOKEN_COST_TABLE = {
   // May 13th, 2024
   'gpt-4o': {
@@ -142,7 +144,7 @@ OpenAI.prototype.request = function (options) {
   return new Promise(async function(resolve, reject) {
     options = _.merge({}, options);
 
-    options.model = typeof options.model === 'undefined' ? 'gpt-3.5-turbo' : options.model;
+    options.model = typeof options.model === 'undefined' ? DEFAULT_MODEL : options.model;
     options.timeout = typeof options.timeout === 'undefined' ? 120000 : options.timeout;
     options.moderate = typeof options.moderate === 'undefined' ? true : options.moderate;
     options.log = typeof options.log === 'undefined' ? false : options.log;
