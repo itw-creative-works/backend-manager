@@ -22,6 +22,12 @@ Module.prototype.main = function () {
       return reject(assistant.errorify(`<path> parameter required`, {code: 400}));
     }
 
+    // Log
+    assistant.log(`main(): Write`,
+      payload.data.payload.path,
+      payload.data.payload.document,
+    );
+
     // Write to Firestore
     self.libraries.admin.database().ref(payload.data.payload.path)
     .set(payload.data.payload.document)

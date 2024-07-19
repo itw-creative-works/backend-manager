@@ -21,6 +21,11 @@ Module.prototype.main = function () {
       return reject(assistant.errorify(`<path> parameter required`, {code: 400}));
     }
 
+    // Log
+    assistant.log(`main(): Reading`,
+      payload.data.payload.path,
+    );
+
     // Read from Firestore
     await self.libraries.admin.firestore().doc(payload.data.payload.path)
     .get()

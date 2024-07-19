@@ -20,9 +20,14 @@ Module.prototype.main = function () {
 
     // Run queries
     self.docs = [];
-    assistant.log('Queries', payload.data.payload.queries);
     let queries = powertools.arrayify(payload.data.payload.queries || []);
 
+    // Log
+    assistant.log(`main(): Queries`,
+      payload.data.payload.queries,
+    );
+
+    // Run the queries
     let promises = [];
     for (var i = 0; i < queries.length; i++) {
       queries[i]

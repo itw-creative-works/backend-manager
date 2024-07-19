@@ -37,6 +37,13 @@ Module.prototype.main = function () {
     // Delete metadataTag
     delete payload.data.payload.options.metadataTag;
 
+    // Log
+    assistant.log(`main(): Writing`,
+      payload.data.payload.path,
+      payload.data.payload.document,
+      payload.data.payload.options
+    );
+
     // Write to Firestore
     await self.libraries.admin.firestore().doc(payload.data.payload.path)
     .set(payload.data.payload.document, payload.data.payload.options)

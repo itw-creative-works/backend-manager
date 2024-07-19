@@ -21,6 +21,11 @@ Module.prototype.main = function () {
       return reject(assistant.errorify(`<path> parameter required`, {code: 400}));
     }
 
+    // Log
+    assistant.log(`main(): Read`,
+      payload.data.payload.path,
+    );
+
     // Read from Firestore
     self.libraries.admin.database().ref(payload.data.payload.path)
     .on('value', (snapshot) => {
