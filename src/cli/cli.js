@@ -101,14 +101,14 @@ Main.prototype.process = async function (args) {
   }
 
   // Install local BEM
-  if ((self.options.i || self.options.install) && (self.options.local || self.options.dev || self.options.development)) {
+  if ((self.options.i || self.options.install) && (self.options.dev || self.options.development) || self.options.local) {
     await uninstallPkg('backend-manager');
     // return await installPkg('file:../../../ITW-Creative-Works/backend-manager');
     return await installPkg('file:/Users/ian/Developer/Repositories/ITW-Creative-Works/backend-manager');
   }
 
   // Install live BEM
-  if ((self.options.i || self.options.install) && (self.options.live || self.options.prod || self.options.production)) {
+  if ((self.options.i || self.options.install) && (self.options.prod || self.options.production) || self.options.live) {
     await uninstallPkg('backend-manager');
     return await installPkg('backend-manager');
   }
