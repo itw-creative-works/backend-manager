@@ -641,8 +641,12 @@ Manager.prototype.install = function (controller, options) {
   }
 };
 
-Manager.prototype.require = function (p) {
-  return require(p);
+// Require
+Manager.prototype.require = function (name) {
+  return require(name);
+};
+Manager.require = function (name) {
+  return require(name);
 };
 
 Manager.prototype.debug = function () {

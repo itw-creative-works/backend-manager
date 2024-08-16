@@ -34,7 +34,7 @@ ServerManager.prototype.monitor = function (command, options) {
       serverProcess.on('exit', (code) => {
         const string = `(code=${code}, timestamp=${new Date().toISOString()})`;
         if (code !== 0) {
-          error(`Server crashed (${string})`);
+          error(`Server crashed ${string}`);
           error(`Restarting in 1 second...`);
 
           // Restart the server
@@ -43,7 +43,7 @@ ServerManager.prototype.monitor = function (command, options) {
             self.monitor();
           }, 1000);
         } else {
-          log(`Server stopped safely (${string})`);
+          log(`Server stopped safely ${string}`);
         }
       });
     })
