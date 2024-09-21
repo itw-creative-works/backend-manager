@@ -244,7 +244,7 @@ Main.prototype.setup = async function () {
   self.firebaseJSON = loadJSON(`${self.firebaseProjectPath}/firebase.json`);
   self.firebaseRC = loadJSON(`${self.firebaseProjectPath}/.firebaserc`);
   self.runtimeConfigJSON = loadJSON(`${self.firebaseProjectPath}/functions/.runtimeconfig.json`);
-  self.remoteconfigJSON = loadJSON(`${self.firebaseProjectPath}/remoteconfig.template.json`);
+  self.remoteconfigJSON = loadJSON(`${self.firebaseProjectPath}/functions/remoteconfig.template.json`);
   self.projectPackage = loadJSON(`${self.firebaseProjectPath}/package.json`);
   self.bemConfigJSON = loadJSON(`${self.firebaseProjectPath}/functions/backend-manager-config.json`);
   self.gitignore = jetpack.read(`${self.firebaseProjectPath}/functions/.gitignore`) || '';
@@ -496,11 +496,7 @@ Main.prototype.setup = async function () {
   }, fix_storageRules);
 
   await self.test('remoteconfig template in JSON', () => {
-    if (hasContent(self.remoteconfigJSON)) {
-      return self.firebaseJSON?.remoteconfig?.template === 'remoteconfig.template.json';
-    } else {
-      return self.firebaseJSON?.remoteconfig?.template === '';
-    }
+    return self.firebaseJSON?.remoteconfig?.template === 'remoteconfig.template.json';
   }, fix_remoteconfigTemplate);
 
   await self.test('firestore indexes synced', async function () {
@@ -948,7 +944,7 @@ function fix_storageRules(self) {
 function fix_remoteconfigTemplate(self) {
   return new Promise(function(resolve, reject) {
 
-    _.set(self.firebaseJSON, 'remoteconfig.template', hasContent(self.remoteconfigJSON) ? 'remoteconfig.template.json' : '')
+    _.set(self.firebaseJSON, 'remoteconfig.template', 'remoteconfig.template.json')
     jetpack.write(`${self.firebaseProjectPath}/firebase.json`, JSON.stringify(self.firebaseJSON, null, 2));
     resolve();
   });
