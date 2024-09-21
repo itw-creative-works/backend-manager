@@ -15,6 +15,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Security` in case of vulnerabilities.
 
 ---
+## [4.0.0] - 2024-05-08
+### ⚠️ BREAKING
+- Require Node.js version `18` or higher.
+- Updated `firebase-functions` to `6.0.1` (now need to require `firebase-functions/v1` to use v1 functions or `firebase-functions/v2` to use v2 functions).
+
 ## [3.2.109] - 2024-05-08
 ### Changed
 - Replaced all `methods` references with `routes`. This should be changed in your code as well.

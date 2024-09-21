@@ -77,7 +77,7 @@ Manager.prototype.init = function (exporter, options) {
   self.libraries = {
     // Third-party
     functions: options.projectType === 'firebase'
-      ? require('firebase-functions')
+      ? require('firebase-functions/v1')
       : null,
     admin: require('firebase-admin'),
     cors: require('cors')({ origin: true }),
