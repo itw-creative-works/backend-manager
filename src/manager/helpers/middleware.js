@@ -97,11 +97,11 @@ Middleware.prototype.run = function (libPath, options) {
 
     // Resolve settings
     if (options.setupSettings) {
-      // assistant.log(`Middleware.process(): Resolving settings with schema ${options.schema}...`);
-
       // Resolve settings
       try {
-        // assistant.settings = Manager.Settings().resolve(assistant, options.schema, data);
+        // Attach schema to assistant
+        assistant.schema.dir = schemasDir;
+        assistant.schema.name = options.schema;
         assistant.settings = Manager.Settings().resolve(assistant, undefined, data, {dir: schemasDir, schema: options.schema});
       } catch (e) {
         return assistant.respond(new Error(`Unable to resolve schema ${options.schema}: ${e.message}`), {code: 500, sentry: true});

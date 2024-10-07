@@ -7,27 +7,87 @@ const JSON5 = require('json5');
 // Constants
 const DEFAULT_MODEL = 'gpt-4o';
 const TOKEN_COST_TABLE = {
-  // Jul 18th, 2024
+  // Oct 7th, 2024
+  'gpt-4o': {
+    input: 0.002500,
+    output: 0.010000,
+  },
   'gpt-4o-mini': {
     input: 0.000150,
     output: 0.000600,
   },
-  'gpt-4o': {
-    input: 0.00500,
-    output: 0.01500,
+  'o1-preview': {
+    input: 0.015000,
+    output: 0.060000,
+  },
+  'o1-mini': {
+    input: 0.003000,
+    output: 0.012000,
   },
   'gpt-4-turbo': {
-    input: 0.01000,
-    output: 0.03000,
+    input: 0.010000,
+    output: 0.030000,
   },
   'gpt-4': {
-    input: 0.03000,
-    output: 0.06000,
+    input: 0.030000,
+    output: 0.060000,
   },
   'gpt-3.5-turbo': {
-    input: 0.00050,
-    output: 0.00150,
+    input: 0.000500,
+    output: 0.001500,
   },
+
+  // // Sept 21st, 2024
+  // 'gpt-4o': {
+  //   input: 0.005000,
+  //   output: 0.015000,
+  // },
+  // 'gpt-4o-mini': {
+  //   input: 0.000150,
+  //   output: 0.000600,
+  // },
+  // 'o1-preview': {
+  //   input: 0.015000,
+  //   output: 0.060000,
+  // },
+  // 'o1-mini': {
+  //   input: 0.003000,
+  //   output: 0.012000,
+  // },
+  // 'gpt-4-turbo': {
+  //   input: 0.010000,
+  //   output: 0.030000,
+  // },
+  // 'gpt-4': {
+  //   input: 0.030000,
+  //   output: 0.060000,
+  // },
+  // 'gpt-3.5-turbo': {
+  //   input: 0.000500,
+  //   output: 0.001500,
+  // },
+
+  // // Jul 18th, 2024
+  // 'gpt-4o': {
+  //   input: 0.005000,
+  //   output: 0.015000,
+  // },
+  // 'gpt-4o-mini': {
+  //   input: 0.000150,
+  //   output: 0.000600,
+  // },
+  // 'gpt-4-turbo': {
+  //   input: 0.010000,
+  //   output: 0.030000,
+  // },
+  // 'gpt-4': {
+  //   input: 0.030000,
+  //   output: 0.060000,
+  // },
+  // 'gpt-3.5-turbo': {
+  //   input: 0.000500,
+  //   output: 0.001500,
+  // },
 
   // // May 13th, 2024
   // 'gpt-4o': {

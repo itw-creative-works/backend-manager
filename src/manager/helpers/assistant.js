@@ -212,6 +212,12 @@ BackendAssistant.prototype.init = function (ref, options) {
   self.constant.pastTime.timestamp = '1999-01-01T00:00:00Z';
   self.constant.pastTime.timestampUNIX = 915148800;
 
+  // Schema
+  self.schema = {
+    dir: '',
+    name: '',
+  }
+
   // Log options
   if (
     (self.isDevelopment())
