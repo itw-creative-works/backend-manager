@@ -20,7 +20,7 @@ Module.prototype.main = function () {
       return reject(assistant.errorify(`Admin required.`, {code: 401}));
     }
 
-    const productId = _.get(payload, 'data.payload.payload.details.productIdGlobal');
+    const productId = payload?.data?.payload?.payload?.details?.productIdGlobal;
     if (!productId) {
       return reject(assistant.errorify(`No productId`, {code: 400}));
     }

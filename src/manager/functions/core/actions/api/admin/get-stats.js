@@ -13,7 +13,10 @@ Module.prototype.main = function () {
 
   return new Promise(async function(resolve, reject) {
     // Load libraries
-    _ = Manager.require('lodash')
+    _ = Manager.require('lodash');
+
+    // Set defaults
+    payload.data.payload.update = payload.data.payload.update || false;
 
     // Perform checks
     if (!payload.user.roles.admin) {
@@ -29,7 +32,7 @@ Module.prototype.main = function () {
 
         // Only update if requested
         if (payload.data.payload.update) {
-          await self.updateStats(data)
+          await self.updateStats(data, payload.data.payload.update)
             .catch(e => data = e)
         }
 
@@ -52,7 +55,7 @@ Module.prototype.main = function () {
 
         return resolve({data: data})
       })
-      .catch(function (e) {
+      .catch((e) => {
         return reject(assistant.errorify(`Failed to get: ${e}`, {code: 500}));
       })
   });
@@ -72,7 +75,7 @@ Module.prototype.fixStats = function (data) {
 }
 
 // TODO: ADD https://firebase.google.com/docs/firestore/query-data/aggregation-queries#pricing
-Module.prototype.updateStats = function (existingData) {
+Module.prototype.updateStats = function (existingData, update) {
   const self = this;
 
   return new Promise(async function(resolve, reject) {
@@ -82,43 +85,57 @@ Module.prototype.updateStats = function (existingData) {
     const sessionsOnline = self.libraries.admin.database().ref(`sessions/online`);
 
     let error = null;
-    let update = {
-      app: _.get(self.Manager.config, 'app.id', null),
+    let newData = {
+      app: self.Manager.config?.app?.id || null,
     };
 
-    // Fix broken stats
-    if (!_.get(existingData, 'users.total', null)) {
+    // Fix user stats
+    if (
+      !existingData?.users?.total
+      || update === true
+      || update?.users
+    ) {
       await self.getAllUsers()
         .then(r => {
-          _.set(update, 'users.total', r.length)
+          _.set(newData, 'users.total', r.length)
         })
         .catch(e => {
           error = new Error(`Failed fixing stats: ${e}`);
         })
     }
 
+    // Reject if error
     if (error) {
       return reject(error);
     }
 
     // Fetch new notification stats
-    await self.getAllNotifications()
-      .then(r => {
-        _.set(update, 'notifications.total', r)
-      })
-      .catch(e => {
-        error = new Error(`Failed getting notifications: ${e}`);
-      })
+    if (
+      update === true || update?.notifications
+    ) {
+      await self.getAllNotifications()
+        .then(r => {
+          _.set(newData, 'notifications.total', r)
+        })
+        .catch(e => {
+          error = new Error(`Failed getting notifications: ${e}`);
+        })
+    }
 
     // Fetch new subscription stats
-    await self.getAllSubscriptions()
-      .then(r => {
-        _.set(update, 'subscriptions', r)
-      })
-      .catch(e => {
-        error = new Error(`Failed getting subscriptions: ${e}`);
-      })
+    if (
+      update === true || update?.subscriptions
+    ) {
+      await self.getAllSubscriptions()
+        .then(r => {
+          _.set(newData, 'subscriptions', r)
+        })
+        .catch(e => {
+          error = new Error(`Failed getting subscriptions: ${e}`);
+        })
+    }
 
+    // Reject if error
     if (error) {
       return reject(error);
     }
@@ -129,37 +146,46 @@ Module.prototype.updateStats = function (existingData) {
         .then((snap) => {
           const data = snap.val() || {};
           const keys = Object.keys(data);
-          const existing = _.get(update, 'users.online', 0)
-          _.set(update, 'users.online', existing + keys.length)
+          const existing = newData?.users?.online || 0;
+
+          // Set new value
+          _.set(newData, 'users.online', existing + keys.length)
         })
         .catch(e => {
           error = new Error(`Failed getting online users: ${e}`);
         })
     }
 
-    // Count users online (in old gathering)
-    await _countUsersOnline(gatheringOnline);
+    // Fetch new user stats
+    if (
+      update === true || update?.online
+    ) {
+      // Count users online (in old gathering)
+      await _countUsersOnline(gatheringOnline);
 
-    // Count users online (in new session)
-    await _countUsersOnline(sessionsApp);
+      // Count users online (in new session)
+      await _countUsersOnline(sessionsApp);
 
-    // Count users online (in new session)
-    await _countUsersOnline(sessionsOnline);
+      // Count users online (in new session)
+      await _countUsersOnline(sessionsOnline);
+    }
 
+    // Reject if error
     if (error) {
       return reject(error);
     }
 
     // Set metadata
-    update.metadata = self.Manager.Metadata().set({tag: 'admin:get-stats'})
+    newData.metadata = self.Manager.Metadata().set({tag: 'admin:get-stats'})
 
-    // Update stats
+    // newData stats
     await stats
-      .set(update, { merge: true })
-      .catch(function (e) {
+      .set(newData, { merge: true })
+      .catch((e) => {
         return reject(new Error(`Failed getting stats: ${e}`));
       })
 
+    // Return
     return resolve();
   });
 }
@@ -208,10 +234,10 @@ Module.prototype.getAllSubscriptions = function () {
       snapshot
       .forEach((doc, i) => {
         const data = doc.data();
-        const planId = _.get(data, 'plan.id', 'basic');
-        const frequency = _.get(data, 'plan.payment.frequency', 'unknown');
-        const isAdmin = _.get(data, 'roles.admin', false);
-        const isVip = _.get(data, 'roles.vip', false);
+        const planId = data?.plan?.id || 'basic';
+        const frequency = data?.plan?.payment?.frequency || 'unknown';
+        const isAdmin = data?.roles?.admin || false;
+        const isVip = data?.roles?.vip || false;
 
         if (!stats.plans[planId]) {
           stats.plans[planId] = {
