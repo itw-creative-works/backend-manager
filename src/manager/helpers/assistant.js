@@ -213,10 +213,10 @@ BackendAssistant.prototype.init = function (ref, options) {
   self.constant.pastTime.timestampUNIX = 915148800;
 
   // Schema
-  self.schema = {
-    dir: '',
-    name: '',
-  }
+  // self.schema = {
+  //   dir: '',
+  //   name: '',
+  // }
 
   // Log options
   if (

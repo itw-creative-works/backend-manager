@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "4.0.4",
+  "version": "4.0.5",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -51,8 +51,8 @@
     "chalk": "^4.1.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "express": "^4.21.0",
-    "firebase-admin": "^12.5.0",
+    "express": "^4.21.1",
+    "firebase-admin": "^12.6.0",
     "firebase-functions": "^6.0.1",
     "fs-jetpack": "^5.1.0",
     "glob": "^11.0.0",

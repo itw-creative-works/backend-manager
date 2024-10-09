@@ -224,35 +224,45 @@ OpenAI.prototype.request = function (options) {
   const assistant = self.assistant;
 
   return new Promise(async function(resolve, reject) {
+    // Deep merge options
     options = _.merge({}, options);
 
+    // Set defaults
     options.model = typeof options.model === 'undefined' ? DEFAULT_MODEL : options.model;
+    options.response = typeof options.response === 'undefined' ? undefined : options.response;
     options.timeout = typeof options.timeout === 'undefined' ? 120000 : options.timeout;
     options.moderate = typeof options.moderate === 'undefined' ? true : options.moderate;
     options.log = typeof options.log === 'undefined' ? false : options.log;
     options.user = options.user || assistant.getUser();
 
+    // Format retries
     options.retries = typeof options.retries === 'undefined' ? 0 : options.retries;
     options.retryTriggers = typeof options.retryTriggers === 'undefined' ? ['network', 'parse'] : options.retryTriggers;
 
+    // Format other options
+    options.temperature = typeof options.temperature === 'undefined' ? 0.7 : options.temperature;
+    options.maxTokens = typeof options.maxTokens === 'undefined' ? 512 : options.maxTokens;
+
+    // Custom options
+    options.dedupeConsecutiveRoles = typeof options.dedupeConsecutiveRoles === 'undefined' ? true : options.dedupeConsecutiveRoles;
+
+    // Format prompt
     options.prompt = options.prompt || {};
     options.prompt.path = options.prompt.path || '';
-    options.prompt.text = options.prompt.text || options.prompt.content || '';
+    options.prompt.content = options.prompt.content || options.prompt.content || '';
     options.prompt.settings = options.prompt.settings || {};
 
+    // Format message
     options.message = options.message || {};
     options.message.path = options.message.path || '';
-    options.message.text = options.message.text || options.message.content || '';
+    options.message.content = options.message.content || options.message.content || '';
     options.message.settings = options.message.settings || {};
     options.message.images = options.message.images || [];
 
+    // Format history
     options.history = options.history || {};
     options.history.messages = options.history.messages || [];
     options.history.limit = typeof options.history.limit === 'undefined' ? 5 : options.history.limit;
-
-    options.response = typeof options.response === 'undefined' ? undefined : options.response;
-    options.temperature = typeof options.temperature === 'undefined' ? 0.7 : options.temperature;
-    options.maxTokens = typeof options.maxTokens === 'undefined' ? 512 : options.maxTokens;
 
     let attempt = 0;
 
@@ -269,9 +279,9 @@ OpenAI.prototype.request = function (options) {
       // console.log('*** input.content', input.content.slice(0, 50));
       // console.log('*** input.path', input.path);
 
-      let text = '';
+      let content = '';
 
-      // Load text
+      // Load content
       if (input.path) {
         const exists = jetpack.exists(input.path);
 
@@ -284,15 +294,15 @@ OpenAI.prototype.request = function (options) {
         }
 
         try {
-          text = jetpack.read(input.path);
+          content = jetpack.read(input.path);
         } catch (e) {
           return new Error(`Error reading file ${input.path}: ${e}`);
         }
       } else {
-        text = input.text;
+        content = input.content;
       }
 
-      return powertools.template(text, input.settings).trim();
+      return powertools.template(content, input.settings).trim();
     }
 
     // Log
@@ -345,51 +355,63 @@ OpenAI.prototype.request = function (options) {
           body: {},
         }
 
+        // Format depending on mode
         if (mode === 'chatgpt') {
-          request.url = 'https://api.openai.com/v1/chat/completions';
-
-          // Get history
+          // Get history with respect to the message limit
           const history = options.history.messages.slice(-options.history.limit);
 
-          // Add prompt to history
+          // Add prompt to beginning of history
           history.unshift({
             role: 'system',
-            text: prompt,
+            content: prompt,
             images: [],
           });
 
-          // Set last history item
+          // Get last history item
           const lastHistory = history[history.length - 1];
 
-          // If message is different than last message in history, add it
-          if (lastHistory?.text !== message) {
-            history.push({
-              role: 'user',
-              text: message,
-              images: options.message.images,
-            });
+          // Remove last message from history
+          if (
+            options.dedupeConsecutiveRoles
+            && lastHistory?.role === 'user'
+          ) {
+            history.pop();
           }
+
+          // Add message to history
+          history.push({
+            role: 'user',
+            content: message,
+            images: options.message.images,
+          });
 
           // Format history
           history.map((m) => {
+            const originalContent = m.content;
+            const originalImages = m.images;
+
+            // Set properties
             m.role = m.role || 'system';
-
             m.content = [];
+            m.images = [];
 
-            // Set content
-            if (m.text) {
+            // Format content
+            if (originalContent) {
               m.content.push({
                 type: 'text',
-                text: m.text,
+                text: originalContent,
               })
             }
 
-            // Set images
-            m.images = m.images || [];
+            // Format images
+            if (originalImages)  {
+              originalImages.forEach((i) => {
+                // Skip if no URL
+                if (!i.url) {
+                  return
+                }
 
-            // Loop through and add
-            m.images.forEach((i) => {
-              if (i.url) {
+                // Add image
                 m.content.push({
                   type: 'image_url',
                   image_url: {
@@ -397,12 +419,15 @@ OpenAI.prototype.request = function (options) {
                     detail: i.detail || 'low',
                   }
                 });
-              }
-            }),
+              });
+            }
 
-            // Delete text and images
-            delete m.text;
-            delete m.images;
+            // Delete any field except for role, content, images
+            Object.keys(m).forEach((key) => {
+              if (!['role', 'content', 'images'].includes(key)) {
+                delete m[key];
+              }
+            });
           })
 
           // Log message
@@ -410,16 +435,20 @@ OpenAI.prototype.request = function (options) {
             _log('Message', m.role, m.content);
           });
 
+          // Set request
+          request.url = 'https://api.openai.com/v1/chat/completions';
           request.body = {
             model: options.model,
             response_format: responseFormat,
             messages: history,
             temperature: options.temperature,
-            max_tokens: options.maxTokens,
+            // max_tokens: options.maxTokens,
+            max_completion_tokens: options.maxTokens,
             user: user,
           }
           resultPath = 'choices[0].message.content';
         } else if (mode === 'moderation') {
+          // Set request
           request.url = 'https://api.openai.com/v1/moderations';
           request.body = {
             input: message,
@@ -431,8 +460,40 @@ OpenAI.prototype.request = function (options) {
         // Request
         await fetch(request.url, request)
         .then(async (r) => {
+          // Log
+          // _log('Response RAW', JSON.stringify(r));
+          // {
+          //   "id": "chatcmpl-AGKe03mwx644T6db3QRoXFz0aFuil",
+          //   "object": "chat.completion",
+          //   "created": 1728455968,
+          //   "model": "gpt-4o-mini-2024-07-18",
+          //   "choices": [{
+          //     "index": 0,
+          //     "message": {
+          //       "role": "assistant",
+          //       "content": "{\n  \"message\": \"We offer several pricing plans:\\n\\n1. **Basic Plan**: Free\\n   - Chatsy branding on chat\\n   - 1 chatbot\\n   - 5 knowledge base FAQs per chatbot\\n   - English only\\n\\n2. **Premium Plan**: $19/month\\n   - Chatsy branding removed\\n   - 1 chatbot\\n   - 10 knowledge base FAQs per chatbot\\n   - English only\\n\\n3. **Pro Plan**: $29/month\\n   - Chatsy branding removed\\n   - 3 chatbots\\n   - 10 knowledge base FAQs per chatbot\\n   - Automatically chats in the language of your customers\\n\\n4. **Pro Plan**: $49/month\\n   - Chatsy branding removed\\n   - 10 chatbots\\n   - 10 knowledge base FAQs per chatbot\\n   - Automatically chats in the language of your customers\\n\\nLet me know if you need more details or assistance with anything else!\",\n  \"user\": {\n    \"name\": \"\"\n  },\n  \"scores\": {\n    \"questionRelevancy\": 1\n  }\n}",
+          //       "refusal": null
+          //     },
+          //     "logprobs": null,
+          //     "finish_reason": "stop"
+          //   }],
+          //   "usage": {
+          //     "prompt_tokens": 1306,
+          //     "completion_tokens": 231,
+          //     "total_tokens": 1537,
+          //     "prompt_tokens_details": {
+          //       "cached_tokens": 1024
+          //     },
+          //     "completion_tokens_details": {
+          //       "reasoning_tokens": 0
+          //     }
+          //   },
+          //   "system_fingerprint": "fp_e2bde53e6e"
+          // }
+
           // Set token counts
-          self.tokens.input.count += r?.usage?.prompt_tokens || 0;
+          self.tokens.input.count += (r?.usage?.prompt_tokens || 0)
+            - (r?.usage?.prompt_tokens_details?.cached_tokens || 0);
           self.tokens.output.count += r?.usage?.completion_tokens || 0;
           self.tokens.total.count = self.tokens.input.count + self.tokens.output.count;
 
