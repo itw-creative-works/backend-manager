@@ -668,8 +668,10 @@ Main.prototype.setup = async function () {
 Main.prototype.test = async function(name, fn, fix, args) {
   const self = this;
   let status;
-  let passed = await fn();
+
   return new Promise(async function(resolve, reject) {
+    let passed = await fn();
+
     if (passed instanceof Error) {
       log(chalk.red(passed));
       process.exit(0);
@@ -685,9 +687,20 @@ Main.prototype.test = async function(name, fn, fix, args) {
     if (!passed) {
       log(chalk.yellow(`Fixing...`));
       fix(self, args)
-      .then(function (result) {
+      .then((r) => {
         log(chalk.green(`...done~!`));
         resolve();
+      })
+      .catch((e) => {
+        if (self.options['--continue']) {
+          log(chalk.yellow('⚠️ Continuing despite error because of --continue flag\n'));
+          setTimeout(function () {
+            resolve();
+          }, 5000);
+        } else {
+          log(chalk.yellow('To force the setup to continue, run with the --continue flag\n'));
+          reject();
+        }
       })
     } else {
       resolve();
