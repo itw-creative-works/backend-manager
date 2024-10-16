@@ -69,7 +69,6 @@ Module.prototype.main = function (assistant, context) {
       // Check for errors
       if (settings.app instanceof Error) {
         assistant.error(`Error fetching app data`, settings.app);
-
         continue;
       }
 
@@ -79,7 +78,6 @@ Module.prototype.main = function (assistant, context) {
       // Quit if articles are disabled
       if (!settings.articles || !settings.sources.length) {
         assistant.log(`Quitting because articles are disabled`);
-
         continue;
       }
 
@@ -87,6 +85,7 @@ Module.prototype.main = function (assistant, context) {
       const chance = Math.random();
       if (chance > settings.chance) {
         assistant.log(`Quitting because the chance is not met (${chance} <= ${settings.chance})`);
+        continue;
       }
 
       // Harvest articles
