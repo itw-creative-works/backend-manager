@@ -13,7 +13,6 @@ const log = console.log;
 const Npm = require('npm-api');
 const semver = require('semver');
 const inquirer = require('inquirer');
-const { spawn, child, exec, fork } = require('child_process');
 const JSON5 = require('json5');
 const fetch = require('wonderful-fetch');
 const argv = require('yargs').argv;
@@ -120,16 +119,10 @@ Main.prototype.process = async function (args) {
     await cmd_configGet(self);
     await self.setup();
 
-    let port = self.argv.port || _.get(self.argv, '_', [])[1] || '5000';
-    let ls = spawn(`firebase serve --port ${port}`, {shell: true});
+    const port = self.argv.port || _.get(self.argv, '_', [])[1] || '5000';
 
-    ls.stdout.on('data', (data) => {
-      console.log(`${cleanOutput(data)}`);
-    });
-    ls.stderr.on('data', (data) => {
-      console.error(chalk.red(`${cleanOutput(data)}`));
-      // ls = null;
-    });
+    // Execute
+    await powertools.execute(`firebase serve --port ${port}`, { log: true })
   }
 
   // Get indexes
@@ -172,53 +165,27 @@ Main.prototype.process = async function (args) {
       log(chalk.red(`Please remove local packages before deploying!`));
       return;
     }
-    // let ls = spawn('firebase', ['deploy', '--only', 'functions']);
-    // let ls = spawn('firebase', ['deploy', '--only', 'functions,firestore:rules']);
-    let ls = spawn('firebase deploy --only functions,firestore:rules', {shell: true});
-    ls.stdout.on('data', (data) => {
-      // console.log(`${cleanOutput(data)}`);
-      console.log(`${cleanOutput(data)}`);
-    });
-    ls.stderr.on('data', (data) => {
-      console.error(chalk.red(`${cleanOutput(data)}`));
-      // ls = null;
-    });
+
+    // Execute
+    await powertools.execute('firebase deploy', { log: true })
   }
 
   // Test
   if (self.options['test']) {
     await self.setup();
-    // firebase emulators:exec --only firestore 'npm test'
-    // let ls = spawn('firebase', ['emulators:exec', '--only', 'firestore', 'npm test']);
+
+    // Execute
     // https://stackoverflow.com/questions/9722407/how-do-you-install-and-run-mocha-the-node-js-testing-module-getting-mocha-co
-    let ls = spawn(`firebase emulators:exec --only firestore "npx ${MOCHA_PKG_SCRIPT}"`, {shell: true});
-    ls.stdout.on('data', (data) => {
-      console.log(`${cleanOutput(data)}`);
-    });
-    ls.stderr.on('data', (data) => {
-      console.error(chalk.red(`${cleanOutput(data)}`));
-    });
+    await powertools.execute(`firebase emulators:exec --only firestore "npx ${MOCHA_PKG_SCRIPT}"`, { log: true })
   }
 
   // Clean
   if (self.options['clean:npm']) {
     // await self.setup();
-    // firebase emulators:exec --only firestore 'npm test'
-    let ls = spawn(`${NPM_CLEAN_SCRIPT}`, {shell: true});
-    ls.stdout.on('data', (data) => {
-      console.log(`${cleanOutput(data)}`);
-    });
-    ls.stderr.on('data', (data) => {
-      console.error(chalk.red(`${cleanOutput(data)}`));
-    });
+
+    // Execute
+    await powertools.execute(`${NPM_CLEAN_SCRIPT}`, { log: true })
   }
-
-  // if (self.options['url']) {
-  //   // await self.setup();
-  //   // firebase emulators:exec --only firestore 'npm test'
-  //   log(self.projectUrl)
-  // }
-
 };
 
 module.exports = Main;
@@ -539,12 +506,12 @@ Main.prototype.setup = async function () {
     const containsCore = contents.match(bem_allRulesRegex);
     const matchesVersion = contents.match(self.default.rulesVersionRegex);
 
-    return (!!exists && !!containsCore && !!matchesVersion);
+    return (exists && !!containsCore && !!matchesVersion);
   }, fix_firestoreRulesFile);
 
   await self.test('update firestore indexes file', function () {
     const exists = jetpack.exists(`${self.firebaseProjectPath}/firestore.indexes.json`);
-    return (!!exists);
+    return exists;
   }, fix_firestoreIndexesFile);
 
   await self.test('update realtime rules file', function () {
@@ -553,22 +520,22 @@ Main.prototype.setup = async function () {
     const containsCore = contents.match(bem_allRulesRegex);
     const matchesVersion = contents.match(self.default.rulesVersionRegex);
 
-    return (!!exists && !!containsCore && !!matchesVersion);
+    return (exists && !!containsCore && !!matchesVersion);
   }, fix_realtimeRulesFile);
 
   await self.test('update storage rules file', function () {
-    let exists = jetpack.exists(`${self.firebaseProjectPath}/storage.rules`);
-    return (!!exists);
+    const exists = jetpack.exists(`${self.firebaseProjectPath}/storage.rules`);
+    return exists;
   }, fix_storageRulesFile);
 
   await self.test('update remoteconfig template file', function () {
-    let exists = jetpack.exists(`${self.firebaseProjectPath}/remoteconfig.template.json`);
-    return (!!exists);
+    const exists = jetpack.exists(`${self.firebaseProjectPath}/functions/remoteconfig.template.json`);
+    return exists;
   }, fix_remoteconfigTemplateFile);
 
   // Hosting
   await self.test('hosting is set to dedicated folder in JSON', function () {
-    let hosting = _.get(self.firebaseJSON, 'hosting', {});
+    const hosting = _.get(self.firebaseJSON, 'hosting', {});
     return (hosting.public && (hosting.public === 'public' || hosting.public !== '.'))
   }, fix_firebaseHostingFolder);
 
@@ -1015,8 +982,8 @@ function fix_setStoragePolicy(self) {
 function fix_firestoreRulesFile(self) {
   return new Promise(function(resolve, reject) {
     const name = 'firestore.rules'
-    let path = `${self.firebaseProjectPath}/${name}`;
-    let exists = jetpack.exists(path);
+    const path = `${self.firebaseProjectPath}/${name}`;
+    const exists = jetpack.exists(path);
     let contents = jetpack.read(path) || '';
 
     if (!exists || !contents) {
@@ -1025,14 +992,13 @@ function fix_firestoreRulesFile(self) {
       contents = jetpack.read(path) || '';
     }
 
-    let hasTemplate = contents.match(bem_allRulesRegex) || contents.match(bem_allRulesBackupRegex);
-
+    const hasTemplate = contents.match(bem_allRulesRegex) || contents.match(bem_allRulesBackupRegex);
     if (!hasTemplate) {
       log(chalk.red(`Could not find rules template. Please edit ${name} file and add`), chalk.red(`{{backend-manager}}`), chalk.red(`to it.`));
       return resolve()
     }
 
-    let matchesVersion = contents.match(self.default.rulesVersionRegex);
+    const matchesVersion = contents.match(self.default.rulesVersionRegex);
     if (!matchesVersion) {
       // console.log('replace wih', self.default.firestoreRulesCore);
       contents = contents.replace(bem_allRulesBackupRegex, self.default.firestoreRulesCore)
@@ -1047,8 +1013,8 @@ function fix_firestoreRulesFile(self) {
 function fix_realtimeRulesFile(self) {
   return new Promise(function(resolve, reject) {
     const name = 'database.rules.json'
-    let path = `${self.firebaseProjectPath}/${name}`;
-    let exists = jetpack.exists(path);
+    const path = `${self.firebaseProjectPath}/${name}`;
+    const exists = jetpack.exists(path);
     let contents = jetpack.read(path) || '';
 
     if (!exists || !contents) {
@@ -1057,14 +1023,13 @@ function fix_realtimeRulesFile(self) {
       contents = jetpack.read(path) || '';
     }
 
-    let hasTemplate = contents.match(bem_allRulesRegex) || contents.match(bem_allRulesBackupRegex);
-
+    const hasTemplate = contents.match(bem_allRulesRegex) || contents.match(bem_allRulesBackupRegex);
     if (!hasTemplate) {
       log(chalk.red(`Could not find rules template. Please edit ${name} file and add`), chalk.red(`{{backend-manager}}`), chalk.red(`to it.`));
       return resolve()
     }
 
-    let matchesVersion = contents.match(self.default.rulesVersionRegex);
+    const matchesVersion = contents.match(self.default.rulesVersionRegex);
     if (!matchesVersion) {
       // console.log('replace wih', self.default.databaseRulesCore);
       contents = contents.replace(bem_allRulesBackupRegex, self.default.databaseRulesCore)
@@ -1079,8 +1044,8 @@ function fix_realtimeRulesFile(self) {
 // function fix_realtimeRulesFile(self) {
 //   return new Promise(function(resolve, reject) {
 //     const name = 'database.rules.json';
-//     let filePath = `${self.firebaseProjectPath}/${name}`;
-//     let exists = jetpack.exists(filePath);
+//     const filePath = `${self.firebaseProjectPath}/${name}`;
+//     const exists = jetpack.exists(filePath);
 //     let contents = jetpack.read(filePath) || '';
 //
 //     if (!exists) {
@@ -1096,8 +1061,8 @@ function fix_realtimeRulesFile(self) {
 function fix_firestoreIndexesFile(self) {
   return new Promise(async function(resolve, reject) {
     const name = 'firestore.indexes.json';
-    let filePath = `${self.firebaseProjectPath}/${name}`;
-    let exists = jetpack.exists(filePath);
+    const filePath = `${self.firebaseProjectPath}/${name}`;
+    const exists = jetpack.exists(filePath);
 
     if (!exists) {
       log(chalk.yellow(`Writing new ${name} file...`));
@@ -1111,8 +1076,8 @@ function fix_firestoreIndexesFile(self) {
 function fix_storageRulesFile(self) {
   return new Promise(function(resolve, reject) {
     const name = 'storage.rules';
-    let filePath = `${self.firebaseProjectPath}/${name}`;
-    let exists = jetpack.exists(filePath);
+    const filePath = `${self.firebaseProjectPath}/${name}`;
+    const exists = jetpack.exists(filePath);
     let contents = jetpack.read(filePath) || '';
 
     if (!exists) {
@@ -1128,8 +1093,8 @@ function fix_storageRulesFile(self) {
 function fix_remoteconfigTemplateFile(self) {
   return new Promise(function(resolve, reject) {
     const name = 'remoteconfig.template.json'
-    let filePath = `${self.firebaseProjectPath}/${name}`;
-    let exists = jetpack.exists(filePath);
+    const filePath = `${self.firebaseProjectPath}/functions/${name}`;
+    const exists = jetpack.exists(filePath);
     let contents = jetpack.read(filePath) || '';
 
     if (!exists) {
@@ -1178,7 +1143,8 @@ function fix_firebaseHostingAuth(self) {
 
 function getPkgVersion(package) {
   return new Promise(async function(resolve, reject) {
-    let npm = new Npm();
+    const npm = new Npm();
+
     npm.repo(package)
     .package()
       .then(function(pkg) {
@@ -1190,9 +1156,11 @@ function getPkgVersion(package) {
 }
 
 async function cmd_indexesGet(self, filePath, log) {
-  return new Promise(function(resolve, reject) {
+  return new Promise(async function(resolve, reject) {
     const finalPath = `${self.firebaseProjectPath}/${filePath || 'firestore.indexes.json'}`;
     let existingIndexes;
+
+    // Read existing indexes
     try {
       existingIndexes = require(`${self.firebaseProjectPath}/firestore.indexes.json`)
     } catch (e) {
@@ -1200,74 +1168,32 @@ async function cmd_indexesGet(self, filePath, log) {
         console.error('Failed to read existing local indexes', e);
       }
     }
-    let cmd = exec(`firebase firestore:indexes > ${finalPath}`, function (error, stdout, stderr) {
-      if (error) {
-        if (log !== false) {
-          console.error(error);
-        }
-        reject(error);
-      } else {
+
+    // Run the command
+    await powertools.execute(`firebase firestore:indexes > ${finalPath}`, { log: true })
+      .then((output) => {
         const newIndexes = require(finalPath);
+
+        // Log
         if (log !== false) {
           console.log(chalk.green(`Saving indexes to: ${finalPath}`));
-          console.log(stdout);
 
-          const equal = (_.isEqual(newIndexes, existingIndexes));
-
+          // Check if the indexes are different
+          const equal = _.isEqual(newIndexes, existingIndexes);
           if (!equal) {
             console.log(chalk.red(`The live and local index files did not match and have been overwritten by the ${chalk.bold('live indexes')}`));
           }
-
         }
-        resolve(newIndexes);
-      }
-    });
+
+        // Return
+        return resolve(newIndexes);
+      })
+      .catch((e) => {
+        // Return
+        return reject(error);
+      });
   });
 }
-
-async function execute(command, cwd) {
-  cwd = cwd || process.cwd();
-  return new Promise(function(resolve, reject) {
-    exec(command, { cwd: cwd, stdio: 'inherit' })
-      .on('error', function(err) {
-        reject(err);
-      })
-      .on('close', function (one, two, three) {
-        console.log('===', one, two, three);
-        resolve()
-      })
-    // fork(command, function (error, stdout, stderr) {
-    //   if (error) {
-    //     reject(error);
-    //   } else {
-    //     resolve(stdout);
-    //   }
-    // });
-
-  });
-}
-
-// async function execute(command, args, cwd) {
-//   cwd = cwd || process.cwd();
-//   return new Promise(function(resolve, reject) {
-//     spawn(command, args, { cwd: cwd, stdio: 'inherit' })
-//       .on('error', function(err) {
-//         reject(err);
-//       })
-//       .on('close', function (one, two, three) {
-//         console.log('===', one, two, three);
-//         resolve()
-//       })
-//     // fork(command, function (error, stdout, stderr) {
-//     //   if (error) {
-//     //     reject(error);
-//     //   } else {
-//     //     resolve(stdout);
-//     //   }
-//     // });
-
-//   });
-// }
 
 async function cmd_configGet(self, filePath) {
   return new Promise(function(resolve, reject) {
@@ -1276,26 +1202,28 @@ async function cmd_configGet(self, filePath) {
     const max = 10;
     let retries = 0;
 
-    function _attempt() {
-      exec(`firebase functions:config:get > ${finalPath}`, function (error, stdout, stderr) {
-        if (error) {
-          console.error(chalk.red(`Failed to get config: ${error}`));
+    async function _attempt() {
+      try {
+        const output = await powertools.execute(`firebase functions:config:get > ${finalPath}`, { log: true });
 
-          // If retries are exhausted, reject
-          if (retries++ > max) {
-            return reject(error);
-          }
+        // Log success message
+        console.log(chalk.green(`Saving config to: ${finalPath}`));
 
-          // Retry
-          const delay = 2500 * retries
-          console.error(chalk.yellow(`Retrying config:get ${retries}/${max} in ${delay}ms...`));
-          setTimeout(_attempt, delay);
-        } else {
-          console.log(chalk.green(`Saving config to: ${finalPath}`));
-          console.log(stdout);
-          resolve(require(finalPath));
+        // Resolve with the required config
+        resolve(require(finalPath));
+      } catch (error) {
+        console.error(chalk.red(`Failed to get config: ${error}`));
+
+        // Check if retries are exhausted
+        if (retries++ >= max) {
+          return reject(error);
         }
-      });
+
+        // Retry logic with delay
+        const delay = 2500 * retries;
+        console.error(chalk.yellow(`Retrying config:get ${retries}/${max} in ${delay}ms...`));
+        setTimeout(_attempt, delay);
+      }
     }
 
     // Start the attempts
@@ -1381,22 +1309,28 @@ async function cmd_configSet(self, newPath, newValue) {
       isInvalid = true;
       newPath = newPath.replace(/([A-Z])/g, '_$1').trim().toLowerCase();
     }
+
     log(chalk.yellow(`Saving to ${chalk.bold(newPath)}...`));
-    let cmd = exec(`firebase functions:config:set ${newPath}="${newValue}"`, function (error, stdout, stderr) {
-      if (error) {
-        log(chalk.red(`Failed to save ${chalk.bold(newPath)}: ${error}`));
-        reject(error);
-      } else {
-        console.log(stdout);
+
+    await powertools.execute(`firebase functions:config:set ${newPath}="${newValue}"`, { log: true })
+      .then((output) => {
+        // Check if it was invalid
         if (isInvalid) {
           log(chalk.red(`!!! Your path contained an invalid uppercase character`));
           log(chalk.red(`!!! It was set to: ${chalk.bold(newPath)}`));
         } else {
           log(chalk.green(`Successfully saved to ${chalk.bold(newPath)}`));
         }
+
+        // Resolve the promise
         resolve();
-      }
-    });
+      })
+      .catch((e) => {
+        log(chalk.red(`Failed to save ${chalk.bold(newPath)}: ${e}`));
+
+        // Reject the promise with the error
+        reject(e);
+      });
   });
 }
 
@@ -1413,26 +1347,30 @@ async function cmd_configUnset(self) {
           default: 'service.key'
         }
       ])
-      .then(answers => {
+      .then(async (answers) => {
         // Use user feedback for... whatever!!
         // console.log('answer', answers);
         log(chalk.yellow(`Deleting ${chalk.bold(answers.path)}...`));
-        let cmd = exec(`firebase functions:config:unset ${answers.path}`, function (error, stdout, stderr) {
-          if (error) {
-            log(chalk.red(`Failed to delete ${chalk.bold(answers.path)}: ${error}`));
-            reject(error);
-          } else {
-            console.log(stdout);
+
+        await powertools.execute(`firebase functions:config:unset ${answers.path}`, { log: true })
+          .then((output) => {
             log(chalk.green(`Successfully deleted ${chalk.bold(answers.path)}`));
+
+            // Resolve the promise
             resolve();
-          }
-        });
+          })
+          .catch((e) => {
+            log(chalk.red(`Failed to delete ${chalk.bold(answers.path)}: ${e}`));
+
+            // Reject the promise with the error
+            reject(e);
+          });
       });
   });
 }
 
 async function cmd_iamImportExport(self) {
-  return new Promise(function(resolve, reject) {
+  return new Promise(async function(resolve, reject) {
     const command = `
       gcloud projects add-iam-policy-binding {projectId} \
           --member serviceAccount:{projectId}@appspot.gserviceaccount.com \
@@ -1440,20 +1378,21 @@ async function cmd_iamImportExport(self) {
     `
     .replace(/{projectId}/ig, self.projectId)
 
-    let cmd = exec(command, function (error, stdout, stderr) {
-      if (error) {
-        console.log(chalk.red(`Failed to run command`, error));
-        reject(error);
-      } else {
-        // console.log(chalk.green(`Added permission`));
-        resolve(stdout);
-      }
-    });
+    await powertools.execute(command, { log: true })
+      .then((output) => {
+        // Resolve with the command's standard output
+      })
+      .catch((e) => {
+        console.log(chalk.red(`Failed to run command`, e));
+
+        // Reject with the error
+        reject(e);
+      });
   });
 }
 
 async function cmd_setStorageLifecycle(self) {
-  return new Promise(function(resolve, reject) {
+  return new Promise(async function(resolve, reject) {
     const command = `gsutil lifecycle set {config} gs://{bucket}`
       .replace(/{config}/ig, path.resolve(`${__dirname}/../../templates/storage-lifecycle-config-1-day.json`))
       .replace(/{bucket}/ig, `us.artifacts.${self.projectId}.appspot.com`)
@@ -1461,22 +1400,20 @@ async function cmd_setStorageLifecycle(self) {
       .replace(/{config}/ig, path.resolve(`${__dirname}/../../templates/storage-lifecycle-config-30-days.json`))
       .replace(/{bucket}/ig, `bm-backup-firestore-${self.projectId}`)
 
-    exec(command, function (error, stdout, stderr) {
-      if (error) {
-        console.log(chalk.red(`Failed to run command`, error));
-        reject(error);
-      } else {
-        exec(command2, function (error, stdout, stderr) {
-          if (error) {
-            console.log(chalk.red(`Failed to run command`, error));
-            reject(error);
-          } else {
-            // console.log(chalk.green(`Added lifecycle`));
-            resolve(stdout);
-          }
-        })
-      }
-    });
+    await powertools.execute(command, { log: true })
+      .then(() => {
+        return powertools.execute(command2, { log: true });
+      })
+      .then((output) => {
+        // Resolve with the output of the second command
+        resolve(output.stdout);
+      })
+      .catch((e) => {
+        console.log(chalk.red(`Failed to run command`, e));
+
+        // Reject with the error
+        reject(e);
+      });
   });
 }
 
@@ -1508,30 +1445,40 @@ function installPkg(name, version, type) {
   }
 
   let latest = version ? '' : '@latest';
-  return new Promise(function(resolve, reject) {
-    let command = `npm i ${name}${v}${t}`;
+  return new Promise(async function(resolve, reject) {
+    // Build the command
+    const command = `npm i ${name}${v}${t}`;
+
+    // Log
     console.log('Running ', command);
-    let cmd = exec(command, function (error, stdout, stderr) {
-      if (error) {
-        reject(error);
-      } else {
+
+    // Execute
+    await powertools.execute(command, { log: true })
+      .then(() => {
         resolve();
-      }
-    });
+      })
+      .catch((e) => {
+        reject(e);
+      });
   });
 }
 
 function uninstallPkg(name) {
-  return new Promise(function(resolve, reject) {
-    let command = `npm uninstall ${name}`;
+  return new Promise(async function(resolve, reject) {
+    // Build the command
+    const command = `npm uninstall ${name}`;
+
+    // Log
     console.log('Running ', command);
-    let cmd = exec(command, function (error, stdout, stderr) {
-      if (error) {
-        reject(error);
-      } else {
+
+    // Execute
+    await powertools.execute(command, { log: true })
+      .then(() => {
         resolve();
-      }
-    });
+      })
+      .catch((e) => {
+        reject(e);
+      });
   });
 }
 function loadJSON(path) {
