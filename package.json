@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "4.0.9",
+  "version": "4.0.10",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -13,7 +13,7 @@
     "test:usage": "./node_modules/mocha/bin/mocha test/usage.js --timeout=10000",
     "test:payment-resolver": "./node_modules/mocha/bin/mocha test/payment-resolver.js --timeout=10000",
     "test:user": "./node_modules/mocha/bin/mocha test/user.js --timeout=10000",
-    "start": "node src/index.js",
+    "start": "node src/manager/index.js",
     "prepare": "node -e \"require('prepare-package')()\"",
     "prepare:watch": "nodemon -w ./src -e '*' --exec 'npm run prepare'"
   },
@@ -82,6 +82,7 @@
     "uuid": "^9.0.1",
     "wonderful-fetch": "^1.1.12",
     "wonderful-log": "^1.0.7",
+    "yaml": "^2.6.0",
     "yargs": "^17.7.2"
   },
   "devDependencies": {

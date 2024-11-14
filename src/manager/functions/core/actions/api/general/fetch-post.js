@@ -1,4 +1,5 @@
 const { Octokit } = require('@octokit/rest');
+const { parse } = require('yaml');
 
 function Module() {
 
@@ -80,16 +81,28 @@ Module.prototype.main = function () {
     const splitContent = fullContent.split('---');
     const frontmatter = splitContent[1].trim();
     const body = splitContent.slice(2).join('---').trim();
+    const parsed = parse(frontmatter);
 
     // Return
     return resolve({
       data: {
+        // Meta
         name: post.data.name,
         path: post.data.path,
         size: post.data.size,
         sha: post.data.sha,
+
+        // Content
         frontmatter: frontmatter,
         body: body,
+
+        // Parsed
+        title: parsed.post.title,
+        excerpt: parsed.post.excerpt,
+        author: parsed.post.author,
+        id: parsed.post.id,
+        tags: parsed.post.tags,
+        categories: parsed.post.categories,
       }
     });
   });
