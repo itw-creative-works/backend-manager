@@ -133,6 +133,10 @@ function User(Manager, settings, options) {
         first: _.get(settings, 'personal.name.first', defaults ? '' : null),
         last: _.get(settings, 'personal.name.last', defaults ? '' : null),
       },
+      company: {
+        name: _.get(settings, 'personal.company.name', defaults ? '' : null),
+        position: _.get(settings, 'personal.company.position', defaults ? '' : null),
+      },
       telephone: {
         countryCode: _.get(settings, 'personal.telephone.countryCode', defaults ? 0 : null),
         national: _.get(settings, 'personal.telephone.national', defaults ? 0 : null),
