@@ -143,6 +143,7 @@ Module.prototype.extractImages = function () {
       src: match[2] || '',
       alt: match[1] || uuidv4(),
       replace: true,
+      header: false,
     }));
 
     // Add heading image to beginning of images
@@ -151,6 +152,7 @@ Module.prototype.extractImages = function () {
       src: payload.data.payload.headerImageURL,
       alt: payload.data.payload.url,
       replace: false,
+      header: true,
     });
 
     // Log
@@ -173,7 +175,14 @@ Module.prototype.extractImages = function () {
 
       // Check for error
       if (download instanceof Error) {
-        return reject(download);
+        // If it's the header image, reject
+        // We can ignore body images since they are not critical and idiots usually fuck up the URLs
+        if (image.header) {
+          return reject(download);
+        } else {
+          assistant.warn(`extractImages(): Skipping NON-HEADER image download due to error`, download);
+          continue;
+        }
       }
 
       // Upload image
@@ -184,7 +193,14 @@ Module.prototype.extractImages = function () {
 
       // Check for error
       if (upload instanceof Error) {
-        return reject(upload);
+        // If it's the header image, reject
+        // We can ignore body images since they are not critical and idiots usually fuck up the URLs
+        if (image.header) {
+          return reject(upload);
+        } else {
+          assistant.warn(`extractImages(): Skipping NON-HEADER image upload due to error`, upload);
+          continue;
+        }
       }
 
       // Create new image tag
@@ -257,16 +273,38 @@ Module.prototype.uploadImage = function (image) {
     const filepath = image.path;
     const filename = image.filename;
     const assetsPath = powertools.template(IMAGE_PATH_SRC, payload.data.payload);
+    const owner = payload.data.payload.githubUser;
+    const repo = payload.data.payload.githubRepo;
 
     // Log
     assistant.log(`uploadImage(): image`, image);
     assistant.log(`uploadImage(): path`, `${assetsPath}${filename}`);
 
+    // Get existing image
+    const existing = await self.octokit.rest.repos.getContent({
+      owner: owner,
+      repo: repo,
+      path: `${assetsPath}${filename}`,
+    })
+    .catch(e => e);
+
+    // Log
+    assistant.log(`uploadImage(): Existing`, existing);
+
+    // Quit if error and it's DIFFERENT than 404
+    if (
+      existing instanceof Error
+      && existing?.status !== 404
+    ) {
+      return reject(existing);
+    }
+
     // Upload image
     await self.octokit.rest.repos.createOrUpdateFileContents({
-      owner: payload.data.payload.githubUser,
-      repo: payload.data.payload.githubRepo,
+      owner: owner,
+      repo: repo,
       path: `${assetsPath}${filename}`,
+      sha: existing?.data?.sha || undefined,
       message: `📦 admin:create-post:upload-image ${filename}`,
       content: jetpack.read(filepath, 'buffer').toString('base64'),
     })
@@ -309,7 +347,7 @@ Module.prototype.uploadPost = function (content) {
     // Log
     assistant.log(`uploadPost(): Existing`, existing);
 
-    // Quit if error and it's not a 404
+    // Quit if error and it's DIFFERENT than 404
     if (
       existing instanceof Error
       && existing?.status !== 404

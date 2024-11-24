@@ -18,6 +18,8 @@ function Settings(m) {
 
 Settings.prototype.resolve = function (assistant, schema, settings, options) {
   const self = this;
+
+  // Shortcuts
   const Manager = self.Manager;
 
   // Set settings
@@ -28,6 +30,8 @@ Settings.prototype.resolve = function (assistant, schema, settings, options) {
   options = options || {};
   options.dir = typeof options.dir === 'undefined' ? `${Manager.cwd}/schemas` : options.dir;
   options.schema = typeof options.schema === 'undefined' ? undefined : options.schema;
+  options.user = options.user || assistant.request.user;
+  options.checkRequired = typeof options.checkRequired === 'undefined' ? true : options.checkRequired;
 
   // Load schema if not provided and schema is defined in options
   // console.log('----schema:', schema);
@@ -40,7 +44,7 @@ Settings.prototype.resolve = function (assistant, schema, settings, options) {
   ) {
     const schemaPath = path.resolve(options.dir, `${options.schema.replace('.js', '')}.js`);
 
-    schema = loadSchema(assistant, schemaPath, settings);
+    schema = loadSchema(assistant, schemaPath, settings, options);
   }
 
   // Resolve settings
@@ -66,7 +70,7 @@ Settings.prototype.resolve = function (assistant, schema, settings, options) {
     // Check if this node is marked as required
     let isRequired = false;
     if (typeof schemaNode.required === 'function') {
-      isRequired = schemaNode.required(assistant);
+      isRequired = schemaNode.required(assistant, schemaPath, settings, options);
     } else if (typeof schemaNode.required === 'boolean') {
       isRequired = schemaNode.required;
     }
@@ -74,7 +78,7 @@ Settings.prototype.resolve = function (assistant, schema, settings, options) {
     // assistant.log('isRequired:', isRequired);
 
     // If the key is required and the original value is undefined, throw an error
-    if (isRequired && typeof originalValue === 'undefined') {
+    if (options.checkRequired && isRequired && typeof originalValue === 'undefined') {
       throw assistant.errorify(`Required key {${path}} is missing in settings`, {code: 400});
     }
 
@@ -144,10 +148,12 @@ function processSchema(schema, fn, path) {
   });
 }
 
-function loadSchema(assistant, schema, settings) {
-  const planId = assistant.request.user.plan.id;
+function loadSchema(assistant, schema, settings, options) {
+  // Get plan ID
+  const planId = options?.user?.plan?.id || 'basic';
 
-  const lib = require(schema)(assistant);
+  // Load schema
+  const lib = require(schema)(assistant, schema, settings, options);
   const def = lib.defaults;
   const plan = lib[planId];
 

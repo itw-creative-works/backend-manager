@@ -4,19 +4,27 @@ let _;
 function Utilities(Manager) {
   const self = this;
 
+  // Libraries
   _ = require('lodash');
 
+  // Cache
   self.cache = {};
 
+  // Set Manager
   self.Manager = Manager;
 }
 
 Utilities.prototype.iterateCollection = function (callback, options) {
   const self = this;
+
+  // Shortcuts
   const Manager = self.Manager;
-  const admin = Manager.libraries.admin;
 
   return new Promise(function(resolve, reject) {
+    // Libraries
+    const { admin } = Manager.libraries;
+
+    // Set counters
     let batch = -1;
     let collectionCount = 0;
 
@@ -147,33 +155,43 @@ Utilities.prototype.iterateCollection = function (callback, options) {
 
 Utilities.prototype.iterateUsers = function (callback, options) {
   const self = this;
+
+  // Shortcuts
   const Manager = self.Manager;
-  const admin = Manager.libraries.admin;
 
   return new Promise(function(resolve, reject) {
+    // Libraries
+    const { admin } = Manager.libraries;
+
+    // Set counters
     let batch = -1;
 
+    // Set defaults
     options = options || {};
     options.batchSize = options.batchSize || 1000;
     options.log = options.log;
     options.pageToken = options.pageToken;
 
+    // List all users
     function listAllUsers(nextPageToken) {
       // List batch of users, 1000 at a time.
       admin.auth()
         .listUsers(options.batchSize, nextPageToken)
         .then(async (listUsersResult) => {
-
+          // Increment batch
           batch++;
 
+          // If no users, resolve
           if (listUsersResult.users.length === 0) {
             return resolve();
           }
 
+          // Log
           if (options.log) {
             console.log('Processing batch:', batch);
           }
 
+          // Callback
           callback({
             snap: listUsersResult,
             users: listUsersResult.users,
@@ -190,7 +208,6 @@ Utilities.prototype.iterateUsers = function (callback, options) {
               console.error('Callback failed', e);
               return reject(e)
             });
-
         })
         .catch((e) => {
           console.error('Query failed', e);
@@ -198,33 +215,157 @@ Utilities.prototype.iterateUsers = function (callback, options) {
         });
     }
 
+    // Run
     listAllUsers(options.pageToken);
+  });
+};
+
+Utilities.prototype.getDocumentWithOwnerUser = function (path, options) {
+  const self = this;
+
+  // Shortcuts
+  const Manager = self.Manager;
+
+  return new Promise(async function(resolve, reject) {
+    // Libraries
+    const { admin } = Manager.libraries;
+
+    // Set options
+    path = path || '';
+
+    // Set defaults
+    options = options || {};
+    options.owner = options.owner || 'owner.uid';
+    options.log = typeof options.log === 'undefined' ? false : options.log;
+
+    // Set resolve/schema options
+    options.resolve = options.resolve || {};
+    options.resolve.schema = options.resolve.schema || '';
+    options.resolve.checkRequired = options.resolve.checkRequired;
+    options.resolve.assistant = options.resolve.assistant;
+
+    // If no doc is provided, throw an error
+    if (!path) {
+      return reject(new Error('No document provided'));
+    }
+
+    // Get document
+    const document = await admin.firestore().doc(path)
+      .get()
+      .then(doc => {
+        const data = doc.data();
+
+        // If the document doesn't exist, throw an error
+        if (!doc.exists) {
+          return reject(new Error(`Document {${path}} not found`));
+        }
+
+        // Return
+        return data;
+      })
+      .catch((e) => e);
+
+    // Check for errors
+    if (document instanceof Error) {
+      return reject(document);
+    }
+
+    // Log the document
+    if (options.log) {
+      console.log('Document:', document);
+    }
+
+    // Resolve owner UID
+    const ownerUID = _.get(document, options.owner);
+
+    // Get the owner user
+    const user = admin.firestore().doc(`users/${ownerUID}`)
+      .get()
+      .then(doc => {
+        const data = doc.data();
+
+        // If the user doesn't exist, throw an error
+        if (!doc.exists) {
+          return reject(new Error(`User {${ownerUID}} not found`));
+        }
+
+        // Return
+        return data;
+      })
+      .catch((e) => e);
+
+    // Check for errors
+    if (user instanceof Error) {
+      return reject(user);
+    }
+
+    // Create the resolved user
+    const userResolved = Manager.User(user).properties;
+
+    // Log the user
+    if (options.log) {
+      console.log('User:', user);
+      console.log('User (resolved):', userResolved);
+    }
+
+    // Resolve with schema
+    if (options.resolve.schema) {
+      const documentResolved = Manager.Settings().resolve(options.resolve.assistant, undefined, document, {
+        schema: options.resolve.schema,
+        user: userResolved,
+        checkRequired: options.resolve.checkRequired,
+      });
+
+      // Log the resolved document
+      if (options.log) {
+        console.log('Document (resolved):', documentResolved);
+      }
+
+      // Return
+      return resolve({
+        document: documentResolved,
+        user: userResolved,
+      });
+    }
+
+    // Return without schema resolution
+    return resolve({
+      document: document,
+      user: userResolved,
+    });
   });
 };
 
 Utilities.prototype.randomId = function (options) {
   const self = this;
 
+  // Set defaults
   options = options || {};
   options.size = options.size || 14;
 
-  if (!nanoId) {
-    nanoId = require('nanoid');
+  // Load library
+  nanoId = nanoId
+    ? nanoId
+    : require('nanoid');
 
-    nanoId = nanoId.customAlphabet(
-      nanoId.urlAlphabet.replace(/_|-/g, ''),
-      options.size,
-    )
-  }
+  // Custom alphabet
+  const alphabet = nanoId.customAlphabet(
+    nanoId.urlAlphabet.replace(/_|-/g, ''),
+    options.size,
+  )
 
-  return nanoId();
+  // Return
+  return alphabet();
 };
 
 Utilities.prototype.get = function (docPath, options) {
   const self = this;
 
+  // Shortcuts
+  const Manager = self.Manager;
+
   return new Promise(function(resolve, reject) {
-    const Manager = self.Manager;
+    // Libraries
     const { admin } = Manager.libraries;
 
     // Set defaults
