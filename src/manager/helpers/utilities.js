@@ -27,6 +27,7 @@ Utilities.prototype.iterateCollection = function (callback, options) {
     // Set counters
     let batch = -1;
     let collectionCount = 0;
+    let callbackResults = [];
 
     // Set defaults
     options = options || {};
@@ -116,7 +117,7 @@ Utilities.prototype.iterateCollection = function (callback, options) {
 
           // If no documents, resolve
           if (snap.docs.length === 0) {
-            return resolve();
+            return resolve(callbackResults);
           }
 
           // Log
@@ -134,11 +135,14 @@ Utilities.prototype.iterateCollection = function (callback, options) {
             collectionCount,
           )
           .then((r) => {
+            // Append to result
+            callbackResults.push(r);
+
             // Construct a new query starting at this document (unless we've reached the end)
             if (lastVisible && batch + 1 < options.maxBatches) {
               iterate(lastVisible)
             } else {
-              return resolve();
+              return resolve(callbackResults);
             }
           })
           .catch((e) => {
@@ -180,6 +184,7 @@ Utilities.prototype.iterateUsers = function (callback, options) {
 
     // Set counters
     let batch = -1;
+    let callbackResults = [];
 
     // Set defaults
     options = options || {};
@@ -199,7 +204,7 @@ Utilities.prototype.iterateUsers = function (callback, options) {
 
           // If no users, resolve
           if (listUsersResult.users.length === 0) {
-            return resolve();
+            return resolve(callbackResults);
           }
 
           // Log
@@ -213,12 +218,15 @@ Utilities.prototype.iterateUsers = function (callback, options) {
             users: listUsersResult.users,
             pageToken: listUsersResult.pageToken,
           }, batch)
-            .then(r => {
+            .then((r) => {
+              // Append to result
+              callbackResults.push(r);
+
               // Construct a new query starting at this document (unless we've reached the end)
               if (listUsersResult.pageToken && batch + 1 < options.maxBatches) {
                 iterate(listUsersResult.pageToken);
               } else {
-                return resolve();
+                return resolve(callbackResults);
               }
             })
             .catch((e) => {
@@ -279,7 +287,7 @@ Utilities.prototype.getDocumentWithOwnerUser = function (path, options) {
     // Get document
     const document = await admin.firestore().doc(path)
       .get()
-      .then(doc => {
+      .then((doc) => {
         const data = doc.data();
 
         // If the document doesn't exist, throw an error
@@ -308,7 +316,7 @@ Utilities.prototype.getDocumentWithOwnerUser = function (path, options) {
     // Get the owner user
     const user = admin.firestore().doc(`users/${ownerUID}`)
       .get()
-      .then(doc => {
+      .then((doc) => {
         const data = doc.data();
 
         // If the user doesn't exist, throw an error
