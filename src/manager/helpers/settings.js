@@ -70,7 +70,7 @@ Settings.prototype.resolve = function (assistant, schema, settings, options) {
     // Check if this node is marked as required
     let isRequired = false;
     if (typeof schemaNode.required === 'function') {
-      isRequired = schemaNode.required(assistant, schemaPath, settings, options);
+      isRequired = schemaNode.required(assistant, settings, options);
     } else if (typeof schemaNode.required === 'boolean') {
       isRequired = schemaNode.required;
     }
@@ -148,12 +148,12 @@ function processSchema(schema, fn, path) {
   });
 }
 
-function loadSchema(assistant, schema, settings, options) {
+function loadSchema(assistant, schemaPath, settings, options) {
   // Get plan ID
   const planId = options?.user?.plan?.id || 'basic';
 
   // Load schema
-  const lib = require(schema)(assistant, schema, settings, options);
+  const lib = require(schemaPath)(assistant, settings, options);
   const def = lib.defaults;
   const plan = lib[planId];
 
