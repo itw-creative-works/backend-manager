@@ -32,6 +32,7 @@ Utilities.prototype.iterateCollection = function (callback, options) {
     options = options || {};
     options.collection = options.collection || '';
     options.batchSize = options.batchSize || 1000;
+    options.maxBatches = options.maxBatches || Infinity;
     options.where = options.where || [];
     options.orderBy = options.orderBy || null;
     options.startAt = options.startAt || null;
@@ -42,7 +43,7 @@ Utilities.prototype.iterateCollection = function (callback, options) {
     options.log = options.log;
 
     // List all documents in a collection
-    async function listAllDocuments(nextPageToken) {
+    async function iterate(nextPageToken) {
       let query = admin.firestore().collection(options.collection);
 
       // Insert where clauses
@@ -93,7 +94,7 @@ Utilities.prototype.iterateCollection = function (callback, options) {
 
         // Log
         if (options.log) {
-          console.log('Total count:', collectionCount);
+          console.log('iterateCollection(): Total count', collectionCount);
         }
       }
 
@@ -102,7 +103,7 @@ Utilities.prototype.iterateCollection = function (callback, options) {
         query = query.startAfter(nextPageToken);
       }
 
-      // batchSize
+      // Limit by batch size
       query = query.limit(options.batchSize);
 
       // Get
@@ -110,16 +111,20 @@ Utilities.prototype.iterateCollection = function (callback, options) {
         .then(async (snap) => {
           const lastVisible = snap.docs[snap.docs.length - 1];
 
+          // Increment batch
           batch++;
 
+          // If no documents, resolve
           if (snap.docs.length === 0) {
             return resolve();
           }
 
+          // Log
           if (options.log) {
-            console.log('Processing batch:', batch);
+            console.log(`iterateCollection(): Processing batch #${batch + 1}/${options.maxBatches}`);
           }
 
+          // Callback
           callback(
             {
               snap: snap,
@@ -129,27 +134,37 @@ Utilities.prototype.iterateCollection = function (callback, options) {
             collectionCount,
           )
           .then((r) => {
-            // Construct a new query starting at this document
-            if (lastVisible) {
-              listAllDocuments(lastVisible)
+            // Construct a new query starting at this document (unless we've reached the end)
+            if (lastVisible && batch + 1 < options.maxBatches) {
+              iterate(lastVisible)
             } else {
               return resolve();
             }
           })
           .catch((e) => {
-            console.error('Callback failed', e);
+          // Log
+            if (options.log) {
+              console.error('iterateCollection(): Callback failed', e);
+            }
+
+            // Reject
             return reject(e);
           });
 
         })
         .catch((e) => {
-          console.error('Query failed', e);
+          // Log
+          if (options.log) {
+            console.error('iterateCollection(): Query failed', e);
+          }
+
+          // Reject
           return reject(e);
         });
     }
 
     // Run
-    listAllDocuments();
+    iterate();
   });
 };
 
@@ -169,11 +184,12 @@ Utilities.prototype.iterateUsers = function (callback, options) {
     // Set defaults
     options = options || {};
     options.batchSize = options.batchSize || 1000;
+    options.maxBatches = options.maxBatches || Infinity;
     options.log = options.log;
     options.pageToken = options.pageToken;
 
     // List all users
-    function listAllUsers(nextPageToken) {
+    function iterate(nextPageToken) {
       // List batch of users, 1000 at a time.
       admin.auth()
         .listUsers(options.batchSize, nextPageToken)
@@ -188,7 +204,7 @@ Utilities.prototype.iterateUsers = function (callback, options) {
 
           // Log
           if (options.log) {
-            console.log('Processing batch:', batch);
+            console.log(`iterateUsers(): Processing batch #${batch + 1}/${options.maxBatches}`);
           }
 
           // Callback
@@ -198,25 +214,36 @@ Utilities.prototype.iterateUsers = function (callback, options) {
             pageToken: listUsersResult.pageToken,
           }, batch)
             .then(r => {
-              if (listUsersResult.pageToken) {
-                listAllUsers(listUsersResult.pageToken);
+              // Construct a new query starting at this document (unless we've reached the end)
+              if (listUsersResult.pageToken && batch + 1 < options.maxBatches) {
+                iterate(listUsersResult.pageToken);
               } else {
                 return resolve();
               }
             })
             .catch((e) => {
-              console.error('Callback failed', e);
+              // Log
+              if (options.log) {
+                console.error('iterateUsers(): Callback failed', e);
+              }
+
+              // Reject
               return reject(e)
             });
         })
         .catch((e) => {
-          console.error('Query failed', e);
+          // Log
+          if (options.log) {
+            console.error('iterateUsers(): Query failed', e);
+          }
+
+          // Reject
           return reject(e)
         });
     }
 
     // Run
-    listAllUsers(options.pageToken);
+    iterate(options.pageToken);
   });
 };
 
