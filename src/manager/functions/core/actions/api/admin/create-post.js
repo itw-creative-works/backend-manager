@@ -355,6 +355,11 @@ Module.prototype.uploadPost = function (content) {
       return reject(existing);
     }
 
+    // We have to arbitrarily wait for a bit to ensure the images have started the GitHub build action
+    // Otherwise, the GH action might say: "Canceling since a higher priority waiting request for 'refs/heads/master' exists"
+    // The result of this is that the file will be comitted in the repo but not included in the public build
+    await powertools.wait(30000);
+
     // Upload post
     await self.octokit.rest.repos.createOrUpdateFileContents({
       owner: owner,
