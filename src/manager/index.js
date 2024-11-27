@@ -246,7 +246,6 @@ Manager.prototype.init = function (exporter, options) {
           self.assistant.error(`Loaded app may have wrong service account: ${loadedProjectId} =/= ${appId}`);
         }
       }
-
     } catch (e) {
       self.assistant.error('Failed to call .initializeApp()', e);
     }
@@ -261,8 +260,6 @@ Manager.prototype.init = function (exporter, options) {
       });
     } catch (e) {
       self.assistant.error('Failed to call .updateProjectConfig()', e);
-    } finally {
-
     }
     // admin.firestore().settings({/* your settings... */ timestampsInSnapshots: true})
   }

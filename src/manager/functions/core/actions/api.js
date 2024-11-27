@@ -157,9 +157,12 @@ Module.prototype.import = function (command, payload, user, response) {
         response: response ? response : self.payload.response,
       });
 
+      // 11/27/2024 - Separated this IF/ELSE into two separate IFs
+      // Set backendManagerKey and authenticationToken if it's provided
       if (self.payload.data.backendManagerKey) {
         lib.payload.data.backendManagerKey = self.payload.data.backendManagerKey;
-      } else if (self.payload.data.authenticationToken) {
+      }
+      if (self.payload.data.authenticationToken) {
         lib.payload.data.authenticationToken = self.payload.data.authenticationToken;
       }
 

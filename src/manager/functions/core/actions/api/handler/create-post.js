@@ -39,7 +39,7 @@ Module.prototype.main = function () {
         method: 'POST',
         response: 'json',
         body: {
-          authenticationToken: Manager.config.backend_manager.key,
+          backendManagerKey: Manager.config.backend_manager.key,
           method: 'post',
           service: 'paypal',
           command: 'v2/invoicing/invoices',
@@ -92,7 +92,7 @@ Module.prototype.main = function () {
         method: 'POST',
         response: 'json',
         body: {
-          authenticationToken: Manager.config.backend_manager.key,
+          backendManagerKey: Manager.config.backend_manager.key,
           service: 'paypal',
           command: `v2/invoicing/invoices/${createdInvoiceId}/send`,
           method: 'post',
@@ -120,7 +120,7 @@ Module.prototype.main = function () {
         method: 'POST',
         response: 'json',
         body: {
-          authenticationToken: Manager.config.backend_manager.key,
+          backendManagerKey: Manager.config.backend_manager.key,
           command: `admin:send-notification`,
           payload: {
             title: payload.data.payload.title,

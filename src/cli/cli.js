@@ -239,7 +239,7 @@ Main.prototype.setup = async function () {
   self.projectId = self.firebaseRC.projects.default;
   self.projectUrl = `https://console.firebase.google.com/project/${self.projectId}`;
 
-  self.bemApiURL = `https://us-central1-${self?.firebaseRC?.projects?.default}.cloudfunctions.net/bm_api?authenticationToken=${self?.runtimeConfigJSON?.backend_manager?.key}`;
+  self.bemApiURL = `https://us-central1-${self?.firebaseRC?.projects?.default}.cloudfunctions.net/bm_api?backendManagerKey=${self?.runtimeConfigJSON?.backend_manager?.key}`;
 
   // Log
   log(`ID: `, chalk.bold(`${self.projectId}`));
