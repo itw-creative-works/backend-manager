@@ -40,8 +40,8 @@ Module.prototype.main = function () {
       // Check for required values
       if (!payload.data.payload.path) {
         return reject(assistant.errorify(`Missing required parameter: path`, {code: 400}));
-      } else if (!payload.data.payload.body) {
-        return reject(assistant.errorify(`Missing required parameter: body`, {code: 400}));
+      } else if (!payload.data.payload.content) {
+        return reject(assistant.errorify(`Missing required parameter: content`, {code: 400}));
       }
 
       // Fix other values
@@ -68,7 +68,7 @@ Module.prototype.main = function () {
 };
 
 // Upload post to GitHub
-Module.prototype.uploadContent = function (content) {
+Module.prototype.uploadContent = function () {
   const self = this;
   const Manager = self.Manager;
   const Api = self.Api;
@@ -77,9 +77,10 @@ Module.prototype.uploadContent = function (content) {
 
   return new Promise(async function(resolve, reject) {
     // Save variables
-    const filename = payload.data.payload.pathl
     const owner = payload.data.payload.githubUser;
     const repo = payload.data.payload.githubRepo;
+    const filename = payload.data.payload.path;
+    const content = payload.data.payload.content;
 
     // Log
     assistant.log(`uploadContent(): filename`, filename);
@@ -90,7 +91,7 @@ Module.prototype.uploadContent = function (content) {
       repo: repo,
       path: filename,
     })
-    .catch(e => e);
+    .catch((e) => e);
 
     // Log
     assistant.log(`uploadContent(): Existing`, existing);
