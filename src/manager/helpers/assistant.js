@@ -178,7 +178,7 @@ BackendAssistant.prototype.init = function (ref, options) {
   } else {
     self.request.type = 'form';
   }
-  self.request.url = self.ref.req.url || '';
+  self.request.url = `${self.ref.req.protocol}://${self.ref.req.get('host')}${self.ref.req.originalUrl}`;
   self.request.path = self.ref.req.path || '';
   self.request.user = self.resolveAccount({authenticated: false});
 
