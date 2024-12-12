@@ -116,8 +116,8 @@ BackendAssistant.prototype.init = function (ref, options) {
 
   // Set stuff about request
   self.request = {};
-  self.request.referrer = (self.ref.req.headers || {}).referrer || (self.ref.req.headers || {}).referer || '';
-  self.request.method = (self.ref.req.method || undefined);
+  self.request.referrer = self.ref.req.headers?.referrer || self.ref.req.headers?.referer || '';
+  self.request.method = self.ref.req.method || undefined;
 
   // Set geolocation data
   self.request.geolocation =  {
@@ -178,6 +178,7 @@ BackendAssistant.prototype.init = function (ref, options) {
   } else {
     self.request.type = 'form';
   }
+  self.request.url = self.ref.req.url || '';
   self.request.path = self.ref.req.path || '';
   self.request.user = self.resolveAccount({authenticated: false});
 

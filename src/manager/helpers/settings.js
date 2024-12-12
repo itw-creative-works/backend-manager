@@ -55,6 +55,7 @@ Settings.prototype.resolve = function (assistant, schema, settings, options) {
     throw assistant.errorify(`Invalid schema provided`, {code: 400});
   }
   // console.log('---schema', schema);
+  // console.log('---options', options);
   // console.log('---self.settings', self.settings);
 
   // Iterate each key and check for some things
@@ -63,9 +64,9 @@ Settings.prototype.resolve = function (assistant, schema, settings, options) {
     const resolvedValue = _.get(self.settings, path);
     let replaceValue = undefined;
 
-    // assistant.log('Found:', path, schemaNode);
-    // assistant.log('originalValue:', originalValue);
-    // assistant.log('resolvedValue:', resolvedValue);
+    // console.log('Found:', path, schemaNode);
+    // console.log('originalValue:', originalValue);
+    // console.log('resolvedValue:', resolvedValue);
 
     // Check if this node is marked as required
     let isRequired = false;
@@ -75,7 +76,7 @@ Settings.prototype.resolve = function (assistant, schema, settings, options) {
       isRequired = schemaNode.required;
     }
 
-    // assistant.log('isRequired:', isRequired);
+    // console.log('isRequired:', isRequired);
 
     // If the key is required and the original value is undefined, throw an error
     if (options.checkRequired && isRequired && typeof originalValue === 'undefined') {
