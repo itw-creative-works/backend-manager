@@ -45,6 +45,14 @@ function BackendAssistant() {
   return self;
 }
 
+function tryUrl(req) {
+  try {
+   return `${req.protocol}://${req.get('host')}${req.originalUrl}`
+  } catch {
+    return '';
+  }
+}
+
 function tryParse(input) {
   var ret;
 
@@ -178,7 +186,7 @@ BackendAssistant.prototype.init = function (ref, options) {
   } else {
     self.request.type = 'form';
   }
-  self.request.url = `${self.ref.req.protocol}://${self.ref.req.get('host')}${self.ref.req.originalUrl}`;
+  self.request.url = tryUrl(self.ref.req);
   self.request.path = self.ref.req.path || '';
   self.request.user = self.resolveAccount({authenticated: false});
 
