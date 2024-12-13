@@ -60,8 +60,12 @@ function tryUrl(self) {
     if (projectType === 'firebase') {
       return forwardedHost
         ? `${protocol}://${forwardedHost}${path}`
-        : `${protocol}://${host}${path}`;
+        : `${protocol}://${host}/${self.meta.name}`;
+    } else if (projectType === 'custom') {
+      return `@@@TODO`;
     }
+
+    return '';
   } catch {
     return '';
   }
