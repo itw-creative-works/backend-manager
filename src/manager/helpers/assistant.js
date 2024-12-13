@@ -45,27 +45,43 @@ function BackendAssistant() {
   return self;
 }
 
-function tryUrl(req) {
+function tryUrl(self) {
+  const req = self.ref.req;
+  const Manager = self.Manager;
+  const projectType = Manager?.options?.projectType;
+
   try {
-  //  return `${req.protocol}://${req.get('host')}${req.originalUrl}`
+    const protocol = req.protocol;
+    const host = req.get('host');
+    const forwardedHost = req.get('x-forwarded-host');
+    const path = req.path;
+
     // Like this becuse "req.originalUrl" does NOT have path for all cases (like when calling https://us-central1-{id}.cloudfunctions.net/giftImport)
-    return `${req.protocol}://${req.get('host')}`
+    if (projectType === 'firebase') {
+      return forwardedHost
+        ? `${protocol}://${forwardedHost}${path}`
+        : `${protocol}://${host}${path}`;
+    }
   } catch {
     return '';
   }
 }
 
 function tryParse(input) {
-  var ret;
+  var parsed;
 
+  // Try to require JSON5
   JSON5 = JSON5 || require('json5');
 
+  // Try to parse
   try {
-    ret = JSON5.parse(input);
+    parsed = JSON5.parse(input);
   } catch (e) {
-    ret = input
+    parsed = input
   }
-  return ret;
+
+  // Return
+  return parsed;
 }
 
 BackendAssistant.prototype.init = function (ref, options) {
@@ -188,7 +204,7 @@ BackendAssistant.prototype.init = function (ref, options) {
   } else {
     self.request.type = 'form';
   }
-  self.request.url = tryUrl(self.ref.req);
+  self.request.url = tryUrl(self);
   self.request.path = self.ref.req.path || '';
   self.request.user = self.resolveAccount({authenticated: false});
 
