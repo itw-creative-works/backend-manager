@@ -47,7 +47,9 @@ function BackendAssistant() {
 
 function tryUrl(req) {
   try {
-   return `${req.protocol}://${req.get('host')}${req.originalUrl}`
+  //  return `${req.protocol}://${req.get('host')}${req.originalUrl}`
+    // Like this becuse "req.originalUrl" does NOT have path for all cases (like when calling https://us-central1-{id}.cloudfunctions.net/giftImport)
+    return `${req.protocol}://${req.get('host')}`
   } catch {
     return '';
   }
