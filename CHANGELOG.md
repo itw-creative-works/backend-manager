@@ -14,7 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
----
+---#
+# [4.1.0] - 2024-05-08
+### Changed
+- Attach `schema` to `bm-properties` response header.
+
 ## [4.0.0] - 2024-05-08
 ### ⚠️ BREAKING
 - Require Node.js version `18` or higher.

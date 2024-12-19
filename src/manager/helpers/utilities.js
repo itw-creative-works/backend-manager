@@ -54,8 +54,10 @@ Utilities.prototype.iterateCollection = function (callback, options) {
       });
 
       // Insert orderBy
-      if (options.orderBy) {
+      if (typeof options.orderBy === 'string') {
         query = query.orderBy(options.orderBy);
+      } else if (options.orderBy && typeof options.orderBy === 'object') {
+        query = query.orderBy(options.orderBy.field, options.orderBy.direction);
       }
 
       // Process the first batch differently

@@ -28,6 +28,7 @@ Middleware.prototype.run = function (libPath, options) {
     const assistant = Manager.Assistant({req: req, res: res});
 
     const data = assistant.request.data;
+    const headers = assistant.request.headers;
     const geolocation = assistant.request.geolocation;
     const client = assistant.request.client;
 
@@ -47,6 +48,7 @@ Middleware.prototype.run = function (libPath, options) {
 
     // Log
     assistant.log(`Middleware.process(): Request (${geolocation.ip} @ ${geolocation.country}, ${geolocation.region}, ${geolocation.city})`, JSON.stringify(data));
+    assistant.log(`Middleware.process(): Headers`, JSON.stringify(headers));
 
     // Set paths
     const routesDir = path.resolve(options.routesDir, libPath.replace('.js', ''));
@@ -118,7 +120,7 @@ Middleware.prototype.run = function (libPath, options) {
       }
 
       // Log
-      assistant.log(`Middleware.process(): Resolved settings with schema ${options.schema}`, JSON.stringify(assistant.settings));
+      assistant.log(`Middleware.process(): Resolved settings with schema=${options.schema}`, JSON.stringify(assistant.settings));
     } else {
       assistant.settings = data;
     }

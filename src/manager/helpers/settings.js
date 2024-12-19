@@ -47,13 +47,16 @@ Settings.prototype.resolve = function (assistant, schema, settings, options) {
     schema = loadSchema(assistant, schemaPath, settings, options);
   }
 
-  // Resolve settings
-  self.settings = powertools.defaults(settings, schema);
-
   // If schema is not an object, throw an error
   if (!schema || typeof schema !== 'object') {
     throw assistant.errorify(`Invalid schema provided`, {code: 400});
   }
+
+  // Resolve settings
+  self.settings = powertools.defaults(settings, schema);
+  // self.schema = _.merge({}, schema);
+  const resolvedSchema = {};
+
   // console.log('---schema', schema);
   // console.log('---options', options);
   // console.log('---self.settings', self.settings);
@@ -99,7 +102,26 @@ Settings.prototype.resolve = function (assistant, schema, settings, options) {
       assistant.warn(`Replacing ${path}: originalValue=${originalValue}, resolvedValue=${resolvedValue}, replaceValue=${replaceValue}`);
       _.set(self.settings, path, replaceValue);
     }
+
+    // Set defaults
+    // @@@TODO: FINISH THIS
+    // !!! NOT SURE WHAT TO DO FOR DEFAULT SINCE IT CAN BE A FN SOMETIMES ???
+    const resolvedNode = {
+      types: schemaNode.types || [],
+      // value: typeof replaceValue === 'undefined' ? undefined : replaceValue,
+      // default: ???,
+      required: isRequired,
+      available: typeof schemaNode.available === 'undefined' ? true : schemaNode.available,
+      min: typeof schemaNode.min === 'undefined' ? undefined : schemaNode.min,
+      max: typeof schemaNode.max === 'undefined' ? undefined : schemaNode.max,
+    }
+
+    // Update schema
+    _.set(resolvedSchema, path, resolvedNode);
   });
+
+  // Set schema
+  self.schema = resolvedSchema;
 
   // Resolve
   return self.settings;

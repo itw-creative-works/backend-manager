@@ -55,18 +55,26 @@ function tryUrl(self) {
     const host = req.get('host');
     const forwardedHost = req.get('x-forwarded-host');
     const path = req.path;
+    const functionsUrl = Manager.project.functionsUrl;
 
     // Like this becuse "req.originalUrl" does NOT have path for all cases (like when calling https://us-central1-{id}.cloudfunctions.net/giftImport)
     if (projectType === 'firebase') {
-      return forwardedHost
-        ? `${protocol}://${forwardedHost}${path}`
-        : `${protocol}://${host}/${self.meta.name}`;
+      if (self.isDevelopment()) {
+        return forwardedHost
+          ? `${protocol}://${forwardedHost}${path}`
+          : `${functionsUrl}/${self.meta.name}`;
+      } else {
+        return forwardedHost
+          ? `${protocol}://${forwardedHost}${path}`
+          : `${protocol}://${host}/${self.meta.name}`;
+      }
     } else if (projectType === 'custom') {
       return `@@@TODO`;
     }
 
     return '';
-  } catch {
+  } catch (e) {
+    // self.warn('Could not get URL', e);
     return '';
   }
 }
@@ -105,6 +113,7 @@ BackendAssistant.prototype.init = function (ref, options) {
   self.analytics = null;
   self.usage = null;
   self.settings = null;
+  self.schema = null;
 
   // Set meta
   self.meta = {};
@@ -242,12 +251,6 @@ BackendAssistant.prototype.init = function (ref, options) {
   self.constant.pastTime = {};
   self.constant.pastTime.timestamp = '1999-01-01T00:00:00Z';
   self.constant.pastTime.timestampUNIX = 915148800;
-
-  // Schema
-  // self.schema = {
-  //   dir: '',
-  //   name: '',
-  // }
 
   // Log options
   if (
@@ -560,9 +563,10 @@ function _attachHeaderProperties(self, options, error) {
     code: options.code,
     tag: self.tag,
     usage: {
-      current: self?.usage?.getUsage() || {},
-      limits: self?.usage?.getLimit() || {},
+      current: self.usage ? self.usage.getUsage() : {},
+      limits: self.usage ? self.usage.getLimit() : {},
     },
+    schema: self.schema || {},
     additional: options.additional || {},
   }
   const req = self.ref.req;
@@ -574,9 +578,10 @@ function _attachHeaderProperties(self, options, error) {
 
     // Add bm-properties to Access-Control-Expose-Headers
     const existingExposed = res.get('Access-Control-Expose-Headers') || '';
-    const newExposed = `${existingExposed}, bm-properties`.replace(/^, /, '');
 
+    // If it does not exist, add it
     if (!existingExposed.match(/bm-properties/i)) {
+      const newExposed = `${existingExposed}, bm-properties`.replace(/^, /, '');
       res.header('Access-Control-Expose-Headers', newExposed);
     }
   }
@@ -714,15 +719,21 @@ BackendAssistant.prototype.resolveAccount = function (user) {
 
 BackendAssistant.prototype.parseRepo = function (repo) {
   let repoSplit = repo.split('/');
+
+  // Remove .git from the end
   for (var i = 0; i < repoSplit.length; i++) {
     repoSplit[i] = repoSplit[i].replace('.git', '');
   }
+
+  // Remove unnecessary parts
   repoSplit = repoSplit.filter(function(value, index, arr){
-      return value !== 'http:' &&
-             value !== 'https:' &&
-             value !== '' &&
-             value !== 'github.com';
+    return value !== 'http:'
+      && value !== 'https:'
+      && value !== ''
+      && value !== 'github.com';
   });
+
+  // Return
   return {
     user: repoSplit[0],
     name: repoSplit[1],
