@@ -8,7 +8,7 @@ function Module() {
 Module.prototype.main = function () {
   const self = this;
 
-  // Set shortcuts
+  // Shortcuts
   const Manager = self.Manager;
   const Api = self.Api;
   const assistant = self.assistant;
@@ -55,7 +55,7 @@ Module.prototype.main = function () {
 Module.prototype.loadHook = function () {
   const self = this;
 
-  // Set shortcuts
+  // Shortcuts
   const Manager = self.Manager;
   const assistant = self.assistant;
   const payload = self.payload;

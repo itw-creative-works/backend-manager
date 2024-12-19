@@ -7,7 +7,7 @@ function Route() {
 Route.prototype.main = async function (assistant) {
   const self = this;
 
-  // Set shortcuts
+  // Shortcuts
   const Manager = assistant.Manager;
   const usage = assistant.usage;
   const user = assistant.usage.user;

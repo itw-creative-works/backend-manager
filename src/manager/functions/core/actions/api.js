@@ -331,7 +331,7 @@ function resolveBasePath(basePath, command) {
 Module.prototype.resolveApiPath = function (command) {
   const self = this;
 
-  // Set shortcuts
+  // Shortcuts
   const Manager = self.Manager;
   const libraries = self.libraries;
   const assistant = self.assistant;

@@ -18,7 +18,7 @@ function Middleware(m, req, res) {
 Middleware.prototype.run = function (libPath, options) {
   const self = this;
 
-  // Set shortcuts
+  // Shortcuts
   const Manager = self.Manager;
   const req = self.req;
   const res = self.res;
@@ -27,10 +27,16 @@ Middleware.prototype.run = function (libPath, options) {
   return cors(req, res, async () => {
     const assistant = Manager.Assistant({req: req, res: res});
 
+    // Set properties
     const data = assistant.request.data;
     const headers = assistant.request.headers;
+    const method = assistant.request.method;
+    const url = assistant.request.url;
     const geolocation = assistant.request.geolocation;
     const client = assistant.request.client;
+
+    // Strip URL
+    const strippedUrl = stripUrl(url);
 
     // Set options
     options = options || {};
@@ -47,7 +53,7 @@ Middleware.prototype.run = function (libPath, options) {
     options.schemasDir = typeof options.schemasDir === 'undefined' ? `${Manager.cwd}/schemas` : options.schemasDir;
 
     // Log
-    assistant.log(`Middleware.process(): Request (${geolocation.ip} @ ${geolocation.country}, ${geolocation.region}, ${geolocation.city})`, JSON.stringify(data));
+    assistant.log(`Middleware.process(): Request (${geolocation.ip} @ ${geolocation.country}, ${geolocation.region}, ${geolocation.city}) [${method} > ${strippedUrl}]`, JSON.stringify(data));
     assistant.log(`Middleware.process(): Headers`, JSON.stringify(headers));
 
     // Set paths
@@ -62,6 +68,7 @@ Middleware.prototype.run = function (libPath, options) {
     }
 
     // Load library
+    // TODO: Support for methods, so first check for method specific file then fallback to index.js
     let library;
     try {
       libPath = path.resolve(routesDir, `index.js`);
@@ -151,6 +158,12 @@ function clean(obj) {
         .trim();
     }
   }
+}
+
+function stripUrl(url) {
+  const newUrl = new URL(url);
+
+  return `${newUrl.hostname}${newUrl.pathname}`.replace(/\/$/, '');
 }
 
 module.exports = Middleware;

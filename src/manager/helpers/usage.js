@@ -107,21 +107,15 @@ Usage.prototype.init = function (assistant, options) {
 
     // Get app data to get plan limits using cached data if possible
     if (diff > 1 || options.refetch) {
-      await fetch('https://us-central1-itw-creative-works.cloudfunctions.net/getApp', {
-        method: 'post',
-        response: 'json',
-        body: {
-          id: options.app,
-        },
-      })
-      .then((json) => {
-        // Write data and last fetched to storage
-        self.storage.set(`${self.paths.app}.data`, json).write();
-        self.storage.set(`${self.paths.app}.lastFetched`, new Date().toISOString()).write();
-      })
-      .catch(e => {
-        assistant.errorify(`Usage.init(): Error fetching app data: ${e}`, {code: 500, sentry: true});
-      })
+      await self.getApp(options.app)
+        .then((json) => {
+          // Write data and last fetched to storage
+          self.storage.set(`${self.paths.app}.data`, json).write();
+          self.storage.set(`${self.paths.app}.lastFetched`, new Date().toISOString()).write();
+        })
+        .catch(e => {
+          assistant.errorify(`Usage.init(): Error fetching app data: ${e}`, {code: 500, sentry: true});
+        });
     }
 
     // Get app data
@@ -311,14 +305,17 @@ Usage.prototype.getLimit = function (name) {
 Usage.prototype.update = function () {
   const self = this;
 
+  // Shortcuts
+  const Manager = self.Manager;
+  const assistant = self.assistant;
+
   return new Promise(async function(resolve, reject) {
-    const Manager = self.Manager;
-    const assistant = self.assistant;
+    const { admin } = Manager.libraries;
 
     // Write self.user to firestore or local if no user or if key is set
     if (self.useUnauthenticatedStorage) {
       if (self.options.unauthenticatedMode === 'firestore') {
-        Manager.libraries.admin.firestore().doc(`temporary/${self.key}`)
+        admin.firestore().doc(`temporary/${self.key}`)
           .set({
             usage: self.user.usage,
           }, {merge: true})
@@ -338,7 +335,7 @@ Usage.prototype.update = function () {
         return resolve(self.user.usage);
       }
     } else {
-      Manager.libraries.admin.firestore().doc(`users/${self.user.auth.uid}`)
+      admin.firestore().doc(`users/${self.user.auth.uid}`)
         .set({
           usage: self.user.usage,
         }, {merge: true})
@@ -376,6 +373,51 @@ Usage.prototype.log = function () {
   if (self.options.log) {
     self.assistant.log(...arguments);
   }
+};
+
+Usage.prototype.getApp = function (id) {
+  const self = this;
+
+  // Shortcuts
+  const Manager = self.Manager;
+  const assistant = self.assistant;
+
+  return new Promise(function(resolve, reject) {
+    const { admin } = Manager.libraries;
+
+    try {
+      // If we're on ITW, we can read directly from Firestore
+      // If we don't do this, calling getApp on ITW will call getApp on ITW again and again
+      if (Manager.config.app.id === 'itw-creative-works') {
+        admin.firestore().doc(`apps/${id}`)
+          .get()
+          .then((r) => {
+            const data = r.data();
+
+            // Check for data
+            if (!data) {
+              return reject(new Error('No data found'));
+            }
+
+            // Resolve
+            return resolve(data);
+          })
+          .catch((e) => reject(e));
+      } else {
+        fetch('https://us-central1-itw-creative-works.cloudfunctions.net/getApp', {
+          method: 'post',
+          response: 'json',
+          body: {
+            id: id,
+          },
+        })
+        .then((json) => resolve(json))
+        .catch((e) => reject(e));
+      }
+    } catch (e) {
+      return reject(e);
+    }
+  });
 };
 
 module.exports = Usage;
