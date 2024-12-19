@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 # [4.1.0] - 2024-05-08
 ### Changed
 - Attach `schema` to `bm-properties` response header.
+- `assistant.request.url` is now properly set for all environments (development, production, etc) and works whether called from custom domain or Firebase default function domain.
 
 ## [4.0.0] - 2024-05-08
 ### ⚠️ BREAKING
