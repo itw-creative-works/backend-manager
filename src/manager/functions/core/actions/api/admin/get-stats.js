@@ -23,8 +23,10 @@ Module.prototype.main = function () {
       return reject(assistant.errorify(`Admin required.`, {code: 401}));
     }
 
+    // Get stats ref
+    const stats = self.libraries.admin.firestore().doc(`meta/stats`);
+
     // Get stats
-    const stats = self.libraries.admin.firestore().doc(`meta/stats`)
     await stats
       .get()
       .then(async (doc) => {
@@ -36,6 +38,7 @@ Module.prototype.main = function () {
             .catch(e => data = e)
         }
 
+        // Reject if error
         if (data instanceof Error) {
           return reject(assistant.errorify(data, {code: 500}));
         }
@@ -49,10 +52,12 @@ Module.prototype.main = function () {
           .catch(e => data = e)
 
 
+        // Reject if error
         if (data instanceof Error) {
           return reject(assistant.errorify(data, {code: 500}));
         }
 
+        // Return
         return resolve({data: data})
       })
       .catch((e) => {
@@ -68,8 +73,6 @@ Module.prototype.fixStats = function (data) {
   return new Promise(async function(resolve, reject) {
     const stats = self.libraries.admin.firestore().doc(`meta/stats`);
 
-
-
     return resolve();
   });
 }
@@ -79,15 +82,20 @@ Module.prototype.updateStats = function (existingData, update) {
   const self = this;
 
   return new Promise(async function(resolve, reject) {
+    // Get refs
     const stats = self.libraries.admin.firestore().doc(`meta/stats`);
     const gatheringOnline = self.libraries.admin.database().ref(`gatherings/online`);
     const sessionsApp = self.libraries.admin.database().ref(`sessions/app`);
     const sessionsOnline = self.libraries.admin.database().ref(`sessions/online`);
 
+    // Set defaults
     let error = null;
     let newData = {
       app: self.Manager.config?.app?.id || null,
     };
+
+    // Log
+    self.assistant.log(`updateStats(): Starting...`);
 
     // Fix user stats
     if (
@@ -178,6 +186,9 @@ Module.prototype.updateStats = function (existingData, update) {
     // Set metadata
     newData.metadata = self.Manager.Metadata().set({tag: 'admin:get-stats'})
 
+    // Log
+    self.assistant.log(`updateStats(): newData`, newData);
+
     // newData stats
     await stats
       .set(newData, { merge: true })
@@ -193,11 +204,22 @@ Module.prototype.updateStats = function (existingData, update) {
 Module.prototype.getAllUsers = function () {
   const self = this;
   return new Promise(async function(resolve, reject) {
+    // Set initial users
     self.users = [];
+
+    // Log
+    self.assistant.log(`getAllUsers(): Starting...`);
+
+    // Get users
     await getUsersBatch(self)
     .catch(e => {
       return reject(e);
     })
+
+    // Log
+    self.assistant.log(`getAllUsers(): Completed with ${self.users.length} users`);
+
+    // Return
     return resolve(self.users);
   });
 }
@@ -205,13 +227,25 @@ Module.prototype.getAllUsers = function () {
 Module.prototype.getAllNotifications = function () {
   const self = this;
   return new Promise(async function(resolve, reject) {
+
+    // Log
+    self.assistant.log(`getAllNotifications(): Starting...`);
+
+    // Get notifications
     await self.libraries.admin.firestore().collection('notifications')
     .count()
     .get()
     .then((snap) => {
-      return snap.data().count;
+      // Set count
+      const count = snap.data().count;
+
+      // Log
+      self.assistant.log(`getAllNotifications(): Completed with ${count} notifications`);
+
+      // Return
+      return count;
     })
-    .catch(function(e) {
+    .catch((e) => {
       return reject(e)
     });
   });
@@ -220,10 +254,14 @@ Module.prototype.getAllNotifications = function () {
 Module.prototype.getAllSubscriptions = function () {
   const self = this;
   return new Promise(async function(resolve, reject) {
+    // Log
+    self.assistant.log(`getAllSubscriptions(): Starting...`);
+
+    // Get subscriptions
     await self.libraries.admin.firestore().collection('users')
     .where('plan.expires.timestampUNIX', '>=', new Date().getTime() / 1000)
     .get()
-    .then(function(snapshot) {
+    .then((snapshot) => {
       const stats = {
         totals: {
           total: 0,
@@ -232,6 +270,7 @@ Module.prototype.getAllSubscriptions = function () {
         plans: {}
       };
 
+      // Loop through
       snapshot
       .forEach((doc, i) => {
         const data = doc.data();
@@ -240,6 +279,7 @@ Module.prototype.getAllSubscriptions = function () {
         const isAdmin = data?.roles?.admin || false;
         const isVip = data?.roles?.vip || false;
 
+        // Set initial plan
         if (!stats.plans[planId]) {
           stats.plans[planId] = {
             total: 0,
@@ -249,20 +289,26 @@ Module.prototype.getAllSubscriptions = function () {
           }
         }
 
+        // Increment exempt
         if (isAdmin || isVip) {
           stats.totals.exempt++;
           stats.plans[planId].exempt++;
           return
         }
 
+        // Increment
         stats.totals.total++;
         stats.plans[planId].total++;
         stats.plans[planId][frequency] = (stats.plans[planId][frequency] || 0) + 1
       });
 
+      // Log
+      self.assistant.log(`getAllSubscriptions(): Completed with ${stats.totals.total} subscriptions`, stats);
+
+      // Return
       return resolve(stats);
     })
-    .catch(function(e) {
+    .catch((e) => {
       return reject(e)
     });
 
@@ -271,23 +317,33 @@ Module.prototype.getAllSubscriptions = function () {
 
 function getUsersBatch(self, nextPageToken) {
   return new Promise(async function(resolve, reject) {
+    // Log
+    self.assistant.log(`getUsersBatch(): Starting...`);
+
+    // Get users
     self.libraries.admin.auth().listUsers(1000, nextPageToken)
-      .then(function(listUsersResult) {
+      .then((listUsersResult) => {
+        // Concat users
         self.users = self.users.concat(listUsersResult.users);
-        if (listUsersResult.pageToken) {
-          // List next batch of users.
-          getUsersBatch(self, listUsersResult.pageToken)
-            .then(() => {
-              return resolve(listUsersResult.users);
-            })
-            .catch((e) => {
-              return reject(e);
-            })
-        } else {
+
+        // Log
+        self.assistant.log(`getUsersBatch(): Completed with ${self.users.length} users`);
+
+        // Quit if no more users
+        if (!listUsersResult.pageToken) {
           return resolve(listUsersResult.users);
         }
+
+        // List next batch of users
+        getUsersBatch(self, listUsersResult.pageToken)
+          .then(() => {
+            return resolve(listUsersResult.users);
+          })
+          .catch((e) => {
+            return reject(e);
+          })
       })
-      .catch(function(e) {
+      .catch((e) => {
         return reject(e);
       });
   });
