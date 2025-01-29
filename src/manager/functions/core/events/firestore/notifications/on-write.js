@@ -15,20 +15,27 @@ Module.prototype.init = function (Manager, payload) {
 
 Module.prototype.main = function () {
   const self = this;
-  const libraries = self.libraries;
+
+  // Shortcuts
+  const Manager = self.Manager;
   const assistant = self.assistant;
+  const libraries = self.libraries;
   const change = self.change;
   const context = self.context;
 
   return new Promise(async function(resolve, reject) {
+    // Libraries
     const _ = self.Manager.require('lodash');
 
+    // Shortcuts
     const dataBefore = change.before.data();
     const dataAfter = change.after.data();
 
+    // Variables
     let analytics;
     let eventType;
 
+    // Determine event type
     if (dataAfter == undefined) {
       eventType = 'delete';
     } else if (dataBefore && dataAfter) {
@@ -37,6 +44,7 @@ Module.prototype.main = function () {
       eventType = 'create';
     }
 
+    // Log
     assistant.log('Notification subscription write:', {
       after: dataAfter,
       before: dataBefore,
