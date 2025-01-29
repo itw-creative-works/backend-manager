@@ -206,9 +206,10 @@ Module.prototype.getAllNotifications = function () {
   const self = this;
   return new Promise(async function(resolve, reject) {
     await self.libraries.admin.firestore().collection('notifications')
+    .count()
     .get()
-    .then(function(querySnapshot) {
-      return resolve(querySnapshot.size)
+    .then((snap) => {
+      return snap.data().count;
     })
     .catch(function(e) {
       return reject(e)
