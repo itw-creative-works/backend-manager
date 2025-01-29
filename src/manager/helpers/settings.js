@@ -62,7 +62,7 @@ Settings.prototype.resolve = function (assistant, schema, settings, options) {
   // console.log('---self.settings', self.settings);
 
   // Iterate each key and check for some things
-  processSchema(schema, (path, schemaNode) => {
+  iterateSchema(schema, (path, schemaNode) => {
     const originalValue = _.get(settings, path);
     const resolvedValue = _.get(self.settings, path);
     let replaceValue = undefined;
@@ -154,7 +154,7 @@ Settings.prototype.constant = function (name, options) {
   }
 };
 
-function processSchema(schema, fn, path) {
+function iterateSchema(schema, fn, path) {
   path = path || '';
 
   // Base case: Check if the current level has 'types' and 'default', indicating metadata
@@ -167,7 +167,7 @@ function processSchema(schema, fn, path) {
   // Recursive case: Iterate through nested keys if we're not at a metadata node
   Object.keys(schema).forEach(key => {
     const nextPath = path ? `${path}.${key}` : key;
-    processSchema(schema[key], fn, nextPath);
+    iterateSchema(schema[key], fn, nextPath);
   });
 }
 

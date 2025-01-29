@@ -9,7 +9,7 @@ service cloud.firestore {
     match /{document=**} {
       allow read, write: if isAdmin();
     }
-        
+
     // Protect user account data
     match /users/{uid} {
       allow read: if belongsTo(uid);
@@ -17,8 +17,8 @@ service cloud.firestore {
     }
 
     // Protect notification data
-    match /notifications/subscriptions/all/{token} {
-      allow read: if existingData().token == token || belongsTo(existingData().link.user.pk);
+    match /notifications/{token} {
+      allow read: if existingData().token == token || belongsTo(existingData().owner.uid);
       allow update: if existingData().token == token;
       allow create: if true;
     }
@@ -40,7 +40,7 @@ service cloud.firestore {
     }
     function belongsTo(identity) {
       return isAuthenticated() && (authUid() == identity || authEmail() == identity);
-      // eventually include a check for (existingData().link.email == identity)...(in case its a doc owned by a user that's not actually user doc)
+      // eventually include a check for (existingData().owner.uid == identity)...(in case its a doc owned by a user that's not actually user doc)
     }
 
     function getRoles() {

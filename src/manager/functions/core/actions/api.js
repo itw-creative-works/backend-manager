@@ -9,6 +9,8 @@ function Module() {
 
 Module.prototype.init = function (Manager, data) {
   const self = this;
+
+  // Set properties
   self.Manager = Manager;
   self.libraries = Manager.libraries;
   self.assistant = Manager.Assistant({req: data.req, res: data.res})
@@ -30,15 +32,14 @@ Module.prototype.init = function (Manager, data) {
   self.assistant.request.data.payload = self.assistant.request.data.payload || {};
   self.assistant.request.data.options = self.assistant.request.data.options || {};
 
-  if (Manager.options.log) {
-    self.assistant.log(`Executing (log): ${resolved.command}`, self.assistant.request, JSON.stringify(self.assistant.request))
-  }
-
+  // Return
   return self;
 }
 
 Module.prototype.main = function() {
   const self = this;
+
+  // Shortcuts
   const Manager = self.Manager;
   const libraries = self.libraries;
   const assistant = self.assistant;
@@ -47,19 +48,34 @@ Module.prototype.main = function() {
 
   return new Promise(async function(resolve, reject) {
     return libraries.cors(req, res, async () => {
+      // Set properties
       self.payload.data = assistant.request.data;
       self.payload.user = await assistant.authenticate();
 
+      // Set properties
+      const headers = assistant.request.headers;
+      const method = assistant.request.method;
+      const url = assistant.request.url;
+      const geolocation = assistant.request.geolocation;
+      const client = assistant.request.client;
+
+      // Strip URL
+      const strippedUrl = stripUrl(url);
+
       // Quit if OPTIONS request
-      if (self.assistant.request.method === 'OPTIONS') {
+      if (method === 'OPTIONS') {
         return resolve();
       }
 
       // Resolve command
       const resolved = self.resolveCommand(self.payload.data.command);
 
-      self.assistant.log(`Executing: ${resolved.command}`, self.payload, JSON.stringify(self.payload))
-      self.assistant.log(`Resolved URL: ${Manager.project.functionsUrl}?command=${encodeURIComponent(resolved.command)}&payload=${encodeURIComponent(JSON.stringify(self.assistant.request.data.payload))}`)
+      // Log
+      // assistant.log(`Executing: ${resolved.command}`, self.payload, JSON.stringify(self.payload))
+      // assistant.log(`Resolved URL: ${Manager.project.functionsUrl}?command=${encodeURIComponent(resolved.command)}&payload=${encodeURIComponent(JSON.stringify(self.assistant.request.data.payload))}`)
+      assistant.log(`bm_api(${resolved.command}): Request (${geolocation.ip} @ ${geolocation.country}, ${geolocation.region}, ${geolocation.city}) [${method} > ${strippedUrl}]`, JSON.stringify(assistant.request.data));
+      assistant.log(`bm_api(${resolved.command}): Headers`, JSON.stringify(headers));
+
 
       // Set up options
       self.payload.data.options = self.payload.data.options || {};
@@ -70,7 +86,7 @@ Module.prototype.main = function() {
         let delay = Math.floor(self.payload.data.options.delay / 1000);
 
         await powertools.poll(() => {
-          self.assistant.log(`Delaying for ${delay--} seconds...`);
+          assistant.log(`Delaying for ${delay--} seconds...`);
         }, {interval: 1000, timeout: self.payload.data.options.delay})
         .catch(e => e);
       }
@@ -116,7 +132,7 @@ Module.prototype.main = function() {
 
       // Send response
       if (self.payload.response.status >= 200 && self.payload.response.status < 399) {
-        self.assistant.log(`Finished ${resolved.command} (status=${self.payload.response.status})`, self.payload, JSON.stringify(self.payload))
+        assistant.log(`Finished ${resolved.command} (status=${self.payload.response.status})`, self.payload, JSON.stringify(self.payload))
 
         if (self.payload.response.redirect) {
           res.redirect(self.payload.response.redirect);
@@ -126,7 +142,7 @@ Module.prototype.main = function() {
           return resolve();
         }
       } else {
-        self.assistant.error(`Error executing ${resolved.command} @ ${resolved.path} (status=${self.payload.response.status}):`, self.payload.response.error)
+        assistant.error(`Error executing ${resolved.command} @ ${resolved.path} (status=${self.payload.response.status}):`, self.payload.response.error)
         res.send(`${self.payload.response.error}`)
         return reject(self.payload.response.error);
       }
@@ -188,8 +204,17 @@ Module.prototype.import = function (command, payload, user, response) {
 
 Module.prototype.resolveCommand = function (command) {
   const self = this;
+
+  // Shortcuts
+  const assistant = self.assistant;
+
+  // Set original command
   const originalCommand = command;
 
+  // Set properties
+  const method = assistant.request.method;
+
+  // Set command
   command = command || '';
 
   // Start
@@ -251,9 +276,9 @@ Module.prototype.resolveCommand = function (command) {
   // Check local path
   const resolvedPath = self.resolveApiPath(command);
 
-  // if (!command || command === 'error:error') {
-  if (!resolvedPath) {
-    self.assistant.log(`This command does not exist: ${originalCommand} => ${command} @ ${resolvedPath}`)
+  // Log if command does not exist
+  if (method !== 'OPTIONS' && !resolvedPath) {
+    assistant.error(`This command does not exist: ${originalCommand} => ${command} @ ${resolvedPath}`)
   }
 
   return {
@@ -353,5 +378,11 @@ Module.prototype.resolveApiPath = function (command) {
     return null;
   }
 };
+
+function stripUrl(url) {
+  const newUrl = new URL(url);
+
+  return `${newUrl.hostname}${newUrl.pathname}`.replace(/\/$/, '');
+}
 
 module.exports = Module;

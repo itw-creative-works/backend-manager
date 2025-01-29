@@ -871,11 +871,11 @@ Manager.prototype.setupFunctions = function (exporter, options) {
   .auth.user()
   .onDelete(async (user, context) => self._process((new (require(`${core}/events/auth/on-delete.js`))()).init(self, { user: user, context: context})));
 
-  exporter.bm_subOnWrite =
+  exporter.bm_notificationsOnWrite =
   self.libraries.functions
   .runWith({memory: '256MB', timeoutSeconds: 60})
-  .firestore.document('notifications/subscriptions/all/{token}')
-  .onWrite(async (change, context) => self._process((new (require(`${core}/events/firestore/on-subscription.js`))()).init(self, { change: change, context: context, })));
+  .firestore.document('notifications/{token}')
+  .onWrite(async (change, context) => self._process((new (require(`${core}/events/firestore/notifications/on-write.js`))()).init(self, { change: change, context: context, })));
 
   // Setup cron jobs
   exporter.bm_cronDaily =

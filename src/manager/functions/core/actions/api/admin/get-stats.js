@@ -205,7 +205,7 @@ Module.prototype.getAllUsers = function () {
 Module.prototype.getAllNotifications = function () {
   const self = this;
   return new Promise(async function(resolve, reject) {
-    await self.libraries.admin.firestore().collection('notifications/subscriptions/all')
+    await self.libraries.admin.firestore().collection('notifications')
     .get()
     .then(function(querySnapshot) {
       return resolve(querySnapshot.size)

@@ -49,12 +49,12 @@ Module.prototype.main = function () {
     if (eventType === 'delete') {
       await libraries.admin.firestore().doc(`meta/stats`)
         .update({
-          'subscriptions.total': libraries.admin.firestore.FieldValue.increment(-1),
+          'notifications.total': libraries.admin.firestore.FieldValue.increment(-1),
         })
         .then(r => {
           analytics = self.Manager.Analytics({
             assistant: assistant,
-            uuid: _.get(dataBefore, 'link.user.data.uid', undefined),
+            uuid: dataBefore?.owner?.uid,
           })
           .event({
             name: 'notification-unsubscribe',
@@ -78,12 +78,12 @@ Module.prototype.main = function () {
   } else if (eventType === 'create') {
       await libraries.admin.firestore().doc(`meta/stats`)
         .update({
-          'subscriptions.total': libraries.admin.firestore.FieldValue.increment(1),
+          'notifications.total': libraries.admin.firestore.FieldValue.increment(1),
         })
         .then(r => {
           analytics = self.Manager.Analytics({
             assistant: assistant,
-            uuid: _.get(dataAfter, 'link.user.data.uid', undefined),
+            uuid: dataAfter?.owner?.uid,
           })
           .event({
             name: 'notification-subscribe',
