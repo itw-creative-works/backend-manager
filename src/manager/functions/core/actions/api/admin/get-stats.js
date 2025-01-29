@@ -97,26 +97,6 @@ Module.prototype.updateStats = function (existingData, update) {
     // Log
     self.assistant.log(`updateStats(): Starting...`);
 
-    // Fix user stats
-    if (
-      !existingData?.users?.total
-      || update === true
-      || update?.users
-    ) {
-      await self.getAllUsers()
-        .then(r => {
-          _.set(newData, 'users.total', r.length)
-        })
-        .catch(e => {
-          error = new Error(`Failed fixing stats: ${e}`);
-        })
-    }
-
-    // Reject if error
-    if (error) {
-      return reject(error);
-    }
-
     // Fetch new notification stats
     if (
       update === true || update?.notifications
@@ -143,6 +123,21 @@ Module.prototype.updateStats = function (existingData, update) {
         })
     }
 
+    // Fix user stats
+    if (
+      !existingData?.users?.total
+      || update === true
+      || update?.users
+    ) {
+      await self.getAllUsers()
+        .then(r => {
+          _.set(newData, 'users.total', r.length)
+        })
+        .catch(e => {
+          error = new Error(`Failed fixing stats: ${e}`);
+        })
+    }
+
     // Reject if error
     if (error) {
       return reject(error);
@@ -157,7 +152,7 @@ Module.prototype.updateStats = function (existingData, update) {
           const existing = newData?.users?.online || 0;
 
           // Set new value
-          _.set(newData, 'users.online', existing + keys.length)
+          _.set(newData, 'users.online', existing + keys.length);
         })
         .catch(e => {
           error = new Error(`Failed getting online users: ${e}`);
@@ -243,7 +238,7 @@ Module.prototype.getAllNotifications = function () {
       self.assistant.log(`getAllNotifications(): Completed with ${count} notifications`);
 
       // Return
-      return count;
+      return resolve(count);
     })
     .catch((e) => {
       return reject(e)
