@@ -4,12 +4,15 @@ function Module() {
 
 Module.prototype.init = function (Manager, payload) {
   const self = this;
+
+  // Shortcuts
   self.Manager = Manager;
   self.libraries = Manager.libraries;
   self.assistant = Manager.Assistant();
   self.change = payload.change
   self.context = payload.context
 
+  // Return
   return self;
 };
 
@@ -25,7 +28,7 @@ Module.prototype.main = function () {
 
   return new Promise(async function(resolve, reject) {
     // Libraries
-    const _ = self.Manager.require('lodash');
+    const _ = Manager.require('lodash');
 
     // Shortcuts
     const dataBefore = change.before.data();
@@ -60,7 +63,7 @@ Module.prototype.main = function () {
           'notifications.total': libraries.admin.firestore.FieldValue.increment(-1),
         })
         .then(r => {
-          analytics = self.Manager.Analytics({
+          analytics = Manager.Analytics({
             assistant: assistant,
             uuid: dataBefore?.owner?.uid,
           })
@@ -89,7 +92,7 @@ Module.prototype.main = function () {
           'notifications.total': libraries.admin.firestore.FieldValue.increment(1),
         })
         .then(r => {
-          analytics = self.Manager.Analytics({
+          analytics = Manager.Analytics({
             assistant: assistant,
             uuid: dataAfter?.owner?.uid,
           })
