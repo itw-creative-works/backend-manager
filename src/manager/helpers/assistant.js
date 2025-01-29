@@ -69,7 +69,7 @@ function tryUrl(self) {
           : `${protocol}://${host}/${self.meta.name}`;
       }
     } else if (projectType === 'custom') {
-      return `@@@TODO`;
+      return `@TODO`;
     }
 
     return '';
@@ -598,22 +598,44 @@ function _attachHeaderProperties(self, options, error) {
 BackendAssistant.prototype.authenticate = async function (options) {
   const self = this;
 
-  let admin = self.ref.admin;
-  let functions = self.ref.functions;
-  let req = self.ref.req;
-  let res = self.ref.res;
-  let data = self.request.data;
-  let idToken;
+  // Shortcuts
+  const admin = self.ref.admin;
+  const functions = self.ref.functions;
+  const req = self.ref.req;
+  const res = self.ref.res;
+  const data = self.request.data;
 
+  // Get stored backendManagerKey
+  const BACKEND_MANAGER_KEY = self.Manager?.config?.backend_manager?.key || '';
+
+  // Build the ID token from the request
+  let idToken;
+  let backendManagerKey;
+  // let user;
+
+  // Set options
   options = options || {};
   options.resolve = typeof options.resolve === 'undefined' ? true : options.resolve;
+  options.debug = typeof options.debug === 'undefined' ? false : options.debug;
 
   function _resolve(user) {
+    // Resolve the properties
     user = user || {};
     user.authenticated = typeof user.authenticated === 'undefined'
       ? false
       : user.authenticated;
 
+    // Validate BACKEND_MANAGER_KEY
+    if (backendManagerKey && backendManagerKey === BACKEND_MANAGER_KEY) {
+      // Update roles
+      user.roles = user.roles || {};
+      user.roles.admin = true;
+
+      // Set authenticated
+      user.authenticated = true;
+    }
+
+    // Resolve the user
     if (options.resolve) {
       self.request.user = self.resolveAccount(user);
       return self.request.user;
@@ -622,91 +644,102 @@ BackendAssistant.prototype.authenticate = async function (options) {
     }
   }
 
-  if (req?.headers?.authorization && req?.headers?.authorization?.startsWith('Bearer ')) {
+  // Get shortcuts
+  const authHeader = req?.headers?.authorization || '';
+
+  // Extract the BEM token
+  // Having this is separate from the ID token allows for the user to be authenticated as an ADMIN
+  if (options.backendManagerKey || data.backendManagerKey) {
+    // Read token from backendManagerKey or authenticationToken or apiKey
+    backendManagerKey = options.backendManagerKey || data.backendManagerKey;
+
+    // Log the token
+    self.log('Found "backendManagerKey" parameter', backendManagerKey);
+  }
+
+  // Extract the token / API key
+  // This is the main token that will be used to authenticate the user (it can be a JWT or a user's API key)
+  if (authHeader.startsWith('Bearer ')) {
     // Read the ID Token from the Authorization header.
-    idToken = req.headers.authorization.split('Bearer ')[1];
+    idToken = authHeader.split('Bearer ')[1];
+
+    // Log the token
     self.log('Found "Authorization" header', idToken);
   } else if (req?.cookies?.__session) {
     // Read the ID Token from cookie.
     idToken = req.cookies.__session;
-    self.log('Found "__session" cookie', idToken);
-  } else if (data.backendManagerKey || data.authenticationToken) {
-    // Check with custom BEM Token
-    let storedApiKey;
-    try {
-      // Disabled this 5/11/24 because i dont know why we would need to do functions.config() if we already have the Manager
-      // const workingConfig = self.Manager?.config || functions.config();
-      storedApiKey = self.Manager?.config?.backend_manager?.key || '';
-    } catch (e) {
-      // Do nothing
-    }
-
-    // Set idToken as working token of either backendManagerKey or authenticationToken
-    idToken = data.backendManagerKey || data.authenticationToken;
 
     // Log the token
-    self.log('Found "backendManagerKey" or "authenticationToken" parameter', {storedApiKey: storedApiKey, idToken: idToken});
+    self.log('Found "__session" cookie', idToken);
+  } else if (
+    options.authenticationToken || data.authenticationToken
+    || options.apiKey || data.apiKey
+  ) {
+    // Read token OR API Key from options or data
+    idToken = options.authenticationToken || data.authenticationToken
+    || options.apiKey || data.apiKey;
 
-    // Check if the token is correct
-    if (storedApiKey && (storedApiKey === data.backendManagerKey || storedApiKey === data.authenticationToken)) {
-      self.request.user.authenticated = true;
-      self.request.user.roles.admin = true;
-      return _resolve(self.request.user);
-    }
-  } else if (options.apiKey || data.apiKey) {
-    const apiKey = options.apiKey || data.apiKey;
-    self.log('Found "options.apiKey"', apiKey);
-
-    if (apiKey.includes('test')) {
-      return _resolve(self.request.user);
-    }
-
-    await admin.firestore().collection(`users`)
-      .where('api.privateKey', '==', apiKey)
-      .get()
-      .then(function(querySnapshot) {
-        querySnapshot.forEach(function(doc) {
-          self.request.user = doc.data();
-          self.request.user.authenticated = true;
-        });
-      })
-      .catch(function(error) {
-        console.error('Error getting documents: ', error);
-      });
-
-    return _resolve(self.request.user);
+    // Log the token
+    self.log('Found "authenticationToken" parameter', idToken);
   } else {
-    // self.log('No Firebase ID token was able to be extracted.',
-    //   'Make sure you authenticate your request by providing either the following HTTP header:',
-    //   'Authorization: Bearer <Firebase ID Token>',
-    //   'or by passing a "__session" cookie',
-    //   'or by passing backendManagerKey or authenticationToken in the body or query');
-
+    // No token found
     return _resolve(self.request.user);
   }
 
-  // Check with firebase
-  try {
-    const decodedIdToken = await admin.auth().verifyIdToken(idToken);
-    if (options.debug) {
-      self.log('Token correctly decoded', decodedIdToken.email, decodedIdToken.user_id);
-    }
-    await admin.firestore().doc(`users/${decodedIdToken.user_id}`)
-    .get()
-    .then(async function (doc) {
-      if (doc.exists) {
-        self.request.user = Object.assign({}, self.request.user, doc.data());
-      }
-      self.request.user.authenticated = true;
-      self.request.user.auth.uid = decodedIdToken.user_id;
-      self.request.user.auth.email = decodedIdToken.email;
+  // Check if the token is a JWT
+  if (isJWT(idToken)) {
+    // Check with firebase
+    try {
+      const decodedIdToken = await admin.auth().verifyIdToken(idToken);
+
+      // Log the token
       if (options.debug) {
-        self.log('Found user doc', self.request.user)
+        self.log('JWT token decoded', decodedIdToken.email, decodedIdToken.user_id);
       }
-    })
-    return _resolve(self.request.user);
-  } catch (error) {
-    self.error('Error while verifying Firebase ID token:', error);
+
+      // Get the user
+      await admin.firestore().doc(`users/${decodedIdToken.user_id}`)
+      .get()
+      .then((doc) => {
+        // Set the user
+        if (doc.exists) {
+          self.request.user = Object.assign({}, self.request.user, doc.data());
+          self.request.user.authenticated = true;
+          self.request.user.auth.uid = decodedIdToken.user_id;
+          self.request.user.auth.email = decodedIdToken.email;
+        }
+
+        // Log the user
+        if (options.debug) {
+          self.log('Found user doc', self.request.user)
+        }
+      })
+
+      // Return the user
+      return _resolve(self.request.user);
+    } catch (error) {
+      self.error('Error while verifying JWT:', error);
+
+      // Return the user
+      return _resolve(self.request.user);
+    }
+  } else {
+    // Query by API key
+    await admin.firestore().collection(`users`)
+      .where('api.privateKey', '==', idToken)
+      .get()
+      .then((querySnapshot) => {
+        querySnapshot.forEach((doc) => {
+          self.request.user = doc.data();
+          self.request.user = Object.assign({}, self.request.user, doc.data());
+          self.request.user.authenticated = true;
+        });
+      })
+      .catch((error) => {
+        console.error('Error getting documents: ', error);
+      });
+
+    // Return the user
     return _resolve(self.request.user);
   }
 };
@@ -726,7 +759,7 @@ BackendAssistant.prototype.parseRepo = function (repo) {
   }
 
   // Remove unnecessary parts
-  repoSplit = repoSplit.filter(function(value, index, arr){
+  repoSplit = repoSplit.filter((value, index, arr) => {
     return value !== 'http:'
       && value !== 'https:'
       && value !== ''
@@ -1033,6 +1066,21 @@ BackendAssistant.prototype.parseMultipartFormData = function (options) {
     }
   });
 }
+
+const isJWT = (token) => {
+  // Ensure the token has three parts separated by dots
+  const parts = token.split('.');
+
+  try {
+    // Decode the header (first part) to verify it is JSON
+    const header = JSON.parse(Buffer.from(parts[0], 'base64').toString('utf8'));
+    // Check for expected JWT keys in the header
+    return header.alg && header.typ === 'JWT';
+  } catch (err) {
+    // If parsing fails, it's not a valid JWT
+    return false;
+  }
+};
 
 // Not sure what this is for? But it has a good serializer code
 // Disabled 2024-03-21 because there was another stringify() function that i was intending to use but it was actually using this
