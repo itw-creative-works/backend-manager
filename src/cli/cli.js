@@ -11,7 +11,7 @@ const chalk = require('chalk');
 const _ = require('lodash');
 const log = console.log;
 const Npm = require('npm-api');
-const semver = require('semver');
+const wonderfulVersion = require('wonderful-version');
 const inquirer = require('inquirer');
 const JSON5 = require('json5');
 const fetch = require('wonderful-fetch');
@@ -256,94 +256,113 @@ Main.prototype.setup = async function () {
     return exists;
   }, fix_isFirebase);
 
+  // Test: Is the project using the correct version of Node.js
   await self.test(`using at least Node.js v${self.packageJSON.engines.node}`, function () {
-    const engineReqMajor = parseInt(self.packageJSON.engines.node.split('.')[0]);
-    const engineHasMajor = parseInt(self.package.engines.node.split('.')[0]);
-    const processMajor = parseInt(process.versions.node.split('.')[0]);
+    const engineReqVer = self.packageJSON.engines.node;
+    const engineHasVer = self.package.engines.node;
+    const processVer = process.versions.node;
 
-    if (processMajor < engineReqMajor) {
-      return new Error(`Please use at least version ${engineReqMajor} of Node.js with this project. You need to update your package.json and your .nvmrc file. Then, make sure to run ${chalk.bold(`nvm use ${engineReqMajor}`)}`)
+    // Check if the process version is less than the required version
+    if (wonderfulVersion.is(processVer, '<', engineReqVer)) {
+      return new Error(`Please use at least version ${engineReqVer} of Node.js with this project. You need to update your package.json and your .nvmrc file. Then, make sure to run ${chalk.bold(`nvm use ${engineReqVer}`)}`)
     }
 
-    if (engineHasMajor !== engineReqMajor) {
-      console.log(chalk.yellow(`You are using Node.js version ${processMajor} but this project suggests ${engineReqMajor}.`));
+    // Check if the engine version is less than the required version
+    if (!wonderfulVersion.is(engineHasVer, '===', engineReqVer)) {
+      console.log(chalk.yellow(`You are using Node.js version ${processVer} but this project suggests ${engineReqVer}.`));
     }
 
-    return engineHasMajor >= engineReqMajor;
+    // Return
+    return wonderfulVersion.is(engineHasVer, '>=', engineReqVer);
   }, fix_nodeVersion);
 
+  // Test: Is the project using the correct version of Node.js
   await self.test('.nvmrc file has proper version', async function () {
-    const engineReqMajor = parseInt(self.packageJSON.engines.node.split('.')[0]);
-    const nvmrc = parseInt((jetpack.read(`${self.firebaseProjectPath}/functions/.nvmrc`) || '0').trim().replace(/v|\/|\*/g, ''));
+    const engineReqVer = self.packageJSON.engines.node;
+    const nvmrcVer = jetpack.read(`${self.firebaseProjectPath}/functions/.nvmrc`);
 
-    // return nvmrc === `v${self.packageJSON.engines.node}/*`
-    return nvmrc >= engineReqMajor;
+    // Check to ensure nvmrc is greater than or equal to the engine version
+    return wonderfulVersion.is(nvmrcVer, '>=', engineReqVer);
   }, fix_nvmrc);
 
+  // Test: Does the project have a package.json
   // await self.test('project level package.json exists', async function () {
   //   return !!(self.projectPackage && self.projectPackage.version && self.projectPackage.name);
   // }, fix_projpackage);
 
+  // Test: Does the project have a package.json
   await self.test('functions level package.json exists', async function () {
     return !!self.package && !!self.package.dependencies && !!self.package.devDependencies && !!self.package.version;
   }, fix_functionspackage);
 
+  // Test: Does the project have an updated package.json
   // await self.test('functions level package.json has updated version', async function () {
   //   return self.package.version === self.projectPackage.version;
   // }, fix_packageversion);
 
+  // Test: Is the project using the correct version of firebase-admin
   await self.test('using updated firebase-admin', async function () {
-    let pkg = 'firebase-admin';
-    // let latest = semver.clean(await getPkgVersion(pkg));
-    let latest = semver.clean(cleanPackageVersion(self.packageJSON.dependencies['firebase-admin']));
-    let mine = cleanPackageVersion(self.package.dependencies[pkg] || '0.0.0');
-    const majorVersionMismatch = ((semver.major(latest) > semver.major(mine)));
-    let bemv = cleanPackageVersion(self.packageJSON.dependencies[pkg]);
+    const pkg = 'firebase-admin';
+    const latest = self.packageJSON.dependencies['firebase-admin'];
+    const mine = self.package.dependencies[pkg];
+    const bemv = self.packageJSON.dependencies[pkg];
+
+    // Get level difference
+    const levelDifference = wonderfulVersion.levelDifference(latest, mine);
+
+    // Log
     bemPackageVersionWarning(pkg, bemv, latest);
 
-    if (majorVersionMismatch) {
+    // Log if major version mismatch
+    if (levelDifference === 'major') {
       console.log(chalk.red(`Version ${chalk.bold(latest)} of ${chalk.bold(pkg)} available but you must install this manually because it is a major update.`));
     }
 
-    return !(semver.gt(latest, mine)) || majorVersionMismatch;
+    // Ensure the version is up to date
+    return wonderfulVersion.is(mine, '>=', latest) || levelDifference === 'major';
   }, fix_fba);
 
+  // Test: Is the project using the correct version of firebase-functions
   await self.test('using updated firebase-functions', async function () {
-    let pkg = 'firebase-functions';
-    // let latest = semver.clean(await getPkgVersion(pkg));
-    let latest = semver.clean(cleanPackageVersion(self.packageJSON.dependencies['firebase-functions']));
-    let mine = cleanPackageVersion(self.package.dependencies[pkg] || '0.0.0');
-    const majorVersionMismatch = ((semver.major(latest) > semver.major(mine)));
-    let bemv = cleanPackageVersion(self.packageJSON.dependencies[pkg]);
+    const pkg = 'firebase-functions';
+    const latest = self.packageJSON.dependencies['firebase-functions'];
+    const mine = self.package.dependencies[pkg];
+    const bemv = self.packageJSON.dependencies[pkg];
+
+    // Get level difference
+    const levelDifference = wonderfulVersion.levelDifference(latest, mine);
+
+    // Log
     bemPackageVersionWarning(pkg, bemv, latest);
 
-    if (majorVersionMismatch) {
+    // Log if major version mismatch
+    if (levelDifference === 'major') {
       console.log(chalk.red(`Version ${chalk.bold(latest)} of ${chalk.bold(pkg)} available but you must install this manually because it is a major update.`));
     }
 
-    return !(semver.gt(latest, mine)) || majorVersionMismatch;
+    // Ensure the version is up to date
+    return wonderfulVersion.is(mine, '>=', latest) || levelDifference === 'major';
   }, fix_fbf);
 
+  // Test: Is the project using the correct version of backend-manager
   await self.test('using updated backend-manager', async function () {
-    let pkg = 'backend-manager';
-    let latest = semver.clean(await getPkgVersion(pkg));
-    let mine = cleanPackageVersion(self.package.dependencies[pkg] || '0.0.0');
-    const majorVersionMismatch = !isLocal(mine) && ((semver.major(latest) > semver.major(mine)));
+    const pkg = 'backend-manager';
+    const latest = await getPkgVersion(pkg);
+    const mine = self.package.dependencies[pkg];
 
-    if (majorVersionMismatch) {
+    // Get level difference
+    const levelDifference = wonderfulVersion.levelDifference(latest, mine);
+
+    // Log if major version mismatch
+    if (!isLocal(mine) && levelDifference === 'major') {
       console.log(chalk.red(`Version ${chalk.bold(latest)} of ${chalk.bold(pkg)} available but you must install this manually because it is a major update.`));
     }
 
-    return isLocal(mine) || !(semver.gt(latest, mine)) || majorVersionMismatch;
+    // Ensure the version is up to date
+    return isLocal(mine) || wonderfulVersion.is(mine, '>=', latest) || levelDifference === 'major';
   }, fix_bem);
 
-  // await self.test('using updated ultimate-jekyll-poster', async function () {
-  //   let pkg = 'ultimate-jekyll-poster';
-  //   let latest = semver.clean(await getPkgVersion(pkg));
-  //   let mine = (self.package.dependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
-  //   return isLocal(mine) || !(semver.gt(latest, mine));
-  // }, fix_ujp);
-
+  // Test: Is the project using the correct version of @firebase/testing
   // await self.test('using updated @firebase/testing', async function () {
   //   let pkg = '@firebase/testing';
   //   let latest = semver.clean(await getPkgVersion(pkg));
@@ -351,20 +370,25 @@ Main.prototype.setup = async function () {
   //   return isLocal(mine) || !(semver.gt(latest, mine));
   // }, fix_fbTesting);
 
+  // Test: Is the project using the correct version of mocha
   // await self.test('using updated mocha', async function () {
   //   let pkg = 'mocha';
   //   let latest = semver.clean(await getPkgVersion(pkg));
   //   let mine = (self.package.devDependencies[pkg] || '0.0.0').replace('^', '').replace('~', '');
   //   return isLocal(mine) || !(semver.gt(latest, mine));
   // }, fix_mocha);
+
+  // Test: Does the project have a "npm start" script
   await self.test(`has "npm start" script`, function () {
     return self.package.scripts.start
   }, fix_startScript);
 
+  // Test: Does the project have a "npm dist" script
   await self.test(`has "npm dist" script`, function () {
     return self.package.scripts.dist
   }, fix_distScript);
 
+  // Test: Is the project using a proper .runtimeconfig
   await self.test('using proper .runtimeconfig', async function () {
     // Set pass
     let pass = true;
@@ -383,6 +407,7 @@ Main.prototype.setup = async function () {
     return pass;
   }, fix_runtimeConfig);
 
+  // Test: Is the project using a proper backend-manager-config.json
   await self.test('using proper backend-manager-config.json', async function () {
     // Set pass
     let pass = true;
@@ -401,6 +426,7 @@ Main.prototype.setup = async function () {
     return pass;
   }, fix_bemConfig);
 
+  // Test: Does the project have the correct ID in backend-manager-config.json
   await self.test('has correct ID in backend-manager-config.json', async function () {
     // Check if the project name matches the projectId
     if (self.projectId !== self.bemConfigJSON?.firebaseConfig?.projectId) {
@@ -412,6 +438,7 @@ Main.prototype.setup = async function () {
     return true;
   }, NOFIX);
 
+  // Test: Does the project have the correct ID in service-account.json
   await self.test('has correct service-account.json', function () {
     let serviceAccount = jetpack.read(`${self.firebaseProjectPath}/functions/service-account.json`);
 
@@ -433,6 +460,7 @@ Main.prototype.setup = async function () {
     return true;
   }, fix_serviceAccount);
 
+  // Test: Does the project have the correct .gitignore
   await self.test('has correct .gitignore', function () {
     let match = self.gitignore.match(bem_giRegexOuter);
     if (!match) {
@@ -445,27 +473,32 @@ Main.prototype.setup = async function () {
     }
   }, fix_gitignore);
 
-  // Check firebase.json fields
+  // Test: Does the project have the correct firestore rules
   await self.test('firestore rules in JSON', () => {
     return self.firebaseJSON?.firestore?.rules === 'firestore.rules'
   }, fix_firestoreRules);
 
+  // Test: Does the project have the correct firestore indexes
   await self.test('firestore indexes in JSON', () => {
     return self.firebaseJSON?.firestore?.indexes === 'firestore.indexes.json';
   }, fix_firestoreIndexes);
 
+  // Test: Does the project have the correct realtime rules
   await self.test('realtime rules in JSON', () => {
     return self.firebaseJSON?.database?.rules === 'database.rules.json';
   }, fix_realtimeRules);
 
+  // Test: Does the project have the correct storage rules
   await self.test('storage rules in JSON', () => {
     return self.firebaseJSON?.storage?.rules === 'storage.rules';
   }, fix_storageRules);
 
+  // Test: Does the project have the correct remoteconfig template
   await self.test('remoteconfig template in JSON', () => {
     return self.firebaseJSON?.remoteconfig?.template === 'remoteconfig.template.json';
   }, fix_remoteconfigTemplate);
 
+  // Test: Does the project have the indexes synced
   await self.test('firestore indexes synced', async function () {
     const tempPath = '_firestore.indexes.json'
     const liveIndexes = await cmd_indexesGet(self, tempPath, false);
@@ -489,17 +522,19 @@ Main.prototype.setup = async function () {
     return !localIndexes_exists || equal
   }, fix_indexesSync);
 
+  // Test: Does the project have the correct importExportAdmin
   // await self.test('add roles/datastore.importExportAdmin', async function () {
   //   const result = await cmd_iamImportExport(self).catch(e => e);
   //   return !(result instanceof Error);
   // }, NOFIX);
 
+  // Test: Does the project have the correct storage lifecycle policy
   await self.test('set storage lifecycle policy', async function () {
     const result = await cmd_setStorageLifecycle(self).catch(e => e);
     return !(result instanceof Error);
   }, fix_setStoragePolicy);
 
-  // Update actual files
+  // Test: Does the project have the correct firestore rules file
   await self.test('update firestore rules file', function () {
     const exists = jetpack.exists(`${self.firebaseProjectPath}/firestore.rules`);
     const contents = jetpack.read(`${self.firebaseProjectPath}/firestore.rules`) || '';
@@ -509,11 +544,13 @@ Main.prototype.setup = async function () {
     return (exists && !!containsCore && !!matchesVersion);
   }, fix_firestoreRulesFile);
 
+  // Test: Does the project have the correct firestore indexes file
   await self.test('update firestore indexes file', function () {
     const exists = jetpack.exists(`${self.firebaseProjectPath}/firestore.indexes.json`);
     return exists;
   }, fix_firestoreIndexesFile);
 
+  // Test: Does the project have the correct realtime rules file
   await self.test('update realtime rules file', function () {
     const exists = jetpack.exists(`${self.firebaseProjectPath}/database.rules.json`);
     const contents = jetpack.read(`${self.firebaseProjectPath}/database.rules.json`) || '';
@@ -523,27 +560,30 @@ Main.prototype.setup = async function () {
     return (exists && !!containsCore && !!matchesVersion);
   }, fix_realtimeRulesFile);
 
+  // Test: Does the project have the correct storage rules file
   await self.test('update storage rules file', function () {
     const exists = jetpack.exists(`${self.firebaseProjectPath}/storage.rules`);
     return exists;
   }, fix_storageRulesFile);
 
+  // Test: Does the project have the correct remoteconfig template file
   await self.test('update remoteconfig template file', function () {
     const exists = jetpack.exists(`${self.firebaseProjectPath}/functions/remoteconfig.template.json`);
     return exists;
   }, fix_remoteconfigTemplateFile);
 
-  // Hosting
+  // Test: Does the project have the correct hosting folder
   await self.test('hosting is set to dedicated folder in JSON', function () {
     const hosting = _.get(self.firebaseJSON, 'hosting', {});
     return (hosting.public && (hosting.public === 'public' || hosting.public !== '.'))
   }, fix_firebaseHostingFolder);
 
-  // Hosting
+  // Test: Does the project have the correct hosting auth page
   // await self.test('hosting has auth page', async function () {
   //   return await fix_firebaseHostingAuth(self);
   // }, NOFIX);
 
+  // Test: Does the project have the correct backend-manager-tests.js file
   await self.test('update backend-manager-tests.js', function () {
     jetpack.write(`${self.firebaseProjectPath}/test/backend-manager-tests.js`,
       (jetpack.read(path.resolve(`${__dirname}/../../templates/backend-manager-tests.js`)))
@@ -551,6 +591,7 @@ Main.prototype.setup = async function () {
     return true;
   }, NOFIX);
 
+  // Test: Does the project have the correct public .html files
   await self.test('create public .html files', function () {
     const options = {url: self.bemConfigJSON.brand.url}
     // index.html
@@ -583,15 +624,14 @@ Main.prototype.setup = async function () {
   //   return script === NPM_CLEAN_SCRIPT;
   // }, fix_cleanNpmScript);
 
-
-
-
+  // Log if using local backend-manager
   if (self.package.dependencies['backend-manager'].includes('file:')) {
     console.log('\n' + chalk.yellow(chalk.bold('Warning: ') + 'You are using the local ' + chalk.bold('backend-manager')));
   } else {
     console.log('\n');
   }
 
+  // Fetch stats
   const statsFetchResult = await fetch(self.bemApiURL, {
     method: 'post',
     timeout: 30000,
@@ -603,6 +643,7 @@ Main.prototype.setup = async function () {
   .then(json => json)
   .catch(e => e);
 
+  // Check if we ran into an error
   if (statsFetchResult instanceof Error) {
     if (!statsFetchResult.message.includes('network timeout')) {
       console.log(chalk.yellow(`Ran into error while fetching stats endpoint`, statsFetchResult));
@@ -612,6 +653,7 @@ Main.prototype.setup = async function () {
     console.log(chalk.green(`Stats fetched/created properly.`));
   }
 
+  // Log
   console.log(chalk.green(`Checks finished. Passed ${self.testCount}/${self.testTotal} tests.`));
   if (self.testCount !== self.testTotal) {
     console.log(chalk.yellow(`You should continue to run ${chalk.bold('npx bm setup')} until you pass all tests and fix all errors.`));
@@ -675,10 +717,6 @@ Main.prototype.test = async function(name, fn, fix, args) {
   });
 }
 
-function cleanPackageVersion(v) {
-  return v.replace('^', '').replace('~', '');
-}
-
 // FIXES
 function NOFIX() {
   return new Promise(function(resolve, reject) {
@@ -688,7 +726,7 @@ function NOFIX() {
 }
 
 function bemPackageVersionWarning(package, current, latest) {
-  if (semver.gt(latest, current)) {
+  if (wonderfulVersion.greaterThan(latest, current)) {
     log(chalk.yellow(`${package} needs to be updated in backend-manager: ${current} => ${latest}`));
   }
 }
