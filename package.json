@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "4.2.5",
+  "version": "4.2.6",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -81,7 +81,7 @@
     "uuid": "^9.0.1",
     "wonderful-fetch": "^1.3.0",
     "wonderful-log": "^1.0.7",
-    "wonderful-version": "^1.1.2",
+    "wonderful-version": "^1.2.0",
     "yaml": "^2.6.1",
     "yargs": "^17.7.2"
   },
