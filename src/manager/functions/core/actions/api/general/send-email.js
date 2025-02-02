@@ -19,7 +19,6 @@ Module.prototype.main = function () {
     payload.data.payload.name = payload.data.payload.name;
 
     const DEFAULT = {
-
       spamFilter: {
         ip: 3,
         email: 3,
