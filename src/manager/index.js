@@ -152,6 +152,9 @@ Manager.prototype.init = function (exporter, options) {
     ? self.assistant.meta.environment
     : process.env.ENVIRONMENT;
 
+  // Set BEM env variables
+  process.env.BEM_FUNCTIONS_URL = self.project.functionsUrl;
+
   // Use the working Firebase logger that they disabled for whatever reason
   if (
     process.env.GCLOUD_PROJECT
