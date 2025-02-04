@@ -378,10 +378,17 @@ Main.prototype.setup = async function () {
   //   return isLocal(mine) || !(semver.gt(latest, mine));
   // }, fix_mocha);
 
+  // Test: Do the dependencies work
+  // await self.test(`dependencies work`, function () {
+  //   return true;
+  // }, NOFIX);
+
   // Test: Does the project have a "npm start" script
   await self.test(`has "npm start" script`, function () {
     return self.package.scripts.start
   }, fix_startScript);
+
+
 
   // Test: Does the project have a "npm dist" script
   await self.test(`has "npm dist" script`, function () {
@@ -497,6 +504,11 @@ Main.prototype.setup = async function () {
   await self.test('remoteconfig template in JSON', () => {
     return self.firebaseJSON?.remoteconfig?.template === 'remoteconfig.template.json';
   }, fix_remoteconfigTemplate);
+
+  // Test: Does the project have bm_api in the hosting rewrites
+  await self.test('hosting rewrites have bm_api', () => {
+    return self.firebaseJSON?.hosting?.rewrites?.some(rewrite => rewrite.source === '{/backend-manager}' && rewrite.function === 'bm_api');
+  }, fix_hostingRewrites);
 
   // Test: Does the project have the indexes synced
   await self.test('firestore indexes synced', async function () {
@@ -965,6 +977,27 @@ function fix_remoteconfigTemplate(self) {
     _.set(self.firebaseJSON, 'remoteconfig.template', 'remoteconfig.template.json')
     jetpack.write(`${self.firebaseProjectPath}/firebase.json`, JSON.stringify(self.firebaseJSON, null, 2));
     resolve();
+  });
+};
+
+function fix_hostingRewrites(self) {
+  return new Promise(function(resolve, reject) {
+    const hosting = _.get(self.firebaseJSON, 'hosting', {});
+
+    // Set default
+    hosting.rewrites = hosting.rewrites || [];
+
+    // Add to top
+    hosting.rewrites.unshift({
+      source: '{/backend-manager}',
+      function: 'bm_api',
+    });
+
+    // Set
+    _.set(self.firebaseJSON, 'hosting.rewrites', hosting.rewrites);
+
+    // Write
+    jetpack.write(`${self.firebaseProjectPath}/firebase.json`, JSON.stringify(self.firebaseJSON, null, 2));
   });
 };
 

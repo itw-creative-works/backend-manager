@@ -1068,14 +1068,14 @@ BackendAssistant.prototype.parseMultipartFormData = function (options) {
 }
 
 const isJWT = (token) => {
-  // Ensure the token has three parts separated by dots
-  const parts = token.split('.');
+  const { jwtDecode } = require('jwt-decode');
 
   try {
-    // Decode the header (first part) to verify it is JSON
-    const header = JSON.parse(Buffer.from(parts[0], 'base64').toString('utf8'));
+    // Decode the token and request the header
+    const decoded = jwtDecode(token, { header: true });
+
     // Check for expected JWT keys in the header
-    return header.alg && header.typ === 'JWT';
+    return decoded?.alg && decoded?.typ === 'JWT';
   } catch (err) {
     // If parsing fails, it's not a valid JWT
     return false;

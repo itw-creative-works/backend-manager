@@ -1,7 +1,8 @@
-const decode = require('jwt-decode')
-const _ = require('lodash')
-const fetch = require('wonderful-fetch')
+// Librairies
+const fetch = require('wonderful-fetch');
+const { jwtDecode } = require('jwt-decode');
 
+// Module
 function OAuth2() {
   const self = this;
   self.provider = 'google';
@@ -18,6 +19,8 @@ function OAuth2() {
 
 OAuth2.prototype.buildUrl = function (state, url) {
   const self = this;
+
+  // Shortcuts
   const Manager = self.Manager;
   const assistant = self.assistant;
 
@@ -35,13 +38,20 @@ OAuth2.prototype.buildUrl = function (state, url) {
 
 OAuth2.prototype.verifyIdentity = function (tokenizeResult) {
   const self = this;
+
+  // Shortcuts
   const Manager = self.Manager;
   const assistant = self.assistant;
 
   return new Promise(async function(resolve, reject) {
-    const decoded = decode(tokenizeResult.id_token);
+    // Log
+    assistant.log('verifyIdentity(): tokenizeResult', tokenizeResult);
 
-    // console.log('---decoded', decoded);
+    // Decode token
+    const decoded = jwtDecode(tokenizeResult.id_token);
+
+    // Log
+    assistant.log('verifyIdentity(): decoded', decoded);
 
     // Check if exists
     Manager.libraries.admin.firestore().collection(`users`)

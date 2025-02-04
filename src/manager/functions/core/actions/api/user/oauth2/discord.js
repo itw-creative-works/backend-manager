@@ -1,7 +1,8 @@
-const decode = require('jwt-decode')
-const _ = require('lodash')
-const fetch = require('wonderful-fetch')
+// Librairies
+const fetch = require('wonderful-fetch');
+const { jwtDecode } = require('jwt-decode');
 
+// Module
 function OAuth2() {
   const self = this;
   self.provider = 'discord';
@@ -19,6 +20,8 @@ function OAuth2() {
 
 OAuth2.prototype.buildUrl = function (state, url) {
   const self = this;
+
+  // Shortcuts
   const Manager = self.Manager;
   const assistant = self.assistant;
 
@@ -34,11 +37,16 @@ OAuth2.prototype.buildUrl = function (state, url) {
 
 OAuth2.prototype.verifyIdentity = function (tokenizeResult) {
   const self = this;
+
+  // Shortcuts
   const Manager = self.Manager;
   const assistant = self.assistant;
 
   return new Promise(async function(resolve, reject) {
+    // Log
+    assistant.log('verifyIdentity(): tokenizeResult', tokenizeResult);
 
+    // Get identity
     const identityResponse = await fetch('https://discord.com/api/users/@me', {
       timeout: 60000,
       response: 'json',
@@ -52,8 +60,10 @@ OAuth2.prototype.verifyIdentity = function (tokenizeResult) {
     .then(json => json)
     .catch(e => e)
 
-    assistant.log('identityResponse', identityResponse);
+    // Log
+    assistant.log('verifyIdentity(): identityResponse', identityResponse);
 
+    // Check if error
     if (identityResponse instanceof Error) {
       return reject(identityResponse);
     }

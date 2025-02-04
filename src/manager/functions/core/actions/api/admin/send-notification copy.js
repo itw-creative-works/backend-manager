@@ -30,40 +30,28 @@ Module.prototype.main = function () {
       deleted: 0,
     }
 
-    // Prefix payload
-    payload.data.payload.notification = payload.data.payload.notification || {};
-    payload.data.payload.filters = payload.data.payload.filters || {};
-
     // Fix notification payload
-    // https://firebase.google.com/docs/reference/admin/node/firebase-admin.messaging.notification.md#notification_interface
-    payload.data.payload.notification.title = payload.data.payload.notification.title
-      || 'Notification';
-    payload.data.payload.notification.body = payload.data.payload.notification.body
-      || 'Check this out';
-    payload.data.payload.notification.imageUrl = payload.data.payload.notification.icon
-      || 'https://cdn.itwcreativeworks.com/assets/itw-creative-works/images/socials/itw-creative-works-brandmark-square-black-1024x1024.png';
-    payload.data.payload.notification.click_action = payload.data.payload.notification.clickAction
-      || payload.data.payload.notification.click_action
-      || 'https://itwcreativeworks.com';
-
-    // Fix filters
-    // TODO: Implement filters
-
-    // Set notification payload
-    const notification = payload.data.payload.notification;
-    const filters = payload.data.payload.filters;
+    // Yes, it needs to be NESTED!!! DO NOT REMOVE THE NEST!
+    const note = {
+      notification: {
+        title: payload.data.payload.title || 'Notification',
+        body: payload.data.payload.body || 'Check this out',
+        icon: payload.data.payload.icon || 'https://cdn.itwcreativeworks.com/assets/itw-creative-works/images/socials/itw-creative-works-brandmark-square-black-1024x1024.png',
+        click_action: payload.data.payload.clickAction || 'https://itwcreativeworks.com',
+      }
+    }
 
     // Set notification payload
     try {
-      const url = new URL(notification.click_action);
+      const url = new URL(note.notification.click_action);
       url.searchParams.set('cb', new Date().getTime());
-      notification.click_action = url.toString();
+      note.notification.click_action = url.toString();
     } catch (e) {
       reject(assistant.errorify(`Failed to add cb to URL: ${e}`, {code: 400, log: true}));
     }
 
     // Log
-    assistant.log('Resolved notification payload', notification)
+    assistant.log('Resolved notification payload', note)
 
     // Check if user is admin
     if (!payload.user.roles.admin) {
@@ -71,11 +59,11 @@ Module.prototype.main = function () {
     }
 
     // Check if title and body are set
-    if (!notification.title || !notification.body) {
+    if (!note.notification.title || !note.notification.body) {
       return reject(assistant.errorify(`Parameters <title> and <body> required`, {code: 400, sentry: true}));
     }
 
-    await self.processTokens(notification, {tags: false})
+    await self.processTokens(note, {tags: false})
     .then(r => {
       return resolve({data: payload.response.data})
     })
@@ -87,7 +75,7 @@ Module.prototype.main = function () {
 };
 
 // HELPERS //
-Module.prototype.processTokens = async function (notification, options) {
+Module.prototype.processTokens = async function (note, options) {
   const self = this;
 
   // Shortcuts
@@ -119,7 +107,7 @@ Module.prototype.processTokens = async function (notification, options) {
       // Send the batch
       try {
         assistant.log(`Sending batch ${index} with ${batchTokens.length} tokens.`);
-        await self.sendBatch(batchTokens, index, notification);
+        await self.sendBatch(batchTokens, note, index);
       } catch (e) {
         assistant.error(`Error sending batch ${index}`, e);
       }
@@ -145,16 +133,7 @@ Module.prototype.processTokens = async function (notification, options) {
 // Manually sending
 // https://firebase.google.com/docs/reference/fcm/rest/v1/projects.messages/send
 // https://firebase.google.com/docs/cloud-messaging/migrate-v1#provide-credentials-manually
-
-// Help
-// https://stackoverflow.com/questions/79408734/send-firebase-cloud-messaging-fcm-notification-with-click-action
-// https://stackoverflow.com/questions/72494678/an-error-occurred-when-trying-to-authenticate-to-the-fcm-servers-on-firebase-c
-// https://stackoverflow.com/questions/72552943/how-can-i-add-firebase-admin-role-to-firebase-project-service-accouts
-
-// https://stackoverflow.com/questions/50148266/click-action-attribute-for-web-push-notification-through-fcm
-// https://stackoverflow.com/questions/49177428/http-v1-api-click-action-for-webpush-notification/52764782#52764782
-// https://firebase.google.com/docs/cloud-messaging/js/receive#setting_notification_options_in_the_send_request
-Module.prototype.sendBatch = async function (batch, id, notification) {
+Module.prototype.sendBatch = async function (batch, note, id) {
   const self = this;
 
   // Shortcuts
@@ -168,65 +147,106 @@ Module.prototype.sendBatch = async function (batch, id, notification) {
 
   try {
     // Log
-    assistant.log(`Sending batch #${id}: tokens=${batch.length}...`, notification);
+    assistant.log(`Sending batch ID: ${id}`);
+    console.log('🚩🚩🚩🚩🚩', 1, ); // FLAG
+    assistant.log(`batch`, batch);
+    assistant.log(`note`, note);
 
-    // Prepare messages
-    // We have to set click_action because Firebase DOES NOT properly handle it in the service worker, so we HANDLE IT OURSELVES
-    const messages = batch.map(token => ({
-      token: token,
-      notification: {
-        title: notification.title,
-        body: notification.body,
-        imageUrl: notification.imageUrl,
-      },
-      webpush: {
+    try {
+      const response = await admin.messaging().sendMulticast({
+        tokens: batch,
+        // "webpush": {
+        //   "notification": {
+        //     "actions": [],
+        //     "tag": 123456,
+        //     "title": "Titre de test",
+        //     "body": "Un contenu de notification",
+        //     "image": ".\/images\/icon.png",
+        //     "badge": ".\/images\/badge.png",
+        //     "icon": ".\/images\/icon256.png",
+        //     "vibrate": [50, 200, 50],
+        //     "click_action": "https://somiibo.com",
+        //   },
+        //   "data": {
+        //     "time": "1531396372"
+        //   },
+        //   "headers": {
+        //     "TTL": "60"
+        //   }
+        // },
+        // DOES NOT WORK
+        // "fcm_options": {
+        //   "link": "https://dummypage.com"
+        // }
         notification: {
-          title: notification.title,
-          body: notification.body,
-          icon: notification.imageUrl,
-          click_action: notification.click_action,
+          title: 'Your Notification Title',
+          body: 'This is the notification message.'
         },
         data: {
-          click_action: notification.click_action,
-        },
-        fcm_options: {
-          link: notification.click_action,
+          customDataKey: 'customDataValue' // Optional custom data payload
         }
-      },
-      data: {
-        click_action: notification.click_action,
-      },
-    }));
+      })
+
+      assistant.log(`🚩🚩🚩🚩🚩 222 response ${id}`, response); // FLAG
+    } catch (e) {
+      assistant.error(`🚩🚩🚩🚩🚩 222 error ${id}`, e);
+    }
+
+    try {
+      const response = await admin.messaging().sendMulticast({
+        tokens: batch,
+        notification: note.notification,
+      })
+
+      assistant.log(`🚩🚩🚩🚩🚩 333 response ${id}`, response); // FLAG
+    } catch (e) {
+      assistant.error(`🚩🚩🚩🚩🚩 333 error ${id}`, e);
+    }
+
+    try {
+      const messages = batch.map(token => ({
+        token: token,
+        notification: {
+          title: 'Your Notification Title',
+          body: 'This is the notification message.'
+        },
+      }));
+
+      const response = await admin.messaging().sendEach(messages);
+
+      assistant.log(`🚩🚩🚩🚩🚩 444 response ${id}`, response); // FLAG
+    } catch (e) {
+      assistant.error(`🚩🚩🚩🚩🚩 444 error ${id}`, e);
+    }
+
+    try {
+      const message = {
+        notification: {
+          title: 'Your Notification Title',
+          body: 'This is the notification message.'
+        },
+        data: {
+          customDataKey: 'customDataValue' // Optional custom data payload
+        },
+        token: batch[0],
+      }
+
+      const response = await admin.messaging().send(message);
+
+      assistant.log(`🚩🚩🚩🚩🚩 555 response ${id}`, response); // FLAG
+    } catch (e) {
+      assistant.error(`🚩🚩🚩🚩🚩 555 error ${id}`, e);
+    }
 
     // Send the batch
-    // const response = await admin.messaging().sendToDevice(batch, note);
-    const response = await admin.messaging().sendEach(messages);
-    // responses: [
-    //   { success: false, error: [FirebaseMessagingError] },
-    //   {
-    //     success: true,
-    //     messageId: 'projects/promo-server-api/messages/1e91fbc4-2d50-4457-addc-b9add252ae7b'
-    //   },
-    //   { success: false, error: [FirebaseMessagingError] }
-    // ],
-    // successCount: 1,
-    // failureCount: 2
-
-    // Log
-    assistant.log(`Sent batch #${id}: tokens=${batch.length}, success=${response.successCount}, failures=${response.failureCount}`, JSON.stringify(response));
+    const response = await admin.messaging().sendToDevice(batch, note);
 
     // Log
     assistant.log(`Sent batch ID: ${id}, Success: ${response.successCount}, Failures: ${response.failureCount}`);
 
-    // Attach token to response
-    response.responses = response.responses.map((item, index) => {
-      item.token = batch[index];
-      return item;
-    });
-
     // Clean bad tokens
     if (response.failureCount > 0) {
-      await self.cleanTokens(batch, response.responses, id);
+      await self.cleanTokens(batch, response.results, id);
     }
 
     // Update response
@@ -252,21 +272,18 @@ Module.prototype.cleanTokens = async function (batch, results, id) {
   const cleanPromises = results
     .map((item, index) => {
       // Check if the token is bad
-      const shouldClean = BAD_TOKEN_REASONS.includes(item?.error?.code)
+      if (item.error && BAD_TOKEN_REASONS.includes(item.error.code)) {
+        const token = batch[index];
 
-      // Log
-      assistant.log(`Checking #${index}: success=${item.success}, error=${item?.error?.code || null}, clean=${shouldClean}`, item.error);
-      assistant.log(`item.error`, item.error);
-      assistant.log(`item?.error?.code`, item?.error?.code);
-      assistant.log(`item?.error?.message`, item?.error?.message);
+        // Log
+        assistant.log(`Found bad token: ${token} (Reason: ${item.error.code})`);
 
-      // Quit if no error
-      if (!item.error || !shouldClean) {
-        return null;
+        // Delete the token
+        return self.deleteToken(token, item.error.code);
       }
 
-      // Delete the token
-      return self.deleteToken(item.token, item.error.code);
+      // Return null for valid tokens
+      return null;
     })
     // Filter out nulls for valid tokens
     .filter(Boolean);
@@ -303,7 +320,7 @@ Module.prototype.deleteToken = async function (token, errorCode) {
     // Update response
     payload.response.data.deleted++;
   } catch (error) {
-    assistant.error(`Failed to delete bad token: ${token} (Reason: ${errorCode})`, error);
+    assistant.error(`Failed to delete bad token: ${token} (Reason: ${errorCode}). Error: ${error}`);
   }
 };
 
