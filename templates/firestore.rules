@@ -4,7 +4,8 @@ service cloud.firestore {
     // Custom rules
     // ...
 
-    ///---default-rules---///
+    ///---backend-manager---///
+    ///---version=0.0.0---///
     // Lock by default
     match /{document=**} {
       allow read, write: if isAdmin();
@@ -22,11 +23,6 @@ service cloud.firestore {
       allow update: if existingData().token == token;
       allow create: if true;
     }
-    ///---------end---------///
-
-    ///---backend-manager---///
-    ///---version=0.0.0---///
-    // Basic rules
 
     // Auth functions
     function authEmail() {

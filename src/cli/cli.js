@@ -147,13 +147,6 @@ Main.prototype.process = async function (args) {
     return await cmd_configGet(self);
   }
 
-  // Get rules
-  if (self.options['rules:default'] || self.options['rules:getdefault']) {
-    self.getRulesFile();
-    console.log(self.default.firestoreRulesWhole.match(bem_allRulesDefaultRegex)[0].replace('    ///', '///'));
-    return;
-  }
-
   // Deploy
   if (self.options.deploy) {
     await self.setup();
