@@ -17,6 +17,7 @@ const JSON5 = require('json5');
 const fetch = require('wonderful-fetch');
 const argv = require('yargs').argv;
 const powertools = require('node-powertools');
+const os = require('os');
 
 // function parseArgumentsIntoOptions(rawArgs) {
 //   const args = arg(
@@ -103,7 +104,7 @@ Main.prototype.process = async function (args) {
   if ((self.options.i || self.options.install) && (self.options.dev || self.options.development) || self.options.local) {
     await uninstallPkg('backend-manager');
     // return await installPkg('file:../../../ITW-Creative-Works/backend-manager');
-    return await installPkg('file:/Users/ian/Developer/Repositories/ITW-Creative-Works/backend-manager');
+    return await installPkg(`npm install ${os.homedir()}/Developer/Repositories/ITW-Creative-Works/backend-manager --save-dev`);
   }
 
   // Install live BEM
