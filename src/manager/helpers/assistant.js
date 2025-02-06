@@ -312,7 +312,7 @@ BackendAssistant.prototype._log = function () {
   const prefix = self.logPrefix ? ` ${self.logPrefix}:` : ':';
 
   // Prepend log prefix log string
-  logs.unshift(`[${self.tag} @ ${new Date().toISOString()}]${prefix}`);
+  logs.unshift(`[${new Date().toISOString()}] ${self.tag}${prefix}`);
 
   // Get the log level
   const level = logs[1];
