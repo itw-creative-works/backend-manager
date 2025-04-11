@@ -480,6 +480,13 @@ BackendAssistant.prototype.respond = function(response, options) {
   const self = this;
   const res = self.ref.res;
 
+  // If response is a promise, wait for it to resolve and then call respond again with the resolved value
+  if (response && typeof response.then === 'function') {
+    return response
+      .then(resolved => self.respond(resolved, options))
+      .catch(error => self.respond(error, options));
+  }
+
   // Set options
   options = options || {};
   options.code = typeof options.code === 'undefined'
