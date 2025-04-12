@@ -541,7 +541,7 @@ OpenAI.prototype.request = function (options) {
       // Request
       _request('chatgpt', options)
       .then((r) => {
-        _log('Response', r);
+        _log('Response', r.length, typeof r, r);
         _log('Tokens', self.tokens);
 
         // Try to parse JSON response if needed
