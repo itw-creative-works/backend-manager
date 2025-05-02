@@ -385,6 +385,13 @@ OpenAI.prototype.request = function (options) {
             images: options.message.images,
           });
 
+          // Trim all history content
+          history.forEach((m) => {
+            if (typeof m.content === 'string') {
+              m.content = m.content.trim();
+            }
+          });
+
           // Format history
           history.map((m) => {
             const originalContent = m.content;
@@ -541,6 +548,12 @@ OpenAI.prototype.request = function (options) {
       // Request
       _request('chatgpt', options)
       .then((r) => {
+        // Trim response
+        if (typeof r === 'string') {
+          r = r.trim();
+        }
+
+        // Log
         _log('Response', r.length, typeof r, r);
         _log('Tokens', self.tokens);
 
