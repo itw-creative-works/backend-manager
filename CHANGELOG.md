@@ -15,6 +15,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Security` in case of vulnerabilities.
 
 ---#
+# [4.2.22] - 2024-12-19
+### Changed
+- `Manager.install()` now automatically binds the fn with the proper `this` context (this may be breaking).
+
 # [4.1.0] - 2024-12-19
 ### Changed
 - Attach `schema` to `bm-properties` response header.

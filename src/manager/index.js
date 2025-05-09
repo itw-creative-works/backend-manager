@@ -619,18 +619,39 @@ Manager.prototype.install = function (controller, options) {
     self.assistant.log(`Installing from ${options.dir}, prefix=${options.prefix}, isDirectory=${isDirectory}...`);
   }
 
+  // function _install(prefix, file) {
+  //   if (!file.includes('.js')) {return}
+  //   const name = file.replace('.js', '');
+  //   const _prefix = prefix ? `${prefix}_${name}` : name;
+
+  //   const fullPath = path.resolve(options.dir, file);
+
+  //   if (options.log) {
+  //     self.assistant.log(`Installing ${_prefix} from ${fullPath}...`);
+  //   }
+
+  //   controller[`${_prefix}`] = require(fullPath);
+  // }
+
   function _install(prefix, file) {
-    if (!file.includes('.js')) {return}
+    if (!file.includes('.js')) return;
+
     const name = file.replace('.js', '');
     const _prefix = prefix ? `${prefix}_${name}` : name;
-
     const fullPath = path.resolve(options.dir, file);
 
     if (options.log) {
       self.assistant.log(`Installing ${_prefix} from ${fullPath}...`);
     }
 
-    controller[`${_prefix}`] = require(fullPath);
+    const mod = require(fullPath);
+
+    // If module exports a function, bind it to controller
+    if (typeof mod === 'function') {
+      controller[_prefix] = mod.bind(controller);
+    } else {
+      controller[_prefix] = mod;
+    }
   }
 
   if (isDirectory) {
