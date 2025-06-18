@@ -198,7 +198,10 @@ function OpenAI(assistant, key) {
   self.assistant = assistant;
   self.Manager = assistant.Manager;
   self.user = assistant.user;
-  self.key = key || self.Manager.config?.openai?.key;
+  self.key = key
+    || self.Manager.config?.openai?.key
+    || self.Manager.config?.openai?.global
+    || self.Manager.config?.openai?.main
 
   self.tokens = {
     total: {
