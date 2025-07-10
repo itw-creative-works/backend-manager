@@ -231,7 +231,7 @@ Manager.prototype.init = function (exporter, options) {
   // Setup options features
   if (self.options.initialize) {
     // Initialize Firebase
-    try {
+    // try {
       // Initialize Firebase
       if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
         self.libraries.initializedAdmin = self.libraries.admin.initializeApp();
@@ -249,9 +249,9 @@ Manager.prototype.init = function (exporter, options) {
           self.assistant.error(`Loaded app may have wrong service account: ${loadedProjectId} =/= ${appId}`);
         }
       }
-    } catch (e) {
-      self.assistant.error('Failed to call .initializeApp()', e);
-    }
+    // } catch (e) {
+      // self.assistant.error('Failed to call .initializeApp()', e);
+    // }
 
     // Update firebase settings
     try {
