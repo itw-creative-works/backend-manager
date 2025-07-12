@@ -6,191 +6,99 @@ const JSON5 = require('json5');
 
 // Constants
 const DEFAULT_MODEL = 'gpt-4o';
-const TOKEN_COST_TABLE = {
-  // Oct 7th, 2024
+
+// https://platform.openai.com/docs/pricing
+const MODEL_TABLE = {
+  // Jul 11, 2025
+  'gpt-4.1': {
+    input: 2.00,
+    output: 8.00,
+    provider: 'openai',
+    features: {
+      json: true,
+    },
+  },
+  'gpt-4.1-mini': {
+    input: 0.40,
+    output: 1.60,
+    provider: 'openai',
+    features: {
+      json: true,
+    },
+  },
+  'gpt-4.1-nano': {
+    input: 0.10,
+    output: 0.40,
+    provider: 'openai',
+    features: {
+      json: true,
+    },
+  },
   'gpt-4o': {
-    input: 0.002500,
-    output: 0.010000,
+    input: 2.50,
+    output: 10.00,
+    provider: 'openai',
+    features: {
+      json: true,
+    },
   },
   'gpt-4o-mini': {
-    input: 0.000150,
-    output: 0.000600,
+    input: 0.15,
+    output: 0.60,
+    provider: 'openai',
+    features: {
+      json: true,
+    },
   },
   'o1-preview': {
-    input: 0.015000,
-    output: 0.060000,
+    input: 15.00,
+    output: 60.00,
+    provider: 'openai',
+    features: {
+      json: true,
+    },
   },
   'o1-mini': {
-    input: 0.003000,
-    output: 0.012000,
+    input: 1.10,
+    output: 4.40,
+    provider: 'openai',
+    features: {
+      json: true,
+    },
   },
   'gpt-4-turbo': {
-    input: 0.010000,
-    output: 0.030000,
+    input: 10.00,
+    output: 30.00,
+    provider: 'openai',
+    features: {
+      json: true,
+    },
   },
   'gpt-4': {
-    input: 0.030000,
-    output: 0.060000,
+    input: 30.00,
+    output: 60.00,
+    provider: 'openai',
+    features: {
+      json: true,
+    },
+  },
+  'gpt-4-vision': {
+    input: 30.00,
+    output: 60.00,
+    provider: 'openai',
+    features: {
+      json: false,
+    },
   },
   'gpt-3.5-turbo': {
-    input: 0.000500,
-    output: 0.001500,
+    input: 0.50,
+    output: 1.50,
+    provider: 'openai',
+    features: {
+      json: false,
+    },
   },
-
-  // // Sept 21st, 2024
-  // 'gpt-4o': {
-  //   input: 0.005000,
-  //   output: 0.015000,
-  // },
-  // 'gpt-4o-mini': {
-  //   input: 0.000150,
-  //   output: 0.000600,
-  // },
-  // 'o1-preview': {
-  //   input: 0.015000,
-  //   output: 0.060000,
-  // },
-  // 'o1-mini': {
-  //   input: 0.003000,
-  //   output: 0.012000,
-  // },
-  // 'gpt-4-turbo': {
-  //   input: 0.010000,
-  //   output: 0.030000,
-  // },
-  // 'gpt-4': {
-  //   input: 0.030000,
-  //   output: 0.060000,
-  // },
-  // 'gpt-3.5-turbo': {
-  //   input: 0.000500,
-  //   output: 0.001500,
-  // },
-
-  // // Jul 18th, 2024
-  // 'gpt-4o': {
-  //   input: 0.005000,
-  //   output: 0.015000,
-  // },
-  // 'gpt-4o-mini': {
-  //   input: 0.000150,
-  //   output: 0.000600,
-  // },
-  // 'gpt-4-turbo': {
-  //   input: 0.010000,
-  //   output: 0.030000,
-  // },
-  // 'gpt-4': {
-  //   input: 0.030000,
-  //   output: 0.060000,
-  // },
-  // 'gpt-3.5-turbo': {
-  //   input: 0.000500,
-  //   output: 0.001500,
-  // },
-
-  // // May 13th, 2024
-  // 'gpt-4o': {
-  //   input: 0.0050,
-  //   output: 0.0150,
-  // },
-  // 'gpt-4-turbo': {
-  //   input: 0.0100,
-  //   output: 0.0300,
-  // },
-  // 'gpt-4-turbo-preview': {
-  //   input: 0.0100,
-  //   output: 0.0300,
-  // },
-  // 'gpt-4-vision-preview': {
-  //   input: 0.0100,
-  //   output: 0.0300,
-  // },
-  // 'gpt-4-1106-preview': {
-  //   input: 0.0100,
-  //   output: 0.0300,
-  // },
-  // 'gpt-4': {
-  //   input: 0.0300,
-  //   output: 0.0600,
-  // },
-  // 'gpt-3.5-turbo': {
-  //   input: 0.0005,
-  //   output: 0.0015,
-  // },
-
-  // // Apr 9th, 2024
-  // 'gpt-4-turbo': {
-  //   input: 0.0100,
-  //   output: 0.0300,
-  // },
-  // 'gpt-4-turbo-preview': {
-  //   input: 0.0100,
-  //   output: 0.0300,
-  // },
-  // 'gpt-4-vision-preview': {
-  //   input: 0.0100,
-  //   output: 0.0300,
-  // },
-  // 'gpt-4-1106-preview': {
-  //   input: 0.0100,
-  //   output: 0.0300,
-  // },
-  // 'gpt-4': {
-  //   input: 0.0300,
-  //   output: 0.0600,
-  // },
-  // 'gpt-3.5-turbo': {
-  //   input: 0.0005,
-  //   output: 0.0015,
-  // },
-
-  // Mar 6th, 2024
-  // 'gpt-4-turbo-preview': {
-  //   input: 0.0100,
-  //   output: 0.0300,
-  // },
-  // 'gpt-4-vision-preview': {
-  //   input: 0.0100,
-  //   output: 0.0300,
-  // },
-  // 'gpt-4-1106-preview': {
-  //   input: 0.0100,
-  //   output: 0.0300,
-  // },
-  // 'gpt-4': {
-  //   input: 0.0300,
-  //   output: 0.0600,
-  // },
-  // 'gpt-3.5-turbo': {
-  //   input: 0.0005,
-  //   output: 0.0015,
-  // },
-
-  // Nov 6th, 2023
-  // 'gpt-4-turbo-preview': {
-  //   input: 0.0100,
-  //   output: 0.0300,
-  // },
-  // 'gpt-4-1106-preview': {
-  //   input: 0.0100,
-  //   output: 0.0300,
-  // },
-  // 'gpt-4': {
-  //   input: 0.0300,
-  //   output: 0.0600,
-  // },
-  // 'gpt-3.5-turbo': {
-  //   input: 0.0010,
-  //   output: 0.0020,
-  // },
 }
-
-const UNSUPPORTED_JSON = [
-  /gpt-3.5/,
-  /gpt-4-vision/,
-];
-
 
 function OpenAI(assistant, key) {
   const self = this;
@@ -244,7 +152,7 @@ OpenAI.prototype.request = function (options) {
 
     // Format other options
     options.temperature = typeof options.temperature === 'undefined' ? 0.7 : options.temperature;
-    options.maxTokens = typeof options.maxTokens === 'undefined' ? 512 : options.maxTokens;
+    options.maxTokens = typeof options.maxTokens === 'undefined' ? 1024 : options.maxTokens;
 
     // Custom options
     options.dedupeConsecutiveRoles = typeof options.dedupeConsecutiveRoles === 'undefined' ? true : options.dedupeConsecutiveRoles;
@@ -267,6 +175,9 @@ OpenAI.prototype.request = function (options) {
     options.history.messages = options.history.messages || [];
     options.history.limit = typeof options.history.limit === 'undefined' ? 5 : options.history.limit;
 
+    // Get model configuration
+    const modelConfig = getModelConfig(options.model);
+
     let attempt = 0;
 
     function _log() {
@@ -286,20 +197,27 @@ OpenAI.prototype.request = function (options) {
 
       // Load content
       if (input.path) {
-        const exists = jetpack.exists(input.path);
+        // Convert to array if not already
+        const pathArray = Array.isArray(input.path) ? input.path : [input.path];
 
-        _log('Reading prompt from path:', input.path);
+        // Load and concatenate all files
+        for (const path of pathArray) {
+          const exists = jetpack.exists(path);
 
-        if (!exists) {
-          return new Error(`Path ${input.path} not found`);
-        } else if (exists === 'dir') {
-          return new Error(`Path ${input.path} is a directory`);
-        }
+          _log('Reading prompt from path:', path);
 
-        try {
-          content = jetpack.read(input.path);
-        } catch (e) {
-          return new Error(`Error reading file ${input.path}: ${e}`);
+          if (!exists) {
+            return new Error(`Path ${path} not found`);
+          } else if (exists === 'dir') {
+            return new Error(`Path ${path} is a directory`);
+          }
+
+          try {
+            const fileContent = jetpack.read(path);
+            content += (content ? '\n' : '') + fileContent;
+          } catch (e) {
+            return new Error(`Error reading file ${path}: ${e}`);
+          }
         }
       } else {
         content = input.content;
@@ -311,9 +229,9 @@ OpenAI.prototype.request = function (options) {
     // Log
     _log('Starting', options);
 
-    // Determine response format
+    // Determine response format based on model features
     let responseFormat = options.response === 'json' ? { type: 'json_object' } : undefined;
-    if (UNSUPPORTED_JSON.some((model) => options.model.match(model))) {
+    if (responseFormat && modelConfig.features.json === false) {
       responseFormat = undefined;
       assistant.warn(`Model ${options.model} does not support JSON response format`);
     }
@@ -508,8 +426,8 @@ OpenAI.prototype.request = function (options) {
           self.tokens.total.count = self.tokens.input.count + self.tokens.output.count;
 
           // Set token prices
-          self.tokens.input.price = (self.tokens.input.count / 1000) * TOKEN_COST_TABLE[options.model].input;
-          self.tokens.output.price = (self.tokens.output.count / 1000) * TOKEN_COST_TABLE[options.model].output;
+          self.tokens.input.price = (self.tokens.input.count * modelConfig.input) / 1000000;
+          self.tokens.output.price = (self.tokens.output.count * modelConfig.output) / 1000000;
           self.tokens.total.price = self.tokens.input.price + self.tokens.output.price;
 
           // Return
@@ -616,6 +534,20 @@ function tryParse(content) {
   } catch (e) {
     return content;
   }
+}
+
+// Helper function to get model configuration with fallback to default model
+function getModelConfig(model) {
+  const config = MODEL_TABLE[model];
+
+  // Return config if found
+  if (config) {
+    return config;
+  }
+
+  // Fallback to default model if not found
+  console.warn(`Model configuration not found for: ${model}, falling back to ${DEFAULT_MODEL}`);
+  return MODEL_TABLE[DEFAULT_MODEL];
 }
 
 module.exports = OpenAI;
