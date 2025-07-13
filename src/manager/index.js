@@ -16,7 +16,7 @@ const wrappers = './functions/wrappers';
 
 const BEM_CONFIG_TEMPLATE_PATH = path.resolve(__dirname, '../../templates/backend-manager-config.json');
 
-function Manager(exporter, options) {
+function Manager() {
   const self = this;
 
   // Constants
@@ -64,7 +64,9 @@ Manager.prototype.init = function (exporter, options) {
   options.useFirebaseLogger = typeof options.useFirebaseLogger === 'undefined' ? true : options.useFirebaseLogger;
   options.serviceAccountPath = typeof options.serviceAccountPath === 'undefined' ? 'service-account.json' : options.serviceAccountPath;
   options.backendManagerConfigPath = typeof options.backendManagerConfigPath === 'undefined' ? 'backend-manager-config.json' : options.backendManagerConfigPath;
-  options.fetchStats = typeof options.fetchStats === 'undefined' ? true : options.fetchStats;
+  options.fetchStats = typeof options.fetchStats === 'undefined'
+    ? options.projectType === 'firebase'
+    : options.fetchStats;
   options.checkNodeVersion = typeof options.checkNodeVersion === 'undefined' ? true : options.checkNodeVersion;
   options.uniqueAppName = options.uniqueAppName || undefined;
   options.assistant = options.assistant || {};
@@ -167,10 +169,9 @@ Manager.prototype.init = function (exporter, options) {
 
   // Handle dev environments
   if (self.assistant.isDevelopment()) {
-    const semverMajor = require('semver/functions/major')
-    const semverCoerce = require('semver/functions/coerce')
-    const semverUsing = semverMajor(semverCoerce(process.versions.node));
-    const semverRequired = semverMajor(semverCoerce(self.package?.engines?.node || '0.0.0'));
+    const version = require('wonderful-version');
+    const nodeUsing = version.major(process.versions.node);
+    const nodeRequired = version.major(self.package?.engines?.node || '0.0.0');
 
     // Fix firebase-tools overwriting console.log
     // https://stackoverflow.com/questions/56026747/firebase-console-log-on-localhost
@@ -182,9 +183,9 @@ Manager.prototype.init = function (exporter, options) {
       console.info = logFix;
     }
 
-    // Reject if package.json does not exist
-    if (semverUsing !== semverRequired) {
-      const msg = `Node.js version mismatch: using ${semverUsing} but asked for ${semverRequired}`;
+    // Reject if we're using an unsupported Node.js version
+    if (version.is(nodeUsing, '<', nodeRequired)) {
+      const msg = `Node.js version mismatch: using ${nodeUsing} but asked for ${nodeRequired}`;
       if (options.checkNodeVersion) {
         self.assistant.error(new Error(msg));
         return process.exit(1);

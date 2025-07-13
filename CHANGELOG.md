@@ -15,6 +15,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Security` in case of vulnerabilities.
 
 ---#
+# [5.0.0] - 2025-07-10
+### ⚠️ BREAKING
+- `Manager.init()` no longer wraps the initializeApp() in `try/catch` block.
+- `Settings()` API tries to look for a method-specific file first (e.g., `name/get.js`, `name/post.js`, etc.) before falling back to `name/index.js`. This allows for more modular and organized code structure. Also, `name.js` is no longer valid, we now look for `name/index.js` this is to make it consistent with the `Middleware()` API.
+- `Middleware()` API now tries to load method-specific files (e.g., `name/get.js`, `name/post.js`, etc.) before falling back to `name/index.js`.
+- `ai.request()` no longer accepts `options.message.images`. Use `options.message.attachments` instead.
+
 # [4.2.22] - 2024-12-19
 ### Changed
 - `Manager.install()` now automatically binds the fn with the proper `this` context (this may be breaking).

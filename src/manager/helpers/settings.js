@@ -42,9 +42,24 @@ Settings.prototype.resolve = function (assistant, schema, settings, options) {
     typeof schema === 'undefined'
     && typeof options.schema !== 'undefined'
   ) {
-    const schemaPath = path.resolve(options.dir, `${options.schema.replace('.js', '')}.js`);
+    // Try to load method-specific schema first, then fallback to main schema
+    const method = (assistant?.request?.method || '').toLowerCase();
+    const methodFile = `${method}.js`;
+    const schemaFile = options.schema.replace('.js', '');
+    let schemaPath;
 
-    schema = loadSchema(assistant, schemaPath, settings, options);
+    // First try method-specific schema (e.g., test/get.js, test/post.js)
+    const methodSchemaPath = path.resolve(options.dir, `${schemaFile}/${methodFile}`);
+
+    try {
+      schema = loadSchema(assistant, methodSchemaPath, settings, options);
+      assistant.log(`Settings.resolve(): Loaded method-specific schema: ${schemaFile}/${methodFile}`);
+    } catch (e) {
+      // Fallback to main schema if method-specific doesn't exist
+      schemaPath = path.resolve(options.dir, `${schemaFile}/index.js`);
+      schema = loadSchema(assistant, schemaPath, settings, options);
+      assistant.log(`Settings.resolve(): Method-specific schema not found, using main schema fallback`);
+    }
   }
 
   // If schema is not an object, throw an error

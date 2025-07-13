@@ -3,13 +3,24 @@ const jetpack = require('fs-jetpack');
 const powertools = require('node-powertools');
 const _ = require('lodash');
 const JSON5 = require('json5');
+const path = require('path');
+const mimeTypes = require('mime-types');
 
 // Constants
 const DEFAULT_MODEL = 'gpt-4o';
+const MODERATION_MODEL = 'omni-moderation-latest';
 
 // https://platform.openai.com/docs/pricing
 const MODEL_TABLE = {
   // Jul 11, 2025
+  'gpt-4.5-preview': {
+    input: 75.00,
+    output: 150.00,
+    provider: 'openai',
+    features: {
+      json: true,
+    },
+  },
   'gpt-4.1': {
     input: 2.00,
     output: 8.00,
@@ -45,6 +56,30 @@ const MODEL_TABLE = {
   'gpt-4o-mini': {
     input: 0.15,
     output: 0.60,
+    provider: 'openai',
+    features: {
+      json: true,
+    },
+  },
+  'o1-pro': {
+    input: 150.00,
+    output: 600.00,
+    provider: 'openai',
+    features: {
+      json: true,
+    },
+  },
+  'o3-pro': {
+    input: 20.00,
+    output: 80.00,
+    provider: 'openai',
+    features: {
+      json: true,
+    },
+  },
+  'o3': {
+    input: 2.00,
+    output: 8.00,
     provider: 'openai',
     features: {
       json: true,
@@ -157,6 +192,9 @@ OpenAI.prototype.request = function (options) {
     // Custom options
     options.dedupeConsecutiveRoles = typeof options.dedupeConsecutiveRoles === 'undefined' ? true : options.dedupeConsecutiveRoles;
 
+    // Format schema
+    options.schema = options.schema || undefined;
+
     // Format prompt
     options.prompt = options.prompt || {};
     options.prompt.path = options.prompt.path || '';
@@ -168,17 +206,14 @@ OpenAI.prototype.request = function (options) {
     options.message.path = options.message.path || '';
     options.message.content = options.message.content || options.message.content || '';
     options.message.settings = options.message.settings || {};
-    options.message.images = options.message.images || [];
+    options.message.attachments = options.message.attachments || [];
 
     // Format history
     options.history = options.history || {};
     options.history.messages = options.history.messages || [];
     options.history.limit = typeof options.history.limit === 'undefined' ? 5 : options.history.limit;
 
-    // Get model configuration
-    const modelConfig = getModelConfig(options.model);
-
-    let attempt = 0;
+    let attempt = { count: 0 };
 
     function _log() {
       if (!options.log)  {
@@ -188,59 +223,14 @@ OpenAI.prototype.request = function (options) {
       assistant.log('callOpenAI():', ...arguments);
     }
 
-    function _load(input) {
-      // console.log('*** input!!!', input.content.slice(0, 50), input.path);
-      // console.log('*** input.content', input.content.slice(0, 50));
-      // console.log('*** input.path', input.path);
-
-      let content = '';
-
-      // Load content
-      if (input.path) {
-        // Convert to array if not already
-        const pathArray = Array.isArray(input.path) ? input.path : [input.path];
-
-        // Load and concatenate all files
-        for (const path of pathArray) {
-          const exists = jetpack.exists(path);
-
-          _log('Reading prompt from path:', path);
-
-          if (!exists) {
-            return new Error(`Path ${path} not found`);
-          } else if (exists === 'dir') {
-            return new Error(`Path ${path} is a directory`);
-          }
-
-          try {
-            const fileContent = jetpack.read(path);
-            content += (content ? '\n' : '') + fileContent;
-          } catch (e) {
-            return new Error(`Error reading file ${path}: ${e}`);
-          }
-        }
-      } else {
-        content = input.content;
-      }
-
-      return powertools.template(content, input.settings).trim();
-    }
 
     // Log
     _log('Starting', options);
 
-    // Determine response format based on model features
-    let responseFormat = options.response === 'json' ? { type: 'json_object' } : undefined;
-    if (responseFormat && modelConfig.features.json === false) {
-      responseFormat = undefined;
-      assistant.warn(`Model ${options.model} does not support JSON response format`);
-    }
-
-    _log('responseFormat', responseFormat);
 
     // Load prompt
-    const prompt = _load(options.prompt);
-    const message = _load(options.message);
+    const prompt = loadContent(options.prompt, _log);
+    const message = loadContent(options.message, _log);
     const user = options.user?.auth?.uid || assistant.request.geolocation.ip;
 
     // Log
@@ -257,196 +247,30 @@ OpenAI.prototype.request = function (options) {
       return reject(assistant.errorify(`Error loading message: ${message}`, {code: 400}));
     }
 
-    // Request
-    function _request(mode, options) {
-      return new Promise(async function(resolve, reject) {
-        let resultPath = '';
-        const request = {
-          url: '',
-          method: 'post',
-          response: 'json',
-          // response: 'raw',
-          // log: true,
-          attachResponseHeaders: true,
-          tries: 1,
-          timeout: options.timeout,
-          headers: {
-            'Authorization': `Bearer ${self.key}`,
-          },
-          body: {},
-        }
-
-        // Format depending on mode
-        if (mode === 'chatgpt') {
-          // Get history with respect to the message limit
-          const history = options.history.messages.slice(-options.history.limit);
-
-          // Add prompt to beginning of history
-          history.unshift({
-            role: 'system',
-            content: prompt,
-            images: [],
-          });
-
-          // Get last history item
-          const lastHistory = history[history.length - 1];
-
-          // Remove last message from history
-          if (
-            options.dedupeConsecutiveRoles
-            && lastHistory?.role === 'user'
-          ) {
-            history.pop();
-          }
-
-          // Add message to history
-          history.push({
-            role: 'user',
-            content: message,
-            images: options.message.images,
-          });
-
-          // Trim all history content
-          history.forEach((m) => {
-            if (typeof m.content === 'string') {
-              m.content = m.content.trim();
-            }
-          });
-
-          // Format history
-          history.map((m) => {
-            const originalContent = m.content;
-            const originalImages = m.images;
-
-            // Set properties
-            m.role = m.role || 'system';
-            m.content = [];
-            m.images = [];
-
-            // Format content
-            if (originalContent) {
-              m.content.push({
-                type: 'text',
-                text: originalContent,
-              })
-            }
-
-            // Format images
-            if (originalImages)  {
-              originalImages.forEach((i) => {
-                // Skip if no URL
-                if (!i.url) {
-                  return
-                }
-
-                // Add image
-                m.content.push({
-                  type: 'image_url',
-                  image_url: {
-                    url: i.url,
-                    detail: i.detail || 'low',
-                  }
-                });
-              });
-            }
-
-            // Delete any field except for role, content, images
-            Object.keys(m).forEach((key) => {
-              if (!['role', 'content', 'images'].includes(key)) {
-                delete m[key];
-              }
-            });
-          })
-
-          // Log message
-          history.forEach((m) => {
-            _log('Message', m.role, m.content);
-          });
-
-          // Set request
-          request.url = 'https://api.openai.com/v1/chat/completions';
-          request.body = {
-            model: options.model,
-            response_format: responseFormat,
-            messages: history,
-            temperature: options.temperature,
-            // max_tokens: options.maxTokens,
-            max_completion_tokens: options.maxTokens,
-            user: user,
-          }
-          resultPath = 'choices[0].message.content';
-        } else if (mode === 'moderation') {
-          // Set request
-          request.url = 'https://api.openai.com/v1/moderations';
-          request.body = {
-            input: message,
-            user: user,
-          }
-          resultPath = 'results[0]';
-        }
-
-        // Request
-        await fetch(request.url, request)
-        .then(async (r) => {
-          // Log
-          // _log('Response RAW', JSON.stringify(r));
-          // {
-          //   "id": "chatcmpl-AGKe03mwx644T6db3QRoXFz0aFuil",
-          //   "object": "chat.completion",
-          //   "created": 1728455968,
-          //   "model": "gpt-4o-mini-2024-07-18",
-          //   "choices": [{
-          //     "index": 0,
-          //     "message": {
-          //       "role": "assistant",
-          //       "content": "{\n  \"message\": \"We offer several pricing plans:\\n\\n1. **Basic Plan**: Free\\n   - Chatsy branding on chat\\n   - 1 chatbot\\n   - 5 knowledge base FAQs per chatbot\\n   - English only\\n\\n2. **Premium Plan**: $19/month\\n   - Chatsy branding removed\\n   - 1 chatbot\\n   - 10 knowledge base FAQs per chatbot\\n   - English only\\n\\n3. **Pro Plan**: $29/month\\n   - Chatsy branding removed\\n   - 3 chatbots\\n   - 10 knowledge base FAQs per chatbot\\n   - Automatically chats in the language of your customers\\n\\n4. **Pro Plan**: $49/month\\n   - Chatsy branding removed\\n   - 10 chatbots\\n   - 10 knowledge base FAQs per chatbot\\n   - Automatically chats in the language of your customers\\n\\nLet me know if you need more details or assistance with anything else!\",\n  \"user\": {\n    \"name\": \"\"\n  },\n  \"scores\": {\n    \"questionRelevancy\": 1\n  }\n}",
-          //       "refusal": null
-          //     },
-          //     "logprobs": null,
-          //     "finish_reason": "stop"
-          //   }],
-          //   "usage": {
-          //     "prompt_tokens": 1306,
-          //     "completion_tokens": 231,
-          //     "total_tokens": 1537,
-          //     "prompt_tokens_details": {
-          //       "cached_tokens": 1024
-          //     },
-          //     "completion_tokens_details": {
-          //       "reasoning_tokens": 0
-          //     }
-          //   },
-          //   "system_fingerprint": "fp_e2bde53e6e"
-          // }
-
-          // Set token counts
-          self.tokens.input.count += (r?.usage?.prompt_tokens || 0)
-            - (r?.usage?.prompt_tokens_details?.cached_tokens || 0);
-          self.tokens.output.count += r?.usage?.completion_tokens || 0;
-          self.tokens.total.count = self.tokens.input.count + self.tokens.output.count;
-
-          // Set token prices
-          self.tokens.input.price = (self.tokens.input.count * modelConfig.input) / 1000000;
-          self.tokens.output.price = (self.tokens.output.count * modelConfig.output) / 1000000;
-          self.tokens.total.price = self.tokens.input.price + self.tokens.output.price;
-
-          // Return
-          return resolve(_.get(r, resultPath));
-        })
-        .catch((e) => {
-          return reject(e);
-        })
-      });
-    }
 
     // Moderate if needed
     let moderation = null;
     if (options.moderate) {
-      moderation = await _request('moderation', options)
+      moderation = await makeRequest('moderations', options, self, prompt, message, user, _log)
       .then(async (r) => {
+        // {
+        //   id: 'modr-8205',
+        //   model: 'omni-moderation-latest',
+        //   results: [
+        //     {
+        //       flagged: false,
+        //       categories: [Object],
+        //       category_scores: [Object],
+        //       category_applied_input_types: [Object]
+        //     }
+        //   ]
+        // }
+
+        // Log
         _log('Moderated', r);
 
-        return r;
+        // Return results
+        return r.results[0];
       })
       .catch((e) => e);
 
@@ -456,75 +280,9 @@ OpenAI.prototype.request = function (options) {
       }
     }
 
-    function _attempt() {
-      const retries = options.retries;
-      const triggers = options.retryTriggers;
-
-      // Increment attempt
-      attempt++;
-
-      // Log
-      _log(`Request ${attempt}/${retries}`);
-
-      // Request
-      _request('chatgpt', options)
-      .then((r) => {
-        // Trim response
-        if (typeof r === 'string') {
-          r = r.trim();
-        }
-
-        // Log
-        _log('Response', r.length, typeof r, r);
-        _log('Tokens', self.tokens);
-
-        // Try to parse JSON response if needed
-        try {
-          const content = options.response === 'json' ? JSON5.parse(r) : r;
-
-          // Return
-          return resolve({
-            content: content,
-            tokens: self.tokens,
-            moderation: moderation,
-          })
-        } catch (e) {
-          assistant.error('Error parsing response', r, e);
-
-          // Retry
-          if (attempt < retries && triggers.includes('parse')) {
-            return _attempt();
-          }
-
-          // Return
-          return reject(e);
-        }
-      })
-      .catch((e) => {
-        const parsed = tryParse(e.message)?.error || {};
-        const type = parsed?.type || '';
-        const message = parsed?.message || e.message;
-
-        // Log
-        assistant.error(`Error requesting (type=${type}, message=${message})`, e);
-
-        // Check for invalid request error
-        if (type === 'invalid_request_error') {
-          return reject(assistant.errorify(message, {code: 400}));
-        }
-
-        // Retry
-        if (attempt < retries && triggers.includes('network')) {
-          return _attempt();
-        }
-
-        // Return
-        return reject(e);
-      });
-    }
 
     // Make attempt
-    _attempt();
+    attemptRequest(options, self, prompt, message, user, moderation, attempt, assistant, resolve, reject, _log);
   });
 }
 
@@ -534,6 +292,438 @@ function tryParse(content) {
   } catch (e) {
     return content;
   }
+}
+
+function loadContent(input, _log) {
+  // console.log('*** input!!!', input.content.slice(0, 50), input.path);
+  // console.log('*** input.content', input.content.slice(0, 50));
+  // console.log('*** input.path', input.path);
+
+  let content = '';
+
+  // Load content
+  if (input.path) {
+    // Convert to array if not already
+    const pathArray = Array.isArray(input.path) ? input.path : [input.path];
+
+    // Load and concatenate all files
+    for (const path of pathArray) {
+      const exists = jetpack.exists(path);
+
+      _log('Reading prompt from path:', path);
+
+      if (!exists) {
+        return new Error(`Path ${path} not found`);
+      } else if (exists === 'dir') {
+        return new Error(`Path ${path} is a directory`);
+      }
+
+      try {
+        const fileContent = jetpack.read(path);
+        content += (content ? '\n' : '') + fileContent;
+      } catch (e) {
+        return new Error(`Error reading file ${path}: ${e}`);
+      }
+    }
+  } else {
+    content = input.content;
+  }
+
+  return powertools.template(content, input.settings).trim();
+}
+
+function loadAttachment(type, content, _log) {
+  if (!content) {
+    return null;
+  }
+
+  _log('Loading attachment:', type, content.substring(0, 100));
+
+  // Handle remote URLs (https://, http://)
+  if (content.startsWith('http://') || content.startsWith('https://')) {
+    _log('Remote URL detected:', content);
+    return {
+      contentType: 'url',
+      data: content
+    };
+  }
+
+  // Handle base64 data URLs (data:image/png;base64,...)
+  if (content.startsWith('data:')) {
+    _log('Base64 data URL detected');
+    return {
+      contentType: 'base64',
+      data: content
+    };
+  }
+
+  // Handle local file paths - need to read and convert to base64
+  try {
+    const exists = jetpack.exists(content);
+    if (!exists) {
+      throw new Error(`File not found: ${content}`);
+    }
+    if (exists === 'dir') {
+      throw new Error(`Path is a directory: ${content}`);
+    }
+
+    _log('Local file detected, reading:', content);
+
+    // Read file as buffer
+    const fileBuffer = jetpack.read(content, 'buffer');
+    if (!fileBuffer) {
+      throw new Error(`Failed to read file: ${content}`);
+    }
+
+    // Get MIME type from file extension
+    const mimeType = mimeTypes.lookup(content) || 'application/octet-stream';
+    _log('Detected MIME type:', mimeType);
+
+    // Convert to base64 data URL
+    const base64Data = fileBuffer.toString('base64');
+    const dataUrl = `data:${mimeType};base64,${base64Data}`;
+
+    _log('Converted to base64 data URL, length:', dataUrl.length);
+    return {
+      contentType: 'base64',
+      data: dataUrl
+    };
+
+  } catch (error) {
+    _log('Error loading attachment:', error.message);
+    throw new Error(`Failed to load attachment: ${error.message}`);
+  }
+}
+
+function formatMessageContent(content, attachments, _log, mode = 'responses') {
+  const formattedContent = [];
+
+  // Format text content
+  if (content) {
+    formattedContent.push({
+      type: mode === 'moderations' ? 'text' : 'input_text',
+      text: content,
+    });
+  }
+
+  // Format attachments
+  if (attachments) {
+    attachments.forEach((attachment) => {
+      try {
+        // Use content field (supports URLs, base64, local paths) or fallback to url field
+        const attachmentContent = attachment.content || attachment.url;
+
+        if (!attachmentContent) {
+          _log('Skipping attachment with no content or url:', attachment);
+          return;
+        }
+
+        const loadedAttachment = loadAttachment(attachment.type, attachmentContent, _log);
+
+        // Handle image attachments
+        if (attachment.type === 'image' && loadedAttachment) {
+          if (mode === 'moderations') {
+            formattedContent.push({
+              type: 'image_url',
+              image_url: {
+                url: loadedAttachment.data
+              }
+            });
+          } else {
+            formattedContent.push({
+              type: 'input_image',
+              image_url: loadedAttachment.data,
+              detail: attachment.detail || 'low',
+            });
+          }
+        }
+        // Handle file attachments (only for responses, not moderation)
+        else if (attachment.type === 'file' && loadedAttachment && mode !== 'moderations') {
+          const fileContent = {
+            type: 'input_file',
+          };
+
+          // Use correct field name based on content type
+          if (loadedAttachment.contentType === 'url') {
+            fileContent.file_url = loadedAttachment.data;
+          } else if (loadedAttachment.contentType === 'base64') {
+            fileContent.file_data = loadedAttachment.data;
+            // Only include filename for base64 data, not for URLs
+            fileContent.filename = attachment.filename || path.basename(attachmentContent);
+          }
+
+          formattedContent.push(fileContent);
+        }
+      } catch (error) {
+        _log('Error processing attachment:', error.message);
+        // Continue processing other attachments
+      }
+    });
+  }
+
+  return formattedContent;
+}
+
+
+function formatHistory(options, prompt, message, _log) {
+  // Get history with respect to the message limit
+  const history = options.history.messages.slice(-options.history.limit);
+
+  // Add prompt to beginning of history
+  history.unshift({
+    role: 'developer',
+    content: prompt,
+    attachments: [],
+  });
+
+  // Get last history item
+  const lastHistory = history[history.length - 1];
+
+  // Remove last message from history
+  if (
+    options.dedupeConsecutiveRoles
+    && lastHistory?.role === 'user'
+  ) {
+    history.pop();
+  }
+
+  // Add message to history
+  history.push({
+    role: 'user',
+    content: message,
+    attachments: options.message.attachments,
+  });
+
+  // Trim all history content
+  history.forEach((m) => {
+    if (typeof m.content === 'string') {
+      m.content = m.content.trim();
+    }
+  });
+
+  // Format history
+  history.map((m) => {
+    const originalContent = m.content;
+    const originalAttachments = m.attachments;
+
+    // Set properties
+    m.role = m.role || 'developer';
+    m.content = formatMessageContent(originalContent, originalAttachments, _log);
+    m.attachments = [];
+
+    // Delete any field except for role, content
+    Object.keys(m).forEach((key) => {
+      if (!['role', 'content'].includes(key)) {
+        delete m[key];
+      }
+    });
+  })
+
+  // Log message
+  history.forEach((m) => {
+    _log('Message', m.role, m.content);
+  });
+
+  return history;
+}
+
+function attemptRequest(options, self, prompt, message, user, moderation, attempt, assistant, resolve, reject, _log) {
+  const retries = options.retries;
+  const triggers = options.retryTriggers;
+
+  // Increment attempt
+  attempt.count++;
+
+  // Log
+  _log(`Request ${attempt.count}/${retries}`);
+
+  // Request
+  makeRequest('responses', options, self, prompt, message, user, _log)
+  .then((r) => {
+    // Example
+    // {
+    //   id: 'resp_68734dd2e6148199956fb6ef63a72b13095b79119b6129af',
+    //   object: 'response',
+    //   created_at: 1752387027,
+    //   status: 'completed',
+    //   background: false,
+    //   error: null,
+    //   incomplete_details: null,
+    //   instructions: null,
+    //   max_output_tokens: 1024,
+    //   max_tool_calls: null,
+    //   model: 'gpt-4o-2024-08-06',
+    //   output: [
+    //     {
+    //       id: 'msg_6872127d078081989822de29fea13a1b07e3a2c4abdba0ba',
+    //       type: 'message',
+    //       status: 'completed',
+    //       content: [
+    //         {
+    //           type: 'output_text,
+    //           annotations: [],
+    //           logprobs: [],
+    //           text: 'Hi!'
+    //         }
+    //       ],
+    //       role: 'assistant'
+    //     }
+    //   ],
+    //   parallel_tool_calls: true,
+    //   previous_response_id: null,
+    //   reasoning: { effort: null, summary: null },
+    //   service_tier: 'default',
+    //   store: true,
+    //   temperature: 0.7,
+    //   text: { format: { type: 'text' } },
+    //   tool_choice: 'auto',
+    //   tools: [],
+    //   top_logprobs: 0,
+    //   top_p: 1,
+    //   truncation: 'disabled',
+    //   usage: {
+    //     input_tokens: 32,
+    //     input_tokens_details: { cached_tokens: 0 },
+    //     output_tokens: 3,
+    //     output_tokens_details: { reasoning_tokens: 0 },
+    //     total_tokens: 35
+    //   },
+    //   user: '127.0.0.1',
+    //   metadata: {}
+    // }
+
+    // Ensure content is set
+    const content = r.output[0].content;
+
+    // Trim and combine all output text
+    const outputText = content
+      .filter((c) => c.type === 'output_text')
+      .map((c) => c.text.trim())
+      .join('\n')
+      .trim();
+
+    // Get model configuration
+    const modelConfig = getModelConfig(options.model);
+
+    // Set token counts
+    self.tokens.input.count += (r.usage.input_tokens || 0)
+      - (r.usage.input_tokens_details.cached_tokens || 0);
+    self.tokens.output.count += r.usage.output_tokens || 0;
+    self.tokens.total.count = self.tokens.input.count + self.tokens.output.count;
+
+    // Set token prices
+    self.tokens.input.price = (self.tokens.input.count * modelConfig.input) / 1000000;
+    self.tokens.output.price = (self.tokens.output.count * modelConfig.output) / 1000000;
+    self.tokens.total.price = self.tokens.input.price + self.tokens.output.price;
+
+    // Log
+    _log('Response', outputText.length, typeof outputText, outputText);
+    _log('Tokens', self.tokens);
+
+    // Try to parse JSON response if needed
+    try {
+      const parsed = options.response === 'json' ? JSON5.parse(outputText) : outputText;
+
+      // Return
+      return resolve({
+        output: content,
+        content: parsed,
+        tokens: self.tokens,
+        moderation: moderation,
+      })
+    } catch (e) {
+      assistant.error('Error parsing response', r, e);
+
+      // Retry
+      if (attempt.count < retries && triggers.includes('parse')) {
+        return attemptRequest(options, self, prompt, message, user, moderation, attempt, assistant, resolve, reject, _log);
+      }
+
+      // Return
+      return reject(e);
+    }
+  })
+  .catch((e) => {
+    const parsed = tryParse(e.message)?.error || {};
+    const type = parsed?.type || '';
+    const message = parsed?.message || e.message;
+
+    // Log
+    assistant.error(`Error requesting (type=${type}, message=${message})`, e);
+
+    // Check for invalid request error
+    if (type === 'invalid_request_error') {
+      return reject(assistant.errorify(message, {code: 400}));
+    }
+
+    // Retry
+    if (attempt.count < retries && triggers.includes('network')) {
+      return attemptRequest(options, self, prompt, message, user, moderation, attempt, assistant, resolve, reject, _log);
+    }
+
+    // Return
+    return reject(e);
+  });
+}
+
+function makeRequest(mode, options, self, prompt, message, user, _log) {
+  return new Promise(async function(resolve, reject) {
+    const request = {
+      url: '',
+      method: 'post',
+      response: 'json',
+      // response: 'raw',
+      // log: true,
+      attachResponseHeaders: true,
+      tries: 1,
+      timeout: options.timeout,
+      headers: {
+        'Authorization': `Bearer ${self.key}`,
+      },
+      body: {},
+    }
+
+    // Format depending on mode
+    if (mode === 'moderations') {
+      // Format moderation input using shared helper
+      const input = formatMessageContent(message, options.message.attachments, _log, 'moderations');
+
+      // Set request
+      request.url = 'https://api.openai.com/v1/moderations';
+      request.body = {
+        model: MODERATION_MODEL,
+        input: input,
+        user: user,
+      }
+    } else if (mode === 'responses') {
+      // Format history for responses API
+      const history = formatHistory(options, prompt, message, _log);
+
+      // Set request
+      request.url = 'https://api.openai.com/v1/responses';
+      request.body = {
+        model: options.model,
+        input: history,
+        user: user,
+        temperature: options.temperature,
+        max_output_tokens: options.maxTokens,
+        text: resolveFormatting(options),
+      }
+    }
+
+    // Request
+    await fetch(request.url, request)
+    .then(async (r) => {
+      // Log raw response
+      _log('Response RAW', JSON.stringify(r, null, 2));
+
+      // Return
+      return resolve(r);
+    })
+    .catch((e) => {
+      return reject(e);
+    })
+  });
 }
 
 // Helper function to get model configuration with fallback to default model
@@ -548,6 +738,34 @@ function getModelConfig(model) {
   // Fallback to default model if not found
   console.warn(`Model configuration not found for: ${model}, falling back to ${DEFAULT_MODEL}`);
   return MODEL_TABLE[DEFAULT_MODEL];
+}
+
+function resolveFormatting(options) {
+  const modelConfig = getModelConfig(options.model);
+
+  // Format for JSON
+  if (options.response === 'json' && modelConfig.features?.json) {
+
+    // If schema is set, return JSON schema format
+    if (options.schema) {
+      return {
+        format: {
+          type: 'json_schema',
+          name: 'response_schema',
+          schema: options.schema || {},
+        },
+      };
+    } else {
+      return {
+        format: {
+          type: 'json_object',
+        },
+      };
+    };
+  }
+
+  // Other, return undefined
+  return undefined;
 }
 
 module.exports = OpenAI;

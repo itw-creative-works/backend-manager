@@ -6,6 +6,7 @@
 const path = require('path');
 const powertools = require('node-powertools');
 const { merge } = require('lodash');
+const JSON5 = require('json5');
 
 function Middleware(m, req, res) {
   const self = this;
@@ -27,17 +28,6 @@ Middleware.prototype.run = function (libPath, options) {
   return cors(req, res, async () => {
     const assistant = Manager.Assistant({req: req, res: res});
 
-    // Set properties
-    const data = assistant.request.data;
-    const headers = assistant.request.headers;
-    const method = assistant.request.method;
-    const url = assistant.request.url;
-    const geolocation = assistant.request.geolocation;
-    const client = assistant.request.client;
-
-    // Strip URL
-    const strippedUrl = stripUrl(url);
-
     // Set options
     options = options || {};
     options.authenticate = typeof options.authenticate === 'boolean' ? options.authenticate : true;
@@ -47,10 +37,41 @@ Middleware.prototype.run = function (libPath, options) {
     options.cleanSettings = typeof options.cleanSettings === 'undefined' ? true : options.cleanSettings;
     options.includeNonSchemaSettings = typeof options.includeNonSchemaSettings === 'undefined' ? false : options.includeNonSchemaSettings;
     options.schema = typeof options.schema === 'undefined' ? undefined : options.schema;
+    options.parseMultipartFormData = typeof options.parseMultipartFormData === 'undefined' ? true : options.parseMultipartFormData;
 
     // Set base path
     options.routesDir = typeof options.routesDir === 'undefined' ? `${Manager.cwd}/routes` : options.routesDir;
     options.schemasDir = typeof options.schemasDir === 'undefined' ? `${Manager.cwd}/schemas` : options.schemasDir;
+
+    // Parse multipart/form-data if needed
+    if (options.parseMultipartFormData && req.headers['content-type']?.includes('multipart/form-data')) {
+      try {
+        const parsed = await assistant.parseMultipartFormData();
+        const json = parsed.fields.json || '{}';
+
+        // Parsed JSON
+        if (json) {
+          assistant.request.body = JSON5.parse(json);
+          assistant.request.data = merge({}, assistant.request.body, assistant.request.query);
+        }
+
+        // Log that it was parsed successfully
+        assistant.log(`Middleware.run(): Parsed multipart form data successfully`);
+      } catch (e) {
+        return assistant.respond(new Error(`Failed to parse multipart form data: ${e.message}`), {code: 400, sentry: true});
+      }
+    }
+
+    // Set properties
+    const data = assistant.request.data;
+    const headers = assistant.request.headers;
+    const method = assistant.request.method.toLowerCase();
+    const url = assistant.request.url;
+    const geolocation = assistant.request.geolocation;
+    const client = assistant.request.client;
+
+    // Strip URL
+    const strippedUrl = stripUrl(url);
 
     // Log
     assistant.log(`Middleware.process(): Request (${geolocation.ip} @ ${geolocation.country}, ${geolocation.region}, ${geolocation.city}) [${method} > ${strippedUrl}]`, JSON.stringify(data));
@@ -68,11 +89,24 @@ Middleware.prototype.run = function (libPath, options) {
     }
 
     // Load library
-    // TODO: Support for methods, so first check for method specific file then fallback to index.js
+    // Support for methods, so first check for method specific file then fallback to index.js
     let library;
+
     try {
-      libPath = path.resolve(routesDir, `index.js`);
-      library = new (require(libPath))();
+      // First try to load method-specific file (e.g., get.js, post.js, etc.)
+      const methodFile = `${method}.js`
+      const methodFilePath = path.resolve(routesDir, methodFile);
+
+      try {
+        const finalPath = methodFilePath;
+        library = new (require(finalPath))();
+        assistant.log(`Middleware.process(): Loaded method-specific library: ${methodFile}`);
+      } catch (methodError) {
+        // Fallback to index.js if method-specific file doesn't exist or fails to load
+        const finalPath = path.resolve(routesDir, `index.js`);
+        library = new (require(finalPath))();
+        assistant.log(`Middleware.process(): Method-specific file (${methodFile}) not found, using index.js fallback`);
+      }
     } catch (e) {
       return assistant.respond(new Error(`Unable to load library @ (${libPath}): ${e.message}`), {code: 500, sentry: true});
     }
@@ -113,7 +147,7 @@ Middleware.prototype.run = function (libPath, options) {
         // assistant.schema.name = options.schema;
         assistant.settings = Manager.Settings().resolve(assistant, undefined, data, {dir: schemasDir, schema: options.schema});
       } catch (e) {
-        return assistant.respond(new Error(`Unable to resolve schema ${options.schema}: ${e.message}`), {code: 500, sentry: true});
+        return assistant.respond(new Error(`Unable to resolve schema ${options.schema}: ${e.message}`), {code: e.code || 500, sentry: true});
       }
 
       // Merge settings with data
@@ -128,6 +162,12 @@ Middleware.prototype.run = function (libPath, options) {
 
       // Log
       assistant.log(`Middleware.process(): Resolved settings with schema=${options.schema}`, JSON.stringify(assistant.settings));
+
+      // Log multipart files if they exist
+      const files = assistant.request.multipartData.files || {};
+      if (files) {
+        assistant.log(`Middleware.process(): Multipart files`, JSON.stringify(files));
+      }
     } else {
       assistant.settings = data;
     }

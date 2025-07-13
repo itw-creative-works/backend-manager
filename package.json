@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "4.2.25",
+  "version": "5.0.0",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -11,8 +11,9 @@
     "_test": "npm run prepare && ./node_modules/mocha/bin/mocha test/ --recursive --timeout=10000",
     "test": "./node_modules/mocha/bin/mocha test/ --recursive --timeout=10000",
     "test:usage": "./node_modules/mocha/bin/mocha test/usage.js --timeout=10000",
-    "test:payment-resolver": "./node_modules/mocha/bin/mocha test/payment-resolver.js --timeout=10000",
+    "test:payment-resolver": "./node_modules/mocha/bin/mocha test/payment-resolver/index.js --timeout=10000",
     "test:user": "./node_modules/mocha/bin/mocha test/user.js --timeout=10000",
+    "test:ai": "./node_modules/mocha/bin/mocha test/ai/index.js --timeout=10000",
     "start": "node src/manager/index.js",
     "prepare": "node -e \"require('prepare-package')()\"",
     "prepare:watch": "nodemon -w ./src -e '*' --exec 'npm run prepare'"
