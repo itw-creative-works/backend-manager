@@ -10,6 +10,7 @@ const mimeTypes = require('mime-types');
 const DEFAULT_MODEL = 'gpt-4o';
 const MODERATION_MODEL = 'omni-moderation-latest';
 
+// OpenAI model pricing table
 // https://platform.openai.com/docs/pricing
 const MODEL_TABLE = {
   // Jul 11, 2025
@@ -80,6 +81,14 @@ const MODEL_TABLE = {
   'o3': {
     input: 2.00,
     output: 8.00,
+    provider: 'openai',
+    features: {
+      json: true,
+    },
+  },
+  'o4-mini': {
+    input: 1.10,
+    output: 4.40,
     provider: 'openai',
     features: {
       json: true,
@@ -194,6 +203,9 @@ OpenAI.prototype.request = function (options) {
 
     // Format schema
     options.schema = options.schema || undefined;
+
+    // Reasons
+    options.reasoning = options.reasoning || undefined;
 
     // Format prompt
     options.prompt = options.prompt || {};
@@ -592,8 +604,11 @@ function attemptRequest(options, self, prompt, message, user, moderation, attemp
     //   metadata: {}
     // }
 
+    // Get output
+    const output = r.output;
+
     // Ensure content is set
-    const content = r.output[0].content;
+    const content = output.find((o) => o.type === 'message')?.content || [];
 
     // Trim and combine all output text
     const outputText = content
@@ -708,6 +723,7 @@ function makeRequest(mode, options, self, prompt, message, user, _log) {
         temperature: options.temperature,
         max_output_tokens: options.maxTokens,
         text: resolveFormatting(options),
+        reasoning: resolveReasoning(options),
       }
     }
 
@@ -761,6 +777,19 @@ function resolveFormatting(options) {
           type: 'json_object',
         },
       };
+    };
+  }
+
+  // Other, return undefined
+  return undefined;
+}
+
+function resolveReasoning(options) {
+  // If reasoning is set, return reasoning format
+  if (options.reasoning) {
+    return {
+      effort: options.reasoning.effort || 'medium',
+      // summary: options.reasoning.summary || 'concise',
     };
   }
 
