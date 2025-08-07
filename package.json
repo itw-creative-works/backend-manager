@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "5.0.1",
+  "version": "5.0.2",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -19,7 +19,7 @@
     "prepare:watch": "nodemon -w ./src -e '*' --exec 'npm run prepare'"
   },
   "engines": {
-    "node": "18"
+    "node": "22"
   },
   "repository": {
     "type": "git",
