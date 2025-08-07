@@ -279,6 +279,18 @@ Main.prototype.setup = async function () {
     return wonderfulVersion.is(nvmrcVer, '>=', engineReqVer);
   }, fix_nvmrc);
 
+  // Test: Check if firebase CLI is installed
+  await self.test('firebase CLI is installed', async function () {
+    try {
+      const result = await powertools.execute('firebase --version', { log: false });
+      return true;
+    } catch (error) {
+      console.error(chalk.red('Firebase CLI is not installed or not accessible'));
+      console.error(chalk.red('Error: ' + error.message));
+      return false;
+    }
+  }, fix_firebaseCLI);
+
   // Test: Does the project have a package.json
   // await self.test('project level package.json exists', async function () {
   //   return !!(self.projectPackage && self.projectPackage.version && self.projectPackage.name);
@@ -707,6 +719,7 @@ Main.prototype.test = async function(name, fn, fix, args) {
         resolve();
       })
       .catch((e) => {
+        log(chalk.red(`Failed to fix: ${e}`));
         if (self.options['--continue']) {
           log(chalk.yellow('⚠️ Continuing despite error because of --continue flag\n'));
           setTimeout(function () {
@@ -836,7 +849,7 @@ function fix_nodeVersion(self) {
       resolve();
     }
 
-    throw new Error('Please manually fix your outdated Node.js version')
+    throw new Error('Please manually fix your outdated Node.js version (either .nvmrc or package.json engines.node).');
   });
 };
 
@@ -849,6 +862,16 @@ function fix_nvmrc(self) {
     log(chalk.red(`Please run ${chalk.bold(`nmv use ${v}`)} to use the correct version of Node.js`));
 
     throw '';
+  });
+};
+
+async function fix_firebaseCLI(self) {
+  return new Promise(function(resolve, reject) {
+    log(NOFIX_TEXT);
+    log(chalk.red(`Firebase CLI is not installed. Please install it by running:`));
+    log(chalk.yellow(`npm install -g firebase-tools`));
+    log(chalk.red(`After installation, run ${chalk.bold('npx bm setup')} again.`));
+    reject();
   });
 };
 
