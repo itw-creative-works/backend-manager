@@ -634,6 +634,7 @@ BackendAssistant.prototype.authenticate = async function (options) {
       ? false
       : user.authenticated;
 
+
     // Validate BACKEND_MANAGER_KEY
     if (backendManagerKey && backendManagerKey === BACKEND_MANAGER_KEY) {
       // Update roles

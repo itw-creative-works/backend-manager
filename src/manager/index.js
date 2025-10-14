@@ -107,12 +107,21 @@ Manager.prototype.init = function (exporter, options) {
   // Load package.json
   self.package = resolveProjectPackage(options.projectPackageDirectory || self.cwd);
 
+  // Set dotenv
+  try {
+    const env = require('dotenv').config();
+  } catch (e) {
+    self.assistant.error(new Error(`Failed to set up environment variables from .env file: ${e.message}`));
+  }
+
   // Load config
   self.config = merge(
     // Load basic config
     merge({}, requireJSON5(BEM_CONFIG_TEMPLATE_PATH, true), requireJSON5(self.project.backendManagerConfigPath, true)),
-    // Load ENV config as a fallback
+    // Load runtimeconfig as a fallback
     requireJSON5(path.resolve(self.cwd, '.runtimeconfig.json'), options.projectType === 'firebase'),
+    // Load .ENV config because that is the new format
+    process.env.RUNTIME_CONFIG ? JSON5.parse(process.env.RUNTIME_CONFIG) : {},
     // Finally, load the functions config
     self.libraries.functions
       ? self.libraries.functions.config()
@@ -276,13 +285,6 @@ Manager.prototype.init = function (exporter, options) {
   // Setup custom server
   if (options.projectType === 'custom' && options.setupServer) {
     self.setupCustomServer(exporter, options);
-  }
-
-  // Set dotenv
-  try {
-    const env = require('dotenv').config();
-  } catch (e) {
-    self.assistant.error(new Error(`Failed to set up environment variables from .env file: ${e.message}`));
   }
 
   // Setup LocalDatabase
