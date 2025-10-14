@@ -50,6 +50,7 @@ function tryUrl(self) {
   const Manager = self.Manager;
   const projectType = Manager?.options?.projectType;
 
+
   try {
     const protocol = req.protocol;
     const host = req.get('host');
@@ -69,7 +70,12 @@ function tryUrl(self) {
           : `${protocol}://${host}/${self.meta.name}`;
       }
     } else if (projectType === 'custom') {
-      return `@TODO`;
+      const server = Manager?._internal?.server;
+      const addy = server ? server.address() : null;
+
+      return addy
+        ? `${protocol}://${addy.address}:${addy.port}${path}`
+        : `${protocol}://${host}${path}`;
     }
 
     return '';
@@ -175,6 +181,7 @@ BackendAssistant.prototype.init = function (ref, options) {
     language: self.getHeaderLanguage(self.ref.req.headers),
     platform: self.getHeaderPlatform(self.ref.req.headers),
     mobile: self.getHeaderMobile(self.ref.req.headers),
+    url: self.getHeaderUrl(self.ref.req.headers),
   };
 
   // Deprecated notice for old properties
@@ -941,6 +948,27 @@ BackendAssistant.prototype.getHeaderMobile = function (headers) {
   const mobile = (headers['sec-ch-ua-mobile'] || '').replace(/\?/ig, '');
 
   return mobile === '1' || mobile === true || mobile === 'true';
+}
+
+BackendAssistant.prototype.getHeaderUrl = function (headers) {
+  const self = this;
+  headers = headers || {};
+
+  return (
+    // Origin header (most reliable for CORS requests)
+    headers['origin']
+
+    // Fallback to referrer/referer
+    || headers['referrer']
+    || headers['referer']
+
+    // Reconstruct from host and path if available
+    || (headers['host'] ? `https://${headers['host']}${self.ref.req?.originalUrl || self.ref.req?.url || ''}` : '')
+
+    // If unsure, return empty string
+    || ''
+  )
+  .trim();
 }
 
 /**
