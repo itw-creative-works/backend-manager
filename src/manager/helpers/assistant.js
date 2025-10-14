@@ -70,12 +70,7 @@ function tryUrl(self) {
           : `${protocol}://${host}/${self.meta.name}`;
       }
     } else if (projectType === 'custom') {
-      const server = Manager?._internal?.server;
-      const addy = server ? server.address() : null;
-
-      return addy
-        ? `${protocol}://${addy.address}:${addy.port}${path}`
-        : `${protocol}://${host}${path}`;
+      return `${protocol}://${host}${path}`;
     }
 
     return '';
