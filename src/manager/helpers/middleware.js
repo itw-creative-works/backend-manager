@@ -47,13 +47,17 @@ Middleware.prototype.run = function (libPath, options) {
     if (options.parseMultipartFormData && req.headers['content-type']?.includes('multipart/form-data')) {
       try {
         const parsed = await assistant.parseMultipartFormData();
-        const json = parsed.fields.json || '{}';
 
+        // Add each field to the body either as a whole json object or each field
         // Parsed JSON
-        if (json) {
-          assistant.request.body = JSON5.parse(json);
-          assistant.request.data = merge({}, assistant.request.body, assistant.request.query);
+        if (parsed.fields.json) {
+          assistant.request.body = JSON5.parse(parsed.fields.json || '{}');
+        } else {
+          assistant.request.body = parsed.fields;
         }
+
+        // Re-assign data how assistant normally does it
+        assistant.request.data = merge({}, assistant.request.body, assistant.request.query);
 
         // Log that it was parsed successfully
         assistant.log(`Middleware.run(): Parsed multipart form data successfully`);
@@ -149,6 +153,14 @@ Middleware.prototype.run = function (libPath, options) {
       } catch (e) {
         return assistant.respond(new Error(`Unable to resolve schema ${options.schema}: ${e.message}`), {code: e.code || 500, sentry: true});
       }
+
+      // // Here we need to include IF it exists the backendManagerKey and the apiKey
+      // if (data.backendManagerKey) {
+      //   assistant.settings.backendManagerKey = data.backendManagerKey;
+      // }
+      // if (data.apiKey) {
+      //   assistant.settings.apiKey = data.apiKey;
+      // }
 
       // Merge settings with data
       if (options.includeNonSchemaSettings) {
