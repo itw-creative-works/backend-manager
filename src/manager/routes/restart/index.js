@@ -24,9 +24,9 @@ Route.prototype.main = async function (assistant) {
   });
 
   // Check for user authentication
-  // if (!user.roles.admin) {
-  //   return assistant.respond(`Admin required`, {code: 401});;
-  // }
+  if (!user.roles.admin) {
+    return assistant.respond(`Admin required`, {code: 401});;
+  }
 
   // Log
   assistant.log('Restarting...');

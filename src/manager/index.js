@@ -950,20 +950,41 @@ Manager.prototype.setupCustomServer = function (_library, options) {
 
   // Push function
   function _push(dir, isManager) {
-    // Get all files
-    glob('**/index.js', { cwd: dir })
+    // Get all files (index.js and method-specific files like get.js, post.js)
+    glob('**/*.js', { cwd: dir })
     .forEach((file) => {
+      const fileName = path.basename(file, '.js');
+      const dirName = path.dirname(file);
+
+      // Determine method and route name
+      let method = 'all'; // default to all methods
+      let routeName;
+
+      if (fileName === 'index') {
+        // Traditional index.js file: routes/restart/index.js -> restart
+        // Root index.js: routes/index.js -> '' (empty string for root path)
+        routeName = dirName === '.' ? '' : dirName;
+      } else if (['get', 'post', 'put', 'delete', 'patch', 'options', 'head'].includes(fileName.toLowerCase())) {
+        // Method-specific file: routes/restart/get.js -> restart (GET only)
+        method = fileName.toLowerCase();
+        routeName = dirName === '.' ? '' : dirName;
+      } else {
+        // Unknown pattern, skip
+        return;
+      }
+
       // Build the item
       const item = {
-        name: file.replace('/index.js', ''),
+        name: routeName,
+        method: method,
         namespace: file,
         path: path.resolve(dir, file),
         dir: dir,
         isManager: isManager,
       }
 
-      // If it exists in routes, replace it
-      const existing = routes.findIndex(r => r.name === item.name);
+      // If it exists in routes with same name AND method, replace it
+      const existing = routes.findIndex(r => r.name === item.name && r.method === item.method);
       if (existing > -1) {
         routes[existing] = item;
         return;
@@ -991,51 +1012,29 @@ Manager.prototype.setupCustomServer = function (_library, options) {
     const cors = self.libraries.cors;
 
     // Log
-    if (options.log) {
-      self.assistant.log(`Initializing route: ${file.name} @ ${file.path}`);
-    }
+    // if (options.log) {
+      self.assistant.log(`Initializing route: ${file.method.toUpperCase()} /${file.name} @ ${file.path}`);
+    // }
 
-    // Register the route
-    app.all(`/${file.name}`, async (req, res) => {
+    // Register the route with the appropriate HTTP method
+    app[file.method](`/${file.name}`, async (req, res) => {
       return cors(req, res, async () => {
-        // self.Middleware(req, res).run(file.name, {schema: file.name})
-        self.Middleware(req, res).run(file.name, {
-          schema: file.name,
+        // For root route (empty name), skip schema validation
+        const middlewareOptions = {
           routesDir: file.isManager ? managerRoutesPath : customRoutesPath,
           schemasDir: file.isManager ? managerSchemasPath : customSchemasPath,
-        })
+        };
+
+        // Only set schema if route name is not empty
+        if (file.name) {
+          middlewareOptions.schema = file.name;
+        } else {
+          middlewareOptions.setupSettings = false;
+        }
+
+        self.Middleware(req, res).run(file.name, middlewareOptions)
       });
     })
-
-    // app.all(`/${name}`, async (req, res) => {
-    //   return cors(req, res, async () => {
-    //     // Fix req/res
-    //     req.body = req.body || {};
-    //     req.query = Object.assign({}, req.query || {});
-
-    //     // Manager.Middleware(req, res).run('tools/screenshot', {schema: 'screenshot'})
-    //     const handler = new (require(file.path))();
-    //     const assistant = self.Assistant({req: req, res: res}, {functionName: name, functionType: 'http'});
-    //     // const apiUser = await ApiManager.getUser(assistant);
-
-    //     // Set handler properties
-    //     handler.Manager = self;
-    //     handler.assistant = assistant;
-    //     handler.apiUser = null;
-
-    //     // Log
-    //     if (options.log) {
-    //       self.assistant.log(`[Request] ${name} @ ${filepath}`, req.body, req.query);
-    //     }
-
-    //     // Execute the route
-    //     try {
-    //       await handler.process(req, res);
-    //     } catch (e) {
-    //       assistant.respond(e, {code: e.code});
-    //     }
-    //   });
-    // })
   });
 
   // Run the server!
