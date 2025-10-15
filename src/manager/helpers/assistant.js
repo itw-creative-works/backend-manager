@@ -421,13 +421,17 @@ BackendAssistant.prototype.errorify = function (e, options) {
   // Attach properties
   _attachHeaderProperties(self, options, newError);
 
-  // Log the error
+  // Log the error (only log 500-level errors as actual errors, 400-level are client errors)
   if (options.log) {
-    self.error(newError);
+    if (isBetween(options.code, 500, 599)) {
+      self.error(newError);
+    } else {
+      self.log(`Client error (${options.code}):`, newError.message);
+    }
   }
 
-  // Send error to Sentry
-  if (options.sentry) {
+  // Send error to Sentry (only for 500-level server errors, not client errors)
+  if (options.sentry && isBetween(options.code, 500, 599)) {
     self.Manager.libraries.sentry.captureException(newError);
   }
 
