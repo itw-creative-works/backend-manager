@@ -259,7 +259,6 @@ OpenAI.prototype.request = function (options) {
       return reject(assistant.errorify(`Error loading message: ${message}`, {code: 400}));
     }
 
-
     // Moderate if needed
     let moderation = null;
     if (options.moderate) {
@@ -407,13 +406,23 @@ function loadAttachment(type, content, _log) {
   }
 }
 
-function formatMessageContent(content, attachments, _log, mode = 'responses') {
+function formatMessageContent(content, attachments, _log, mode = 'responses', role = 'user') {
   const formattedContent = [];
 
   // Format text content
   if (content) {
+    let contentType = 'text';
+
+    if (mode === 'moderations') {
+      contentType = 'text';
+    } else if (role === 'assistant') {
+      contentType = 'output_text';
+    } else {
+      contentType = 'input_text';
+    }
+
     formattedContent.push({
-      type: mode === 'moderations' ? 'text' : 'input_text',
+      type: contentType,
       text: content,
     });
   }
@@ -520,7 +529,7 @@ function formatHistory(options, prompt, message, _log) {
 
     // Set properties
     m.role = m.role || 'developer';
-    m.content = formatMessageContent(originalContent, originalAttachments, _log);
+    m.content = formatMessageContent(originalContent, originalAttachments, _log, 'responses', m.role);
     m.attachments = [];
 
     // Delete any field except for role, content
