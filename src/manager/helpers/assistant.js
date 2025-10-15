@@ -130,8 +130,8 @@ BackendAssistant.prototype.init = function (ref, options) {
   // Set ref
   self.ref = {};
   ref = ref || {};
-  self.ref.res = ref.res || {};
   self.ref.req = ref.req || {};
+  self.ref.res = ref.res || {};
   self.ref.admin = ref.admin || {};
   self.ref.functions = ref.functions || {};
   self.ref.Manager = ref.Manager || {};
@@ -426,7 +426,7 @@ BackendAssistant.prototype.errorify = function (e, options) {
     if (isBetween(options.code, 500, 599)) {
       self.error(newError);
     } else {
-      self.log(`⚠️ Client error (${options.code}):`, newError);
+      self.log(`⚠️ Client error (${options.code}):`, newError.message, newError.stack);
     }
   }
 

@@ -75,6 +75,12 @@ Manager.prototype.init = function (exporter, options) {
   options.logSavePath = typeof options.logSavePath === 'undefined' ? false : options.logSavePath;
   // options.assistant.optionsLogString = options.assistant.optionsLogString || undefined;
 
+  // Express options
+  options.express = options.express || {};
+  options.express.bodyParser = options.express.bodyParser || {};
+  options.express.bodyParser.json = options.express.bodyParser.json || { limit: '100kb' };
+  options.express.bodyParser.urlencoded = options.express.bodyParser.urlencoded || { limit: '100kb', extended: true };
+
   // Load libraries
   self.libraries = {
     // Third-party
@@ -924,20 +930,38 @@ Manager.prototype.setupCustomServer = function (_library, options) {
     self.assistant.log('Setting up custom server...');
   }
 
-  // Setup fastify
-  // const app = library({
-  //   logger: true,
-  //   // querystringParser: str => querystring.parse(str.toLowerCase())
-  // });
-
   // Setup express
   const app = require('express')({
     logger: true,
-    // querystringParser: str => querystring.parse(str.toLowerCase())
   });
 
-  // Setup body parser
-  app.use(require('body-parser').json());
+  // Setup body parser with configurable limits
+  app.use(require('body-parser').json(options.express.bodyParser.json));
+  app.use(require('body-parser').urlencoded(options.express.bodyParser.urlencoded));
+
+  // Handle errors with custom error handler
+  app.use((err, req, res, next) => {
+    // Create a new assistant because our custom Middleware has not been run yet
+    const assistant = self.Assistant({ req: req, res: res, }, {});
+
+    // Handle PayloadTooLargeError from body-parser
+    if (err.type === 'entity.too.large') {
+      return assistant.respond('Request payload too large.', { code: 413 });
+    }
+
+    // Catch-all for other body-parser and middleware errors
+    if (err) {
+      // Log
+      // @TODO: REMOVE THIS LOG ONCE WE'RE CONFIDENT IT'S WORKING AS INTENDED
+      console.log('@TODO: Custom Error Handler:', err);
+
+      // Return
+      return assistant.respond(err.message || 'Bad request', { code: err.status || err.code || err.statusCode || 400 });
+    }
+
+    // If no error, continue
+    next(err);
+  });
 
   // Designate paths
   const managerRoutesPath = path.normalize(`${__dirname}/routes`);
