@@ -78,8 +78,8 @@ Middleware.prototype.run = function (libPath, options) {
     const strippedUrl = stripUrl(url);
 
     // Log
-    assistant.log(`Middleware.process(): Request (${geolocation.ip} @ ${geolocation.country}, ${geolocation.region}, ${geolocation.city}) [${method} > ${strippedUrl}]`, JSON.stringify(data));
-    assistant.log(`Middleware.process(): Headers`, JSON.stringify(headers));
+    assistant.log(`Middleware.process(): Request (${geolocation.ip} @ ${geolocation.country}, ${geolocation.region}, ${geolocation.city}) [${method} > ${strippedUrl}]`, safeStringify(data));
+    assistant.log(`Middleware.process(): Headers`, safeStringify(headers));
 
     // Set paths
     const routesDir = path.resolve(options.routesDir, libPath.replace('.js', ''));
@@ -128,7 +128,7 @@ Middleware.prototype.run = function (libPath, options) {
 
     // Log working user
     const workingUser = assistant.getUser();
-    assistant.log(`Middleware.process(): User (${workingUser.auth.uid}, ${workingUser.auth.email}, ${workingUser.plan.id}=${workingUser.plan.status}):`, JSON.stringify(workingUser));
+    assistant.log(`Middleware.process(): User (${workingUser.auth.uid}, ${workingUser.auth.email}, ${workingUser.plan.id}=${workingUser.plan.status}):`, safeStringify(workingUser));
 
     // Setup analytics
     if (options.setupAnalytics) {
@@ -173,12 +173,12 @@ Middleware.prototype.run = function (libPath, options) {
       }
 
       // Log
-      assistant.log(`Middleware.process(): Resolved settings with schema=${options.schema}`, JSON.stringify(assistant.settings));
+      assistant.log(`Middleware.process(): Resolved settings with schema=${options.schema}`, safeStringify(assistant.settings));
 
       // Log multipart files if they exist
       const files = assistant.request.multipartData.files || {};
       if (files) {
-        assistant.log(`Middleware.process(): Multipart files`, JSON.stringify(files));
+        assistant.log(`Middleware.process(): Multipart files`, safeStringify(files));
       }
     } else {
       assistant.settings = data;
@@ -216,6 +216,19 @@ function stripUrl(url) {
   const newUrl = new URL(url);
 
   return `${newUrl.hostname}${newUrl.pathname}`.replace(/\/$/, '');
+}
+
+// Helper to safely stringify objects by truncating long strings (like base64)
+function safeStringify(obj, maxLength = 100) {
+  const truncate = (value) => {
+    if (typeof value === 'string' && value.length > maxLength) {
+      return `${value.substring(0, maxLength)}... [truncated ${value.length - maxLength} chars]`;
+    }
+    return value;
+  };
+
+  const truncated = JSON.parse(JSON.stringify(obj, (key, value) => truncate(value)));
+  return JSON.stringify(truncated);
 }
 
 module.exports = Middleware;
