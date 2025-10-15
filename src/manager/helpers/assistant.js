@@ -426,7 +426,7 @@ BackendAssistant.prototype.errorify = function (e, options) {
     if (isBetween(options.code, 500, 599)) {
       self.error(newError);
     } else {
-      self.log(`Client error (${options.code}):`, newError.message);
+      self.log(`⚠️ Client error (${options.code}):`, newError);
     }
   }
 
