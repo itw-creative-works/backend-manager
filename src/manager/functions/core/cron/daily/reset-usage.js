@@ -156,38 +156,14 @@ Module.prototype.clearFirestore = function() {
       })
     }
 
-    // Clear temporary/usage in firestore by deleting the doc
-    admin.firestore().collection('temporary').listDocuments()
-    .then((snap) => {
-      const chunks = [];
-      for (let i = 0; i < snap.length; i += 500) {
-        chunks.push(snap.slice(i, i + 500))
-      }
-
-      // Delete in chunks
-      for (const chunk of chunks) {
-        // Get a new write batch
-        const batch = admin.firestore().batch()
-
-        chunk.map((doc) => {
-          assistant.log('Deleting', doc.id);
-
-          batch.delete(doc);
-        });
-
-        batch.commit()
-        .catch((e) => {
-          assistant.error('Error committing batch', e);
-        });
-      }
+    // Clear usage in firestore by deleting the entire collection
+    await admin.firestore().recursiveDelete(admin.firestore().collection('usage'))
+    .then(() => {
+      assistant.log(`[firestore]: Deleted usage collection`);
     })
-    // await libraries.admin.firestore().doc(`temporary/usage`).delete()
-    // .then(r => {
-    //   assistant.log(`[firestore]: Deleted temporary/usage`);
-    // })
-    // .catch(e => {
-    //   assistant.errorify(`Error deleting temporary/usage: ${e}`, {code: 500, log: true});
-    // })
+    .catch((e) => {
+      assistant.errorify(`Error deleting usage collection: ${e}`, {code: 500, log: true});
+    })
 
     return resolve();
   });
