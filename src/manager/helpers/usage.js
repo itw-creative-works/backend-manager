@@ -89,7 +89,7 @@ Usage.prototype.init = function (assistant, options) {
 
       if (options.unauthenticatedMode === 'firestore') {
         // TODO: Make it request using .where() query so it doesnt use a read if it doesnt have to
-        foundUsage = await Manager.libraries.admin.firestore().doc(`temporary/${self.key}`)
+        foundUsage = await Manager.libraries.admin.firestore().doc(`usage/${self.key}`)
           .get()
           .then((r) => _.get(r.data(), 'usage'))
           .catch((e) => {
@@ -315,7 +315,7 @@ Usage.prototype.update = function () {
     // Write self.user to firestore or local if no user or if key is set
     if (self.useUnauthenticatedStorage) {
       if (self.options.unauthenticatedMode === 'firestore') {
-        admin.firestore().doc(`temporary/${self.key}`)
+        admin.firestore().doc(`usage/${self.key}`)
           .set({
             usage: self.user.usage,
           }, {merge: true})
