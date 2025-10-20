@@ -91,7 +91,7 @@ Usage.prototype.init = function (assistant, options) {
         // TODO: Make it request using .where() query so it doesnt use a read if it doesnt have to
         foundUsage = await Manager.libraries.admin.firestore().doc(`usage/${self.key}`)
           .get()
-          .then((r) => _.get(r.data(), 'usage'))
+          .then((r) => r.data())
           .catch((e) => {
             assistant.errorify(`Usage.init(): Error fetching usage data: ${e}`, {code: 500, sentry: true});
           });
@@ -316,9 +316,7 @@ Usage.prototype.update = function () {
     if (self.useUnauthenticatedStorage) {
       if (self.options.unauthenticatedMode === 'firestore') {
         admin.firestore().doc(`usage/${self.key}`)
-          .set({
-            usage: self.user.usage,
-          }, {merge: true})
+          .set(self.user.usage, { merge: true })
           .then(() => {
             self.log(`Usage.update(): Updated user.usage in firestore`, self.user.usage);
 
@@ -338,7 +336,7 @@ Usage.prototype.update = function () {
       admin.firestore().doc(`users/${self.user.auth.uid}`)
         .set({
           usage: self.user.usage,
-        }, {merge: true})
+        }, { merge: true })
         .then(() => {
           self.log(`Usage.update(): Updated user.usage in firestore`, self.user.usage);
 
