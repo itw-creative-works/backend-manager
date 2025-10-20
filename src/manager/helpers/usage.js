@@ -44,7 +44,7 @@ Usage.prototype.init = function (assistant, options) {
     options.key = typeof options.key === 'undefined' ? undefined : options.key;
     options.unauthenticatedMode = typeof options.unauthenticatedMode === 'undefined' ? 'firestore' : options.unauthenticatedMode;
     options.whitelistKeys = options.whitelistKeys || [];
-    options.log = typeof options.log === 'undefined' ? false : options.log;
+    options.log = typeof options.log === 'undefined' ? assistant.isDevelopment() : options.log;
 
     // Check for required options
     if (!assistant) {
@@ -148,7 +148,7 @@ Usage.prototype.validate = function (name, options) {
     // Set options
     options = options || {};
     options.useCaptchaResponse = typeof options.useCaptchaResponse === 'undefined' ? true : options.useCaptchaResponse;
-    options.log = typeof options.log === 'undefined' ? true : options.log;
+    options.log = typeof options.log === 'undefined' ? assistant.isDevelopment() : options.log;
     options.throw = typeof options.throw === 'undefined' ? false : options.throw;
 
     // Check for required options
@@ -157,7 +157,7 @@ Usage.prototype.validate = function (name, options) {
 
     // Log (independent of options.log because this is important)
     if (options.log) {
-      assistant.log(`Usage.validate(): Checking ${period}/${allowed} for ${name}...`);
+      assistant.log(`Usage.validate(): Checking ${period}/${allowed} for ${name} (${self.key})...`);
     }
 
     // Reject function
