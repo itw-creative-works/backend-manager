@@ -68,7 +68,7 @@ Usage.prototype.init = function (assistant, options) {
 
     // Set local key
     self.key = (options.key || self.assistant.request.geolocation.ip || '')
-      .replace(/[\.:]/g, '_');
+      // .replace(/[\.:]/g, '_');
 
     // Set paths
     self.paths.user = `users.${self.key}`;
