@@ -148,7 +148,7 @@ Usage.prototype.validate = function (name, options) {
     // Set options
     options = options || {};
     options.useCaptchaResponse = typeof options.useCaptchaResponse === 'undefined' ? true : options.useCaptchaResponse;
-    options.log = typeof options.log === 'undefined' ? assistant.isDevelopment() : options.log;
+    options.log = typeof options.log === 'undefined' ? true : options.log;
     options.throw = typeof options.throw === 'undefined' ? false : options.throw;
 
     // Check for required options
