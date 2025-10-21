@@ -98,7 +98,7 @@ Module.prototype.main = function () {
 
         // Parsed
         title: parsed.post.title,
-        excerpt: parsed.post.excerpt,
+        description: parsed.post.description,
         author: parsed.post.author,
         id: parsed.post.id,
         tags: parsed.post.tags,

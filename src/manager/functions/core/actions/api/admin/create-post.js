@@ -8,13 +8,9 @@ const path = require('path');
 const { Octokit } = require('@octokit/rest');
 
 const POST_TEMPLATE = jetpack.read(`${__dirname}/templates/post.html`);
-const IMAGE_TAG = `{%- include /master/helpers/blog-image.html name="{name}" alt="{alt}" -%}`;
-const IMAGE_PATH_SRC = `assets/_src/images/blog/posts/post-{id}/`;
-// const IMAGE_PATH_REG = `/assets/images/blog/posts/post-{id}/`;
-const AD_TAG = `{% include /master/modules/adunits/adsense-in-article.html index="{index}" %}`;
+const IMAGE_PATH_SRC = `src/assets/images/blog/posts/post-{id}/`;
 
 const IMAGE_REGEX = /(?:!\[(.*?)\]\((.*?)\))/img;
-const LINK_REGEX = /(?:\[(.*?)\]\((.*?)\))/img;
 
 function Module() {
 
@@ -51,8 +47,8 @@ Module.prototype.main = function () {
         return reject(assistant.errorify(`Missing required parameter: title`, {code: 400}));
       } else if (!payload.data.payload.url) {
         return reject(assistant.errorify(`Missing required parameter: url`, {code: 400}));
-      } else if (!payload.data.payload.excerpt) {
-        return reject(assistant.errorify(`Missing required parameter: excerpt`, {code: 400}));
+      } else if (!payload.data.payload.description) {
+        return reject(assistant.errorify(`Missing required parameter: description`, {code: 400}));
       } else if (!payload.data.payload.headerImageURL) {
         return reject(assistant.errorify(`Missing required parameter: headerImageURL`, {code: 400}));
       } else if (!payload.data.payload.body) {
@@ -91,7 +87,7 @@ Module.prototype.main = function () {
       payload.data.payload.layout = payload.data.payload.layout || 'app/blog/post';
       payload.data.payload.date = moment(payload.data.payload.date || now).subtract(1, 'days').format('YYYY-MM-DD');
       payload.data.payload.id = payload.data.payload.id || Math.round(new Date(now).getTime() / 1000);
-      payload.data.payload.path = `_posts/${moment(now).format('YYYY')}/${payload.data.payload.path || 'guest'}`;
+      payload.data.payload.path = `src/_posts/${moment(now).format('YYYY')}/${payload.data.payload.path || 'guest'}`;
       payload.data.payload.githubUser = payload.data.payload.githubUser || bemRepo.user;
       payload.data.payload.githubRepo = payload.data.payload.githubRepo || bemRepo.name;
 
@@ -107,14 +103,8 @@ Module.prototype.main = function () {
         formatClone(payload.data.payload),
       );
 
-      // Insert ads
-      const articleWithAds = insertAds(formattedContent, 6, 4000);
-
-      // Log
-      assistant.log(`main(): articleWithAds`, articleWithAds);
-
       // Upload post
-      const uploadPost = await self.uploadPost(articleWithAds);
+      const uploadPost = await self.uploadPost(formattedContent);
 
       // Log
       assistant.log(`main(): uploadPost`, uploadPost);
@@ -139,19 +129,15 @@ Module.prototype.extractImages = function () {
     // Extract images
     const matches = payload.data.payload.body.matchAll(IMAGE_REGEX);
     const images = Array.from(matches).map(match => ({
-      full: match[0] || '',
       src: match[2] || '',
       alt: match[1] || uuidv4(),
-      replace: true,
       header: false,
     }));
 
     // Add heading image to beginning of images
     images.unshift({
-      full: '',
       src: payload.data.payload.headerImageURL,
       alt: payload.data.payload.url,
-      replace: false,
       header: true,
     });
 
@@ -202,18 +188,6 @@ Module.prototype.extractImages = function () {
           continue;
         }
       }
-
-      // Create new image tag
-      const tag = powertools.template(IMAGE_TAG, {name: download.filename, alt: image.alt});
-
-      // Replace image in body
-      if (image.replace) {
-        payload.data.payload.body = payload.data.payload.body
-          .replace(image.full, tag);
-      }
-
-      // Log
-      assistant.log(`extractImages(): tag`, tag);
     }
 
     // Resolve
@@ -404,28 +378,6 @@ function hyphenate(s) {
     .replace(/^-|-$/g, '')
     // Lowercase
     .toLowerCase();
-}
-
-function insertAds(article, paragraphsPerAd, minCharsBetweenAds) {
-  const paragraphs = article.split('\n\n');
-  const newParagraphs = [];
-  let charCount = 0;
-  let adCount = 0;
-
-  for (let i = 0, total = paragraphs.length; i < total; i++) {
-    const collection = paragraphs[i];
-
-    charCount += collection.length;
-
-    newParagraphs.push(collection);
-
-    if (i >= paragraphsPerAd && charCount >= minCharsBetweenAds) {
-      newParagraphs.push(powertools.template(AD_TAG, {index: adCount++}));
-      charCount = 0;
-    }
-  }
-
-  return newParagraphs.join('\n\n');
 }
 
 module.exports = Module;
