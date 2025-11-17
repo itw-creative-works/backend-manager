@@ -5,10 +5,14 @@
   brand: {
     name: 'My Brand',
     url: 'https://example.com',
-    email: 'support@example.com',
-    wordmark: 'https://example.com/wordmark.png',
-    brandmark: 'https://example.com/wordmark.png',
-    combomark: 'https://example.com/combomark.png',
+    contact: {
+      email: 'support@example.com',
+    },
+    iamges: {
+      wordmark: 'https://example.com/wordmark.png',
+      brandmark: 'https://example.com/wordmark.png',
+      combomark: 'https://example.com/combomark.png',
+    },
   },
   mailchimp: {
     list_id: '36774bf825',
