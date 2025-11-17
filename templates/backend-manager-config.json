@@ -8,7 +8,7 @@
     contact: {
       email: 'support@example.com',
     },
-    iamges: {
+    images: {
       wordmark: 'https://example.com/wordmark.png',
       brandmark: 'https://example.com/wordmark.png',
       combomark: 'https://example.com/combomark.png',
