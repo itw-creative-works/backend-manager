@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "5.0.3",
+  "version": "5.0.31",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -10,6 +10,7 @@
   "scripts": {
     "_test": "npm run prepare && ./node_modules/mocha/bin/mocha test/ --recursive --timeout=10000",
     "test": "./node_modules/mocha/bin/mocha test/ --recursive --timeout=10000",
+    "test:cli": "./node_modules/mocha/bin/mocha test/cli-commands.test.js --timeout=10000",
     "test:usage": "./node_modules/mocha/bin/mocha test/usage.js --timeout=10000",
     "test:payment-resolver": "./node_modules/mocha/bin/mocha test/payment-resolver/index.js --timeout=10000",
     "test:user": "./node_modules/mocha/bin/mocha test/user.js --timeout=10000",
@@ -76,7 +77,6 @@
     "pushid": "^1.0.0",
     "resolve-account": "^1.0.26",
     "shortid": "^2.2.17",
-    "sizeitup": "^1.0.9",
     "uid-generator": "^2.0.0",
     "ultimate-jekyll-poster": "^1.0.2",
     "uuid": "^9.0.1",
@@ -87,6 +87,8 @@
     "yargs": "^17.7.2"
   },
   "devDependencies": {
-    "prepare-package": "^1.1.14"
+    "chai": "^5.2.1",
+    "prepare-package": "^1.1.14",
+    "sinon": "^21.0.0"
   }
 }

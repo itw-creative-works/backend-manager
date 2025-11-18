@@ -14,7 +14,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
----#
+# [5.0.31] - 2025-01-17
+### Changed
+- Refactored CLI to modular command architecture with individual command classes and test files for better maintainability.
+- Migrated from deprecated `.runtimeconfig.json` to `.env` file with `RUNTIME_CONFIG` environment variable.
+
+### Removed
+- Removed deprecated Firebase config commands (`config:get`, `config:set`, `config:unset`).
+
+### Fixed
+- Fixed `install:local` command to save to dependencies instead of devDependencies.
+- Fixed reserved word conflicts with `package` parameter.
+- Fixed template file path resolution in setup tests.
+
 # [5.0.0] - 2025-07-10
 ### ⚠️ BREAKING
 - Node.js version requirement is now `22`.

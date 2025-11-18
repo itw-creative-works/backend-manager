@@ -314,7 +314,7 @@ Module.prototype.uploadPost = function (settings, article) {
         payload: {
           title: article.title,
           url: article.title, // This is formatted on the bm_api endpoint
-          excerpt: article.description,
+          description: article.description,
           headerImageURL: article.headerImageUrl,
           body: article.body,
           id: self.postId++,

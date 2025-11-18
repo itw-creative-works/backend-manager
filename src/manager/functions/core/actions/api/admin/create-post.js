@@ -8,7 +8,7 @@ const path = require('path');
 const { Octokit } = require('@octokit/rest');
 
 const POST_TEMPLATE = jetpack.read(`${__dirname}/templates/post.html`);
-const IMAGE_PATH_SRC = `src/assets/images/blog/posts/post-{id}/`;
+const IMAGE_PATH_SRC = `src/assets/images/blog/post-{id}/`;
 
 const IMAGE_REGEX = /(?:!\[(.*?)\]\((.*?)\))/img;
 
@@ -65,6 +65,8 @@ Module.prototype.main = function () {
         .replace(/[^a-zA-Z0-9]/g, '-')
         // Remove multiple hyphens
         .replace(/-+/g, '-')
+        // Remove leading and trailing hyphens
+        .replace(/^-+|-+$/g, '')
         // Lowercase
         .toLowerCase();
 
@@ -84,7 +86,7 @@ Module.prototype.main = function () {
       payload.data.payload.categories = payload.data.payload.categories || [];
 
       // Fix even more values
-      payload.data.payload.layout = payload.data.payload.layout || 'app/blog/post';
+      payload.data.payload.layout = payload.data.payload.layout || 'blueprint/blog/post';
       payload.data.payload.date = moment(payload.data.payload.date || now).subtract(1, 'days').format('YYYY-MM-DD');
       payload.data.payload.id = payload.data.payload.id || Math.round(new Date(now).getTime() / 1000);
       payload.data.payload.path = `src/_posts/${moment(now).format('YYYY')}/${payload.data.payload.path || 'guest'}`;
