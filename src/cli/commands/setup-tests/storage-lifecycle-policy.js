@@ -21,24 +21,37 @@ class StorageLifecyclePolicyTest extends BaseTest {
 
   async cmd_setStorageLifecycle(self) {
     return new Promise(async (resolve, reject) => {
-      const command = `gsutil lifecycle set {config} gs://{bucket}`
-        .replace(/{config}/ig, path.resolve(`${__dirname}/../../../../templates/storage-lifecycle-config-1-day.json`))
-        .replace(/{bucket}/ig, `us.artifacts.${self.projectId}.appspot.com`);
-      const command2 = `gsutil lifecycle set {config} gs://{bucket}`
-        .replace(/{config}/ig, path.resolve(`${__dirname}/../../../../templates/storage-lifecycle-config-30-days.json`))
-        .replace(/{bucket}/ig, `bm-backup-firestore-${self.projectId}`);
+      const buckets = [
+        {
+          name: `us.artifacts.${self.projectId}.appspot.com`,
+          config: path.resolve(`${__dirname}/../../../../templates/storage-lifecycle-config-1-day.json`)
+        },
+        {
+          name: `bm-backup-firestore-${self.projectId}`,
+          config: path.resolve(`${__dirname}/../../../../templates/storage-lifecycle-config-30-days.json`)
+        }
+      ];
 
-      await powertools.execute(command, { log: true })
-        .then(() => {
-          return powertools.execute(command2, { log: true });
-        })
-        .then((output) => {
-          resolve(output.stdout);
-        })
-        .catch((e) => {
-          console.error(chalk.red(`Failed to set storage lifecycle policy`, e));
-          reject(e);
-        });
+      try {
+        for (const bucket of buckets) {
+          // Check if bucket exists first
+          const checkCommand = `gsutil ls -b gs://${bucket.name}`;
+          const exists = await powertools.execute(checkCommand, { log: false })
+            .then(() => true)
+            .catch(() => false);
+
+          if (exists) {
+            const command = `gsutil lifecycle set ${bucket.config} gs://${bucket.name}`;
+            await powertools.execute(command, { log: true });
+          } else {
+            console.log(chalk.yellow(`Skipping bucket gs://${bucket.name} (does not exist)`));
+          }
+        }
+        resolve('Success');
+      } catch (e) {
+        console.error(chalk.red(`Failed to set storage lifecycle policy`, e));
+        reject(e);
+      }
     });
   }
 }
