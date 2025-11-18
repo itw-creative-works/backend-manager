@@ -127,7 +127,7 @@ Module.prototype.main = function () {
             body: `"${payload.data.payload.title}" was just published on our blog. It's a great read and we think you'll enjoy the content!`,
             // click_action: `${Manager.config.brand.url}/${postUrl}`,
             click_action: `${Manager.config.brand.url}/blog`,
-            icon: Manager.config.brand.brandmark,
+            icon: Manager.config.brand.images.brandmark,
           }
         },
       })

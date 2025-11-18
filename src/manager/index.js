@@ -125,13 +125,13 @@ Manager.prototype.init = function (exporter, options) {
     // Load basic config
     merge({}, requireJSON5(BEM_CONFIG_TEMPLATE_PATH, true), requireJSON5(self.project.backendManagerConfigPath, true)),
     // Load runtimeconfig as a fallback
-    requireJSON5(path.resolve(self.cwd, '.runtimeconfig.json'), options.projectType === 'firebase'),
+    // requireJSON5(path.resolve(self.cwd, '.runtimeconfig.json'), options.projectType === 'firebase'),
     // Load .ENV config because that is the new format
     process.env.RUNTIME_CONFIG ? JSON5.parse(process.env.RUNTIME_CONFIG) : {},
     // Finally, load the functions config
-    self.libraries.functions
-      ? self.libraries.functions.config()
-      : {},
+    // self.libraries.functions
+    //   ? self.libraries.functions.config()
+    //   : {},
   );
 
   // Get app ID
