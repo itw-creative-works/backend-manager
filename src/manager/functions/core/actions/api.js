@@ -52,6 +52,14 @@ Module.prototype.main = function() {
       self.payload.data = assistant.request.data;
       self.payload.user = await assistant.authenticate();
 
+      // Extract Bearer token from Authorization header and set to payload.data.authenticationToken
+      // This ensures backwards compatibility for code that expects the token in the payload
+      // Eventually, all code should use payload.data.authenticationToken directly
+      const authHeader = assistant.request.headers?.authorization || '';
+      if (!self.payload.data.authenticationToken && authHeader.startsWith('Bearer ')) {
+        self.payload.data.authenticationToken = authHeader.split('Bearer ')[1];
+      }
+
       // Set properties
       const headers = assistant.request.headers;
       const method = assistant.request.method;
