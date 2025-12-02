@@ -26,7 +26,7 @@ Module.prototype.main = function () {
     .then(async (user) => {
 
       self.ultimateJekyllOAuth2Url = assistant.isDevelopment()
-        ? `http://localhost:4000/oauth2`
+        ? `https://localhost:4000/oauth2`
         : `${Manager.config.brand.url}/oauth2`
       self.oauth2 = null;
       self.omittedPayloadFields = ['redirect', 'referrer', 'provider', 'state'];
@@ -40,7 +40,7 @@ Module.prototype.main = function () {
         : payload.data.payload.redirect
 
       payload.data.payload.referrer = typeof payload.data.payload.referrer === 'undefined'
-        ? (assistant.isDevelopment() ? `http://localhost:4000/account` : `${Manager.config.brand.url}/account`)
+        ? (assistant.isDevelopment() ? `https://localhost:4000/account` : `${Manager.config.brand.url}/account`)
         : payload.data.payload.referrer
 
       payload.data.payload.serverUrl = typeof payload.data.payload.serverUrl === 'undefined'
