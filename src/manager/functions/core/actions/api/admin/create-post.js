@@ -80,7 +80,7 @@ Module.prototype.main = function () {
         .trim();
 
       // Fix other values
-      payload.data.payload.author = payload.data.payload.author || 'alex';
+      payload.data.payload.author = payload.data.payload.author || 'alex-raeburn';
       payload.data.payload.affiliate = payload.data.payload.affiliate || '';
       payload.data.payload.tags = payload.data.payload.tags || [];
       payload.data.payload.categories = payload.data.payload.categories || [];
