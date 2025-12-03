@@ -80,7 +80,7 @@ Module.prototype.main = function () {
         .trim();
 
       // Fix other values
-      payload.data.payload.author = payload.data.payload.author || 'alex-raeburn';
+      payload.data.payload.author = payload.data.payload.author || powertools.random(['alex-raeburn', 'rare-ivy', 'christina-hill']);
       payload.data.payload.affiliate = payload.data.payload.affiliate || '';
       payload.data.payload.tags = payload.data.payload.tags || [];
       payload.data.payload.categories = payload.data.payload.categories || [];

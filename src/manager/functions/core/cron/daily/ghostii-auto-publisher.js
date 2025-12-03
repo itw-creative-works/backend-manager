@@ -63,7 +63,7 @@ Module.prototype.main = function (assistant, context) {
       settings.links = randomize(settings.links || []);
       settings.prompt = settings.prompt || '';
       settings.chance = settings.chance || 1.0;
-      settings.author = settings.author || 'alex-raeburn';
+      settings.author = settings.author || undefined;
       settings.app = await self.getAppData(appId).catch((e) => e);
 
       // Check for errors
