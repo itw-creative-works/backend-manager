@@ -1,8 +1,6 @@
 {
-  app: {
-    id: 'my-app',
-  },
   brand: {
+    id: 'my-app',
     name: 'My Brand',
     url: 'https://example.com',
     contact: {

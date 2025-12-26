@@ -134,6 +134,11 @@ Manager.prototype.init = function (exporter, options) {
     //   : {},
   );
 
+  // Resolve legacy paths
+  // TODO: Remove this in future versions (after we migrate to removing app.id from config)
+  self.config.app = self.config.app || {};
+  self.config.app.id = self.config.brand.id || self.config.app.id || null;
+
   // Get app ID
   const appId = self.config?.app?.id;
 
