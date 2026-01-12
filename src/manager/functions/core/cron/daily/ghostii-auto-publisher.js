@@ -270,7 +270,7 @@ Module.prototype.requestGhostii = function (settings, content) {
       tries: 1,
       response: 'json',
       body: {
-        backendManagerKey: Manager.config.backend_manager.key,
+        backendManagerKey: process.env.BACKEND_MANAGER_KEY,
         keywords: [''],
         description: content,
         insertLinks: true,
@@ -309,7 +309,7 @@ Module.prototype.uploadPost = function (settings, article) {
       tries: 1,
       response: 'json',
       body: {
-        backendManagerKey: Manager.config.backend_manager.key,
+        backendManagerKey: process.env.BACKEND_MANAGER_KEY,
         command: 'admin:create-post',
         payload: {
           title: article.title,

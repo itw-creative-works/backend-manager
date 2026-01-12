@@ -25,16 +25,6 @@ class SetupCommand extends BaseCommand {
     if (jetpack.exists(envPath)) {
       require('dotenv').config({ path: envPath });
     }
-
-    // Parse runtime config from .env
-    self.runtimeConfigJSON = {};
-    if (process.env.RUNTIME_CONFIG) {
-      try {
-        self.runtimeConfigJSON = JSON5.parse(process.env.RUNTIME_CONFIG);
-      } catch (e) {
-        // Will be caught in test
-      }
-    }
   }
 
   async runSetup() {
@@ -82,6 +72,9 @@ class SetupCommand extends BaseCommand {
       throw new Error('Missing <engines.node> in package.json');
     }
 
+    // Clean up leftover trigger files from watch command
+    this.cleanupTriggerFiles();
+
     // Run all tests
     await this.runTests();
 
@@ -120,6 +113,15 @@ class SetupCommand extends BaseCommand {
 
     self.default.databaseRulesWhole = (jetpack.read(path.resolve(`${__dirname}/../../../templates/database.rules.json`))).replace('=0.0.0-', `=${self.default.version}-`);
     self.default.databaseRulesCore = self.default.databaseRulesWhole.match(bem_allRulesRegex)[0];
+  }
+
+  cleanupTriggerFiles() {
+    const self = this.main;
+    const triggerFile = `${self.firebaseProjectPath}/functions/bem-reload-trigger.js`;
+
+    if (jetpack.exists(triggerFile)) {
+      jetpack.remove(triggerFile);
+    }
   }
 
   async runTests() {

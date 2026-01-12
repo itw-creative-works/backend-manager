@@ -359,7 +359,7 @@ The main API endpoint accepts commands in the format `category:action`:
 | `general` | `generate-uuid`, `send-email`, `fetch-post` |
 | `handler` | `create-post` |
 | `firebase` | `get-providers` |
-| `test` | `authenticate`, `create-test-accounts`, `webhook`, `lab`, `redirect` |
+| `test` | `authenticate`, `webhook`, `lab`, `redirect` |
 | `special` | `setup-electron-manager-client` |
 
 ### Auth Events
@@ -737,7 +737,8 @@ npx backend-manager <command>
 | `bem setup` | Run Firebase project setup and validation |
 | `bem serve` | Start local Firebase emulator |
 | `bem deploy` | Deploy functions to Firebase |
-| `bem test` | Run test suite |
+| `bem test [paths...]` | Run integration tests |
+| `bem emulators` | Start Firebase emulators (keep-alive mode) |
 | `bem version`, `bem v` | Show BEM version |
 | `bem clear` | Clear cache and temp files |
 | `bem install`, `bem i` | Install BEM (local or production) |
@@ -747,14 +748,11 @@ npx backend-manager <command>
 
 ## Environment Variables
 
+Set these in your `functions/.env` file:
+
 | Variable | Description |
 |----------|-------------|
-| `FIREBASE_CONFIG` | Firebase project config (auto-set by Firebase) |
-| `RUNTIME_CONFIG` | BEM runtime config (JSON5 format) |
 | `BACKEND_MANAGER_KEY` | Admin authentication key |
-| `ENVIRONMENT` | `'production'` or `'development'` |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Path to service account JSON |
-| `HCAPTCHA_SECRET` | hCaptcha secret for usage validation |
 
 ## Response Headers
 
@@ -763,6 +761,106 @@ BEM attaches metadata to responses:
 ```
 bm-properties: {"code":200,"tag":"functionName/executionId","usage":{...},"schema":{...}}
 ```
+
+## Testing
+
+BEM includes an integration test framework that runs against Firebase emulators.
+
+### Running Tests
+
+```bash
+# Option 1: Two terminals (recommended for development)
+npx bm emulators  # Terminal 1 - keeps emulators running
+npx bm test       # Terminal 2 - runs tests
+
+# Option 2: Single command (auto-starts emulators, shuts down after)
+npx bm test
+```
+
+### Filtering Tests
+
+```bash
+npx bm test rules/             # Run rules tests (both BEM and project)
+npx bm test bem:rules/         # Only BEM's rules tests
+npx bm test project:rules/     # Only project's rules tests
+npx bm test user/ admin/       # Multiple paths
+```
+
+### Test Locations
+
+- **BEM core tests:** `test/`
+- **Project tests:** `functions/test/bem/`
+
+Use `bem:` or `project:` prefix to filter by source.
+
+### Writing Tests
+
+**Suite** - Sequential tests with shared state (stops on first failure):
+
+```javascript
+// test/functions/user/sign-up.js
+module.exports = {
+  description: 'User signup flow with affiliate tracking',
+  type: 'suite',
+  tests: [
+    {
+      name: 'verify-referrer-exists',
+      async run({ firestore, assert, state, accounts }) {
+        state.referrerUid = accounts.referrer.uid;
+        const doc = await firestore.get(`users/${state.referrerUid}`);
+        assert.ok(doc, 'Referrer should exist');
+      },
+    },
+    {
+      name: 'call-user-signup-with-affiliate',
+      async run({ http, assert, state }) {
+        const response = await http.as('referred').command('user:sign-up', {
+          attribution: { affiliate: { code: 'TESTREF' } },
+        });
+        assert.isSuccess(response);
+      },
+    },
+  ],
+};
+```
+
+**Group** - Independent tests (continues even if one fails):
+
+```javascript
+// test/functions/admin/firestore-write.js
+module.exports = {
+  description: 'Admin Firestore write operation',
+  type: 'group',
+  tests: [
+    {
+      name: 'admin-auth-succeeds',
+      auth: 'admin',
+      async run({ http, assert }) {
+        const response = await http.command('admin:firestore-write', {
+          path: '_test/doc',
+          document: { test: 'value' },
+        });
+        assert.isSuccess(response);
+      },
+    },
+    {
+      name: 'unauthenticated-rejected',
+      auth: 'none',
+      async run({ http, assert }) {
+        const response = await http.command('admin:firestore-write', {
+          path: '_test/doc',
+          document: { test: 'value' },
+        });
+        assert.isError(response, 401);
+      },
+    },
+  ],
+};
+```
+
+**Auth levels:** `none`, `user`/`basic`, `admin`, `premium-active`, `premium-expired`
+
+See `CLAUDE.md` for complete test API documentation.
 
 ## Final Words
 

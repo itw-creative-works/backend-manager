@@ -52,10 +52,7 @@ Usage.prototype.init = function (assistant, options) {
     }
 
     // Add BEM to whitelist keys
-    options.whitelistKeys.push(
-      Manager?.config?.backend_manager?.key
-      || process.env.BACKEND_MANAGER_KEY
-    );
+    options.whitelistKeys.push(process.env.BACKEND_MANAGER_KEY);
 
     // Set options
     self.options = options;

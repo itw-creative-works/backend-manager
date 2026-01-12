@@ -1,5 +1,4 @@
 const fetch = require('wonderful-fetch');
-const _ = require('lodash')
 
 function Module() {
 
@@ -39,7 +38,7 @@ Module.prototype.main = function () {
         method: 'POST',
         response: 'json',
         body: {
-          backendManagerKey: Manager.config.backend_manager.key,
+          backendManagerKey: process.env.BACKEND_MANAGER_KEY,
           method: 'post',
           service: 'paypal',
           command: 'v2/invoicing/invoices',
@@ -87,12 +86,12 @@ Module.prototype.main = function () {
       }
 
       // Send invoice
-      const createdInvoiceId = _.get(createdInvoice, 'href', '').split('/').pop();
+      const createdInvoiceId = (createdInvoice?.href ?? '').split('/').pop();
       const sentInvoice = await fetch('https://us-central1-itw-creative-works.cloudfunctions.net/wrapper', {
         method: 'POST',
         response: 'json',
         body: {
-          backendManagerKey: Manager.config.backend_manager.key,
+          backendManagerKey: process.env.BACKEND_MANAGER_KEY,
           service: 'paypal',
           command: `v2/invoicing/invoices/${createdInvoiceId}/send`,
           method: 'post',
@@ -120,7 +119,7 @@ Module.prototype.main = function () {
         method: 'POST',
         response: 'json',
         body: {
-          backendManagerKey: Manager.config.backend_manager.key,
+          backendManagerKey: process.env.BACKEND_MANAGER_KEY,
           command: `admin:send-notification`,
           payload: {
             title: payload.data.payload.title,

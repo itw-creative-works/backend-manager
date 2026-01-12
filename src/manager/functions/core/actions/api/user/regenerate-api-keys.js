@@ -1,6 +1,5 @@
 const uuid4 = require('uuid').v4;
 const UIDGenerator = require('uid-generator');
-const _ = require('lodash')
 const powertools = require('node-powertools')
 const uidgen = new UIDGenerator(256);
 
@@ -18,7 +17,7 @@ Module.prototype.main = function () {
   return new Promise(async function(resolve, reject) {
     Api.resolveUser({adminRequired: true})
     .then(async (user) => {
-      const keys = powertools.arrayify(_.get(payload.data.payload, 'keys') || ['clientId', 'privateKey']);
+      const keys = powertools.arrayify(payload.data.payload?.keys || ['clientId', 'privateKey']);
       const newKeys = {};
 
       keys

@@ -13,9 +13,18 @@ Module.prototype.main = function () {
   const payload = self.payload;
 
   return new Promise(async function(resolve, reject) {
+    // Check for GitHub configuration
+    if (!process.env.GITHUB_TOKEN) {
+      return reject(assistant.errorify(`GitHub API key not configured.`, {code: 500}));
+    }
+
+    if (!Manager.config?.github?.repo_website) {
+      return reject(assistant.errorify(`GitHub repo_website not configured.`, {code: 500}));
+    }
+
     // Setup Octokit
     const octokit = new Octokit({
-      auth: Manager?.config?.github?.key,
+      auth: process.env.GITHUB_TOKEN,
     });
 
     // Setup options

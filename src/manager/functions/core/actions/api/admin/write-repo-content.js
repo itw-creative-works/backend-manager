@@ -3,7 +3,6 @@ const moment = require('moment');
 const jetpack = require('fs-jetpack');
 const powertools = require('node-powertools');
 const uuidv4 = require('uuid').v4;
-const { get, set } = require('lodash');
 const path = require('path');
 const { Octokit } = require('@octokit/rest');
 
@@ -25,16 +24,25 @@ Module.prototype.main = function () {
         return reject(assistant.errorify(`Admin required.`, {code: 401}));
       }
 
+      // Check for GitHub configuration
+      if (!process.env.GITHUB_TOKEN) {
+        return reject(assistant.errorify(`GitHub API key not configured.`, {code: 500}));
+      }
+
+      if (!Manager.config?.github?.repo_website) {
+        return reject(assistant.errorify(`GitHub repo_website not configured.`, {code: 500}));
+      }
+
       // Log payload
       assistant.log(`main(): payload.data`, payload.data);
 
       // Set now
       const now = assistant.meta.startTime.timestamp;
-      const bemRepo = assistant.parseRepo(Manager?.config?.github?.repo_website);
+      const bemRepo = assistant.parseRepo(Manager.config.github.repo_website);
 
       // Setup Octokit
       self.octokit = new Octokit({
-        auth: Manager?.config?.github?.key,
+        auth: process.env.GITHUB_TOKEN,
       });
 
       // Check for required values

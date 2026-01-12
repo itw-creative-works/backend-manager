@@ -19,7 +19,7 @@ service cloud.firestore {
 
     // Protect notification data
     match /notifications/{token} {
-      allow read: if existingData().token == token || belongsTo(existingData().owner.uid);
+      allow read: if resource == null || existingData().token == token || belongsTo(existingData().owner);
       allow update: if existingData().token == token;
       allow create: if true;
     }
@@ -36,7 +36,7 @@ service cloud.firestore {
     }
     function belongsTo(identity) {
       return isAuthenticated() && (authUid() == identity || authEmail() == identity);
-      // eventually include a check for (existingData().owner.uid == identity)...(in case its a doc owned by a user that's not actually user doc)
+      // eventually include a check for (existingData().owner == identity)...(in case its a doc owned by a user that's not actually user doc)
     }
 
     function getRoles() {
@@ -57,10 +57,10 @@ service cloud.firestore {
     function isWritingProtectedUserField() {
       return isWritingField('auth')
         || isWritingField('roles')
+        || isWritingField('flags')
         || isWritingField('plan')
         || isWritingField('affiliate')
         || isWritingField('api')
-        || isWritingField('link')
         || isWritingField('usage');
     }
 

@@ -17,6 +17,10 @@ class FirestoreRulesFileTest extends BaseTest {
     const containsCore = contents.match(bem_allRulesRegex);
     const matchesVersion = contents.match(self.default.rulesVersionRegex);
 
+    // Always run fix() to ensure rules are synced, even if version matches
+    // This ensures the rules content is always up to date
+    await this.fix();
+
     return (exists && !!containsCore && !!matchesVersion);
   }
 
@@ -39,12 +43,14 @@ class FirestoreRulesFileTest extends BaseTest {
       return;
     }
 
-    const matchesVersion = contents.match(self.default.rulesVersionRegex);
-    if (!matchesVersion) {
-      contents = contents.replace(bem_allRulesBackupRegex, self.default.firestoreRulesCore);
-      contents = contents.replace(bem_allRulesRegex, self.default.firestoreRulesCore);
+    // Always replace rules to ensure they're in sync with BEM template
+    const originalContents = contents;
+    contents = contents.replace(bem_allRulesBackupRegex, self.default.firestoreRulesCore);
+    contents = contents.replace(bem_allRulesRegex, self.default.firestoreRulesCore);
+
+    if (contents !== originalContents) {
       jetpack.write(path, contents);
-      console.log(chalk.yellow(`Writing core rules to ${name} file...`));
+      console.log(chalk.yellow(`Updated BEM rules in ${name} file`));
     }
   }
 }

@@ -1,4 +1,4 @@
-const {get, merge} = require('lodash');
+const { merge } = require('lodash');
 
 function Module() {
 
@@ -23,7 +23,7 @@ Module.prototype.main = function () {
       .get()
       .then(async (doc) => {
         const data = doc.data() || {};
-        const lastPageToken = get(data, 'syncUsers.lastPageToken', undefined);
+        const lastPageToken = data?.syncUsers?.lastPageToken;
         let processedUsers = 0;
 
         // Initial pageToken

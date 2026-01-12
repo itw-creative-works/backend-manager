@@ -1,5 +1,3 @@
-const { get } = require('lodash');
-
 function Module() {
   const self = this;
 }
@@ -9,12 +7,18 @@ Module.prototype.init = function (Manager, payload) {
   self.Manager = Manager;
   self.assistant = Manager.Assistant();
   self.libraries = Manager.libraries;
-  self.user = payload.user
-  self.context = payload.context
+  self.user = payload.user;
+  self.context = payload.context;
 
   return self;
 };
 
+/**
+ * beforeUserSignedIn - Update activity + send sign-in analytics
+ *
+ * This function fires on every sign-in (including right after account creation).
+ * It updates last activity and sends sign-in analytics.
+ */
 Module.prototype.main = function () {
   const self = this;
   const Manager = self.Manager;
@@ -23,13 +27,14 @@ Module.prototype.main = function () {
   const context = self.context;
 
   return new Promise(async function(resolve, reject) {
-    const { admin, functions } = self.libraries;
+    const startTime = Date.now();
+    const { admin } = self.libraries;
 
-    assistant.log(`Request: ${user.uid}`, user, context);
+    assistant.log(`beforeSignIn: ${user.uid}`, { email: user.email, ip: context.ipAddress });
 
     const now = new Date();
 
-    // Save IP to Firestore after successful IP check
+    // Update last activity and geolocation
     const update = await admin.firestore().doc(`users/${user.uid}`)
       .set({
         activity: {
@@ -45,15 +50,17 @@ Module.prototype.main = function () {
             userAgent: context.userAgent,
           },
         },
-      }, { merge: true });
+      }, { merge: true })
+      .catch(e => e);
 
     if (update instanceof Error) {
-      assistant.error(`Failed to update user ${user.uid}:`, update);
-
-      throw new functions.auth.HttpsError('internal', `Failed to update user: ${update}`);
+      assistant.error(`beforeSignIn: Failed to update user ${user.uid}:`, update);
+      // Don't block sign-in for activity update failure
+    } else {
+      assistant.log(`beforeSignIn: Updated user activity`);
     }
 
-    assistant.log(`Updated user activity`);
+    assistant.log(`beforeSignIn: Completed for ${user.uid} (${Date.now() - startTime}ms)`);
 
     return resolve(self);
   });

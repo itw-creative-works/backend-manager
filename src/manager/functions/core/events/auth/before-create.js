@@ -1,6 +1,5 @@
-const { get, merge } = require('lodash');
-
 const ERROR_TOO_MANY_ATTEMPTS = 'You have created too many accounts with our service. Please try again later.';
+const MAX_SIGNUPS_PER_DAY = 3;
 
 function Module() {
   const self = this;
@@ -17,6 +16,16 @@ Module.prototype.init = function (Manager, payload) {
   return self;
 };
 
+/**
+ * beforeUserCreated - IP Rate Limiting ONLY
+ *
+ * This function ONLY handles IP rate limiting to prevent abuse.
+ * User doc creation is handled by on-create.js (which fires for all user creations including Admin SDK).
+ *
+ * Why not create user doc here?
+ * - Admin SDK (used for tests) does NOT trigger beforeUserCreated
+ * - on-create fires for ALL user creations, making it more reliable
+ */
 Module.prototype.main = function () {
   const self = this;
   const Manager = self.Manager;
@@ -25,98 +34,44 @@ Module.prototype.main = function () {
   const context = self.context;
 
   return new Promise(async function(resolve, reject) {
-    const { admin, functions } = self.libraries;
-    const storage = Manager.storage({ temporary: true, name: 'rate-limiting' });
+    const startTime = Date.now();
+    const { functions } = self.libraries;
 
-    assistant.log(`Request: ${user.uid}`, user, context);
+    const ipAddress = context.ipAddress || '';
 
-    // TODO: ⛔️⛔️⛔️ UTILIZE THE NEW .usage() system (similar to src/manager/functions/core/actions/api/user/sign-up.js)
+    assistant.log(`beforeCreate: ${user.uid}`, { email: user.email, ip: ipAddress });
 
-    // if (context.additionalUserInfo.recaptchaScore < 0.5) {
-    //   assistant.error(`Recaptcha score (${context.additionalUserInfo.recaptchaScore}) too low for ${user.uid}`);
+    // Skip rate limiting if no IP (shouldn't happen in production)
+    if (!ipAddress) {
+      assistant.log(`beforeCreate: No IP address, skipping rate limit check (${Date.now() - startTime}ms)`);
+      return resolve(self);
+    }
 
-    //   throw new functions.auth.HttpsError('resource-exhausted', ERROR_TOO_MANY_ATTEMPTS);
-    // }
+    // IP Rate Limiting using Usage system
+    const usage = await Manager.Usage().init(assistant, {
+      key: ipAddress,
+      log: true,
+    });
 
-    const ipAddress = context.ipAddress;
-    const currentTime = Date.now();
-    const oneHour = 60 * 60 * 1000; // One hour in milliseconds
+    const signups = usage.getUsage('signups');
 
-    // Get current rate-limiting data
-    const rateLimitingData = storage.get(`ipRateLimits.${ipAddress}`).value();
-    const count = get(rateLimitingData, 'count', 0);
-    const lastTime = get(rateLimitingData, 'lastTime', 0);
+    assistant.log(`beforeCreate: Rate limit check for ${ipAddress}: ${signups}/${MAX_SIGNUPS_PER_DAY}`);
 
-    assistant.log(`Rate limiting for ${ipAddress}:`, rateLimitingData);
-
-    if (currentTime - lastTime < oneHour && count >= 2) {
-      assistant.error(`Too many attemps to create an account for ${ipAddress}`);
+    // Block if too many signups from this IP
+    if (signups >= MAX_SIGNUPS_PER_DAY) {
+      assistant.error(`beforeCreate: Too many signups from ${ipAddress} (${signups}/${MAX_SIGNUPS_PER_DAY})`);
 
       throw new functions.auth.HttpsError('resource-exhausted', ERROR_TOO_MANY_ATTEMPTS);
     }
 
-    // Update rate-limiting data
-   storage.set(`ipRateLimits.${ipAddress}`, { count: count + 1, lastTime: currentTime }).write();
+    // Increment rate limit counter
+    usage.increment('signups');
+    await usage.update();
 
-    const existingAccount = await admin.firestore().doc(`users/${user.uid}`)
-      .get()
-      .then((doc) => doc.data())
-      .catch(e => e);
+    assistant.log(`beforeCreate: Rate limit passed for ${ipAddress}, allowing user creation (${Date.now() - startTime}ms)`);
 
-    // If user already exists, skip auth-on-create handler
-    if (existingAccount instanceof Error) {
-      assistant.error(`Failed to get existing account ${user.uid}:`, existingAccount);
-
-      throw new functions.auth.HttpsError('internal', `Failed to get existing account: ${existingAccount}`);
-    }
-
-    let account = {
-      activity: {
-        lastActivity: {
-          timestamp: new Date(currentTime).toISOString(),
-          timestampUNIX: Math.round(currentTime / 1000),
-        },
-        geolocation: {
-          ip: ipAddress,
-          language: context.locale,
-        },
-        client: {
-          userAgent: context.userAgent,
-        },
-      },
-    };
-
-    // If it exists, just add the activity data
-    if (!get(existingAccount, 'auth.uid', null) || !get(existingAccount, 'auth.email', null)) {
-      account = merge(
-        Manager.User({
-          auth: {
-            uid: user.uid,
-            email: user.email,
-          },
-          activity: {
-            created: {
-              timestamp: new Date(currentTime).toISOString(),
-              timestampUNIX: Math.round(currentTime / 1000),
-            },
-          },
-        }).properties,
-        account,
-      );
-    }
-
-    // Save IP to Firestore after successful IP check
-    const update = await admin.firestore().doc(`users/${user.uid}`)
-      .set(account, { merge: true });
-
-    if (update instanceof Error) {
-      assistant.error(`Failed to update user ${user.uid}:`, update);
-
-      throw new functions.auth.HttpsError('internal', `Failed to update user: ${update}`);
-    }
-
-    assistant.log(`User created at users/${user.uid}`, account);
-
+    // Allow user creation to proceed
+    // User doc will be created by on-create.js
     return resolve(self);
   });
 };

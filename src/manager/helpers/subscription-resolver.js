@@ -1,5 +1,4 @@
 const moment = require('moment');
-const { get } = require('lodash');
 const { arrayify } = require('node-powertools');
 
 function SubscriptionResolver(Manager, profile, resource) {
@@ -305,7 +304,7 @@ SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, res
       Because I set the payment_failure_threshold to 0, it will not automatically set the status to suspended.
       We must check for failed payments and set the status to suspended if there are any.
     */
-    if (get(resource, 'billing_info.failed_payments_count', 0) > 0) {
+    if ((resource?.billing_info?.failed_payments_count ?? 0) > 0) {
       resolved.status = 'suspended';
     }
   } else if (['SUSPENDED'].includes(resource.status)) {
@@ -315,8 +314,8 @@ SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, res
   }
 
   // Setup preliminary variables
-  const order = get(resource, 'purchase_units[0].payments.captures[0]');
-  const subscription = get(resource, 'billing_info.last_payment');
+  const order = resource?.purchase_units?.[0]?.payments?.captures?.[0];
+  const subscription = resource?.billing_info?.last_payment;
   const isOrder = !!order;
 
   // Set resource ID
@@ -327,10 +326,10 @@ SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, res
     (
       isOrder
         // Order
-        ? get(resource, 'create_time', 0)
+        ? (resource?.create_time ?? 0)
 
         // Subscription
-        : get(resource, 'start_time', 0)
+        : (resource?.start_time ?? 0)
     )
   )
 
@@ -339,10 +338,10 @@ SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, res
     (
       isOrder
         // Order
-        ? get(resource, 'create_time', 0)
+        ? (resource?.create_time ?? 0)
 
         // Subscription
-        : get(resource, 'billing_info.last_payment.time', 0)
+        : (resource?.billing_info?.last_payment?.time ?? 0)
     )
   )
 
@@ -352,10 +351,10 @@ SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, res
       (
         isOrder
           // Order
-          ? get(resource, 'create_time', 0)
+          ? (resource?.create_time ?? 0)
 
           // Subscription
-          : get(resource, 'status_update_time', 0)
+          : (resource?.status_update_time ?? 0)
       )
     )
   }
@@ -363,7 +362,7 @@ SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, res
   // Set last payment
   if (order) {
     resolved.lastPayment.amount = parseFloat(
-      get(order, 'amount.value', '0.00')
+      order?.amount?.value ?? '0.00'
     );
     resolved.lastPayment.date.timestamp = moment(
       order.create_time || 0
@@ -374,9 +373,9 @@ SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, res
   }
 
   // Get trial
-  const trialTenure = get(resource, 'plan.billing_cycles', []).find((cycle) => cycle.tenure_type === 'TRIAL');
-  const regularTenure = get(resource, 'plan.billing_cycles', []).find((cycle) => cycle.tenure_type === 'REGULAR');
-  const trialClaimed = !!trialTenure && parseFloat(get(trialTenure, 'pricing_scheme.fixed_price.value', '0.00')) === 0;
+  const trialTenure = (resource?.plan?.billing_cycles ?? []).find((cycle) => cycle.tenure_type === 'TRIAL');
+  const regularTenure = (resource?.plan?.billing_cycles ?? []).find((cycle) => cycle.tenure_type === 'REGULAR');
+  const trialClaimed = !!trialTenure && parseFloat(trialTenure?.pricing_scheme?.fixed_price?.value ?? '0.00') === 0;
 
   // Resolve trial
   /*
@@ -394,14 +393,14 @@ SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, res
 
     // Set expiration
     resolved.expires.timestamp = moment(
-      get(resource, 'billing_info.next_billing_time', 0)
+      resource?.billing_info?.next_billing_time ?? 0
     )
 
     /*
       Special condition for PayPal #2
       I want to put the subscription in a suspended state if it's even one day past due
     */
-    const trialLength = get(trialTenure, 'frequency.interval_count', 0);
+    const trialLength = trialTenure?.frequency?.interval_count ?? 0;
     const daysSinceStart = Math.abs(moment(options.today).diff(moment(resolved.start.timestamp), 'days'));
     if (daysSinceStart > trialLength) {
       resolved.status = 'suspended';
@@ -416,7 +415,7 @@ SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, res
   resolved.trial.claimed = trialClaimed;
 
   // Resolve frequency
-  const unit = get(regularTenure, 'frequency.interval_unit');
+  const unit = regularTenure?.frequency?.interval_unit;
   if (unit === 'YEAR') {
     resolved.frequency = 'annually';
   } else if (unit === 'MONTH') {
@@ -436,7 +435,7 @@ SubscriptionResolver.prototype.resolve_paypal = function (profile, resource, res
 
   // Check if refunded
   if (resource.plan) {
-    const transactions = arrayify(get(resource, 'transactions', []));
+    const transactions = arrayify(resource?.transactions ?? []);
 
     resolved.payment.refunded = transactions.some(t => t.status === 'REFUNDED');
     // ALSO PARTIALLY_REFUNDED?
@@ -491,10 +490,10 @@ SubscriptionResolver.prototype.resolve_chargebee = function (profile, resource, 
     (
       isOrder
         // Order
-        ? get(resource, 'date', 0)
+        ? (resource?.date ?? 0)
 
         // Subscription
-        : get(resource, 'created_at', 0)
+        : (resource?.created_at ?? 0)
     ) * 1000
   )
 
@@ -503,10 +502,10 @@ SubscriptionResolver.prototype.resolve_chargebee = function (profile, resource, 
     (
       isOrder
         // Order
-        ? get(resource, 'date', 0)
+        ? (resource?.date ?? 0)
 
         // Subscription
-        : get(resource, 'current_term_start', 0)
+        : (resource?.current_term_start ?? 0)
     ) * 1000
   )
   // console.log('---resolved.expires 1', resolved.expires);
@@ -526,10 +525,10 @@ SubscriptionResolver.prototype.resolve_chargebee = function (profile, resource, 
       (
         isOrder
           // Order
-          ? get(resource, 'date', 0)
+          ? (resource?.date ?? 0)
 
           // Subscription
-          : get(resource, 'cancelled_at', 0)
+          : (resource?.cancelled_at ?? 0)
       ) * 1000
     )
   }
@@ -583,13 +582,13 @@ SubscriptionResolver.prototype.resolve_chargebee = function (profile, resource, 
     // Set expiration
     resolved.expires.timestamp = moment(
       (
-        get(resource, 'trial_end', 0)
+        resource?.trial_end ?? 0
       ) * 1000
     )
   }
 
   // Resolve frequency
-  const unit = get(resource, 'billing_period_unit');
+  const unit = resource?.billing_period_unit;
   if (unit === 'year') {
     resolved.frequency = 'annually';
   } else if (unit === 'month') {
@@ -611,10 +610,10 @@ SubscriptionResolver.prototype.resolve_chargebee = function (profile, resource, 
   if (isOrder) {
     resolved.payment.refunded = false; // @@@ TODO: check if this is correct
   } else {
-    const invoices = get(resource, 'invoices', []);
+    const invoices = resource?.invoices ?? [];
 
     resolved.payment.refunded = invoices.some(invoice => {
-      const creditNotes = get(invoice, 'invoice.issued_credit_notes', []);
+      const creditNotes = invoice?.invoice?.issued_credit_notes ?? [];
       return creditNotes.some(creditNote => {
         return creditNote.cn_status === 'refunded'
       })
@@ -623,9 +622,9 @@ SubscriptionResolver.prototype.resolve_chargebee = function (profile, resource, 
 
   // Special chargebee reset lastPayment
   // If trial is active OR if it was cancelled after the trial has ended
-  const trialStart = get(resource, 'trial_start', 0) * 1000;
-  const trialEnd = get(resource, 'trial_end', 0) * 1000;
-  const cancelledAt = get(resource, 'cancelled_at', 0) * 1000;
+  const trialStart = (resource?.trial_start ?? 0) * 1000;
+  const trialEnd = (resource?.trial_end ?? 0) * 1000;
+  const cancelledAt = (resource?.cancelled_at ?? 0) * 1000;
   const trialDaysDifference = Math.abs(moment(trialEnd).diff(moment(trialStart), 'days'));
   const trialClaimed = !!trialStart && !!trialEnd && trialDaysDifference > 1;
   if (
@@ -671,7 +670,7 @@ SubscriptionResolver.prototype.resolve_stripe = function (profile, resource, res
 
   // Setup preliminary variables
   const order = resource.object === 'charge' ? resource : null;
-  const subscription = get(resource, 'latest_invoice');
+  const subscription = resource?.latest_invoice;
   const isOrder = !!order;
 
   // Set resource ID
@@ -682,10 +681,10 @@ SubscriptionResolver.prototype.resolve_stripe = function (profile, resource, res
     (
       isOrder
         // Order
-        ? get(resource, 'created', 0)
+        ? (resource?.created ?? 0)
 
         // Subscription
-        : get(resource, 'start_date', 0)
+        : (resource?.start_date ?? 0)
     ) * 1000
   );
 
@@ -694,10 +693,10 @@ SubscriptionResolver.prototype.resolve_stripe = function (profile, resource, res
     (
       isOrder
         // Order
-        ? get(resource, 'created', 0)
+        ? (resource?.created ?? 0)
 
         // Subscription
-        : get(resource, 'current_period_start', 0)
+        : (resource?.current_period_start ?? 0)
     ) * 1000
   );
 
@@ -707,10 +706,10 @@ SubscriptionResolver.prototype.resolve_stripe = function (profile, resource, res
       (
         isOrder
           // Order
-          ? get(resource, 'created', 0)
+          ? (resource?.created ?? 0)
 
           // Subscription
-          : get(resource, 'canceled_at', 0)
+          : (resource?.canceled_at ?? 0)
       ) * 1000
     )
   }
@@ -730,8 +729,8 @@ SubscriptionResolver.prototype.resolve_stripe = function (profile, resource, res
   }
 
   // Get trial
-  const trialStart = get(resource, 'trial_start', 0) * 1000;
-  const trialEnd = get(resource, 'trial_end', 0) * 1000;
+  const trialStart = (resource?.trial_start ?? 0) * 1000;
+  const trialEnd = (resource?.trial_end ?? 0) * 1000;
   const trialDaysDifference = Math.abs(moment(trialEnd).diff(moment(trialStart), 'days'));
   const trialClaimed = !!trialStart && !!trialEnd && trialDaysDifference > 1;
   if (resource.status === 'trialing') {
@@ -747,7 +746,7 @@ SubscriptionResolver.prototype.resolve_stripe = function (profile, resource, res
   resolved.trial.claimed = trialClaimed;
 
   // Resolve frequency
-  const unit = get(resource, 'plan.interval');
+  const unit = resource?.plan?.interval;
   if (unit === 'year') {
     resolved.frequency = 'annually';
   } else if (unit === 'month') {
@@ -769,7 +768,7 @@ SubscriptionResolver.prototype.resolve_stripe = function (profile, resource, res
   if (resource.object === 'charge') {
     resolved.payment.refunded = resource.refunded;
   } else {
-    resolved.payment.refunded = get(resource, 'latest_invoice.charge.refunded', false);
+    resolved.payment.refunded = resource?.latest_invoice?.charge?.refunded ?? false;
   }
 
   return resolved;
@@ -789,17 +788,17 @@ SubscriptionResolver.prototype.resolve_coinbase = function (profile, resource, r
 
   // Set start
   resolved.start.timestamp = moment(
-    get(resource, 'created_at', 0)
+    resource?.created_at ?? 0
   );
 
   // Set expiration
   resolved.expires.timestamp = moment(
-    get(resource, 'created_at', 0)
+    resource?.created_at ?? 0
   );
 
   // Set cancelled
   resolved.cancelled.timestamp = moment(
-    get(resource, 'created_at', 0)
+    resource?.created_at ?? 0
   )
 
   // Retrieve last payment

@@ -36,7 +36,7 @@ let Module = {
         // label: '',
       });
 
-      const namespace = assistant.request.data.namespace || self.Manager.config.backend_manager.namespace;
+      const namespace = assistant.request.data.namespace || process.env.BACKEND_MANAGER_NAMESPACE;
       assistant.request.data.version = `${assistant.request.data.version || '5'}`.replace('v', '');
       assistant.request.data.name = assistant.request.data.name || assistant.request.data.input;
 

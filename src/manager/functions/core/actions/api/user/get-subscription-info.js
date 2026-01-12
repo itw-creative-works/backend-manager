@@ -1,4 +1,3 @@
-const _ = require('lodash')
 const powertools = require('node-powertools')
 
 function Module() {
@@ -20,20 +19,20 @@ Module.prototype.main = function () {
     .then(async (user) => {
       const result = {
         plan: {
-          id: _.get(user, 'plan.id', 'unknown'),
+          id: user?.plan?.id || 'unknown',
           expires: {
-            timestamp: _.get(user, 'plan.expires.timestamp', oldDate),
-            timestampUNIX: _.get(user, 'plan.expires.timestampUNIX', oldDateUNIX),
+            timestamp: user?.plan?.expires?.timestamp || oldDate,
+            timestampUNIX: user?.plan?.expires?.timestampUNIX || oldDateUNIX,
           },
           trial: {
-            activated: _.get(user, 'plan.trial.activated', false),
+            activated: user?.plan?.trial?.activated ?? false,
             date: {
-              timestamp: _.get(user, 'plan.trial.date.timestamp', oldDate),
-              timestampUNIX: _.get(user, 'plan.trial.date.timestampUNIX', oldDateUNIX),
+              timestamp: user?.plan?.trial?.date?.timestamp || oldDate,
+              timestampUNIX: user?.plan?.trial?.date?.timestampUNIX || oldDateUNIX,
             }
           },
           payment: {
-            active: _.get(user, 'plan.payment.active', false),
+            active: user?.plan?.payment?.active ?? false,
           },
         }
       }

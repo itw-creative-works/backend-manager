@@ -1,6 +1,6 @@
 // Libraries
 const path = require('path');
-const { get, merge } = require('lodash');
+const { merge } = require('lodash');
 const jetpack = require('fs-jetpack');
 const JSON5 = require('json5');
 const EventEmitter = require('events');
@@ -65,7 +65,8 @@ Manager.prototype.init = function (exporter, options) {
   options.serviceAccountPath = typeof options.serviceAccountPath === 'undefined' ? 'service-account.json' : options.serviceAccountPath;
   options.backendManagerConfigPath = typeof options.backendManagerConfigPath === 'undefined' ? 'backend-manager-config.json' : options.backendManagerConfigPath;
   options.fetchStats = typeof options.fetchStats === 'undefined'
-    ? options.projectType === 'firebase'
+    // ? options.projectType === 'firebase'
+    ? false
     : options.fetchStats;
   options.checkNodeVersion = typeof options.checkNodeVersion === 'undefined' ? true : options.checkNodeVersion;
   options.uniqueAppName = options.uniqueAppName || undefined;
@@ -122,16 +123,11 @@ Manager.prototype.init = function (exporter, options) {
 
   // Load config
   self.config = merge(
-    // Load basic config
-    merge({}, requireJSON5(BEM_CONFIG_TEMPLATE_PATH, true), requireJSON5(self.project.backendManagerConfigPath, true)),
-    // Load runtimeconfig as a fallback
-    // requireJSON5(path.resolve(self.cwd, '.runtimeconfig.json'), options.projectType === 'firebase'),
-    // Load .ENV config because that is the new format
+    {},
+    requireJSON5(BEM_CONFIG_TEMPLATE_PATH, true),
+    requireJSON5(self.project.backendManagerConfigPath, true),
+    // Load RUNTIME_CONFIG from .env (deprecated, will be removed in future versions)
     process.env.RUNTIME_CONFIG ? JSON5.parse(process.env.RUNTIME_CONFIG) : {},
-    // Finally, load the functions config
-    // self.libraries.functions
-    //   ? self.libraries.functions.config()
-    //   : {},
   );
 
   // Resolve legacy paths
@@ -185,6 +181,11 @@ Manager.prototype.init = function (exporter, options) {
   ) {
     // require('firebase-functions/lib/logger/compat'); // Old way
     require('firebase-functions/logger/compat'); // firebase-functions@4 and above?
+  }
+
+  // Handle test environment
+  if (self.assistant.isTesting()) {
+    self.assistant.log('⚠️⚠️⚠️ Running in TEST environment, some features may be disabled ⚠️⚠️⚠️');
   }
 
   // Handle dev environments
@@ -252,40 +253,22 @@ Manager.prototype.init = function (exporter, options) {
   // Setup options features
   if (self.options.initialize) {
     // Initialize Firebase
-    // try {
-      // Initialize Firebase
-      if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-        self.libraries.initializedAdmin = self.libraries.admin.initializeApp();
-        // self.app = self.libraries.initializedAdmin;
-      } else {
-        const serviceAccount = require(self.project.serviceAccountPath);
-        self.libraries.initializedAdmin = self.libraries.admin.initializeApp({
-          credential: self.libraries.admin.credential.cert(serviceAccount),
-          databaseURL: self.project.databaseURL || `https://${self.project.projectId}.firebaseio.com`,
-        }, options.uniqueAppName);
-        // self.app = self.libraries.initializedAdmin;
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      self.libraries.initializedAdmin = self.libraries.admin.initializeApp();
+      // self.app = self.libraries.initializedAdmin;
+    } else {
+      const serviceAccount = require(self.project.serviceAccountPath);
+      self.libraries.initializedAdmin = self.libraries.admin.initializeApp({
+        credential: self.libraries.admin.credential.cert(serviceAccount),
+        databaseURL: self.project.databaseURL || `https://${self.project.projectId}.firebaseio.com`,
+      }, options.uniqueAppName);
+      // self.app = self.libraries.initializedAdmin;
 
-        const loadedProjectId = serviceAccount.project_id;
-        if (!loadedProjectId || !loadedProjectId.includes(appId)) {
-          self.assistant.error(`Loaded app may have wrong service account: ${loadedProjectId} =/= ${appId}`);
-        }
+      const loadedProjectId = serviceAccount.project_id;
+      if (!loadedProjectId || !loadedProjectId.includes(appId)) {
+        self.assistant.error(`Loaded app may have wrong service account: ${loadedProjectId} =/= ${appId}`);
       }
-    // } catch (e) {
-      // self.assistant.error('Failed to call .initializeApp()', e);
-    // }
-
-    // Update firebase settings
-    try {
-      // Update project config
-      self.libraries.admin.auth().projectConfigManager().updateProjectConfig({
-        emailPrivacyConfig: {
-          enableImprovedEmailPrivacy: true,
-        },
-      });
-    } catch (e) {
-      self.assistant.error('Failed to call .updateProjectConfig()', e);
     }
-    // admin.firestore().settings({/* your settings... */ timestampsInSnapshots: true})
   }
 
   // Setup main functions
@@ -840,21 +823,6 @@ Manager.prototype.setupFunctions = function (exporter, options) {
     .runWith({memory: '256MB', timeoutSeconds: 60})
     .https.onRequest(async (req, res) => {
       const Module = require(`${test}/authenticate.js`);
-      Module.init(self, { req: req, res: res, });
-
-      return self._preProcess(Module)
-      .then(r => Module.main())
-      .catch(e => {
-        self.assistant.error(e);
-        return res.status(500).send(e.message);
-      });
-    });
-
-    exporter.bm_test_createTestAccounts =
-    self.libraries.functions
-    .runWith({memory: '256MB', timeoutSeconds: 60})
-    .https.onRequest(async (req, res) => {
-      const Module = require(`${test}/create-test-accounts.js`);
       Module.init(self, { req: req, res: res, });
 
       return self._preProcess(Module)

@@ -32,6 +32,15 @@ Module.prototype.main = function () {
       .then(async (doc) => {
         let data = doc.data() || {};
 
+        // Ensure document exists with initial values (doesn't overwrite existing data)
+        if (!doc.exists) {
+          await stats.set({
+            users: { total: 0 },
+            app: Manager.config?.app?.id || null,
+          });
+          data = { users: { total: 0 } };
+        }
+
         // Only update if requested
         if (payload.data.payload.update) {
           await self.updateStats(data, payload.data.payload.update)

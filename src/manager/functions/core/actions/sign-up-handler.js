@@ -1,5 +1,5 @@
 let fetch;
-const _ = require('lodash');
+const { merge } = require('lodash');
 
 let Module = {
   init: async function (Manager, data) {
@@ -44,8 +44,8 @@ let Module = {
           response.data = result;
           if (assistant.request.data.newsletterSignUp) {
             await addToMCList(
-              _.get(self.Manager.config, 'mailchimp.key'),
-              _.get(self.Manager.config, 'mailchimp.list_id'),
+              self.Manager.config?.mailchimp?.key,
+              self.Manager.config?.mailchimp?.list_id,
               user.auth.email,
             )
             .then(function (res) {
@@ -84,7 +84,7 @@ let Module = {
       let finalPayload = {};
       let user = self.Manager.User(payload);
 
-      if (!_.get(payload, 'auth.uid', null) || !_.get(payload, 'auth.email', null)) {
+      if (!payload?.auth?.uid || !payload?.auth?.email) {
         return reject(new Error('Cannot create user without UID and email.'))
       }
 
@@ -102,10 +102,10 @@ let Module = {
       }
 
       // Merge the payload and the default user object
-      finalPayload = _.merge({}, existingUser, user.properties)
+      finalPayload = merge({}, existingUser, user.properties)
 
       self.updateReferral({
-        affiliateCode: _.get(payload, 'affiliate.referredBy', null),
+        affiliateCode: payload?.affiliate?.referredBy ?? null,
         uid: payload.auth.uid,
       })
       .catch(function (e) {

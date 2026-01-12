@@ -16,7 +16,7 @@ Module.prototype.main = function () {
     payload.data.payload.options = payload.data.payload.options || {};
 
     // Perform checks
-    if (payload.user.roles.admin) {
+    if (!payload.user.roles.admin) {
       return reject(assistant.errorify(`Admin required.`, {code: 401}));
     } else if (!payload.data.payload.path) {
       return reject(assistant.errorify(`<path> parameter required`, {code: 400}));

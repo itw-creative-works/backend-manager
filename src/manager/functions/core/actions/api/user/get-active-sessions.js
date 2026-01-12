@@ -1,5 +1,3 @@
-const _ = require('lodash')
-
 function Module() {
 
 }
@@ -15,8 +13,8 @@ Module.prototype.main = function () {
 
     Api.resolveUser({adminRequired: true})
     .then(async (user) => {
-      const uid = _.get(user, 'auth.uid', null);
-      const id = _.get(payload.data.payload, 'id', 'app');
+      const uid = user?.auth?.uid ?? null;
+      const id = payload.data.payload?.id || 'app';
       const session = `sessions/${id}`;
 
       assistant.log(`Getting active sessions for ${uid} @ ${session}`)

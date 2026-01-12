@@ -14,6 +14,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.39] - 2025-01-12
+### Added
+- New test infrastructure with Firebase emulator support for reliable, isolated testing.
+- Test runner with emulator auto-detection and startup.
+- Test types: standalone, suite (sequential with shared state), group (independent).
+- Built-in test accounts with SSOT configuration (basic, admin, premium-active, etc.).
+- Firestore security rules testing support.
+- HTTP client with auth helpers (`http.as('admin').command()`).
+- Rich assertion library (`isSuccess`, `isError`, `hasProperty`, etc.).
+- New `bm emulators` command for standalone emulator management.
+- Enhanced `bm test` with path filtering and parallel test support.
+
+### Changed
+- Reorganized test files to `test/functions/` with `admin/`, `user/`, `general/` categories.
+- Standardized auth test naming to `unauthenticated-rejected`.
+- Auth rejection tests moved to end of test files (before cleanup).
+
+### Fixed
+- Changed unauthenticated API error from 500 to 401 with proper "Authentication required" message.
+
+### Removed
+- Removed legacy test files (moved to `test/_legacy/`).
+- Removed deprecated CLI files and templates.
+- Consolidated test account creation from API endpoint to test runner.
+
 # [5.0.31] - 2025-01-17
 ### Changed
 - Refactored CLI to modular command architecture with individual command classes and test files for better maintainability.

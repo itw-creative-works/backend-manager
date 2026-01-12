@@ -268,14 +268,6 @@ Module.prototype.resolveCommand = function (command) {
   // } else if (command === 'special:setup-electron-manager-client' || command === 'setup-electron-manager-client') {
     // command = 'special:setup-electron-manager-client';
 
-  // Test
-  // } else if (command === 'test:authenticate' || command === 'authenticate') {
-  //   command = 'test:authenticate';
-  // } else if (command === 'test:create-test-accounts' || command === 'create-test-accounts') {
-  //   command = 'test:create-test-accounts';
-  // } else if (command === 'test:webhook' || command === 'webhook') {
-  //   command = 'test:webhook';
-
   // End
   } else {
     // command = 'error:error';
@@ -303,8 +295,8 @@ Module.prototype.resolveUser = function (options) {
     let user = null;
 
     options = options || {};
-    options.uid = typeof options.uid !== 'undefined' ? options.uid : _.get(self.payload, 'data.payload.uid');
-    options.admin = typeof options.admin !== 'undefined' ? options.admin : _.get(self.payload, 'user.roles.admin');
+    options.uid = typeof options.uid !== 'undefined' ? options.uid : self.payload?.data?.payload?.uid;
+    options.admin = typeof options.admin !== 'undefined' ? options.admin : self.payload?.user?.roles?.admin;
     options.adminRequired = typeof options.adminRequired !== 'undefined' ? options.adminRequired : true;
 
     if (options.uid) {
@@ -327,14 +319,14 @@ Module.prototype.resolveUser = function (options) {
       }
     } else if (self.payload.user.authenticated) {
       user = self.payload.user;
-    } else if (_.get(self.lib, 'payload.user.authenticated')) {
+    } else if (self.lib?.payload?.user?.authenticated) {
       user = self.lib.payload.user;
     }
 
     if (user instanceof Error) {
       return reject(user);
     } else if (!user) {
-      return reject(self.assistant.errorify('Unable to resolve user', {code: 500}));
+      return reject(self.assistant.errorify('Authentication required', {code: 401}));
     } else {
       return resolve(user);
     }

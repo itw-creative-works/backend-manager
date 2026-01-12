@@ -2,7 +2,6 @@ let fetch;
 let Poster;
 let pathApi;
 let os;
-const { get } = require('lodash');
 let Module = {
   init: async function (Manager, data) {
     this.Manager = Manager;
@@ -39,7 +38,7 @@ let Module = {
         // label: '',
       });
 
-      let repoInfo = assistant.parseRepo(get(self.Manager.config, 'github.repo_website'));
+      let repoInfo = assistant.parseRepo(self.Manager.config?.github?.repo_website);
 
       if (!user.roles.admin) {
         response.status = 401;
@@ -56,7 +55,7 @@ let Module = {
           return new Promise(async function(resolve, reject) {
             let finalPath = poster.removeDirDot(meta.finalPath);
             let tempPath = (meta.tempPath);
-            await createFile(get(self.Manager.config, 'github.user'), repoInfo.user, repoInfo.name, get(self.Manager.config, 'github.key'), finalPath, await poster.readImage(tempPath))
+            await createFile(self.Manager.config?.github?.user, repoInfo.user, repoInfo.name, process.env.GITHUB_TOKEN, finalPath, await poster.readImage(tempPath))
             .catch((e) => {
               // console.log('---CAUGHT 1', e);
             })
@@ -67,7 +66,7 @@ let Module = {
         let finalPost = await poster.create(assistant.request.data);
 
         // Save post OR commit
-        await createFile(get(self.Manager.config, 'github.user'), repoInfo.user, repoInfo.name, get(self.Manager.config, 'github.key'), poster.removeDirDot(finalPost.path), finalPost.content)
+        await createFile(self.Manager.config?.github?.user, repoInfo.user, repoInfo.name, process.env.GITHUB_TOKEN, poster.removeDirDot(finalPost.path), finalPost.content)
         .catch((e) => {
           response.status = 400;
           response.error = new Error('Failed to post: ' + e);

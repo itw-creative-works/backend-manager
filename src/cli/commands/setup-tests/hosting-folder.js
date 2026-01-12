@@ -1,6 +1,5 @@
 const BaseTest = require('./base-test');
 const jetpack = require('fs-jetpack');
-const _ = require('lodash');
 
 class HostingFolderTest extends BaseTest {
   getName() {
@@ -9,13 +8,14 @@ class HostingFolderTest extends BaseTest {
 
   async run() {
     const self = this.self;
-    const hosting = _.get(self.firebaseJSON, 'hosting', {});
+    const hosting = self.firebaseJSON?.hosting || {};
     return (hosting.public && (hosting.public === 'public' || hosting.public !== '.'));
   }
 
   async fix() {
     const self = this.self;
-    _.set(self.firebaseJSON, 'hosting.public', 'public');
+    self.firebaseJSON.hosting = self.firebaseJSON.hosting || {};
+    self.firebaseJSON.hosting.public = 'public';
     jetpack.write(`${self.firebaseProjectPath}/firebase.json`, JSON.stringify(self.firebaseJSON, null, 2));
   }
 }

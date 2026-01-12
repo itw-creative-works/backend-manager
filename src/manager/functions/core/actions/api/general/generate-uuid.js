@@ -14,7 +14,7 @@ Module.prototype.main = function () {
   return new Promise(async function(resolve, reject) {
 
     let result = '';
-    payload.data.payload.namespace = payload.data.payload.namespace || Manager.config.backend_manager.namespace;
+    payload.data.payload.namespace = payload.data.payload.namespace || process.env.BACKEND_MANAGER_NAMESPACE;
     payload.data.payload.version = `${payload.data.payload.version || '5'}`.replace('v', '');
     payload.data.payload.name = payload.data.payload.name || payload.data.payload.input;
 

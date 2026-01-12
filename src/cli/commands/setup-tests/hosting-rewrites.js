@@ -1,6 +1,5 @@
 const BaseTest = require('./base-test');
 const jetpack = require('fs-jetpack');
-const _ = require('lodash');
 
 class HostingRewritesTest extends BaseTest {
   getName() {
@@ -12,7 +11,7 @@ class HostingRewritesTest extends BaseTest {
   }
 
   async fix() {
-    const hosting = _.get(this.self.firebaseJSON, 'hosting', {});
+    const hosting = this.self.firebaseJSON?.hosting || {};
 
     // Set default
     hosting.rewrites = hosting.rewrites || [];

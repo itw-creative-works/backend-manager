@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "5.0.38",
+  "version": "5.0.39",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -8,19 +8,19 @@
     "bm": "./bin/bem"
   },
   "scripts": {
-    "_test": "npm run prepare && ./node_modules/mocha/bin/mocha test/ --recursive --timeout=10000",
-    "test": "./node_modules/mocha/bin/mocha test/ --recursive --timeout=10000",
-    "test:cli": "./node_modules/mocha/bin/mocha test/cli-commands.test.js --timeout=10000",
-    "test:usage": "./node_modules/mocha/bin/mocha test/usage.js --timeout=10000",
-    "test:payment-resolver": "./node_modules/mocha/bin/mocha test/payment-resolver/index.js --timeout=10000",
-    "test:user": "./node_modules/mocha/bin/mocha test/user.js --timeout=10000",
-    "test:ai": "./node_modules/mocha/bin/mocha test/ai/index.js --timeout=10000",
     "start": "node src/manager/index.js",
     "prepare": "node -e \"require('prepare-package')()\"",
     "prepare:watch": "nodemon -w ./src -e '*' --exec 'npm run prepare'"
   },
   "engines": {
     "node": "22"
+  },
+  "projectScripts": {
+    "start": "npx bm setup && npx bm serve",
+    "deploy": "npx bm setup && npx bm deploy",
+    "emulators": "npx bm setup && npx bm emulators",
+    "test": "npx bm setup && npx bm test",
+    "setup": "npx bm setup"
   },
   "repository": {
     "type": "git",
@@ -43,7 +43,7 @@
     "replace": {}
   },
   "dependencies": {
-    "@firebase/rules-unit-testing": "^2.0.7",
+    "@firebase/rules-unit-testing": "^5.0.0",
     "@google-cloud/storage": "^7.16.0",
     "@octokit/rest": "^19.0.13",
     "@sendgrid/mail": "^7.7.0",
@@ -67,7 +67,7 @@
     "lowdb": "^1.0.0",
     "mailchimp-api-v3": "^1.15.0",
     "mime-types": "^2.1.35",
-    "mocha": "^8.4.0",
+    "mocha": "^11.7.5",
     "moment": "^2.30.1",
     "nanoid": "^3.3.11",
     "node-fetch": "^2.7.0",

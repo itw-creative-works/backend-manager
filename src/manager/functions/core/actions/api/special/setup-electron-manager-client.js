@@ -12,7 +12,6 @@ Module.prototype.main = function () {
   return new Promise(async function(resolve, reject) {
 
     const fetch = Manager.require('wonderful-fetch');
-    const _ = Manager.require('lodash');
 
     let uid = payload.data.payload.uid;
     const app = payload.data.payload.appId || payload.data.payload.app || Manager.config.app.id;
@@ -26,7 +25,7 @@ Module.prototype.main = function () {
     if (payload.data.authenticationToken || payload.data.backendManagerKey) {
       await self.Api.resolveUser({adminRequired: true})
       .then(async (user) => {
-        uid = _.get(user, 'auth.uid', null);
+        uid = user?.auth?.uid ?? null;
         await self.libraries.admin.auth().createCustomToken(uid)
         .then(token => {
           signInToken = token;
@@ -63,7 +62,7 @@ Module.prototype.main = function () {
       return reject(error)
     }
 
-    if (config.backendManagerKey === Manager.config.backend_manager.key && Manager.config.backend_manager.key) {
+    if (config.backendManagerKey === process.env.BACKEND_MANAGER_KEY && process.env.BACKEND_MANAGER_KEY) {
       assistant.log('Validated config', config)
     } else {
       config = {};

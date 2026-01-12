@@ -1,7 +1,6 @@
 const pushid = require('pushid');
 const fetch = require('wonderful-fetch');
 const powertools = require('node-powertools');
-const { get } = require('lodash');
 
 function Module() {
 
@@ -64,7 +63,7 @@ Module.prototype.main = function () {
           feedback: request,
           decision: decision,
           owner: {
-            uid: get(user, 'auth.uid', null),
+            uid: user?.auth?.uid ?? null,
           },
           metadata: Manager.Metadata().set({tag: 'user:submit-feedback'}),
         }, {merge: true})

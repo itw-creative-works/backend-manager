@@ -46,12 +46,17 @@ Module.prototype.main = function () {
       || payload.data.payload.notification.click_action
       || 'https://itwcreativeworks.com';
 
-    // Fix filters
-    // TODO: Implement filters
-
     // Set notification payload
     const notification = payload.data.payload.notification;
     const filters = payload.data.payload.filters;
+
+    // Build filter options for processTokens
+    const filterOptions = {
+      tags: filters.tags || false,
+      owner: filters.owner || null, // Filter by owner UID
+      token: filters.token || null, // Filter by specific token (for testing)
+      limit: filters.limit || null, // Limit number of tokens processed
+    };
 
     // Set notification payload
     try {
@@ -75,7 +80,7 @@ Module.prototype.main = function () {
       return reject(assistant.errorify(`Parameters <title> and <body> required`, {code: 400, sentry: true}));
     }
 
-    await self.processTokens(notification, {tags: false})
+    await self.processTokens(notification, filterOptions)
     .then(r => {
       return resolve({data: payload.response.data})
     })
@@ -99,11 +104,52 @@ Module.prototype.processTokens = async function (notification, options) {
   // Set options
   options = options || {};
   options.tags = options.tags || false;
+  options.owner = options.owner || null;
+  options.token = options.token || null;
+  options.limit = options.limit || null;
 
-  // Define collection path
-  const queryConditions = options.tags
-    ? [{ field: 'tags', operator: 'array-contains-any', value: options.tags }]
-    : [];
+  // If a specific token is provided, send directly to it (useful for testing)
+  if (options.token) {
+    assistant.log(`Sending to specific token: ${options.token}`);
+
+    try {
+      await self.sendBatch([options.token], 0, notification);
+      assistant.log('Single token notification sent successfully.');
+    } catch (e) {
+      assistant.error('Error sending to specific token', e);
+    }
+
+    return;
+  }
+
+  // Build query conditions
+  const queryConditions = [];
+
+  // Filter by tags
+  if (options.tags) {
+    queryConditions.push({ field: 'tags', operator: 'array-contains-any', value: options.tags });
+  }
+
+  // Filter by owner UID
+  if (options.owner) {
+    queryConditions.push({ field: 'owner', operator: '==', value: options.owner });
+  }
+
+  // Calculate max batches based on limit
+  const maxBatches = options.limit
+    ? Math.ceil(options.limit / BATCH_SIZE)
+    : Infinity;
+
+  // Log filter options
+  assistant.log('Processing tokens with filters:', {
+    tags: options.tags,
+    owner: options.owner,
+    limit: options.limit,
+    maxBatches: maxBatches,
+  });
+
+  // Track tokens processed for limit
+  let tokensProcessed = 0;
 
   // Batch processing logic
   await Manager.Utilities().iterateCollection(
@@ -112,8 +158,19 @@ Module.prototype.processTokens = async function (notification, options) {
 
       // Collect tokens from the current batch
       for (const doc of batch.docs) {
+        // Stop if we've hit the limit
+        if (options.limit && tokensProcessed >= options.limit) {
+          break;
+        }
+
         const data = doc.data();
         batchTokens.push(data.token);
+        tokensProcessed++;
+      }
+
+      // Skip if no tokens to send
+      if (batchTokens.length === 0) {
+        return;
       }
 
       // Send the batch
@@ -128,6 +185,7 @@ Module.prototype.processTokens = async function (notification, options) {
       collection: PATH_NOTIFICATIONS,
       where: queryConditions,
       batchSize: BATCH_SIZE,
+      maxBatches: maxBatches,
       log: true,
     }
   )

@@ -1,17 +1,15 @@
 const BaseCommand = require('./base-command');
 const powertools = require('node-powertools');
-const _ = require('lodash');
+const WatchCommand = require('./watch');
 
 class ServeCommand extends BaseCommand {
   async execute() {
     const self = this.main;
+    const port = self.argv.port || self.argv?._?.[1] || '5000';
 
-    // Run setup
-    const SetupCommand = require('./setup');
-    const setupCmd = new SetupCommand(self);
-    await setupCmd.execute();
-
-    const port = self.argv.port || _.get(self.argv, '_', [])[1] || '5000';
+    // Start BEM watcher in background
+    const watcher = new WatchCommand(self);
+    watcher.startBackground();
 
     // Execute
     await powertools.execute(`firebase serve --port ${port}`, { log: true });

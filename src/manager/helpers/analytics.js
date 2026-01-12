@@ -204,7 +204,7 @@ Analytics.prototype.generateId = function (id) {
   uuidv5 = uuidv5 || require('uuid').v5;
 
   // Get namespace
-  const namespace = Manager?.config?.backend_manager?.namespace || undefined;
+  const namespace = process.env.BACKEND_MANAGER_NAMESPACE || undefined;
 
   // Generate id
   return id && namespace

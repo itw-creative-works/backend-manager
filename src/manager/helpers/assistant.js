@@ -302,6 +302,12 @@ BackendAssistant.prototype.isProduction = function () {
   return self.meta.environment === 'production';
 }
 
+BackendAssistant.prototype.isTesting = function () {
+  const self = this;
+
+  return process.env.BEM_TESTING === 'true';
+}
+
 BackendAssistant.prototype.logProd = function () {
   const self = this;
 
@@ -619,7 +625,7 @@ BackendAssistant.prototype.authenticate = async function (options) {
   const data = self.request.data;
 
   // Get stored backendManagerKey
-  const BACKEND_MANAGER_KEY = self.Manager?.config?.backend_manager?.key || '';
+  const BACKEND_MANAGER_KEY = process.env.BACKEND_MANAGER_KEY || '';
 
   // Build the ID token from the request
   let idToken;

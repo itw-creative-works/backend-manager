@@ -105,8 +105,8 @@ ApiManager.prototype._createNewUser = function (authenticatedUser, planId, persi
   persistentData._APIManager = persistentData._APIManager || merge({}, _APIManager_default);
 
   let newUser = {
-    api: get(authenticatedUser, 'api', {}),
-    auth: get(authenticatedUser, 'auth', {}),
+    api: authenticatedUser?.api || {},
+    auth: authenticatedUser?.auth || {},
     plan: {
       id: planId,
       limits: {
@@ -185,7 +185,7 @@ ApiManager.prototype.getUser = async function (assistant) {
     // console.log('---doesnt exist so reauthing');
     authenticatedUser = await assistant.authenticate({apiKey: apiKey});
     // console.log('---authenticatedUser', authenticatedUser);
-    const planId = get(authenticatedUser, 'plan.id', 'basic');
+    const planId = authenticatedUser?.plan?.id || 'basic';
     let workingUID = !authenticatedUser.authenticated
       ? uuidv5(assistant.request.geolocation.ip, '1b671a64-40d5-491e-99b0-da01ff1f3341')
       : authenticatedUser.auth.uid
@@ -281,7 +281,7 @@ ApiManager.prototype.validateOfficialRequest = async function (assistant, apiUse
   assistant.ref.Manager.libraries.hcaptcha = assistant.ref.Manager.libraries.hcaptcha || assistant.ref.Manager.require('hcaptcha');
   const hcaptcha = assistant.ref.Manager.libraries.hcaptcha;
 
-  const contentType = get(assistant.ref.req.headers, 'content-type', '');
+  const contentType = assistant.ref.req.headers?.['content-type'] || '';
   const requestType = !contentType || contentType.includes('application/json') ? 'json' : 'form';
 
   // console.log('----requestType', requestType);

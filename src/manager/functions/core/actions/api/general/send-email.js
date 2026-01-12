@@ -1,6 +1,6 @@
 const path = require('path');
 const fetch = require('wonderful-fetch');
-const {get,set,merge} = require('lodash');
+const { merge } = require('lodash');
 
 function Module() {
 
@@ -25,7 +25,7 @@ Module.prototype.main = function () {
       },
       delay: 1,
       payload: {
-        backendManagerKey: Manager.config.backend_manager.key,
+        backendManagerKey: process.env.BACKEND_MANAGER_KEY,
         app: Manager.config.app.id,
       },
     }

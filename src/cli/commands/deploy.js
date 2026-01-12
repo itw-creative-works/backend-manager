@@ -5,11 +5,6 @@ const powertools = require('node-powertools');
 class DeployCommand extends BaseCommand {
   async execute() {
     const self = this.main;
-    
-    // Run setup first
-    const SetupCommand = require('./setup');
-    const setupCmd = new SetupCommand(self);
-    await setupCmd.execute();
 
     // Quick check that not using local packages
     let deps = JSON.stringify(self.package.dependencies);

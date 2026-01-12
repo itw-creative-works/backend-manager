@@ -10,8 +10,10 @@ const InstallCommand = require('./commands/install');
 const ServeCommand = require('./commands/serve');
 const DeployCommand = require('./commands/deploy');
 const TestCommand = require('./commands/test');
+const EmulatorsCommand = require('./commands/emulators');
 const CleanCommand = require('./commands/clean');
 const IndexesCommand = require('./commands/indexes');
+const WatchCommand = require('./commands/watch');
 
 function Main() {}
 
@@ -92,9 +94,21 @@ Main.prototype.process = async function (args) {
     return await cmd.execute();
   }
 
+  // Emulators (keep-alive mode)
+  if (self.options['emulators'] || self.options['emulator']) {
+    const cmd = new EmulatorsCommand(self);
+    return await cmd.execute();
+  }
+
   // Clean
   if (self.options['clean:npm']) {
     const cmd = new CleanCommand(self);
+    return await cmd.execute();
+  }
+
+  // Watch (trigger hot reload when BEM source changes)
+  if (self.options['watch']) {
+    const cmd = new WatchCommand(self);
     return await cmd.execute();
   }
 };

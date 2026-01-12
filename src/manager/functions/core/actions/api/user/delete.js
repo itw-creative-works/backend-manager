@@ -34,7 +34,7 @@ Module.prototype.main = function () {
         tries: 2,
         log: true,
         body: {
-          backendManagerKey: self.Manager.config.backend_manager.key,
+          backendManagerKey: process.env.BACKEND_MANAGER_KEY,
           command: 'user:sign-out-all-sessions',
           payload: {
             uid: uid,

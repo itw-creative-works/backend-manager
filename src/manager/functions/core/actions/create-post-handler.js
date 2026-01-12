@@ -4,7 +4,7 @@ let os;
 // let JSON5;
 const fetch = require('node-fetch');
 const Mailchimp = require('mailchimp-api-v3');
-const { get, merge } = require('lodash');
+const { merge } = require('lodash');
 
 let Module = {
   init: async function (Manager, data) {
@@ -51,7 +51,7 @@ let Module = {
         response.error = new Error('Unauthenticated, admin required.');
         assistant.error(response.error)
       } else {
-        mailchimp = new Mailchimp(get(self.Manager.config, 'mailchimp.key', ''));
+        mailchimp = new Mailchimp(self.Manager.config?.mailchimp?.key ?? '');
         await fetch(`https://us-central1-${self.Manager.project.projectId}.cloudfunctions.net/bm_sendNotification`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -86,14 +86,14 @@ let Module = {
         await mailchimp.post(`/campaigns`, {
           "type": "regular",
         	"recipients": {
-        		"list_id": get(self.Manager.config, 'mailchimp.list_id', ''),
+        		"list_id": self.Manager.config?.mailchimp?.list_id ?? '',
         	},
         	"settings": {
         		"subject_line": `${assistant.request.data.title}`,
         		// "preview_text": "",
         		"title": `Blog post: "${assistant.request.data.title}"`,
-        		"from_name": get(self.Manager.config, 'brand.name'),
-        		"reply_to": get(self.Manager.config, 'brand.email'),
+        		"from_name": self.Manager.config?.brand?.name,
+        		"reply_to": self.Manager.config?.brand?.email,
         		"use_conversation": false,
         		"to_name": "*|FNAME|*",
         		// "folder_id": "",
@@ -114,9 +114,9 @@ let Module = {
                 .replace(/{ENTRY_PUBLISHED}/g, assistant.request.data.published)
                 .replace(/{ENTRY_AUTHOR}/g, assistant.request.data.author)
                 .replace(/{ENTRY_TAGS}/g, assistant.request.data.tags)
-                .replace(/{BRAND_NAME}/g, get(self.Manager.config, 'brand.name'))
-                .replace(/{BRAND_LOGO_COMBOMARK}/g, get(self.Manager.config, 'brand.combomark'))
-                .replace(/{BRAND_LOGO_WORDMARK}/g, get(self.Manager.config, 'brand.wordmark'))
+                .replace(/{BRAND_NAME}/g, self.Manager.config?.brand?.name)
+                .replace(/{BRAND_LOGO_COMBOMARK}/g, self.Manager.config?.brand?.combomark)
+                .replace(/{BRAND_LOGO_WORDMARK}/g, self.Manager.config?.brand?.wordmark)
               // assistant.log('Resolved email', html);
               await mailchimp.put(`/campaigns/${campaign.id}/content`, {
                 "content": 'regular',

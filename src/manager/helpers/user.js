@@ -5,6 +5,17 @@ const powertools = require('node-powertools');
 const UIDGenerator = require('uid-generator');
 const uidgen = new UIDGenerator(256);
 
+/**
+ * Helper: returns value if defined, otherwise returns defaultValue (if useDefaults=true) or null
+ * @param {*} value - The value to check
+ * @param {*} defaultValue - The default value to use if value is null/undefined
+ * @param {boolean} useDefaults - Whether to use defaultValue or return null
+ * @returns {*}
+ */
+function getWithDefault(value, defaultValue, useDefaults) {
+  return value ?? (useDefaults ? defaultValue : null);
+}
+
 function User(Manager, settings, options) {
   const self = this;
 
@@ -25,127 +36,134 @@ function User(Manager, settings, options) {
 
   self.properties = {
     auth: {
-      uid: _.get(settings, 'auth.uid', null),
-      email: _.get(settings, 'auth.email', null),
-      temporary: _.get(settings, 'auth.temporary', defaults ? false : null),
+      uid: settings?.auth?.uid ?? null,
+      email: settings?.auth?.email ?? null,
+      temporary: getWithDefault(settings?.auth?.temporary, false, defaults),
     },
     plan: {
-      id: _.get(settings, 'plan.id', defaults ? 'basic' : null), // intro | basic | advanced | premium
-      status: _.get(settings, 'plan.status', defaults ? 'cancelled' : null), // active | suspended | cancelled
+      id: getWithDefault(settings?.plan?.id, 'basic', defaults), // intro | basic | advanced | premium
+      status: getWithDefault(settings?.plan?.status, 'cancelled', defaults), // active | suspended | cancelled
       expires: {
-        timestamp: _.get(settings, 'plan.expires.timestamp', defaults ? oldDate : null),
-        timestampUNIX: _.get(settings, 'plan.expires.timestampUNIX', defaults ? oldDateUNIX : null),
+        timestamp: getWithDefault(settings?.plan?.expires?.timestamp, oldDate, defaults),
+        timestampUNIX: getWithDefault(settings?.plan?.expires?.timestampUNIX, oldDateUNIX, defaults),
       },
       trial: {
-        activated: _.get(settings, 'plan.trial.activated', defaults ? false : null),
+        activated: getWithDefault(settings?.plan?.trial?.activated, false, defaults),
         expires: {
-          timestamp: _.get(settings, 'plan.trial.expires.timestamp', defaults ? oldDate : null),
-          timestampUNIX: _.get(settings, 'plan.trial.expires.timestampUNIX', defaults ? oldDateUNIX : null),
+          timestamp: getWithDefault(settings?.plan?.trial?.expires?.timestamp, oldDate, defaults),
+          timestampUNIX: getWithDefault(settings?.plan?.trial?.expires?.timestampUNIX, oldDateUNIX, defaults),
         },
       },
       limits: {
-        // devices: _.get(settings, 'plan.limits.devices', null),
+        // devices: settings?.plan?.limits?.devices ?? null,
       },
       payment: {
-        processor: _.get(settings, 'plan.payment.processor', null), // paypal | stripe | chargebee, etc
-        orderId: _.get(settings, 'plan.payment.orderId', null), // xxx-xxx-xxx
-        resourceId: _.get(settings, 'plan.payment.resourceId', null), // x-xxxxxx
-        frequency: _.get(settings, 'plan.payment.frequency', null), // monthly || annually
-        active: _.get(settings, 'plan.payment.active', defaults ? false : null), // true | false
+        processor: settings?.plan?.payment?.processor ?? null, // paypal | stripe | chargebee, etc
+        orderId: settings?.plan?.payment?.orderId ?? null, // xxx-xxx-xxx
+        resourceId: settings?.plan?.payment?.resourceId ?? null, // x-xxxxxx
+        frequency: settings?.plan?.payment?.frequency ?? null, // monthly || annually
+        active: getWithDefault(settings?.plan?.payment?.active, false, defaults), // true | false
         startDate: {
-          timestamp: _.get(settings, 'plan.payment.startDate.timestamp', defaults ? now : null), // x-xxxxxx
-          timestampUNIX: _.get(settings, 'plan.payment.startDate.timestampUNIX', defaults ? nowUNIX : null), // x-xxxxxx
+          timestamp: getWithDefault(settings?.plan?.payment?.startDate?.timestamp, now, defaults), // x-xxxxxx
+          timestampUNIX: getWithDefault(settings?.plan?.payment?.startDate?.timestampUNIX, nowUNIX, defaults), // x-xxxxxx
         },
         updatedBy: {
           event: {
-            name: _.get(settings, 'plan.payment.updatedBy.event.name', null), // x-xxxxxx
-            id: _.get(settings, 'plan.payment.updatedBy.event.id', null), // x-xxxxxx
+            name: settings?.plan?.payment?.updatedBy?.event?.name ?? null, // x-xxxxxx
+            id: settings?.plan?.payment?.updatedBy?.event?.id ?? null, // x-xxxxxx
           },
           date: {
-            timestamp: _.get(settings, 'plan.payment.updatedBy.date.timestamp', defaults ? now : null), // x-xxxxxx
-            timestampUNIX: _.get(settings, 'plan.payment.updatedBy.date.timestampUNIX', defaults ? nowUNIX : null), // x-xxxxxx
+            timestamp: getWithDefault(settings?.plan?.payment?.updatedBy?.date?.timestamp, now, defaults), // x-xxxxxx
+            timestampUNIX: getWithDefault(settings?.plan?.payment?.updatedBy?.date?.timestampUNIX, nowUNIX, defaults), // x-xxxxxx
           },
         },
       }
     },
     roles: {
-      admin: _.get(settings, 'roles.admin', defaults ? false : null),
-      betaTester: _.get(settings, 'roles.betaTester', defaults ? false : null),
-      developer: _.get(settings, 'roles.developer', defaults ? false : null),
+      admin: getWithDefault(settings?.roles?.admin, false, defaults),
+      betaTester: getWithDefault(settings?.roles?.betaTester, false, defaults),
+      developer: getWithDefault(settings?.roles?.developer, false, defaults),
+    },
+    flags: {
+      signupProcessed: getWithDefault(settings?.flags?.signupProcessed, false, defaults),
     },
     affiliate: {
-      code: _.get(settings, 'affiliate.code', defaults ? self.Manager.Utilities().randomId({size: 7}) : null),
-      referrals: _.get(settings, 'affiliate.referrals', []),
-      referrer: _.get(settings, 'affiliate.referrer', null),
+      code: getWithDefault(settings?.affiliate?.code, self.Manager.Utilities().randomId({size: 7}), defaults),
+      referrals: settings?.affiliate?.referrals ?? [],
     },
     activity: {
       lastActivity: {
-        timestamp: _.get(settings, 'activity.lastActivity.timestamp', defaults ? now : null),
-        timestampUNIX: _.get(settings, 'activity.lastActivity.timestampUNIX', defaults ? nowUNIX : null),
+        timestamp: getWithDefault(settings?.activity?.lastActivity?.timestamp, now, defaults),
+        timestampUNIX: getWithDefault(settings?.activity?.lastActivity?.timestampUNIX, nowUNIX, defaults),
       },
       created: {
-        timestamp: _.get(settings, 'activity.created.timestamp', defaults ? now : null),
-        timestampUNIX: _.get(settings, 'activity.created.timestampUNIX', defaults ? nowUNIX : null),
+        timestamp: getWithDefault(settings?.activity?.created?.timestamp, now, defaults),
+        timestampUNIX: getWithDefault(settings?.activity?.created?.timestampUNIX, nowUNIX, defaults),
       },
       geolocation: {
-        ip: _.get(settings, 'activity.geolocation.ip', defaults ? '' : null),
-        continent: _.get(settings, 'activity.geolocation.continent', defaults ? '' : null),
-        country: _.get(settings, 'activity.geolocation.country', defaults ? '' : null),
-        region: _.get(settings, 'activity.geolocation.region', defaults ? '' : null),
-        city: _.get(settings, 'activity.geolocation.city', defaults ? '' : null),
-        latitude: _.get(settings, 'activity.geolocation.latitude', defaults ? 0 : null),
-        longitude: _.get(settings, 'activity.geolocation.longitude', defaults ? 0 : null),
+        ip: getWithDefault(settings?.activity?.geolocation?.ip, '', defaults),
+        continent: getWithDefault(settings?.activity?.geolocation?.continent, '', defaults),
+        country: getWithDefault(settings?.activity?.geolocation?.country, '', defaults),
+        region: getWithDefault(settings?.activity?.geolocation?.region, '', defaults),
+        city: getWithDefault(settings?.activity?.geolocation?.city, '', defaults),
+        latitude: getWithDefault(settings?.activity?.geolocation?.latitude, 0, defaults),
+        longitude: getWithDefault(settings?.activity?.geolocation?.longitude, 0, defaults),
       },
       client: {
-        userAgent: _.get(settings, 'activity.client.userAgent', defaults ? '' : null),
-        language: _.get(settings, 'activity.client.language', defaults ? '' : null),
-        platform: _.get(settings, 'activity.client.platform', defaults ? '' : null),
-        mobile: _.get(settings, 'activity.client.mobile', defaults ? null : null),
+        language: getWithDefault(settings?.activity?.client?.language, '', defaults),
+        mobile: getWithDefault(settings?.activity?.client?.mobile, false, defaults),
+        device: getWithDefault(settings?.activity?.client?.device, '', defaults),
+        platform: getWithDefault(settings?.activity?.client?.platform, '', defaults),
+        browser: getWithDefault(settings?.activity?.client?.browser, '', defaults),
+        vendor: getWithDefault(settings?.activity?.client?.vendor, '', defaults),
+        runtime: getWithDefault(settings?.activity?.client?.runtime, '', defaults),
+        userAgent: getWithDefault(settings?.activity?.client?.userAgent, '', defaults),
+        url: getWithDefault(settings?.activity?.client?.url, '', defaults),
       },
     },
     api: {
-      clientId: _.get(settings, 'api.clientId', defaults ? `${uuid4()}` : null),
-      privateKey: _.get(settings, 'api.privateKey', defaults ? `${uidgen.generateSync()}` : null),
+      clientId: getWithDefault(settings?.api?.clientId, `${uuid4()}`, defaults),
+      privateKey: getWithDefault(settings?.api?.privateKey, `${uidgen.generateSync()}`, defaults),
     },
     usage: {
       requests: {
-        period: _.get(settings, 'usage.requests.period', defaults ? 0 : null),
-        total: _.get(settings, 'usage.requests.total', defaults ? 0 : null),
+        period: getWithDefault(settings?.usage?.requests?.period, 0, defaults),
+        total: getWithDefault(settings?.usage?.requests?.total, 0, defaults),
         last: {
-          id: _.get(settings, 'usage.requests.last.id', defaults ? '' : null),
-          timestamp: _.get(settings, 'usage.requests.last.timestamp', defaults ? oldDate : null),
-          timestampUNIX: _.get(settings, 'usage.requests.last.timestampUNIX', defaults ? oldDateUNIX : null),
+          id: getWithDefault(settings?.usage?.requests?.last?.id, '', defaults),
+          timestamp: getWithDefault(settings?.usage?.requests?.last?.timestamp, oldDate, defaults),
+          timestampUNIX: getWithDefault(settings?.usage?.requests?.last?.timestampUNIX, oldDateUNIX, defaults),
         },
       },
     },
     personal: {
       birthday: {
-        timestamp: _.get(settings, 'personal.birthday.timestamp', defaults ? oldDate : null),
-        timestampUNIX: _.get(settings, 'personal.birthday.timestampUNIX', defaults ? oldDateUNIX : null),
+        timestamp: getWithDefault(settings?.personal?.birthday?.timestamp, oldDate, defaults),
+        timestampUNIX: getWithDefault(settings?.personal?.birthday?.timestampUNIX, oldDateUNIX, defaults),
       },
-      gender: _.get(settings, 'personal.gender', defaults ? '' : null),
+      gender: getWithDefault(settings?.personal?.gender, '', defaults),
       location: {
-        country: _.get(settings, 'personal.location.country', defaults ? '' : null),
-        region: _.get(settings, 'personal.location.region', defaults ? '' : null),
-        city: _.get(settings, 'personal.location.city', defaults ? '' : null),
+        country: getWithDefault(settings?.personal?.location?.country, '', defaults),
+        region: getWithDefault(settings?.personal?.location?.region, '', defaults),
+        city: getWithDefault(settings?.personal?.location?.city, '', defaults),
       },
       name: {
-        first: _.get(settings, 'personal.name.first', defaults ? '' : null),
-        last: _.get(settings, 'personal.name.last', defaults ? '' : null),
+        first: getWithDefault(settings?.personal?.name?.first, '', defaults),
+        last: getWithDefault(settings?.personal?.name?.last, '', defaults),
       },
       company: {
-        name: _.get(settings, 'personal.company.name', defaults ? '' : null),
-        position: _.get(settings, 'personal.company.position', defaults ? '' : null),
+        name: getWithDefault(settings?.personal?.company?.name, '', defaults),
+        position: getWithDefault(settings?.personal?.company?.position, '', defaults),
       },
       telephone: {
-        countryCode: _.get(settings, 'personal.telephone.countryCode', defaults ? 0 : null),
-        national: _.get(settings, 'personal.telephone.national', defaults ? 0 : null),
+        countryCode: getWithDefault(settings?.personal?.telephone?.countryCode, 0, defaults),
+        national: getWithDefault(settings?.personal?.telephone?.national, 0, defaults),
       },
     },
     oauth2: {
       // updated: {
-      //   timestamp: _.get(settings, 'oauth2.updated.timestamp', defaults ? oldDate : null),
-      //   timestampUNIX: _.get(settings, 'oauth2.updated.timestampUNIX', defaults ? oldDateUNIX : null),
+      //   timestamp: getWithDefault(settings?.oauth2?.updated?.timestamp, oldDate, defaults),
+      //   timestampUNIX: getWithDefault(settings?.oauth2?.updated?.timestampUNIX, oldDateUNIX, defaults),
       // },
     },
   }
@@ -157,8 +175,8 @@ function User(Manager, settings, options) {
   self.resolve = function (options) {
     options = options || {};
     options.defaultPlan = options.defaultPlan || 'basic';
-    const planId = _.get(self.properties, 'plan.id', options.defaultPlan);
-    const premiumExpire = _.get(self.properties, 'plan.expires.timestamp', 0);
+    const planId = self.properties?.plan?.id ?? options.defaultPlan;
+    const premiumExpire = self.properties?.plan?.expires?.timestamp ?? 0;
 
     let difference = ((new Date(premiumExpire).getTime() - new Date().getTime())/(24*3600*1000));
     // console.log('---difference', difference);
