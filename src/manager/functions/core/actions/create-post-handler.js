@@ -4,7 +4,6 @@ let os;
 // let JSON5;
 const fetch = require('node-fetch');
 const Mailchimp = require('mailchimp-api-v3');
-const { merge } = require('lodash');
 
 let Module = {
   init: async function (Manager, data) {
@@ -52,19 +51,21 @@ let Module = {
         assistant.error(response.error)
       } else {
         mailchimp = new Mailchimp(self.Manager.config?.mailchimp?.key ?? '');
-        await fetch(`https://us-central1-${self.Manager.project.projectId}.cloudfunctions.net/bm_sendNotification`, {
+        await fetch(`${self.Manager.project.apiUrl}/backend-manager`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(merge({}, {
-              payload: {
+          response: 'json',
+          body: {
+            backendManagerKey: process.env.BACKEND_MANAGER_KEY,
+            command: 'admin:send-notification',
+            payload: {
+              notification: {
                 title: 'New blog post!',
-                click_action: assistant.request.data.url,
+                clickAction: assistant.request.data.url,
                 body: `"${assistant.request.data.title}" was just published on our blog. It's a great read and we think you'll enjoy the content!`,
                 icon: assistant.request.data.imageUrl,
-              }
+              },
             },
-            assistant.request.data
-          )),
+          },
         })
         .then(res => {
           if (res.status >= 200 && res.status < 300) {

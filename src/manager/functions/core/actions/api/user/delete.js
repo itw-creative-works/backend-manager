@@ -27,7 +27,7 @@ Module.prototype.main = function () {
 
       // Signout of all sessions
       assistant.log(`Signout of all sessions...`);
-      await fetch(`https://us-central1-${self.Manager.project.projectId}.cloudfunctions.net/bm_api`, {
+      await fetch(`${self.Manager.project.apiUrl}/backend-manager`, {
         method: 'post',
         timeout: 30000,
         response: 'json',

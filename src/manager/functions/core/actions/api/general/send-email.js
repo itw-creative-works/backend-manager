@@ -82,12 +82,16 @@ Module.prototype.main = function () {
     // Log the email payload
     assistant.log('Email payload:', emailPayload);
 
-    // Send the email
-    await fetch(`https://us-central1-itw-creative-works.cloudfunctions.net/sendEmail`, {
+    // Send the email via admin:send-email
+    await fetch(`${Manager.project.apiUrl}/backend-manager`, {
       method: 'post',
       response: 'json',
       log: true,
-      body: emailPayload.payload,
+      body: {
+        backendManagerKey: process.env.BACKEND_MANAGER_KEY,
+        command: 'admin:send-email',
+        payload: emailPayload.payload,
+      },
     })
     .then(async (json) => {
       assistant.log('Response:', json);

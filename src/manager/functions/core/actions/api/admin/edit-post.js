@@ -100,7 +100,7 @@ Module.prototype.fetchPost = function (url) {
   const payload = self.payload;
 
   return new Promise(async function(resolve, reject) {
-    fetch(`${Manager.project.functionsUrl}/bm_api`, {
+    fetch(`${Manager.project.apiUrl}/backend-manager`, {
       method: 'post',
       response: 'json',
       timeout: 190000,

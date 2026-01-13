@@ -44,7 +44,7 @@ Module.prototype.main = function () {
         : payload.data.payload.referrer
 
       payload.data.payload.serverUrl = typeof payload.data.payload.serverUrl === 'undefined'
-        ? (assistant.isDevelopment() ? `${Manager.project.functionsUrl}/bm_api` : `${Manager.project.functionsUrl}/bm_api`)
+        ? `${Manager.project.apiUrl}/backend-manager`
         : payload.data.payload.serverUrl
 
       payload.data.payload.provider = payload.data.payload.provider || '';

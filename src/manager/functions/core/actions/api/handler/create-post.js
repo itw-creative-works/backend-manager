@@ -115,7 +115,7 @@ Module.prototype.main = function () {
 
     // Send notification
     if (payload.data.payload.sendNotification !== false) {
-      const sentNotification = fetch(`https://us-central1-${Manager.project.projectId}.cloudfunctions.net/bm_api`, {
+      const sentNotification = fetch(`${Manager.project.apiUrl}/backend-manager`, {
         method: 'POST',
         response: 'json',
         body: {
