@@ -9,6 +9,30 @@ const { DEFAULT_EMULATOR_PORTS } = require('./setup-tests/emulators-config');
 
 class EmulatorsCommand extends BaseCommand {
   async execute() {
+    this.log(chalk.cyan('\n  Starting Firebase emulators (keep-alive mode)...\n'));
+    this.log(chalk.gray('  Emulators will stay running until you press Ctrl+C\n'));
+
+    // Start BEM watcher in background
+    const watcher = new WatchCommand(this.main);
+    watcher.startBackground();
+
+    // Run emulators with keep-alive command (use single quotes since runWithEmulators wraps in double quotes)
+    const keepAliveCommand = "echo ''; echo 'Emulators ready. Press Ctrl+C to shut down...'; sleep 86400";
+
+    try {
+      await this.runWithEmulators(keepAliveCommand);
+    } catch (error) {
+      // User pressed Ctrl+C - this is expected
+      this.log(chalk.gray('\n  Emulators stopped.\n'));
+    }
+  }
+
+  /**
+   * Run a command with Firebase emulators
+   * @param {string} command - The command to execute inside emulators:exec
+   * @returns {Promise<void>}
+   */
+  async runWithEmulators(command) {
     const projectDir = this.main.firebaseProjectPath;
 
     // Load emulator ports from firebase.json
@@ -17,29 +41,18 @@ class EmulatorsCommand extends BaseCommand {
     // Check for port conflicts before starting emulators
     const canProceed = await this.checkAndKillBlockingProcesses(emulatorPorts);
     if (!canProceed) {
-      return;
+      throw new Error('Port conflicts could not be resolved');
     }
 
-    this.log(chalk.cyan('\n  Starting Firebase emulators (keep-alive mode)...\n'));
-    this.log(chalk.gray('  Emulators will stay running until you press Ctrl+C\n'));
-
-    // Start BEM watcher in background
-    const watcher = new WatchCommand(this.main);
-    watcher.startBackground();
-
-    // Start emulators with a long-running command to keep them alive
     // BEM_TESTING=true is passed so Functions skip external API calls (emails, SendGrid)
-    const emulatorsCommand = `BEM_TESTING=true firebase emulators:exec --only functions,firestore,auth,database --ui 'echo ""; echo "Emulators ready. Press Ctrl+C to shut down..."; sleep 86400'`;
+    // hosting is included so localhost:5002 rewrites work (e.g., /backend-manager -> bm_api)
+    // Use double quotes for command wrapper since the command may contain single quotes (JSON strings)
+    const emulatorsCommand = `BEM_TESTING=true firebase emulators:exec --only functions,firestore,auth,database,hosting --ui "${command}"`;
 
-    try {
-      await powertools.execute(emulatorsCommand, {
-        log: true,
-        cwd: projectDir,
-      });
-    } catch (error) {
-      // User pressed Ctrl+C - this is expected
-      this.log(chalk.gray('\n  Emulators stopped.\n'));
-    }
+    await powertools.execute(emulatorsCommand, {
+      log: true,
+      cwd: projectDir,
+    });
   }
 
   /**

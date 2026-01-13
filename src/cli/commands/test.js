@@ -5,6 +5,7 @@ const jetpack = require('fs-jetpack');
 const JSON5 = require('json5');
 const powertools = require('node-powertools');
 const { DEFAULT_EMULATOR_PORTS } = require('./setup-tests/emulators-config');
+const EmulatorsCommand = require('./emulators');
 
 class TestCommand extends BaseCommand {
   async execute() {
@@ -47,7 +48,7 @@ class TestCommand extends BaseCommand {
       await this.runTestsDirectly(testCommand, functionsDir, emulatorPorts);
     } else {
       this.log(chalk.cyan('Starting emulators and running tests...'));
-      await this.runEmulatorTests(testCommand, projectDir, emulatorPorts);
+      await this.runEmulatorTests(testCommand);
     }
   }
 
@@ -141,8 +142,9 @@ class TestCommand extends BaseCommand {
     const testScriptPath = path.join(__dirname, '..', '..', 'test', 'run-tests.js');
 
     // Pass entire config as JSON, plus emulator hosts
+    // Escape double quotes in JSON for shell compatibility when wrapped in double quotes by emulators:exec
     const testEnv = {
-      BEM_TEST_CONFIG: JSON.stringify(testConfig),
+      BEM_TEST_CONFIG: JSON.stringify(testConfig).replace(/"/g, '\\"'),
       FIRESTORE_EMULATOR_HOST: `127.0.0.1:${testConfig.emulatorPorts.firestore}`,
       FIREBASE_AUTH_EMULATOR_HOST: `127.0.0.1:${testConfig.emulatorPorts.auth}`,
     };
@@ -185,23 +187,14 @@ class TestCommand extends BaseCommand {
   /**
    * Run tests with Firebase emulators (starts emulators, runs tests, shuts down)
    */
-  async runEmulatorTests(testCommand, projectDir, emulatorPorts) {
-    // Check for port conflicts before starting emulators
-    const canProceed = await this.checkAndKillBlockingProcesses(emulatorPorts);
-    if (!canProceed) {
-      return;
-    }
-
+  async runEmulatorTests(testCommand) {
     this.log(chalk.gray('  Starting Firebase emulators...\n'));
 
-    // BEM_TESTING=true is passed to the emulator so Functions can skip external API calls (emails, SendGrid)
-    const emulatorsCommand = `BEM_TESTING=true firebase emulators:exec --only functions,firestore,auth,database --ui '${testCommand}'`;
+    // Use EmulatorsCommand to run tests with emulators
+    const emulatorsCmd = new EmulatorsCommand(this.main);
 
     try {
-      await powertools.execute(emulatorsCommand, {
-        log: true,
-        cwd: projectDir,
-      });
+      await emulatorsCmd.runWithEmulators(testCommand);
     } catch (error) {
       // Only exit with error if it wasn't a user-initiated exit
       if (error.code !== 0) {
