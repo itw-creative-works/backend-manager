@@ -66,4 +66,4 @@ node_modules/
 .env
 
 # Custom
-/old/
+_backup
