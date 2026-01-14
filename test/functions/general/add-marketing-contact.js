@@ -367,13 +367,6 @@ module.exports = {
         });
 
         assert.isSuccess(response, 'Remove marketing contact should succeed');
-
-        // Log cleanup results
-        const providers = response.data?.providers || {};
-        console.log(`Cleaned up ${testEmail}:`, {
-          sendgrid: providers.sendgrid?.success ? 'deleted' : (providers.sendgrid?.skipped ? 'skipped' : 'error'),
-          beehiiv: providers.beehiiv?.deleted ? 'deleted' : (providers.beehiiv?.skipped ? 'skipped' : 'error'),
-        });
       },
     },
   ],
