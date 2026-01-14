@@ -21,7 +21,7 @@ Module.prototype.main = function () {
 
     // Initialize SendGrid
     const sendgrid = Manager.require('@sendgrid/mail');
-    sendgrid.setApiKey(process.env.SENDGRID_SECRET);
+    sendgrid.setApiKey(process.env.SENDGRID_API_KEY);
     self.sendgrid = sendgrid;
 
     // Check if user is admin
@@ -30,7 +30,7 @@ Module.prototype.main = function () {
     }
 
     // Check for SendGrid key
-    if (!process.env.SENDGRID_SECRET) {
+    if (!process.env.SENDGRID_API_KEY) {
       return reject(assistant.errorify(`SendGrid API key not configured.`, { code: 500 }));
     }
 
@@ -265,7 +265,7 @@ Module.prototype.defaultize = function () {
       response: 'json',
       timeout: 60000,
       headers: {
-        'Authorization': `Bearer ${process.env.SENDGRID_SECRET}`,
+        'Authorization': `Bearer ${process.env.SENDGRID_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: {

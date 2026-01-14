@@ -32,6 +32,7 @@ class TestCommand extends BaseCommand {
     const testConfig = {
       ...projectConfig,
       functionsUrl: `http://127.0.0.1:${emulatorPorts.functions}/${projectConfig.projectId}/us-central1`,
+      apiUrl: `http://127.0.0.1:${emulatorPorts.hosting}`,
       projectDir,
       testPaths,
       emulatorPorts,
@@ -104,6 +105,7 @@ class TestCommand extends BaseCommand {
     const projectId = config.firebaseConfig?.projectId;
     const backendManagerKey = argv.key || process.env.BACKEND_MANAGER_KEY;
     const appId = config.brand?.id;
+    const brandName = config.brand?.name;
     const githubRepoWebsite = config.github?.repo_website;
 
     // Extract domain from brand.contact.email (e.g., 'support@example.com' -> 'example.com')
@@ -132,7 +134,7 @@ class TestCommand extends BaseCommand {
       return null;
     }
 
-    return { appId, projectId, backendManagerKey, domain, githubRepoWebsite };
+    return { appId, projectId, backendManagerKey, domain, brandName, githubRepoWebsite };
   }
 
   /**
@@ -141,10 +143,9 @@ class TestCommand extends BaseCommand {
   buildTestCommand(testConfig) {
     const testScriptPath = path.join(__dirname, '..', '..', 'test', 'run-tests.js');
 
-    // Pass entire config as JSON, plus emulator hosts
-    // Escape double quotes in JSON for shell compatibility when wrapped in double quotes by emulators:exec
+    // Pass entire config as base64-encoded JSON to avoid shell escaping issues
     const testEnv = {
-      BEM_TEST_CONFIG: JSON.stringify(testConfig).replace(/"/g, '\\"'),
+      BEM_TEST_CONFIG: Buffer.from(JSON.stringify(testConfig)).toString('base64'),
       FIRESTORE_EMULATOR_HOST: `127.0.0.1:${testConfig.emulatorPorts.firestore}`,
       FIREBASE_AUTH_EMULATOR_HOST: `127.0.0.1:${testConfig.emulatorPorts.auth}`,
     };

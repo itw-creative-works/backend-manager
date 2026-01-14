@@ -21,6 +21,7 @@ module.exports = {
   description: 'Admin write content to GitHub repo',
   type: 'suite',
   timeout: 120000,
+  skip: !process.env.TEST_EXTENDED_MODE ? 'TEST_EXTENDED_MODE env var not set (skipping GitHub write tests)' : false,
 
   tests: [
     // Test 1: Missing path returns 400 error

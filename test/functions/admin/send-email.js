@@ -3,7 +3,7 @@
  * Tests the admin send email command
  * Requires admin authentication and SendGrid API key configured
  *
- * To test with SendGrid, set SENDGRID_SECRET environment variable.
+ * To test with SendGrid, set SENDGRID_API_KEY environment variable.
  * Tests will be skipped if SendGrid is not configured.
  *
  * Possible status values:
@@ -14,7 +14,7 @@
 module.exports = {
   description: 'Admin send email',
   type: 'group',
-  skip: !process.env.TEST_SENDGRID_SEND ? 'TEST_SENDGRID_SEND env var not set (skipping email tests)' : false,
+  skip: !process.env.TEST_EXTENDED_MODE ? 'TEST_EXTENDED_MODE env var not set (skipping email tests)' : false,
   tests: [
     // Test 1: Missing subject returns 400 error
     {

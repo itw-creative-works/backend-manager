@@ -100,17 +100,28 @@ Module.prototype.main = function () {
       return resolve(self);
     }
 
-    // Send emails in dev/production, or in test mode if TEST_SENDGRID_SEND=true
-    // Node: Must be passed to the emulator
-    const shouldSendEmails = !assistant.isTesting() || process.env.TEST_SENDGRID_SEND;
+    // Send emails in dev/production, or in test mode if TEST_EXTENDED_MODE=true
+    // Note: Must be passed to the emulator
+    const shouldSendEmails = !assistant.isTesting() || process.env.TEST_EXTENDED_MODE;
 
     if (!shouldSendEmails) {
-      assistant.log(`onCreate: Skipping emails/SendGrid (BEM_TESTING=true, TEST_SENDGRID_SEND not set)`);
+      assistant.log(`onCreate: Skipping emails/SendGrid (BEM_TESTING=true, TEST_EXTENDED_MODE not set)`);
     } else {
       assistant.log(`onCreate: Sending emails/adding to SendGrid for ${user.uid}`);
 
-      // Add to SendGrid marketing list (non-blocking)
-      self.addToSendGridList().catch(e => assistant.error('onCreate: addToSendGridList failed:', e));
+      // Add to marketing lists (SendGrid + Beehiiv) via centralized endpoint
+      fetch(`${Manager.project.apiUrl}/backend-manager`, {
+        method: 'post',
+        response: 'json',
+        body: {
+          backendManagerKey: process.env.BACKEND_MANAGER_KEY,
+          command: 'general:add-marketing-contact',
+          payload: {
+            email: user.email,
+            source: 'auth:on-create',
+          },
+        },
+      }).catch(e => assistant.error('onCreate: add-marketing-contact failed:', e));
 
       // Send welcome emails (non-blocking, don't fail on error)
       self.sendWelcomeEmail().catch(e => assistant.error('onCreate: sendWelcomeEmail failed:', e));
@@ -150,47 +161,6 @@ Module.prototype.retryBatchWrite = async function (fn, maxRetries, delayMs) {
   }
 
   throw lastError; // All retries failed
-};
-
-/**
- * Add user to SendGrid marketing list
- */
-Module.prototype.addToSendGridList = function () {
-  const self = this;
-
-  return new Promise(async function(resolve, reject) {
-    const Manager = self.Manager;
-    const assistant = self.assistant;
-    const user = self.user;
-
-    if (!user.email) {
-      return reject(new Error('Cannot add user to SendGrid list without email.'));
-    }
-
-    fetch('https://api.itwcreativeworks.com/wrapper', {
-      method: 'post',
-      response: 'json',
-      body: {
-        backendManagerKey: process.env.BACKEND_MANAGER_KEY,
-        service: 'sendgrid',
-        command: 'v3/marketing/contacts',
-        method: 'put',
-        supplemental: {
-          app: Manager.config.app.id,
-          source: 'backend-manager:auth:on-create',
-          user: { auth: { uid: user.uid, email: user.email } },
-        },
-      },
-    })
-    .then((r) => {
-      assistant.log('addToSendGridList(): Success', r);
-      return resolve(r);
-    })
-    .catch((e) => {
-      assistant.error('addToSendGridList(): Failed', e);
-      return reject(e);
-    });
-  });
 };
 
 /**

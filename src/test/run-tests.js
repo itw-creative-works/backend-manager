@@ -9,8 +9,11 @@
 const TestRunner = require('./runner.js');
 
 async function main() {
-  // Parse config from single env var
-  const testConfig = JSON.parse(process.env.BEM_TEST_CONFIG || '{}');
+  // Parse config from base64-encoded env var
+  const configBase64 = process.env.BEM_TEST_CONFIG || '';
+  const testConfig = configBase64
+    ? JSON.parse(Buffer.from(configBase64, 'base64').toString('utf8'))
+    : {};
 
   // Initialize Firebase Admin with emulator settings
   let admin = null;

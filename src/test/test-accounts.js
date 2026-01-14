@@ -384,6 +384,65 @@ const TEST_DATA = {
   defaultProjectId: 'demo-test',
 };
 
+/**
+ * Clean up test accounts from marketing providers (SendGrid + Beehiiv)
+ * Called after account setup when TEST_EXTENDED_MODE is set to remove
+ * contacts added by auth:on-create
+ * @param {string} domain - Domain for email addresses
+ * @param {object} options - Options with apiUrl and backendManagerKey
+ * @returns {Promise<object>} Result with cleaned count
+ */
+async function cleanupMarketingProviders(domain, options = {}) {
+  const fetch = require('wonderful-fetch');
+  const results = { cleaned: 0, errors: [] };
+
+  const { apiUrl, backendManagerKey } = options;
+  if (!apiUrl || !backendManagerKey) {
+    console.error('cleanupMarketingProviders: Missing apiUrl or backendManagerKey');
+    return results;
+  }
+
+  // Get all test account emails (test contacts like rachel.greene+bem cleaned up by their own tests)
+  const definitions = getAccountDefinitions(domain);
+  const emails = Object.values(definitions).map(acc => acc.email);
+
+  // Clean up each email via the API endpoint (uses hosting port 5002)
+  await Promise.all(
+    emails.map(async (email) => {
+      try {
+        const response = await fetch(`${apiUrl}/backend-manager`, {
+          method: 'post',
+          response: 'json',
+          timeout: 30000,
+          body: {
+            backendManagerKey,
+            command: 'general:remove-marketing-contact',
+            payload: { email },
+          },
+        });
+
+        // Log the result for debugging
+        if (response.providers?.beehiiv?.deleted) {
+          results.cleaned++;
+        } else if (response.providers?.beehiiv?.skipped) {
+          // Skipped means not found - that's fine
+          results.cleaned++;
+        } else if (response.providers?.beehiiv?.error) {
+          console.error(`Failed to delete ${email} from Beehiiv:`, response.providers.beehiiv.error);
+          results.errors.push({ email, error: response.providers.beehiiv.error });
+        } else {
+          results.cleaned++;
+        }
+      } catch (error) {
+        console.error(`Failed to cleanup ${email}:`, error.message);
+        results.errors.push({ email, error: error.message });
+      }
+    })
+  );
+
+  return results;
+}
+
 module.exports = {
   STATIC_ACCOUNTS,
   JOURNEY_ACCOUNTS,
@@ -393,4 +452,5 @@ module.exports = {
   fetchPrivateKeys,
   deleteTestUsers,
   ensureAccountsExist,
+  cleanupMarketingProviders,
 };

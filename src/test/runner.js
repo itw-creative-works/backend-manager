@@ -8,6 +8,16 @@ const testAccounts = require('./test-accounts.js');
 const rulesClient = require('./utils/firestore-rules-client.js');
 
 /**
+ * Error class for runtime test skipping
+ */
+class SkipError extends Error {
+  constructor(reason) {
+    super(reason);
+    this.name = 'SkipError';
+  }
+}
+
+/**
  * BEM Integration Test Runner
  * Supports standalone tests and test suites with sequential tests and shared state
  */
@@ -91,6 +101,18 @@ class TestRunner {
     // Cleanup rules context
     if (this.rulesContext) {
       await this.rulesContext.cleanup();
+    }
+
+    // Clean up test accounts from marketing providers (SendGrid/Beehiiv)
+    // Run at end of tests so auth:on-create has time to complete
+    if (process.env.TEST_EXTENDED_MODE) {
+      console.log('');
+      process.stdout.write(chalk.gray('  Cleaning test accounts from marketing providers... '));
+      const cleanupResult = await testAccounts.cleanupMarketingProviders(this.options.domain, {
+        apiUrl: this.options.apiUrl,
+        backendManagerKey: this.options.backendManagerKey,
+      });
+      console.log(chalk.green(`✓ (${cleanupResult.cleaned} cleaned)`));
     }
 
     // Report results
@@ -434,6 +456,24 @@ class TestRunner {
         }
       } catch (error) {
         const duration = Date.now() - startTime;
+
+        // Check for runtime skip (test called skip())
+        if (error.name === 'SkipError') {
+          const skipReason = error.message;
+          console.log(chalk.yellow(`      ○ ${testName}`) + chalk.gray(` (skipped: ${skipReason})`));
+
+          this.results.skipped++;
+          this.results.tests.push({
+            path: `${relativePath}:${testName}`,
+            description: testName,
+            skipped: true,
+            skipReason,
+            duration,
+            suite: suiteDescription,
+          });
+          continue;
+        }
+
         console.log(chalk.red(`      ✗ ${testName}`) + chalk.gray(` (${duration}ms)`));
         console.log(chalk.red(`        ${error.message}`));
 
@@ -514,6 +554,23 @@ class TestRunner {
       }
     } catch (error) {
       const duration = Date.now() - startTime;
+
+      // Check for runtime skip (test called skip())
+      if (error.name === 'SkipError') {
+        const skipReason = error.message;
+        console.log(chalk.yellow(`    ○ ${description}`) + chalk.gray(` (skipped: ${skipReason})`));
+
+        this.results.skipped++;
+        this.results.tests.push({
+          path: relativePath,
+          description,
+          skipped: true,
+          skipReason,
+          duration,
+        });
+        return;
+      }
+
       console.log(chalk.red(`    ✗ ${description}`) + chalk.gray(` (${duration}ms)`));
       console.log(chalk.red(`      ${error.message}`));
 
@@ -577,6 +634,11 @@ class TestRunner {
     // Create waitFor helper
     const waitFor = this.createWaitFor();
 
+    // Skip function for runtime skipping
+    const skip = (reason) => {
+      throw new SkipError(reason);
+    };
+
     return {
       http,
       accounts: this.accounts,
@@ -584,6 +646,7 @@ class TestRunner {
       state: state || {},
       firestore,
       waitFor,
+      skip,
       admin: this.config.admin,
       rules: this.rulesContext,
       config: this.config,

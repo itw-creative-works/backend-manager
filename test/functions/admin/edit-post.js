@@ -40,6 +40,7 @@ module.exports = {
   description: 'Admin edit post on GitHub',
   type: 'suite',
   timeout: 300000, // 5 minutes total for the suite
+  skip: !process.env.TEST_EXTENDED_MODE ? 'TEST_EXTENDED_MODE env var not set (skipping GitHub edit tests)' : false,
 
   tests: [
     // Test 1: Missing URL returns 400 error
