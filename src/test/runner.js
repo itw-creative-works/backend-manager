@@ -65,8 +65,9 @@ class TestRunner {
     }
 
     // Health check (use basic http client without accounts)
+    // Use hosting URL for all requests (rewrites to bm_api function)
     const healthHttp = new HttpClient({
-      functionsUrl: this.options.functionsUrl,
+      hostingUrl: this.options.hostingUrl,
       timeout: this.options.timeout,
     });
 
@@ -126,9 +127,9 @@ class TestRunner {
    * Validate configuration
    */
   validateConfig() {
-    if (!this.options.functionsUrl) {
-      console.log(chalk.red('  ✗ Missing functionsUrl'));
-      console.log(chalk.gray('    Set BEM_FUNCTIONS_URL environment variable or pass --url flag'));
+    if (!this.options.hostingUrl) {
+      console.log(chalk.red('  ✗ Missing hostingUrl'));
+      console.log(chalk.gray('    Set BEM_HOSTING_URL environment variable or pass --url flag'));
       return false;
     }
 
@@ -169,7 +170,7 @@ class TestRunner {
 
       console.log(chalk.red('✗'));
       console.log(chalk.red(`  Server not responding: ${response.error}`));
-      console.log(chalk.gray(`  Make sure your functions are deployed and running at ${this.options.functionsUrl}`));
+      console.log(chalk.gray(`  Make sure your functions are deployed and running at ${this.options.hostingUrl}`));
       return false;
     } catch (error) {
       console.log(chalk.red('✗'));
@@ -270,6 +271,11 @@ class TestRunner {
     for (const item of items) {
       // Skip _legacy directory
       if (item === '_legacy') {
+        continue;
+      }
+
+      // Skip legacy 'functions' directory unless --legacy flag is set
+      if (item === 'functions' && !this.options.includeLegacy) {
         continue;
       }
 
@@ -592,8 +598,9 @@ class TestRunner {
    */
   createContext(auth, state) {
     // Create HTTP client with accounts for as() method
+    // Use hosting URL for all requests (rewrites to bm_api function)
     const http = new HttpClient({
-      functionsUrl: this.options.functionsUrl,
+      hostingUrl: this.options.hostingUrl,
       timeout: this.options.timeout,
       accounts: this.accounts,
       backendManagerKey: this.options.backendManagerKey,

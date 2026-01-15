@@ -1,21 +1,8 @@
-function Route() {
-  const self = this;
+const jetpack = require('fs-jetpack');
 
-  return self;
-}
-
-Route.prototype.main = async function (assistant) {
-  const self = this;
-
-  // Shortcuts
-  const Manager = assistant.Manager;
-  const usage = assistant.usage;
+module.exports = async (assistant) => {
   const user = assistant.usage.user;
   const analytics = assistant.analytics;
-  const settings = assistant.settings;
-
-  // Load preloaded libraries
-  const jetpack = require('fs-jetpack');
 
   // Send analytics event
   analytics.event({
@@ -23,9 +10,14 @@ Route.prototype.main = async function (assistant) {
     params: {},
   });
 
-  // Check for user authentication
+  // Require authentication
+  if (!user.authenticated) {
+    return assistant.respond('Authentication required', { code: 401 });
+  }
+
+  // Require admin
   if (!user.roles.admin) {
-    return assistant.respond(`Admin required`, {code: 401});;
+    return assistant.respond('Admin required', { code: 403 });
   }
 
   // Log
@@ -46,7 +38,5 @@ Route.prototype.main = async function (assistant) {
   }, 1000);
 
   // Return success
-  assistant.respond({success: true});
+  return assistant.respond({success: true});
 };
-
-module.exports = Route;

@@ -151,7 +151,7 @@ module.exports = {
           document: { test: 'should-fail' },
         });
 
-        assert.isError(writeResponse, 401, 'Database write should fail for non-admin user');
+        assert.isError(writeResponse, 403, 'Database write should fail for non-admin user');
       },
     },
 

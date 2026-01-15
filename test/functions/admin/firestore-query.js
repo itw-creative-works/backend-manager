@@ -199,7 +199,7 @@ module.exports = {
           queries: [{ collection: TEST_COLLECTION }],
         });
 
-        assert.isError(queryResponse, 401, 'Query should fail for non-admin user');
+        assert.isError(queryResponse, 403, 'Query should fail for non-admin user');
       },
     },
 

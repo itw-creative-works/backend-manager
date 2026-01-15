@@ -1,9 +1,9 @@
 /**
- * Test: UUID Generation
- * Tests the general:generate-uuid command for both v4 and v5 UUIDs
+ * Test: UUID Generation (Legacy Command)
+ * Tests the legacy command-style API for backwards compatibility
  */
 module.exports = {
-  description: 'UUID generation',
+  description: 'UUID generation (legacy)',
   type: 'group',
   tests: [
     {

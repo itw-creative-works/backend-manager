@@ -126,7 +126,7 @@ module.exports = {
           path: TEST_PATH,
         });
 
-        assert.isError(readResponse, 401, 'Database read should fail for non-admin user');
+        assert.isError(readResponse, 403, 'Database read should fail for non-admin user');
       },
     },
 

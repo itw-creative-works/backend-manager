@@ -201,7 +201,7 @@ module.exports = {
           },
         });
 
-        assert.isError(response, 401, 'Send notification should fail for non-admin user');
+        assert.isError(response, 403, 'Send notification should fail for non-admin user');
       },
     },
   ],

@@ -107,7 +107,7 @@ module.exports = {
           document: { test: 'should-fail' },
         });
 
-        assert.isError(writeResponse, 401, 'Firestore write should fail for non-admin user');
+        assert.isError(writeResponse, 403, 'Firestore write should fail for non-admin user');
 
         return { success: true };
       },

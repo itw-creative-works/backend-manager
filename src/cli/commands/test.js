@@ -29,13 +29,14 @@ class TestCommand extends BaseCommand {
     }
 
     // Build unified test config object
+    // Use hosting URL for all API requests (rewrites to bm_api function)
     const testConfig = {
       ...projectConfig,
-      functionsUrl: `http://127.0.0.1:${emulatorPorts.functions}/${projectConfig.projectId}/us-central1`,
-      apiUrl: `http://127.0.0.1:${emulatorPorts.hosting}`,
+      hostingUrl: `http://127.0.0.1:${emulatorPorts.hosting}`,
       projectDir,
       testPaths,
       emulatorPorts,
+      includeLegacy: argv.legacy || false, // Include legacy tests from test/functions/
     };
 
     // Build the test command
@@ -170,7 +171,7 @@ class TestCommand extends BaseCommand {
    * Run tests directly (emulators already running)
    */
   async runTestsDirectly(testCommand, functionsDir, emulatorPorts) {
-    this.log(chalk.gray(`  Functions: http://127.0.0.1:${emulatorPorts.functions}`));
+    this.log(chalk.gray(`  Hosting: http://127.0.0.1:${emulatorPorts.hosting}`));
     this.log(chalk.gray(`  Firestore: 127.0.0.1:${emulatorPorts.firestore}`));
     this.log(chalk.gray(`  Auth: 127.0.0.1:${emulatorPorts.auth}`));
     this.log(chalk.gray(`  UI: http://127.0.0.1:${emulatorPorts.ui}\n`));

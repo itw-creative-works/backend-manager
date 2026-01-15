@@ -144,7 +144,7 @@ module.exports = {
           content: 'Test content',
         });
 
-        assert.isError(response, 401, 'Write repo content should fail for non-admin user');
+        assert.isError(response, 403, 'Write repo content should fail for non-admin user');
       },
     },
 

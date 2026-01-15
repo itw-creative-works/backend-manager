@@ -187,16 +187,9 @@ function iterateSchema(schema, fn, path) {
 }
 
 function loadSchema(assistant, schemaPath, settings, options) {
-  // Get plan ID
-  const planId = options?.user?.plan?.id || 'basic';
-
-  // Load schema
-  const lib = require(schemaPath)(assistant, settings, options);
-  const def = lib.defaults;
-  const plan = lib[planId];
-
-  // Merge
-  return _.merge({}, def, plan);
+  // Load schema - the schema function returns a flat object directly
+  // Plan-based adjustments are handled inside the schema function itself
+  return require(schemaPath)(assistant, settings, options);
 }
 
 module.exports = Settings;

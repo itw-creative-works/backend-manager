@@ -199,7 +199,7 @@ module.exports = {
           to: [{ email: `_test-receiver@${config.domain}` }],
         });
 
-        assert.isError(response, 401, 'Send email should fail for non-admin user');
+        assert.isError(response, 403, 'Send email should fail for non-admin user');
       },
     },
   ],

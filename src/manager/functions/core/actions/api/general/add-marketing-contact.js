@@ -4,7 +4,7 @@ const dns = require('dns').promises;
 const OpenAI = require(path.join(__dirname, '..', '..', '..', '..', '..', 'libraries', 'openai'));
 
 // Load disposable domains list
-const DISPOSABLE_DOMAINS = require(path.join(__dirname, '..', '..', '..', '..', '..', 'data', 'disposable-domains.json'));
+const DISPOSABLE_DOMAINS = require(path.join(__dirname, '..', '..', '..', '..', '..', 'libraries', 'disposable-domains.json'));
 const DISPOSABLE_SET = new Set(DISPOSABLE_DOMAINS.map(d => d.toLowerCase()));
 
 function Module() {}

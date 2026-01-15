@@ -108,7 +108,7 @@ module.exports = {
       async run({ http, assert }) {
         const response = await http.command('admin:get-stats', {});
 
-        assert.isError(response, 401, 'Get stats should fail for non-admin user');
+        assert.isError(response, 403, 'Get stats should fail for non-admin user');
       },
     },
   ],

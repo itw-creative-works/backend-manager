@@ -298,7 +298,7 @@ module.exports = {
           body: 'Test content',
         });
 
-        assert.isError(response, 401, 'Edit post should fail for non-admin user');
+        assert.isError(response, 403, 'Edit post should fail for non-admin user');
       },
     },
 

@@ -92,27 +92,25 @@ Middleware.prototype.run = function (libPath, options) {
       return assistant.respond({wakeup: true});
     }
 
-    // Load library
-    // Support for methods, so first check for method specific file then fallback to index.js
-    let library;
+    // Load route handler
+    // First try method-specific file (e.g., get.js, post.js), then fallback to index.js
+    let routeHandler;
 
     try {
-      // First try to load method-specific file (e.g., get.js, post.js, etc.)
-      const methodFile = `${method}.js`
+      const methodFile = `${method}.js`;
       const methodFilePath = path.resolve(routesDir, methodFile);
 
       try {
-        const finalPath = methodFilePath;
-        library = new (require(finalPath))();
-        assistant.log(`Middleware.process(): Loaded method-specific library: ${methodFile}`);
+        routeHandler = require(methodFilePath);
+        assistant.log(`Middleware.process(): Loaded route: ${methodFile}`);
       } catch (methodError) {
-        // Fallback to index.js if method-specific file doesn't exist or fails to load
-        const finalPath = path.resolve(routesDir, `index.js`);
-        library = new (require(finalPath))();
-        assistant.log(`Middleware.process(): Method-specific file (${methodFile}) not found, using index.js fallback`);
+        // Fallback to index.js if method-specific file doesn't exist
+        const indexPath = path.resolve(routesDir, 'index.js');
+        routeHandler = require(indexPath);
+        assistant.log(`Middleware.process(): Method-specific file (${methodFile}) not found, using index.js`);
       }
     } catch (e) {
-      return assistant.respond(new Error(`Unable to load library @ (${libPath}): ${e.message}`), {code: 500, sentry: true});
+      return assistant.respond(new Error(`Unable to load route @ (${libPath}): ${e.message}`), {code: 500, sentry: true});
     }
 
     // Setup user
@@ -184,17 +182,12 @@ Middleware.prototype.run = function (libPath, options) {
       assistant.settings = data;
     }
 
-    // Process
+    // Execute route handler
     try {
-      // Set properties
-      library.Manager = Manager;
-      library.assistant = assistant;
-
-      // Run library
-      library.main(assistant, req, res)
-      .catch(e => {
-        return assistant.respond(e, {code: e.code, sentry: true});
-      });
+      routeHandler(assistant)
+        .catch(e => {
+          return assistant.respond(e, {code: e.code, sentry: true});
+        });
     } catch (e) {
       return assistant.respond(e, {code: e.code, sentry: true});
     }

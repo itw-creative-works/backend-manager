@@ -1,32 +1,11 @@
-function Route() {
-  const self = this;
-
-  return self;
-}
-
-Route.prototype.main = async function (assistant) {
-  const self = this;
-
-  // Shortcuts
-  const Manager = assistant.Manager;
-  const usage = assistant.usage;
-  const user = assistant.usage.user;
+module.exports = async (assistant) => {
   const analytics = assistant.analytics;
-  const settings = assistant.settings;
-
-  // Load preloaded libraries
-  // ..
 
   // Send analytics event
   analytics.event({
     name: 'test',
     params: {},
   });
-
-  // Check for user authentication
-  // if (!user.roles.admin) {
-  //   return assistant.respond(`Admin required`, {code: 401});;
-  // }
 
   // Log
   assistant.log('Running test');
@@ -37,7 +16,5 @@ Route.prototype.main = async function (assistant) {
   assistant.log('assistant.settings', assistant.settings);
 
   // Return success
-  assistant.respond({timestamp: new Date().toISOString(), id: assistant.id});
+  return assistant.respond({timestamp: new Date().toISOString(), id: assistant.id});
 };
-
-module.exports = Route;

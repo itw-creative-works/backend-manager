@@ -1,13 +1,8 @@
-module.exports = function (assistant) {
+module.exports = function (assistant, settings, options) {
   return {
-    // DEFAULTS
-    ['defaults']: {
-      // Common
-      delay: {
-        types: ['number'],
-        default: 1000,
-        value: undefined,
-      },
+    delay: {
+      types: ['number'],
+      default: 1000,
     },
   };
-}
+};
