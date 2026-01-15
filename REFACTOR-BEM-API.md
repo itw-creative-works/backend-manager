@@ -65,8 +65,12 @@ I would like each new route to have a great name clearly indicating its purpose,
 
 Since we can build this new API system however we want, i also expect you to rewrite and refactor the BEM api endppints to be kickass, modern, and well designed.
 
+Also, certain VERBS should be removed from the actual file/function names since they are implied by the HTTP method. For example, instead of having a generate-uuid.js file, we could just have uuid.js since the POST method implies that we are generating/creating a new one, or insetad of add-marketing-contact we could just have marketing-contact.js since the POST method implies adding a new one and GET would imply fetching them.
 
+Next, some fucntions have a lot crammed isnide them that could use some separation. For example, in add-marketing-contact.js we have code for handling multiple email providers (SendGrid, Beehiiv) all jammed into a single file. I think we should refactor this to have a separate file for each provider in subfolder that handles the specifics of that provider, and then the main route file just calls those provider-specific files as needed. This will make it much easier to maintain and extend in the future as we add more providers.
 
-
-
+Also, sometimes there are two endpoints that should be combined,for example
+* /Users/ian/Developer/Repositories/ITW-Creative-Works/backend-manager/src/manager/functions/core/actions/api/general/add-marketing-contact.js
+* /Users/ian/Developer/Repositories/ITW-Creative-Works/backend-manager/src/manager/functions/core/actions/api/general/remove-marketing-contact.js
+These could be combined into a single marketing-contact.js file that handles both adding and removing based on the HTTP method (POST for add, DELETE for remove). This will make the API more RESTful and easier to understand.
 

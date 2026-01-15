@@ -71,7 +71,7 @@ src/
     routes/                           # Built-in routes
     schemas/                          # Built-in schemas
   cli/
-    cli-refactored.js                 # CLI entry point
+    index.js                          # CLI entry point
     commands/                         # CLI commands
 templates/
   backend-manager-config.json         # Config template
@@ -521,13 +521,14 @@ assert.fail(message)                           // Explicit fail
 | Batch utilities | `src/manager/helpers/utilities.js` |
 | Main API handler | `src/manager/functions/core/actions/api.js` |
 | Config template | `templates/backend-manager-config.json` |
-| CLI entry | `src/cli/cli-refactored.js` |
+| CLI entry | `src/cli/index.js` |
 
 ## Environment Detection
 
 ```javascript
 assistant.isDevelopment()  // true when ENVIRONMENT !== 'production' or in emulator
 assistant.isProduction()   // true when ENVIRONMENT === 'production'
+assistant.isTesting()      // true when running tests (via npx bm test)
 ```
 
 ## Response Headers

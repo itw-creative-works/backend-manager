@@ -447,6 +447,7 @@ assistant.debug('Debug message');
 // Environment
 assistant.isDevelopment(); // true in emulator
 assistant.isProduction();  // true in production
+assistant.isTesting();     // true when running tests
 
 // File uploads
 const { fields, files } = await assistant.parseMultipartFormData();

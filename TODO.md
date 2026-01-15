@@ -132,11 +132,20 @@ Move the sendEmail function to HERE instead of calling ITW
 # payment system
 * dont store a "resolved" status, but make a universal library that frontend and backend use to determine whther a user has access to a plan currently
 
+# New bem api and test to make
+test:usage
+* the fnction itself just utilizes the usage API to increment an arbitrary usage item
+
+the test should check the usage storage and ensure that it was incremented successfully
+
+then, we need to test the bm_cronDaily function to ensure that it does its things like clearing the usage storage properly
+
+
+
 # Rebuild the account creation flow
 * consider useing ID platform to just do beforeCreate so we dont have to handle
   * onCreate fires late (user:signup http event needs to poll for existence)
   * use a flag instead of age so that we can be sure its a new user and NOT re-do it when they link a new provider
-
 
 # MIGRATIONS
 ## user
@@ -149,6 +158,8 @@ attribution.affiliate.code
 ## notifications
 uid --> owner (uid stil though)
 also the weird nested accident where it was /notifications/{uid}/notifications/{token} --> /notifications/{token}
+
+
 
 
 ## OLD TESTS
