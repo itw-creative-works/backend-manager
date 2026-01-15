@@ -4,10 +4,7 @@
  */
 const jetpack = require('fs-jetpack');
 
-module.exports = async (assistant) => {
-  const Manager = assistant.Manager;
-  const user = assistant.usage.user;
-  const settings = assistant.settings;
+module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
 
   // Require authentication
   if (!user.authenticated) {
@@ -53,7 +50,7 @@ module.exports = async (assistant) => {
   }
 
   // Track analytics
-  assistant.analytics.event('admin/payment', { productId: productId });
+  analytics.event('admin/payment', { productId: productId });
 
   return assistant.respond(result);
 };

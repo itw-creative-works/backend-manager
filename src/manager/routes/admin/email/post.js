@@ -10,11 +10,8 @@ const crypto = require('crypto');
 // SendGrid limit for scheduled emails (72 hours, but use 71 for buffer)
 const SEND_AT_LIMIT = 71;
 
-module.exports = async (assistant) => {
-  const Manager = assistant.Manager;
-  const user = assistant.usage.user;
-  const settings = assistant.settings;
-  const { admin } = Manager.libraries;
+module.exports = async ({ assistant, Manager, user, settings, analytics, libraries }) => {
+  const { admin } = libraries;
 
   // Require authentication
   if (!user.authenticated) {
@@ -108,7 +105,7 @@ module.exports = async (assistant) => {
     });
 
   // Track analytics
-  assistant.analytics.event('admin/email', { status: 'sent' });
+  analytics.event('admin/email', { status: 'sent' });
 
   return assistant.respond({
     status: 'sent',
@@ -132,25 +129,23 @@ async function buildEmail(Manager, assistant, settings) {
     },
   };
 
-  // Set defaults
-  settings.copy = typeof settings.copy === 'undefined' ? true : settings.copy;
-  settings.ensureUnique = typeof settings.ensureUnique === 'undefined' ? true : settings.ensureUnique;
-  settings.categories = powertools.arrayify(settings.categories || []);
+  // Build email from settings
+  settings.categories = powertools.arrayify(settings.categories);
 
-  email.to = powertools.arrayify(settings.to || []);
-  email.cc = powertools.arrayify(settings.cc || []);
-  email.bcc = powertools.arrayify(settings.bcc || []);
-  email.replyTo = settings.replyTo || null;
-  email.subject = settings.subject || null;
-  email.sendAt = settings.sendAt || null;
+  email.to = powertools.arrayify(settings.to);
+  email.cc = powertools.arrayify(settings.cc);
+  email.bcc = powertools.arrayify(settings.bcc);
+  email.replyTo = settings.replyTo;
+  email.subject = settings.subject;
+  email.sendAt = settings.sendAt;
 
-  email.templateId = settings.template || 'd-b7f8da3c98ad49a2ad1e187f3a67b546';
+  email.templateId = settings.template;
   email.asm = {
-    groupId: settings.group || 24077,
+    groupId: settings.group,
   };
 
   // Set dynamic template data
-  email.dynamicTemplateData.data = settings.data || {};
+  email.dynamicTemplateData.data = settings.data;
 
   email.dynamicTemplateData.email = {};
   email.dynamicTemplateData.email.id = Manager.require('uuid').v4();

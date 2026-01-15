@@ -6,10 +6,7 @@ const moment = require('moment');
 const powertools = require('node-powertools');
 const { Octokit } = require('@octokit/rest');
 
-module.exports = async (assistant) => {
-  const Manager = assistant.Manager;
-  const user = assistant.usage.user;
-  const settings = assistant.settings;
+module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
   const fetch = Manager.require('wonderful-fetch');
 
   // Require authentication
@@ -62,7 +59,7 @@ module.exports = async (assistant) => {
     .trim();
 
   // Fix other values
-  settings.postPath = `_posts/${moment(now).format('YYYY')}/${settings.postPath || 'guest'}`;
+  settings.postPath = `_posts/${moment(now).format('YYYY')}/${settings.postPath}`;
   settings.githubUser = settings.githubUser || bemRepo.user;
   settings.githubRepo = settings.githubRepo || bemRepo.name;
 
@@ -83,7 +80,7 @@ module.exports = async (assistant) => {
   assistant.log('main(): uploadPost', uploadResult);
 
   // Track analytics
-  assistant.analytics.event('admin/post', { action: 'edit' });
+  analytics.event('admin/post', { action: 'edit' });
 
   return assistant.respond(settings);
 };

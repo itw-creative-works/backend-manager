@@ -44,6 +44,7 @@
   },
   "dependencies": {
     "@firebase/rules-unit-testing": "^5.0.0",
+    "@google-cloud/pubsub": "^5.2.2",
     "@google-cloud/storage": "^7.16.0",
     "@octokit/rest": "^19.0.13",
     "@sendgrid/mail": "^7.7.0",

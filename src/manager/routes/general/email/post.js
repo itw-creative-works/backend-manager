@@ -5,9 +5,7 @@
 const path = require('path');
 const { merge } = require('lodash');
 
-module.exports = async (assistant) => {
-  const Manager = assistant.Manager;
-  const settings = assistant.settings;
+module.exports = async ({ assistant, Manager, settings, analytics }) => {
   const fetch = Manager.require('wonderful-fetch');
 
   // Validate required parameters
@@ -95,7 +93,7 @@ module.exports = async (assistant) => {
   assistant.log('Response:', result);
 
   // Track analytics
-  assistant.analytics.event('general/email', { id: settings.id });
+  analytics.event('general/email', { id: settings.id });
 
   return assistant.respond({ success: true });
 };

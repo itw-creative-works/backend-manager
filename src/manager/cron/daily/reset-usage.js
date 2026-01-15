@@ -94,6 +94,11 @@ Module.prototype.clearFirestore = function() {
     })
     .catch(e => e);
 
+    // Ensure requests is always included as a default metric
+    if (!(metrics instanceof Error)) {
+      metrics.requests = metrics.requests || 1;
+    }
+
     // Log status
     assistant.log(`[firestore]: Resetting metrics`, metrics);
 

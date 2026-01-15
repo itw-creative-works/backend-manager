@@ -5,9 +5,7 @@
 const { Octokit } = require('@octokit/rest');
 const { parse } = require('yaml');
 
-module.exports = async (assistant) => {
-  const Manager = assistant.Manager;
-  const settings = assistant.settings;
+module.exports = async ({ assistant, Manager, settings, analytics }) => {
 
   // Check for GitHub configuration
   if (!process.env.GITHUB_TOKEN) {
@@ -82,7 +80,7 @@ module.exports = async (assistant) => {
   const parsed = parse(frontmatter);
 
   // Track analytics
-  assistant.analytics.event('content/post', { action: 'get' });
+  analytics.event('content/post', { action: 'get' });
 
   return assistant.respond({
     // Meta

@@ -133,19 +133,26 @@ Move the sendEmail function to HERE instead of calling ITW
 * dont store a "resolved" status, but make a universal library that frontend and backend use to determine whther a user has access to a plan currently
 
 # New bem api and test to make
-test:usage
+# test:usage
 * the fnction itself just utilizes the usage API to increment an arbitrary usage item
 
 the test should check the usage storage and ensure that it was incremented successfully
 
+# test for bm_cronDaily
 then, we need to test the bm_cronDaily function to ensure that it does its things like clearing the usage storage properly
 
+# test for schema
+* a comprehesive schema with fields that test EVERY possible field type including required, default, min, max, "value" etc (both static and FUNCTIONS)
+* test multiple plan levels including unathenticated, basic, & premium
+
+# quetsion
+* how does usage get reset? does it reset daily? or monthly?
+* how do we set usage limits?
+  * per plan? or when users prmeium is updated do we set it inside their doc?
+  * if we store it per plan, where should we store the plan data? firestore or in code?
+  * if its firestore we will use lots of reads, if we store in code we have to push new code to update plan limits (not a huge issue)
 
 
-# Rebuild the account creation flow
-* consider useing ID platform to just do beforeCreate so we dont have to handle
-  * onCreate fires late (user:signup http event needs to poll for existence)
-  * use a flag instead of age so that we can be sure its a new user and NOT re-do it when they link a new provider
 
 # MIGRATIONS
 ## user
@@ -154,10 +161,6 @@ affiliate: {
 },
 -->
 attribution.affiliate.code
-
-## notifications
-uid --> owner (uid stil though)
-also the weird nested accident where it was /notifications/{uid}/notifications/{token} --> /notifications/{token}
 
 
 

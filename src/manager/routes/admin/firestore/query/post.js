@@ -5,11 +5,8 @@ const powertools = require('node-powertools');
  * POST /admin/firestore/query - Query Firestore collections
  * Admin-only endpoint to run complex queries
  */
-module.exports = async (assistant) => {
-  const Manager = assistant.Manager;
-  const user = assistant.usage.user;
-  const settings = assistant.settings;
-  const { admin } = Manager.libraries;
+module.exports = async ({ assistant, user, settings, libraries }) => {
+  const { admin } = libraries;
 
   // Require authentication
   if (!user.authenticated) {
@@ -21,7 +18,7 @@ module.exports = async (assistant) => {
     return assistant.respond('Admin required.', { code: 403 });
   }
 
-  const queries = powertools.arrayify(settings.queries || []);
+  const queries = powertools.arrayify(settings.queries);
 
   assistant.log('main(): Queries', queries);
 

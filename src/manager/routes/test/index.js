@@ -1,5 +1,4 @@
-module.exports = async (assistant) => {
-  const analytics = assistant.analytics;
+module.exports = async ({ assistant, analytics }) => {
 
   // Send analytics event
   analytics.event({

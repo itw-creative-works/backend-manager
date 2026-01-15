@@ -2,21 +2,20 @@
  * POST /special/electron-client - Setup Electron Manager client
  * Returns client configuration with optional auth
  */
-module.exports = async (assistant) => {
-  const Manager = assistant.Manager;
-  const settings = assistant.settings;
+module.exports = async ({ assistant, Manager, settings, analytics, libraries }) => {
   const fetch = Manager.require('wonderful-fetch');
-  const { admin } = Manager.libraries;
+  const { admin } = libraries;
 
+  // appId/app fallback to Manager.config
   let uid = settings.uid;
   const app = settings.appId || settings.app || Manager.config.app.id;
-  let config = settings.config || {};
+  let config = settings.config;
 
   let uuid = null;
   let signInToken = null;
 
   // If authenticated, get user and create custom token
-  const user = assistant.usage.user;
+  const user = assistant.getUser();
   if (user.authenticated && user.roles?.admin) {
     uid = user.auth?.uid ?? null;
 
@@ -59,7 +58,7 @@ module.exports = async (assistant) => {
   }
 
   // Track analytics
-  assistant.analytics.event('special/electron-client', { action: 'setup' });
+  analytics.event('special/electron-client', { action: 'setup' });
 
   return assistant.respond({
     uuid: uuid,

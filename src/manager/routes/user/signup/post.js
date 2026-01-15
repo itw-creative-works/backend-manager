@@ -11,19 +11,16 @@ const MAX_ACCOUNT_AGE_MS = 5 * 60 * 1000; // 5 minutes
  * 3. Update user with client details (geolocation, browser info)
  * 4. Process affiliate code and update referrer
  */
-module.exports = async (assistant) => {
-  const Manager = assistant.Manager;
-  const user = assistant.usage.user;
-  const settings = assistant.settings;
-  const { admin } = Manager.libraries;
+module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
+  const { admin } = libraries;
 
   // Require authentication
   if (!user.authenticated) {
     return assistant.respond('Authentication required', { code: 401 });
   }
 
-  // Get target UID (default to self)
-  const uid = settings.uid || user.auth.uid;
+  // Get target UID
+  const uid = settings.uid;
 
   // Require admin to signup other users
   if (uid !== user.auth.uid && !user.roles.admin) {
@@ -60,7 +57,7 @@ module.exports = async (assistant) => {
   }
 
   // 4. Normalize data - support both legacy and new formats
-  const attribution = settings.attribution || {};
+  const attribution = settings.attribution;
 
   // Legacy support: if affiliateCode exists, normalize to new format
   if (settings.affiliateCode && !attribution.affiliate?.code) {
@@ -75,7 +72,7 @@ module.exports = async (assistant) => {
       signupProcessed: true,
     },
     activity: {
-      ...(settings.context || {}),
+      ...settings.context,
       geolocation: {
         ...(settings.context?.geolocation || {}),
         ...assistant.request.geolocation,

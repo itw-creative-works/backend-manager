@@ -1,7 +1,7 @@
 module.exports = () => ({
-  queries: {
-    types: ['array'],
-    default: [],
+  amount: {
+    types: ['number'],
+    default: 1,
     required: false,
   },
 });

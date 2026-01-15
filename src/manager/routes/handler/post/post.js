@@ -2,10 +2,7 @@
  * POST /handler/post - Create post handler (with invoice and notification)
  * Admin-only endpoint that creates invoices and sends notifications for guest posts
  */
-module.exports = async (assistant) => {
-  const Manager = assistant.Manager;
-  const user = assistant.usage.user;
-  const settings = assistant.settings;
+module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
   const fetch = Manager.require('wonderful-fetch');
 
   // Require authentication
@@ -30,7 +27,7 @@ module.exports = async (assistant) => {
   };
 
   const postSlug = `/blog/${settings.url}`;
-  const invoiceNote = `GP to ${Manager.config.brand.name} \nSlug: ${postSlug} \n\n${settings.invoiceNote || ''}`;
+  const invoiceNote = `GP to ${Manager.config.brand.name} \nSlug: ${postSlug} \n\n${settings.invoiceNote}`;
 
   // Create and send invoice if email and price are provided
   if (settings.invoiceEmail && settings.invoicePrice) {
@@ -128,7 +125,7 @@ module.exports = async (assistant) => {
   }
 
   // Track analytics
-  assistant.analytics.event('handler/post', { action: 'create' });
+  analytics.event('handler/post', { action: 'create' });
 
   return assistant.respond(response);
 };

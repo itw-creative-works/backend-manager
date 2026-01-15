@@ -1,10 +1,7 @@
 const uuid = require('uuid');
 
-module.exports = async (assistant) => {
-  const analytics = assistant.analytics;
-  const settings = assistant.settings;
+module.exports = async ({ assistant, settings, analytics }) => {
 
-  // Get settings (pre-validated with defaults from schema)
   const name = settings.name || settings.input;
   const version = `${settings.version}`.replace('v', '');
   const namespace = settings.namespace;

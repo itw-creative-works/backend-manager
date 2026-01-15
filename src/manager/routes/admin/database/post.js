@@ -2,11 +2,8 @@
  * POST /admin/database - Write Realtime Database
  * Admin-only endpoint to write any path
  */
-module.exports = async (assistant) => {
-  const Manager = assistant.Manager;
-  const user = assistant.usage.user;
-  const settings = assistant.settings;
-  const { admin } = Manager.libraries;
+module.exports = async ({ assistant, user, settings, libraries }) => {
+  const { admin } = libraries;
 
   // Require authentication
   if (!user.authenticated) {

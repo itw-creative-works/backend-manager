@@ -1,5 +1,6 @@
 const BaseTest = require('./base-test');
 const jetpack = require('fs-jetpack');
+const _ = require('lodash');
 
 class HostingRewritesTest extends BaseTest {
   getName() {

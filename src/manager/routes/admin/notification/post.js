@@ -9,11 +9,8 @@ const BAD_TOKEN_REASONS = [
 ];
 const BATCH_SIZE = 500;
 
-module.exports = async (assistant) => {
-  const Manager = assistant.Manager;
-  const user = assistant.usage.user;
-  const settings = assistant.settings;
-  const { admin } = Manager.libraries;
+module.exports = async ({ assistant, Manager, user, settings, analytics, libraries }) => {
+  const { admin } = libraries;
 
   // Require authentication
   if (!user.authenticated) {
@@ -72,7 +69,7 @@ module.exports = async (assistant) => {
   await processTokens(Manager, assistant, admin, notification, filterOptions, response);
 
   // Track analytics
-  assistant.analytics.event('admin/notification', { sent: response.sent });
+  analytics.event('admin/notification', { sent: response.sent });
 
   return assistant.respond(response);
 };

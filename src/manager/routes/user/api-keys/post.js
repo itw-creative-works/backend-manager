@@ -7,19 +7,16 @@ const uidgen = new UIDGenerator(256);
  * POST /user/api-keys - Regenerate API keys
  * Regenerates clientId and/or privateKey for the user
  */
-module.exports = async (assistant) => {
-  const Manager = assistant.Manager;
-  const user = assistant.usage.user;
-  const settings = assistant.settings;
-  const { admin } = Manager.libraries;
+module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
+  const { admin } = libraries;
 
   // Require authentication
   if (!user.authenticated) {
     return assistant.respond('Authentication required', { code: 401 });
   }
 
-  // Get target UID (default to self)
-  const uid = settings.uid || user.auth.uid;
+  // Get target UID
+  const uid = settings.uid;
 
   // Require admin to regenerate other users' keys
   if (uid !== user.auth.uid && !user.roles.admin) {
@@ -27,7 +24,7 @@ module.exports = async (assistant) => {
   }
 
   // Determine which keys to regenerate
-  const keys = powertools.arrayify(settings.keys || ['clientId', 'privateKey']);
+  const keys = powertools.arrayify(settings.keys);
   const newKeys = {};
 
   keys.forEach((key) => {

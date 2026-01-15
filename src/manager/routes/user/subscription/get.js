@@ -4,19 +4,16 @@ const powertools = require('node-powertools');
  * GET /user/subscription - Get user subscription info
  * Returns plan, expiry, trial, and payment status
  */
-module.exports = async (assistant) => {
-  const Manager = assistant.Manager;
-  const user = assistant.usage.user;
-  const settings = assistant.settings;
-  const { admin } = Manager.libraries;
+module.exports = async ({ assistant, user, settings, libraries }) => {
+  const { admin } = libraries;
 
   // Require authentication
   if (!user.authenticated) {
     return assistant.respond('Authentication required', { code: 401 });
   }
 
-  // Get target UID (default to self)
-  const uid = settings.uid || user.auth.uid;
+  // Get target UID
+  const uid = settings.uid;
 
   // Require admin to view other users' subscriptions
   if (uid !== user.auth.uid && !user.roles.admin) {

@@ -1,5 +1,4 @@
-module.exports = async (assistant) => {
-  const settings = assistant.settings;
+module.exports = async ({ assistant, settings }) => {
 
   // Get URL from settings (defaults to itwcreativeworks.com)
   const url = settings.url;

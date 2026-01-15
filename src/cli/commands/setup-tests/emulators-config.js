@@ -10,6 +10,7 @@ const DEFAULT_EMULATOR_PORTS = {
   database: 9000,
   hosting: 5002,
   storage: 9199,
+  pubsub: 8085,
   ui: 4000,
 };
 
@@ -20,6 +21,7 @@ const REQUIRED_EMULATORS = {
   database: { port: DEFAULT_EMULATOR_PORTS.database },
   hosting: { port: DEFAULT_EMULATOR_PORTS.hosting },
   storage: { port: DEFAULT_EMULATOR_PORTS.storage },
+  pubsub: { port: DEFAULT_EMULATOR_PORTS.pubsub },
   ui: { enabled: true },
 };
 

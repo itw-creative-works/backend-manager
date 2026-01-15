@@ -4,11 +4,8 @@ const _ = require('lodash');
  * GET /admin/stats - Get application stats
  * Admin-only endpoint to retrieve and optionally update app statistics
  */
-module.exports = async (assistant) => {
-  const Manager = assistant.Manager;
-  const user = assistant.usage.user;
-  const settings = assistant.settings;
-  const { admin } = Manager.libraries;
+module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
+  const { admin } = libraries;
 
   // Require authentication
   if (!user.authenticated) {

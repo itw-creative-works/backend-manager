@@ -1,8 +1,6 @@
 const jetpack = require('fs-jetpack');
 
-module.exports = async (assistant) => {
-  const user = assistant.usage.user;
-  const analytics = assistant.analytics;
+module.exports = async ({ assistant, user, analytics }) => {
 
   // Send analytics event
   analytics.event({

@@ -2,10 +2,7 @@
  * POST /admin/cron - Run cron job manually
  * Admin-only endpoint to trigger cron jobs
  */
-module.exports = async (assistant) => {
-  const Manager = assistant.Manager;
-  const user = assistant.usage.user;
-  const settings = assistant.settings;
+module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
 
   // Require authentication (allow in dev)
   if (!user.authenticated && assistant.isProduction()) {
@@ -34,7 +31,7 @@ module.exports = async (assistant) => {
   }
 
   // Track analytics
-  assistant.analytics.event('admin/cron', { id: settings.id });
+  analytics.event('admin/cron', { id: settings.id });
 
   return assistant.respond(result);
 };

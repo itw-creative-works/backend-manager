@@ -12,6 +12,13 @@ class EmulatorsCommand extends BaseCommand {
     this.log(chalk.cyan('\n  Starting Firebase emulators (keep-alive mode)...\n'));
     this.log(chalk.gray('  Emulators will stay running until you press Ctrl+C\n'));
 
+    // Warn if TEST_EXTENDED_MODE is enabled
+    if (process.env.TEST_EXTENDED_MODE) {
+      this.log(chalk.yellow.bold('\n  ⚠️⚠️⚠️  WARNING: TEST_EXTENDED_MODE IS TRUE  ⚠️⚠️⚠️'));
+      this.log(chalk.yellow('  External API calls (emails, SendGrid, etc.) are ENABLED!'));
+      this.log(chalk.yellow('  This will send real emails and make real API calls.\n'));
+    }
+
     // Start BEM watcher in background
     const watcher = new WatchCommand(this.main);
     watcher.startBackground();
@@ -46,8 +53,9 @@ class EmulatorsCommand extends BaseCommand {
 
     // BEM_TESTING=true is passed so Functions skip external API calls (emails, SendGrid)
     // hosting is included so localhost:5002 rewrites work (e.g., /backend-manager -> bm_api)
+    // pubsub is included so scheduled functions (bm_cronDaily) can be triggered in tests
     // Use double quotes for command wrapper since the command may contain single quotes (JSON strings)
-    const emulatorsCommand = `BEM_TESTING=true firebase emulators:exec --only functions,firestore,auth,database,hosting --ui "${command}"`;
+    const emulatorsCommand = `BEM_TESTING=true firebase emulators:exec --only functions,firestore,auth,database,hosting,pubsub --ui "${command}"`;
 
     await powertools.execute(emulatorsCommand, {
       log: true,

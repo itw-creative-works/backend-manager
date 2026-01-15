@@ -4,9 +4,7 @@
  */
 const fetch = require('wonderful-fetch');
 
-module.exports = async (assistant) => {
-  const Manager = assistant.Manager;
-  const settings = assistant.settings;
+module.exports = async ({ assistant, Manager, settings, analytics }) => {
 
   // Initialize Usage to check auth level
   const usage = await Manager.Usage().init(assistant, {
@@ -21,7 +19,7 @@ module.exports = async (assistant) => {
 
   // Extract parameters
   const email = (settings.email || '').trim().toLowerCase();
-  const providers = settings.providers || ['sendgrid', 'beehiiv'];
+  const providers = settings.providers;
 
   // Validate email is provided
   if (!email) {
@@ -51,7 +49,7 @@ module.exports = async (assistant) => {
   });
 
   // Track analytics
-  assistant.analytics.event('marketing/contact', { action: 'delete' });
+  analytics.event('marketing/contact', { action: 'delete' });
 
   return assistant.respond({
     success: true,

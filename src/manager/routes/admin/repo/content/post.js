@@ -4,10 +4,7 @@
  */
 const { Octokit } = require('@octokit/rest');
 
-module.exports = async (assistant) => {
-  const Manager = assistant.Manager;
-  const user = assistant.usage.user;
-  const settings = assistant.settings;
+module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
 
   // Require authentication
   if (!user.authenticated) {
@@ -46,7 +43,7 @@ module.exports = async (assistant) => {
   }
 
   // Fix other values
-  settings.type = settings.type || 'text';
+  settings.type = settings.type;
   settings.githubUser = settings.githubUser || bemRepo.user;
   settings.githubRepo = settings.githubRepo || bemRepo.name;
 
@@ -61,7 +58,7 @@ module.exports = async (assistant) => {
   assistant.log('main(): uploadContent', uploadResult);
 
   // Track analytics
-  assistant.analytics.event('admin/repo/content', { action: 'write' });
+  analytics.event('admin/repo/content', { action: 'write' });
 
   return assistant.respond(settings);
 };

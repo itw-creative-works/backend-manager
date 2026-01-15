@@ -1,7 +1,6 @@
 const powertools = require('node-powertools');
 
-module.exports = async (assistant) => {
-  const settings = assistant.settings;
+module.exports = async ({ assistant, settings }) => {
 
   // Optional delay
   if (settings.delay > 0) {
@@ -14,7 +13,7 @@ module.exports = async (assistant) => {
   }
 
   if (settings.status >= 400 && settings.status <= 599) {
-    return assistant.respond(settings.response || 'Unknown error message provided', { code: settings.status });
+    return assistant.respond(settings.response, { code: settings.status });
   }
 
   // Default response

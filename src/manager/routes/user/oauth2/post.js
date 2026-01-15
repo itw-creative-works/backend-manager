@@ -12,11 +12,8 @@ const { arrayify } = require('node-powertools');
  *   - deauthorize: Remove OAuth2 connection
  *   - status: Check connection status
  */
-module.exports = async (assistant) => {
-  const Manager = assistant.Manager;
-  const user = assistant.usage.user;
-  const settings = assistant.settings;
-  const { admin } = Manager.libraries;
+module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
+  const { admin } = libraries;
 
   // Require authentication
   if (!user.authenticated) {
@@ -24,7 +21,7 @@ module.exports = async (assistant) => {
   }
 
   // Require admin to manage other users' OAuth
-  const uid = settings.uid || user.auth.uid;
+  const uid = settings.uid;
 
   if (uid !== user.auth.uid && !user.roles.admin) {
     return assistant.respond('Admin required', { code: 403 });
@@ -65,7 +62,7 @@ module.exports = async (assistant) => {
   const client_id = _.get(Manager.config, `oauth2.${settings.provider}.client_id`);
   const client_secret = _.get(Manager.config, `oauth2.${settings.provider}.client_secret`);
 
-  const state = settings.state || 'authorize';
+  const state = settings.state;
 
   assistant.log('OAuth2 settings', settings);
 
@@ -96,24 +93,26 @@ async function processAuthorize(assistant, Manager, settings, oauth2, ultimateJe
     return assistant.respond(`Missing client_id for ${settings.provider} provider`, { code: 500 });
   }
 
+  // Build state data - some defaults require runtime context so we keep fallbacks here
+  const defaultReferrer = assistant.isDevelopment() ? 'https://localhost:4000/account' : `${Manager.config.brand.url}/account`;
   const stateData = {
     code: 'success',
     provider: settings.provider,
     authenticationToken: settings.authenticationToken,
     serverUrl: settings.serverUrl || `${Manager.project.apiUrl}/backend-manager`,
-    referrer: settings.referrer || (assistant.isDevelopment() ? 'https://localhost:4000/account' : `${Manager.config.brand.url}/account`),
-    redirectUrl: settings.redirect_uri || settings.referrer,
+    referrer: settings.referrer || defaultReferrer,
+    redirectUrl: settings.redirect_uri || settings.referrer || defaultReferrer,
   };
 
   const url = new URL(oauth2.urls.authorize);
   url.searchParams.set('state', JSON.stringify(stateData));
   url.searchParams.set('client_id', client_id);
-  url.searchParams.set('scope', arrayify(settings.scope || []).join(' '));
+  url.searchParams.set('scope', arrayify(settings.scope).join(' '));
   url.searchParams.set('redirect_uri', ultimateJekyllOAuth2Url);
-  url.searchParams.set('access_type', settings.access_type ?? 'offline');
-  url.searchParams.set('prompt', settings.prompt ?? 'consent');
-  url.searchParams.set('include_granted_scopes', settings.include_granted_scopes ?? 'true');
-  url.searchParams.set('response_type', settings.response_type ?? 'code');
+  url.searchParams.set('access_type', settings.access_type);
+  url.searchParams.set('prompt', settings.prompt);
+  url.searchParams.set('include_granted_scopes', settings.include_granted_scopes);
+  url.searchParams.set('response_type', settings.response_type);
 
   // Allow provider to modify URL
   const finalUrl = oauth2.buildUrl('authorize', url, assistant);
@@ -278,7 +277,7 @@ async function processDeauthorize(assistant, Manager, admin, settings, uid) {
 }
 
 async function processStatus(assistant, Manager, admin, settings, oauth2, uid, userData) {
-  const removeInvalidTokens = settings.removeInvalidTokens ?? true;
+  const removeInvalidTokens = settings.removeInvalidTokens;
 
   const token = _.get(userData, `oauth2.${settings.provider}.token.refresh_token`, '');
 

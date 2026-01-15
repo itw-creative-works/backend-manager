@@ -182,9 +182,19 @@ Middleware.prototype.run = function (libPath, options) {
       assistant.settings = data;
     }
 
+    // Build context object for route handler
+    const context = {
+      assistant: assistant,
+      Manager: Manager,
+      user: assistant.getUser(),
+      settings: assistant.settings,
+      analytics: assistant.analytics,
+      libraries: Manager.libraries,
+    };
+
     // Execute route handler
     try {
-      routeHandler(assistant)
+      routeHandler(context)
         .catch(e => {
           return assistant.respond(e, {code: e.code, sentry: true});
         });

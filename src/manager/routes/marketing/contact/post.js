@@ -13,10 +13,7 @@ const DISPOSABLE_SET = new Set(DISPOSABLE_DOMAINS.map(d => d.toLowerCase()));
 // Load OpenAI library
 const OpenAI = require(path.join(__dirname, '..', '..', '..', 'libraries', 'openai'));
 
-module.exports = async (assistant) => {
-  const Manager = assistant.Manager;
-  const settings = assistant.settings;
-  const { admin } = Manager.libraries;
+module.exports = async ({ assistant, Manager, settings, analytics }) => {
 
   // Initialize Usage to check auth level
   const usage = await Manager.Usage().init(assistant, {
@@ -28,12 +25,12 @@ module.exports = async (assistant) => {
   const email = (settings.email || '').trim().toLowerCase();
   let firstName = (settings.firstName || '').trim();
   let lastName = (settings.lastName || '').trim();
-  const source = settings.source || 'unknown';
+  const source = settings.source;
 
   // Admin-only options
-  const tags = isAdmin ? (settings.tags || []) : [];
-  const providers = isAdmin ? (settings.providers || ['sendgrid', 'beehiiv']) : ['sendgrid', 'beehiiv'];
-  const skipValidation = isAdmin ? (settings.skipValidation || false) : false;
+  const tags = isAdmin ? settings.tags : [];
+  const providers = isAdmin ? settings.providers : ['sendgrid', 'beehiiv'];
+  const skipValidation = isAdmin ? settings.skipValidation : false;
 
   // Validate email is provided
   if (!email) {
@@ -149,7 +146,7 @@ module.exports = async (assistant) => {
   });
 
   // Track analytics
-  assistant.analytics.event('marketing/contact', { action: 'add' });
+  analytics.event('marketing/contact', { action: 'add' });
 
   // Return response based on auth level
   if (isAdmin) {

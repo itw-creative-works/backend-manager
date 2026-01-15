@@ -1,9 +1,7 @@
-module.exports = function (assistant, settings, options) {
-  return {
-    uid: {
-      types: ['string'],
-      default: undefined,
-      required: false,
-    },
-  };
-};
+module.exports = ({ user }) => ({
+  uid: {
+    types: ['string'],
+    default: user?.auth?.uid,
+    required: false,
+  },
+});

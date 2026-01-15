@@ -1,5 +1,4 @@
-module.exports = async (assistant) => {
-  const Manager = assistant.Manager;
+module.exports = async ({ assistant, Manager }) => {
 
   // Get url
   const url = Manager.config?.brand?.url;

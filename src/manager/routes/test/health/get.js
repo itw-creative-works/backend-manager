@@ -1,5 +1,4 @@
-module.exports = async (assistant) => {
-  const Manager = assistant.Manager;
+module.exports = async ({ assistant, Manager }) => {
 
   const response = {
     status: 'healthy',

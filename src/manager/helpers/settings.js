@@ -52,12 +52,12 @@ Settings.prototype.resolve = function (assistant, schema, settings, options) {
     const methodSchemaPath = path.resolve(options.dir, `${schemaFile}/${methodFile}`);
 
     try {
-      schema = loadSchema(assistant, methodSchemaPath, settings, options);
+      schema = loadSchema(assistant, methodSchemaPath);
       assistant.log(`Settings.resolve(): Loaded method-specific schema: ${schemaFile}/${methodFile}`);
     } catch (e) {
       // Fallback to main schema if method-specific doesn't exist
       schemaPath = path.resolve(options.dir, `${schemaFile}/index.js`);
-      schema = loadSchema(assistant, schemaPath, settings, options);
+      schema = loadSchema(assistant, schemaPath);
       assistant.log(`Settings.resolve(): Method-specific schema not found, using main schema fallback`);
     }
   }
@@ -186,10 +186,21 @@ function iterateSchema(schema, fn, path) {
   });
 }
 
-function loadSchema(assistant, schemaPath, settings, options) {
+function loadSchema(assistant, schemaPath) {
+  // Build context object with everything the schema might need
+  const context = {
+    assistant: assistant,
+    user: assistant.getUser(),
+    data: assistant.request.data,
+    method: assistant.request.method,
+    headers: assistant.request.headers,
+    geolocation: assistant.request.geolocation,
+    client: assistant.request.client,
+  };
+
   // Load schema - the schema function returns a flat object directly
   // Plan-based adjustments are handled inside the schema function itself
-  return require(schemaPath)(assistant, settings, options);
+  return require(schemaPath)(context);
 }
 
 module.exports = Settings;

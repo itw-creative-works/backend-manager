@@ -4,8 +4,7 @@
  */
 const { merge } = require('lodash');
 
-module.exports = async (assistant) => {
-  const Manager = assistant.Manager;
+module.exports = async ({ assistant, Manager, analytics }) => {
   const fetch = Manager.require('wonderful-fetch');
 
   const defaultProviders = {
@@ -53,7 +52,7 @@ module.exports = async (assistant) => {
   assistant.log('Providers', finalProviders);
 
   // Track analytics
-  assistant.analytics.event('firebase/providers', { action: 'get' });
+  analytics.event('firebase/providers', { action: 'get' });
 
   return assistant.respond(finalProviders);
 };

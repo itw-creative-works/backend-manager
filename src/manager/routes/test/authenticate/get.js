@@ -1,5 +1,4 @@
-module.exports = async (assistant) => {
-  const user = assistant.usage.user;
+module.exports = async ({ assistant, user }) => {
 
   // Log user info
   assistant.log('User:', user);

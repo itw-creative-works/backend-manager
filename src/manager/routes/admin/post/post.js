@@ -14,10 +14,7 @@ const POST_TEMPLATE = jetpack.read(`${__dirname}/templates/post.html`);
 const IMAGE_PATH_SRC = `src/assets/images/blog/post-{id}/`;
 const IMAGE_REGEX = /(?:!\[(.*?)\]\((.*?)\))/img;
 
-module.exports = async (assistant) => {
-  const Manager = assistant.Manager;
-  const user = assistant.usage.user;
-  const settings = assistant.settings;
+module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
   const fetch = Manager.require('wonderful-fetch');
 
   // Require authentication
@@ -83,13 +80,13 @@ module.exports = async (assistant) => {
 
   // Fix other values
   settings.author = settings.author || powertools.random(['alex-raeburn', 'rare-ivy', 'christina-hill']);
-  settings.affiliate = settings.affiliate || '';
-  settings.tags = settings.tags || [];
-  settings.categories = settings.categories || [];
-  settings.layout = settings.layout || 'blueprint/blog/post';
+  settings.affiliate = settings.affiliate;
+  settings.tags = settings.tags;
+  settings.categories = settings.categories;
+  settings.layout = settings.layout;
   settings.date = moment(settings.date || now).subtract(1, 'days').format('YYYY-MM-DD');
   settings.id = settings.id || Math.round(new Date(now).getTime() / 1000);
-  settings.path = `src/_posts/${moment(now).format('YYYY')}/${settings.postPath || 'guest'}`;
+  settings.path = `src/_posts/${moment(now).format('YYYY')}/${settings.postPath}`;
   settings.githubUser = settings.githubUser || bemRepo.user;
   settings.githubRepo = settings.githubRepo || bemRepo.name;
 
@@ -116,7 +113,7 @@ module.exports = async (assistant) => {
   assistant.log('main(): uploadPost', uploadResult);
 
   // Track analytics
-  assistant.analytics.event('admin/post', { action: 'create' });
+  analytics.event('admin/post', { action: 'create' });
 
   return assistant.respond(settings);
 };

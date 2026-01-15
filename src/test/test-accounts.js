@@ -1,6 +1,32 @@
 const uuid = require('uuid');
 
 /**
+ * Helper to create a future expiration date for premium plans
+ * resolve-account checks plan.expires to determine if plan is active
+ * If expires is in the past (or default 1970), plan gets downgraded to basic
+ */
+function getFutureExpires(years = 10) {
+  const futureDate = new Date();
+  futureDate.setFullYear(futureDate.getFullYear() + years);
+  return {
+    timestamp: futureDate.toISOString(),
+    timestampUNIX: Math.floor(futureDate.getTime() / 1000),
+  };
+}
+
+/**
+ * Helper to create a past expiration date for expired plans
+ */
+function getPastExpires(years = 1) {
+  const pastDate = new Date();
+  pastDate.setFullYear(pastDate.getFullYear() - years);
+  return {
+    timestamp: pastDate.toISOString(),
+    timestampUNIX: Math.floor(pastDate.getTime() / 1000),
+  };
+}
+
+/**
  * Static test accounts - always created with fixed properties
  * Used for testing access control levels
  * Both BEM and consuming projects rely on these
@@ -10,6 +36,9 @@ const uuid = require('uuid');
  * - uid: Firebase Auth UID
  * - email: Email with {domain} placeholder (resolved at runtime)
  * - properties: Object to merge into user doc after auth:on-create
+ *
+ * IMPORTANT: Premium accounts MUST have plan.expires set to a future date
+ * or resolve-account will downgrade them to basic
  */
 const STATIC_ACCOUNTS = {
   admin: {
@@ -36,7 +65,7 @@ const STATIC_ACCOUNTS = {
     email: '_test.premium-active@{domain}',
     properties: {
       roles: {},
-      plan: { id: 'premium', status: 'active' },
+      plan: { id: 'premium', status: 'active', expires: getFutureExpires() },
     },
   },
   'premium-expired': {
@@ -45,7 +74,7 @@ const STATIC_ACCOUNTS = {
     email: '_test.premium-expired@{domain}',
     properties: {
       roles: {},
-      plan: { id: 'premium', status: 'cancelled' },
+      plan: { id: 'premium', status: 'cancelled', expires: getPastExpires() },
     },
   },
   delete: {
@@ -54,7 +83,7 @@ const STATIC_ACCOUNTS = {
     email: '_test.delete@{domain}',
     properties: {
       roles: {},
-      plan: { id: 'premium', status: 'active' }, // Active subscription - deletion should be blocked initially
+      plan: { id: 'premium', status: 'active', expires: getFutureExpires() }, // Active subscription - deletion should be blocked initially
     },
   },
   'delete-by-admin': {
@@ -116,7 +145,7 @@ const JOURNEY_ACCOUNTS = {
     email: '_test.journey-cancel@{domain}',
     properties: {
       roles: {},
-      plan: { id: 'premium', status: 'active' }, // Starts as premium, cancelled via Stripe webhook
+      plan: { id: 'premium', status: 'active', expires: getFutureExpires() }, // Starts as premium, cancelled via Stripe webhook
     },
   },
 };
@@ -254,14 +283,16 @@ async function ensureAccount(admin, account) {
     emailVerified: true,
   });
 
-  // Wait for auth:on-create to complete (creates api.clientId, etc.)
+  // Wait for auth:on-create to COMPLETE (not just start)
+  // We check for metadata.tag which is set at the END of on-create
   const maxWait = 15000;
   const pollInterval = 500;
   let waited = 0;
 
   while (waited < maxWait) {
     const doc = await userRef.get();
-    if (doc.exists && doc.data()?.api?.clientId) {
+    // Wait for metadata.tag to be set - this indicates on-create has FINISHED
+    if (doc.exists && doc.data()?.metadata?.tag === 'auth:on-create') {
       break;
     }
     await new Promise(resolve => setTimeout(resolve, pollInterval));
@@ -389,16 +420,16 @@ const TEST_DATA = {
  * Called after account setup when TEST_EXTENDED_MODE is set to remove
  * contacts added by auth:on-create
  * @param {string} domain - Domain for email addresses
- * @param {object} options - Options with apiUrl and backendManagerKey
+ * @param {object} options - Options with hostingUrl and backendManagerKey
  * @returns {Promise<object>} Result with cleaned count
  */
 async function cleanupMarketingProviders(domain, options = {}) {
   const fetch = require('wonderful-fetch');
   const results = { cleaned: 0, errors: [] };
 
-  const { apiUrl, backendManagerKey } = options;
-  if (!apiUrl || !backendManagerKey) {
-    console.error('cleanupMarketingProviders: Missing apiUrl or backendManagerKey');
+  const { hostingUrl, backendManagerKey } = options;
+  if (!hostingUrl || !backendManagerKey) {
+    console.error('cleanupMarketingProviders: Missing hostingUrl or backendManagerKey');
     return results;
   }
 
@@ -410,7 +441,7 @@ async function cleanupMarketingProviders(domain, options = {}) {
   await Promise.all(
     emails.map(async (email) => {
       try {
-        const response = await fetch(`${apiUrl}/backend-manager`, {
+        const response = await fetch(`${hostingUrl}/backend-manager`, {
           method: 'post',
           response: 'json',
           timeout: 30000,

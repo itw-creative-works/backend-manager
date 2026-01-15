@@ -59,6 +59,13 @@ class TestRunner {
 
     console.log(chalk.bold('\n  BEM Integration Tests\n'));
 
+    // Warn if TEST_EXTENDED_MODE is enabled
+    if (process.env.TEST_EXTENDED_MODE) {
+      console.log(chalk.yellow.bold('  ⚠️⚠️⚠️  WARNING: TEST_EXTENDED_MODE IS TRUE  ⚠️⚠️⚠️'));
+      console.log(chalk.yellow('  External API calls (emails, SendGrid, etc.) are ENABLED!'));
+      console.log(chalk.yellow('  This will send real emails and make real API calls.\n'));
+    }
+
     // Validate configuration
     if (!this.validateConfig()) {
       return this.results;
@@ -641,6 +648,9 @@ class TestRunner {
     // Create waitFor helper
     const waitFor = this.createWaitFor();
 
+    // Create pubsub helper
+    const pubsub = this.createPubSubHelper();
+
     // Skip function for runtime skipping
     const skip = (reason) => {
       throw new SkipError(reason);
@@ -653,6 +663,7 @@ class TestRunner {
       state: state || {},
       firestore,
       waitFor,
+      pubsub,
       skip,
       admin: this.config.admin,
       rules: this.rulesContext,
@@ -747,6 +758,41 @@ class TestRunner {
       }
 
       throw new Error(`waitFor timed out after ${timeoutMs}ms`);
+    };
+  }
+
+  /**
+   * Create PubSub helper for triggering scheduled functions
+   */
+  createPubSubHelper() {
+    const config = this.config;
+
+    return {
+      /**
+       * Trigger a Firebase scheduled function via PubSub
+       * @param {string} functionName - The function name (e.g., 'bm_cronDaily')
+       * @returns {Promise<string>} The message ID
+       */
+      async trigger(functionName) {
+        const { PubSub } = require('@google-cloud/pubsub');
+        const pubsub = new PubSub({
+          projectId: config.projectId,
+          apiEndpoint: 'localhost:8085',
+        });
+
+        const topicName = `firebase-schedule-${functionName}`;
+
+        // Get or create the topic (emulator may not have it yet)
+        let topic = pubsub.topic(topicName);
+        const [exists] = await topic.exists();
+
+        if (!exists) {
+          [topic] = await pubsub.createTopic(topicName);
+        }
+
+        const messageId = await topic.publishMessage({ json: {} });
+        return messageId;
+      },
     };
   }
 
