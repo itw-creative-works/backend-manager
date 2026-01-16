@@ -203,8 +203,7 @@ class TestRunner {
     process.stdout.write(chalk.gray('  Creating test accounts... '));
 
     // Create fresh test accounts
-    // Called directly with admin SDK - no HTTP call needed
-    const result = await testAccounts.ensureAccountsExist(
+    const result = await testAccounts.createTestAccounts(
       this.options.admin,
       this.options.domain
     );

@@ -153,6 +153,8 @@ then, we need to test the bm_cronDaily function to ensure that it does its thing
   * if its firestore we will use lots of reads, if we store in code we have to push new code to update plan limits (not a huge issue)
 
 
+change name from routes/content/post to maye routes/blog/post??? whatfdo you think??
+
 
 # MIGRATIONS
 ## user

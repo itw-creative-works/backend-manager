@@ -242,38 +242,15 @@ async function fetchPrivateKeys(admin, domain) {
 }
 
 /**
- * Ensure a single test account exists
- * Creates Firebase Auth user if missing, waits for auth:on-create to create Firestore doc,
- * then merges test-specific properties
+ * Create a single test account
+ * Assumes deleteTestUsers() was called first to ensure clean state
+ * Creates Firebase Auth user, waits for auth:on-create, then merges test properties
  * @param {object} admin - Firebase admin instance
  * @param {object} account - Account definition with uid, email, properties
- * @returns {Promise<object>} Result { created, uid, email }
+ * @returns {Promise<object>} Result { uid, email }
  */
-async function ensureAccount(admin, account) {
+async function createAccount(admin, account) {
   const userRef = admin.firestore().doc(`users/${account.uid}`);
-
-  // Check if user already exists in Auth
-  let authUserExists = false;
-  try {
-    await admin.auth().getUser(account.uid);
-    authUserExists = true;
-  } catch (error) {
-    if (error.code !== 'auth/user-not-found') {
-      throw error;
-    }
-  }
-
-  // If auth user exists, just merge properties
-  if (authUserExists) {
-    await userRef.set(account.properties, { merge: true });
-    return { created: false, uid: account.uid, email: account.email };
-  }
-
-  // Clean up orphaned Firestore doc if exists
-  const userDoc = await userRef.get();
-  if (userDoc.exists) {
-    await userRef.delete();
-  }
 
   // Create Firebase Auth user - triggers auth:on-create
   await admin.auth().createUser({
@@ -283,7 +260,7 @@ async function ensureAccount(admin, account) {
     emailVerified: true,
   });
 
-  // Wait for auth:on-create to COMPLETE (not just start)
+  // Wait for auth:on-create to COMPLETE
   // We check for metadata.tag which is set at the END of on-create
   const maxWait = 15000;
   const pollInterval = 500;
@@ -291,7 +268,6 @@ async function ensureAccount(admin, account) {
 
   while (waited < maxWait) {
     const doc = await userRef.get();
-    // Wait for metadata.tag to be set - this indicates on-create has FINISHED
     if (doc.exists && doc.data()?.metadata?.tag === 'auth:on-create') {
       break;
     }
@@ -299,10 +275,10 @@ async function ensureAccount(admin, account) {
     waited += pollInterval;
   }
 
-  // Merge test-specific properties
+  // Merge test-specific properties (roles, plan, etc.)
   await userRef.set(account.properties, { merge: true });
 
-  return { created: true, uid: account.uid, email: account.email };
+  return { uid: account.uid, email: account.email };
 }
 
 /**
@@ -368,28 +344,22 @@ async function deleteTestUsers(admin) {
 }
 
 /**
- * Ensure all test accounts exist (creates if missing)
- * Called directly with Firebase Admin SDK - no HTTP call
+ * Create all test accounts
+ * Assumes deleteTestUsers() was called first to ensure clean state
  * @param {object} admin - Firebase admin instance
  * @param {string} domain - Domain for email addresses (e.g., 'itwcreativeworks.com')
- * @returns {Promise<object>} Result with created/skipped/failed counts
+ * @returns {Promise<object>} Result with created/failed counts
  */
-async function ensureAccountsExist(admin, domain) {
+async function createTestAccounts(admin, domain) {
   const definitions = getAccountDefinitions(domain);
-  const results = { created: [], skipped: [], failed: [] };
+  const results = { created: [], failed: [] };
 
   // Create all accounts in parallel
-  const entries = Object.entries(definitions);
   await Promise.all(
-    entries.map(async ([key, account]) => {
+    Object.entries(definitions).map(async ([key, account]) => {
       try {
-        const result = await ensureAccount(admin, account);
-
-        if (result.created) {
-          results.created.push({ id: key, uid: account.uid, email: account.email });
-        } else {
-          results.skipped.push({ id: key, uid: account.uid, email: account.email });
-        }
+        await createAccount(admin, account);
+        results.created.push({ id: key, uid: account.uid, email: account.email });
       } catch (error) {
         results.failed.push({ id: key, uid: account.uid, email: account.email, error: error.message });
       }
@@ -399,9 +369,8 @@ async function ensureAccountsExist(admin, domain) {
   return {
     success: results.failed.length === 0,
     created: results.created.length,
-    skipped: results.skipped.length,
     failed: results.failed.length,
-    accounts: [...results.created, ...results.skipped],
+    accounts: results.created,
     errors: results.failed,
   };
 }
@@ -482,6 +451,6 @@ module.exports = {
   getAccountDefinitions,
   fetchPrivateKeys,
   deleteTestUsers,
-  ensureAccountsExist,
+  createTestAccounts,
   cleanupMarketingProviders,
 };
