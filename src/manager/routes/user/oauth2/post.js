@@ -59,8 +59,11 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
     ? 'https://localhost:4000/oauth2'
     : `${Manager.config.brand.url}/oauth2`;
 
-  const client_id = _.get(Manager.config, `oauth2.${settings.provider}.client_id`);
-  const client_secret = _.get(Manager.config, `oauth2.${settings.provider}.client_secret`);
+  // Get OAuth2 credentials from environment variables
+  // Format: OAUTH2_{PROVIDER}_CLIENT_ID, OAUTH2_{PROVIDER}_CLIENT_SECRET
+  const providerEnvKey = settings.provider.toUpperCase().replace(/-/g, '_');
+  const client_id = process.env[`OAUTH2_${providerEnvKey}_CLIENT_ID`];
+  const client_secret = process.env[`OAUTH2_${providerEnvKey}_CLIENT_SECRET`];
 
   const state = settings.state;
 

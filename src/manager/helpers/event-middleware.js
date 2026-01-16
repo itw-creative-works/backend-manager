@@ -1,6 +1,15 @@
 /**
  * EventMiddleware
  * Used to handle middleware for event triggers (auth, firestore, cron)
+ *
+ * Usage in consumer projects:
+ *   exports.userOnCreate = functions
+ *     .firestore.document('users/{uid}')
+ *     .onCreate((snapshot, context) =>
+ *       Manager.EventMiddleware({ snapshot, context }).run('users/on-create')
+ *     );
+ *
+ * Handler location: functions/hooks/events/{name}.js
  */
 
 function EventMiddleware(m, payload) {
@@ -10,7 +19,7 @@ function EventMiddleware(m, payload) {
   self.payload = payload;
 }
 
-EventMiddleware.prototype.run = function (handlerPath, options) {
+EventMiddleware.prototype.run = function (handlerName, options) {
   const self = this;
 
   // Shortcuts
@@ -21,6 +30,16 @@ EventMiddleware.prototype.run = function (handlerPath, options) {
     const assistant = Manager.Assistant();
     options = options || {};
 
+    // Resolve handler path
+    // If it's an absolute path, use it directly
+    // Otherwise, look in the consumer's hooks/events/ directory
+    let handlerPath;
+    if (handlerName.startsWith('/')) {
+      handlerPath = handlerName;
+    } else {
+      handlerPath = `${Manager.cwd}/events/${handlerName}.js`;
+    }
+
     // Build context based on event type
     const context = {
       Manager,
@@ -30,6 +49,7 @@ EventMiddleware.prototype.run = function (handlerPath, options) {
       user: payload.user,
       context: payload.context,
       change: payload.change,
+      snapshot: payload.snapshot,
     };
 
     // Load handler
