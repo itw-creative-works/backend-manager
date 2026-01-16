@@ -1,118 +1,77 @@
-function Module() {
-  const self = this;
-}
-
-Module.prototype.init = function (Manager, payload) {
-  const self = this;
-
-  // Shortcuts
-  self.Manager = Manager;
-  self.libraries = Manager.libraries;
-  self.assistant = Manager.Assistant();
-  self.change = payload.change
-  self.context = payload.context
-
-  // Return
-  return self;
-};
-
-Module.prototype.main = function () {
-  const self = this;
+/**
+ * Notification subscription write handler
+ *
+ * Handles create, update, and delete events for notification subscriptions.
+ * Updates stats counters and sends analytics events.
+ */
+module.exports = async ({ Manager, assistant, change, context, libraries }) => {
+  const { admin } = libraries;
 
   // Shortcuts
-  const Manager = self.Manager;
-  const assistant = self.assistant;
-  const libraries = self.libraries;
-  const change = self.change;
-  const context = self.context;
+  const dataBefore = change.before.data();
+  const dataAfter = change.after.data();
 
-  return new Promise(async function(resolve, reject) {
-    // Libraries
-    const _ = Manager.require('lodash');
+  // Determine event type
+  let eventType;
+  if (dataAfter === undefined) {
+    eventType = 'delete';
+  } else if (dataBefore && dataAfter) {
+    eventType = 'update';
+  } else if (!dataBefore && dataAfter) {
+    eventType = 'create';
+  }
 
-    // Shortcuts
-    const dataBefore = change.before.data();
-    const dataAfter = change.after.data();
+  // Log
+  assistant.log('Notification subscription write:', {
+    after: dataAfter,
+    before: dataBefore,
+    eventType: eventType,
+    resource: context.resource,
+    params: context.params,
+  });
 
-    // Variables
-    let analytics;
-    let eventType;
+  // Delete event
+  if (eventType === 'delete') {
+    await admin.firestore().doc('meta/stats')
+      .update({
+        'notifications.total': admin.firestore.FieldValue.increment(-1),
+      });
 
-    // Determine event type
-    if (dataAfter == undefined) {
-      eventType = 'delete';
-    } else if (dataBefore && dataAfter) {
-      eventType = 'update';
-    } else if (!dataBefore && dataAfter) {
-      eventType = 'create';
-    }
-
-    // Log
-    assistant.log('Notification subscription write:', {
-      after: dataAfter,
-      before: dataBefore,
-      eventType: eventType,
-      resource: context.resource,
-      params: context.params,
+    Manager.Analytics({
+      assistant: assistant,
+      uuid: dataBefore?.owner?.uid,
+    }).event({
+      name: 'notification-unsubscribe',
+      params: {},
     });
 
-    // Delete event
-    if (eventType === 'delete') {
-      await libraries.admin.firestore().doc(`meta/stats`)
-        .update({
-          'notifications.total': libraries.admin.firestore.FieldValue.increment(-1),
-        })
-        .then(r => {
-          analytics = Manager.Analytics({
-            assistant: assistant,
-            uuid: dataBefore?.owner?.uid,
-          })
-          .event({
-            name: 'notification-unsubscribe',
-            params: {},
-          });
+    assistant.log('Notification subscription deleted:', dataBefore);
 
-          assistant.log('Notification subscription deleted:', dataBefore);
+    return dataBefore;
+  }
 
-          return resolve(dataBefore);
-        })
-        .catch(e => {
-          assistant.error(e);
-          return reject(e);
-        })
+  // Update event
+  if (eventType === 'update') {
+    return;
+  }
 
-    // Update event
-  } else if (eventType === 'update') {
-    return resolve();
+  // Create event
+  if (eventType === 'create') {
+    await admin.firestore().doc('meta/stats')
+      .update({
+        'notifications.total': admin.firestore.FieldValue.increment(1),
+      });
 
-    // Create event
-  } else if (eventType === 'create') {
-      await libraries.admin.firestore().doc(`meta/stats`)
-        .update({
-          'notifications.total': libraries.admin.firestore.FieldValue.increment(1),
-        })
-        .then(r => {
-          analytics = Manager.Analytics({
-            assistant: assistant,
-            uuid: dataAfter?.owner?.uid,
-          })
-          .event({
-            name: 'notification-subscribe',
-            params: {},
-          });
+    Manager.Analytics({
+      assistant: assistant,
+      uuid: dataAfter?.owner?.uid,
+    }).event({
+      name: 'notification-subscribe',
+      params: {},
+    });
 
-          assistant.log('Notification subscription created:', dataAfter);
+    assistant.log('Notification subscription created:', dataAfter);
 
-          return resolve(dataAfter);
-        })
-        .catch(e => {
-          assistant.error(e);
-          return reject(e);
-        })
-    }
-
-  });
+    return dataAfter;
+  }
 };
-
-
-module.exports = Module;

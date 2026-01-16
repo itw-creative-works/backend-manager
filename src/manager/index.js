@@ -14,8 +14,8 @@ const util = require('util');
 const core = './functions/core';
 const wrappers = './functions/wrappers';
 const _legacy = './functions/_legacy';
-const cron = './cron';
-const events = './events';
+const cron = path.resolve(__dirname, './cron');
+const events = path.resolve(__dirname, './events');
 
 const BEM_CONFIG_TEMPLATE_PATH = path.resolve(__dirname, '../../templates/backend-manager-config.json');
 
@@ -469,6 +469,12 @@ Manager.prototype.Middleware = function () {
   return new self.libraries.Middleware(self, ...arguments);
 };
 
+Manager.prototype.EventMiddleware = function (payload) {
+  const self = this;
+  self.libraries.EventMiddleware = self.libraries.EventMiddleware || require('./helpers/event-middleware.js');
+  return new self.libraries.EventMiddleware(self, payload);
+};
+
 Manager.prototype.Settings = function () {
   const self = this;
   self.libraries.Settings = self.libraries.Settings || require('./helpers/settings.js');
@@ -865,13 +871,13 @@ Manager.prototype.setupFunctions = function (exporter, options) {
     self.libraries.functions
     .runWith({memory: '256MB', timeoutSeconds: 60})
     .auth.user()
-    .beforeCreate(async (user, context) => self._process((new (require(`${events}/auth/before-create.js`))()).init(self, { user: user, context: context})));
+    .beforeCreate((user, context) => self.EventMiddleware({ user, context }).run(`${events}/auth/before-create.js`));
 
     exporter.bm_authBeforeSignIn =
     self.libraries.functions
     .runWith({memory: '256MB', timeoutSeconds: 60})
     .auth.user()
-    .beforeSignIn(async (user, context) => self._process((new (require(`${events}/auth/before-signin.js`))()).init(self, { user: user, context: context})));
+    .beforeSignIn((user, context) => self.EventMiddleware({ user, context }).run(`${events}/auth/before-signin.js`));
   }
 
   // Setup events
@@ -879,26 +885,26 @@ Manager.prototype.setupFunctions = function (exporter, options) {
   self.libraries.functions
   .runWith({memory: '256MB', timeoutSeconds: 60})
   .auth.user()
-  .onCreate(async (user, context) => self._process((new (require(`${events}/auth/on-create.js`))()).init(self, { user: user, context: context})));
+  .onCreate((user, context) => self.EventMiddleware({ user, context }).run(`${events}/auth/on-create.js`));
 
   exporter.bm_authOnDelete =
   self.libraries.functions
   .runWith({memory: '256MB', timeoutSeconds: 60})
   .auth.user()
-  .onDelete(async (user, context) => self._process((new (require(`${events}/auth/on-delete.js`))()).init(self, { user: user, context: context})));
+  .onDelete((user, context) => self.EventMiddleware({ user, context }).run(`${events}/auth/on-delete.js`));
 
   exporter.bm_notificationsOnWrite =
   self.libraries.functions
   .runWith({memory: '256MB', timeoutSeconds: 60})
   .firestore.document('notifications/{token}')
-  .onWrite(async (change, context) => self._process((new (require(`${events}/firestore/notifications/on-write.js`))()).init(self, { change: change, context: context, })));
+  .onWrite((change, context) => self.EventMiddleware({ change, context }).run(`${events}/firestore/notifications/on-write.js`));
 
   // Setup cron jobs
   exporter.bm_cronDaily =
   self.libraries.functions
   .runWith({ memory: '256MB', timeoutSeconds: 60 * 5})
   .pubsub.schedule('every 24 hours')
-  .onRun(async (context) => self._process((new (require(`${cron}/daily.js`))()).init(self, { context: context, })));
+  .onRun((context) => self.EventMiddleware({ context }).run(`${cron}/daily.js`));
 };
 
 // Setup Custom Server
