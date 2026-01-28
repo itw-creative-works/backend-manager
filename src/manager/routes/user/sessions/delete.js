@@ -32,10 +32,11 @@ module.exports = async ({ assistant, user, settings, libraries }) => {
   count += await signOutOfSession(admin, assistant, uid, 'gatherings/online');
 
   // Revoke Firebase refresh tokens
-  await admin.auth().revokeRefreshTokens(uid)
-    .catch((e) => {
-      return assistant.respond(`Failed to sign out of all sessions: ${e}`, { code: 500 });
-    });
+  try {
+    await admin.auth().revokeRefreshTokens(uid);
+  } catch (e) {
+    return assistant.respond(`Failed to sign out of all sessions: ${e}`, { code: 500 });
+  }
 
   return assistant.respond({
     sessions: count,

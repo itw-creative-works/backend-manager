@@ -49,10 +49,10 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
     response: 'json',
     tries: 2,
     log: true,
-    headers: {
-      'Authorization': `Bearer ${process.env.BACKEND_MANAGER_KEY}`,
+    body: {
+      uid,
+      backendManagerKey: process.env.BACKEND_MANAGER_KEY,
     },
-    body: { uid },
   })
     .then((json) => {
       assistant.log(`Sign out of all sessions success`, json);
@@ -62,10 +62,11 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
     });
 
   // Delete the user
-  await admin.auth().deleteUser(uid)
-    .catch((e) => {
-      return assistant.respond(`Failed to delete user: ${e}`, { code: 500 });
-    });
+  try {
+    await admin.auth().deleteUser(uid);
+  } catch (e) {
+    return assistant.respond(`Failed to delete user: ${e}`, { code: 500 });
+  }
 
   return assistant.respond({ success: true });
 };

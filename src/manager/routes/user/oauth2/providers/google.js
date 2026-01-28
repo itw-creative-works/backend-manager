@@ -11,6 +11,7 @@ module.exports = {
     status: 'https://oauth2.googleapis.com/tokeninfo',
     removeAccess: 'https://myaccount.google.com/security',
   },
+  scope: ['openid', 'email', 'profile'],
 
   buildUrl(state, url, assistant) {
     // Additional URL building if needed for authorize state

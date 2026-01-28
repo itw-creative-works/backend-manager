@@ -107,10 +107,14 @@ async function processAuthorize(assistant, Manager, settings, oauth2, ultimateJe
     redirectUrl: settings.redirect_uri || settings.referrer || defaultReferrer,
   };
 
+  // Use provider's default scopes if none provided
+  const scopes = arrayify(settings.scope);
+  const finalScopes = scopes.length > 0 ? scopes : (oauth2.scope || []);
+
   const url = new URL(oauth2.urls.authorize);
   url.searchParams.set('state', JSON.stringify(stateData));
   url.searchParams.set('client_id', client_id);
-  url.searchParams.set('scope', arrayify(settings.scope).join(' '));
+  url.searchParams.set('scope', finalScopes.join(' '));
   url.searchParams.set('redirect_uri', ultimateJekyllOAuth2Url);
   url.searchParams.set('access_type', settings.access_type);
   url.searchParams.set('prompt', settings.prompt);

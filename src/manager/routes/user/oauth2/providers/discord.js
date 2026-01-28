@@ -10,6 +10,7 @@ module.exports = {
     status: '',
     removeAccess: 'https://discord.com/channels/@me',
   },
+  scope: ['identify', 'email'],
 
   buildUrl(state, url, assistant) {
     // Additional URL building if needed for authorize state
