@@ -55,7 +55,7 @@ Module.prototype.main = function () {
 
     // Check if user is admin
     if (!payload.user.roles.admin) {
-      return reject(assistant.errorify(`Admin required.`, {code: 401}));
+      return reject(assistant.errorify(`Admin required.`, {code: 403}));
     }
 
     // Check if title and body are set

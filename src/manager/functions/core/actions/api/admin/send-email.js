@@ -25,8 +25,10 @@ Module.prototype.main = function () {
     self.sendgrid = sendgrid;
 
     // Check if user is admin
-    if (!payload.user.roles.admin) {
-      return reject(assistant.errorify(`Admin required.`, { code: 401 }));
+    if (!payload.user.authenticated) {
+      return reject(assistant.errorify(`Authentication required.`, {code: 401}));
+    } else if (!payload.user.roles.admin) {
+      return reject(assistant.errorify(`Admin required.`, { code: 403 }));
     }
 
     // Check for SendGrid key

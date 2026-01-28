@@ -17,7 +17,7 @@ Module.prototype.main = function () {
   return new Promise(async function(resolve, reject) {
     // Perform checks
     if (!payload.user.roles.admin && assistant.isProduction()) {
-      return reject(assistant.errorify(`Admin required.`, {code: 401}));
+      return reject(assistant.errorify(`Admin required.`, {code: 403}));
     }
 
     // Check for required options

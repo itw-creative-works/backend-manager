@@ -18,8 +18,10 @@ Module.prototype.main = function () {
     payload.data.payload.options.metadataTag = typeof payload.data.payload.options.metadataTag === 'undefined' ? 'admin:firestore-write' : payload.data.payload.options.metadataTag;
 
     // Perform checks
-    if (!payload.user.roles.admin) {
-      return reject(assistant.errorify(`Admin required.`, {code: 401}));
+    if (!payload.user.authenticated) {
+      return reject(assistant.errorify(`Authentication required.`, {code: 401}));
+    } else if (!payload.user.roles.admin) {
+      return reject(assistant.errorify(`Admin required.`, {code: 403}));
     } else if (!payload.data.payload.path) {
       return reject(assistant.errorify(`Path parameter required.`, {code: 400}));
     }

@@ -19,7 +19,7 @@ Module.prototype.main = function () {
     payload.data.payload.deletionRegex = payload.data.payload.deletionRegex ? powertools.regexify(payload.data.payload.deletionRegex) : payload.data.payload.deletionRegex;
 
     if (!payload.user.roles.admin && assistant.isProduction()) {
-      return reject(assistant.errorify(`Admin required.`, {code: 401}));
+      return reject(assistant.errorify(`Admin required.`, {code: 403}));
     }
 
     // https://googleapis.dev/nodejs/firestore/latest/v1.FirestoreAdminClient.html#exportDocuments

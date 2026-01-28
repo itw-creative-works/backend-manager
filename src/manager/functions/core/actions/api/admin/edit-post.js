@@ -21,7 +21,7 @@ Module.prototype.main = function () {
     try {
       // Perform checks
       if (!payload.user.roles.admin && !payload.user.roles.blogger) {
-        return reject(assistant.errorify(`Admin required.`, {code: 401}));
+        return reject(assistant.errorify(`Admin required.`, {code: 403}));
       }
 
       // Check for GitHub configuration

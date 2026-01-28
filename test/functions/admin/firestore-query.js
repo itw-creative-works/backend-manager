@@ -195,7 +195,7 @@ module.exports = {
     {
       name: 'non-admin-rejected',
       async run({ http, assert }) {
-        const queryResponse = await http.as('user').command('admin:firestore-query', {
+        const queryResponse = await http.as('basic').command('admin:firestore-query', {
           queries: [{ collection: TEST_COLLECTION }],
         });
 

@@ -13,7 +13,7 @@ Module.prototype.main = function () {
 
     // Check if the user is an admin
     if (!payload.user.roles.admin && assistant.isProduction()) {
-      return reject(assistant.errorify(`Admin required.`, {code: 401}));
+      return reject(assistant.errorify(`Admin required.`, {code: 403}));
     }
 
     // Check if the ID is set

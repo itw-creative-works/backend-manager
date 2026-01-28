@@ -14,8 +14,10 @@ Module.prototype.main = function () {
 
   return new Promise(async function(resolve, reject) {
     // Perform checks
-    if (!payload.user.roles.admin) {
-      return reject(assistant.errorify(`Admin required.`, {code: 401}));
+    if (!payload.user.authenticated) {
+      return reject(assistant.errorify(`Authentication required.`, {code: 401}));
+    } else if (!payload.user.roles.admin) {
+      return reject(assistant.errorify(`Admin required.`, {code: 403}));
     }
 
     // Run queries

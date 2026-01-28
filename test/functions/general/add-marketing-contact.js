@@ -225,12 +225,12 @@ module.exports = {
 
         assert.isSuccess(response, 'Add marketing contact with specific providers should succeed');
 
-        // Should only have sendgrid result
-        if (response.data?.providers) {
-          assert.hasProperty(response.data.providers, 'sendgrid', 'Should have SendGrid result');
-        }
-
+        // Only check providers if TEST_EXTENDED_MODE is set (external APIs are called)
         if (process.env.TEST_EXTENDED_MODE) {
+          // Should only have sendgrid result
+          if (response.data?.providers) {
+            assert.hasProperty(response.data.providers, 'sendgrid', 'Should have SendGrid result');
+          }
           state.sendgridAdded = response.data?.providers?.sendgrid?.success;
           // Beehiiv not called since we only specified sendgrid
         }

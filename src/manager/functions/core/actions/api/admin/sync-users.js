@@ -15,7 +15,7 @@ Module.prototype.main = function () {
 
     // If the user is not an admin, reject
     if (!payload.user.roles.admin && assistant.isProduction()) {
-      return reject(assistant.errorify(`Admin required.`, {code: 401}));
+      return reject(assistant.errorify(`Admin required.`, {code: 403}));
     }
 
     // Get lastPageToken from meta/stats

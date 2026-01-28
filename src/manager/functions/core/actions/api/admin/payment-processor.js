@@ -16,8 +16,10 @@ Module.prototype.main = function () {
 
   return new Promise(async function(resolve, reject) {
     // Check for admin
-    if (!payload.user.roles.admin) {
-      return reject(assistant.errorify(`Admin required.`, {code: 401}));
+    if (!payload.user.authenticated) {
+      return reject(assistant.errorify(`Authentication required.`, {code: 401}));
+    } else if (!payload.user.roles.admin) {
+      return reject(assistant.errorify(`Admin required.`, {code: 403}));
     }
 
     const productId = payload?.data?.payload?.payload?.details?.productIdGlobal;
