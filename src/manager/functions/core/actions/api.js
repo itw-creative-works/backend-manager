@@ -48,28 +48,7 @@ Module.prototype.main = function() {
 
   return new Promise(async function(resolve, reject) {
     return libraries.cors(req, res, async () => {
-      // Detect new-style RESTful request vs legacy command-based request
-      // New style: command with '/' (e.g., 'general/uuid') or URL path without command
-      // Legacy: command with ':' (e.g., 'general:generate-uuid')
-      const urlPath = req.path || '';
-      const command = assistant.request.data.command || '';
-
-      // Strip prefix: /backend-manager/ (hosting rewrite) or /bm_api/ (direct function URL) or just leading slash
-      const pathAfterBm = urlPath
-        .replace(/^\/(backend-manager|bm_api)\/?/, '')
-        .replace(/^\//, '');
-
-      // New style if: command contains '/' OR (URL has path AND no command)
-      const isNewStyleCommand = command.includes('/') && !command.includes(':');
-      const isNewStyleUrl = pathAfterBm.length > 0 && !command;
-      const isNewStyleRequest = isNewStyleCommand || isNewStyleUrl;
-
-      if (isNewStyleRequest) {
-        // Route path is either from command or URL
-        const routePath = isNewStyleCommand ? command : pathAfterBm;
-        return self.routeToMiddleware(routePath);
-      }
-
+      // Legacy command-based API only - new-style requests are routed via RequestRouter
       // Set properties
       self.payload.data = assistant.request.data;
       self.payload.user = await assistant.authenticate();
@@ -399,24 +378,6 @@ Module.prototype.resolveApiPath = function (command) {
   } else {
     return null;
   }
-};
-
-Module.prototype.routeToMiddleware = function (routePath) {
-  const self = this;
-  const Manager = self.Manager;
-  const req = self.req;
-  const res = self.res;
-
-  // Set paths for BEM internal routes/schemas
-  // __dirname is src/manager/functions/core/actions, so we need to go up to src/manager
-  const bemRoutesDir = path.resolve(__dirname, '../../../routes');
-  const bemSchemasDir = path.resolve(__dirname, '../../../schemas');
-
-  return Manager.Middleware(req, res).run(routePath, {
-    routesDir: bemRoutesDir,
-    schemasDir: bemSchemasDir,
-    schema: routePath,
-  });
 };
 
 function stripUrl(url) {

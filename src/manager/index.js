@@ -396,6 +396,21 @@ Manager.prototype._preProcess = function (mod) {
   });
 };
 
+Manager.prototype._processMiddleware = function (req, res, routePath) {
+  const self = this;
+
+  // Set paths for BEM internal routes/schemas
+  const bemRoutesDir = path.resolve(__dirname, './routes');
+  const bemSchemasDir = path.resolve(__dirname, './schemas');
+
+  // Route directly through middleware (no hooks for new system)
+  return self.Middleware(req, res).run(routePath, {
+    routesDir: bemRoutesDir,
+    schemasDir: bemSchemasDir,
+    schema: routePath,
+  });
+};
+
 // Manager.prototype.Assistant = function(ref, options) {
 //   const self = this;
 //   ref = ref || {};
@@ -467,6 +482,12 @@ Manager.prototype.Middleware = function () {
   const self = this;
   self.libraries.Middleware = self.libraries.Middleware || require('./helpers/middleware.js');
   return new self.libraries.Middleware(self, ...arguments);
+};
+
+Manager.prototype.BemRouter = function (req, res) {
+  const self = this;
+  self.libraries.BemRouter = self.libraries.BemRouter || require('./helpers/bem-router.js');
+  return new self.libraries.BemRouter(self, req, res);
 };
 
 Manager.prototype.EventMiddleware = function (payload) {
@@ -707,8 +728,17 @@ Manager.prototype.setupFunctions = function (exporter, options) {
   exporter.bm_api =
   self.libraries.functions
   .runWith({memory: '256MB', timeoutSeconds: 60 * 5})
-  // TODO: Replace this with new API
-  .https.onRequest(async (req, res) => self._process((new (require(`${core}/actions/api.js`))()).init(self, { req: req, res: res, })));
+  .https.onRequest(async (req, res) => {
+    const route = self.BemRouter(req, res).resolve();
+
+    if (route.isLegacy) {
+      // Legacy command-based API -> goes through api.js + _process() for hooks
+      return self._process((new (require(`${core}/actions/api.js`))()).init(self, { req, res }));
+    } else {
+      // New RESTful middleware system -> direct to middleware (no hooks)
+      return self._processMiddleware(req, res, route.routePath);
+    }
+  });
 
   // Setup legacy functions
   if (options.setupFunctionsLegacy) {
