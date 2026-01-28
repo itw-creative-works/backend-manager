@@ -7,7 +7,7 @@ const helpers = require('./helpers');
 const path = require('path');
 
 // Load template
-const bemConfigTemplate = helpers.loadJSON(path.resolve(__dirname, '../../../templates/backend-manager-config.json'));
+const bemConfigTemplate = helpers.loadJSON(path.resolve(__dirname, '../../../../templates/backend-manager-config.json'));
 
 class BemConfigTest extends BaseTest {
   getName() {

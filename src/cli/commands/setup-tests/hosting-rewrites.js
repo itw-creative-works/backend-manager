@@ -8,7 +8,16 @@ class HostingRewritesTest extends BaseTest {
   }
 
   async run() {
-    return this.self.firebaseJSON?.hosting?.rewrites?.some(rewrite => rewrite.source === '/backend-manager' && rewrite.function === 'bm_api');
+    const rewrites = this.self.firebaseJSON?.hosting?.rewrites || [];
+    const firstRewrite = rewrites[0];
+
+    // Check first rule is correct
+    const firstIsCorrect = firstRewrite?.source === '/backend-manager**' && firstRewrite?.function === 'bm_api';
+
+    // Check no duplicates exist (only one backend-manager rule allowed)
+    const backendManagerCount = rewrites.filter(r => r.source?.startsWith('/backend-manager')).length;
+
+    return firstIsCorrect && backendManagerCount === 1;
   }
 
   async fix() {
@@ -17,9 +26,12 @@ class HostingRewritesTest extends BaseTest {
     // Set default
     hosting.rewrites = hosting.rewrites || [];
 
+    // Remove any existing backend-manager rewrites (with or without wildcards)
+    hosting.rewrites = hosting.rewrites.filter(rewrite => !rewrite.source?.startsWith('/backend-manager'));
+
     // Add to top
     hosting.rewrites.unshift({
-      source: '/backend-manager',
+      source: '/backend-manager**',
       function: 'bm_api',
     });
 
