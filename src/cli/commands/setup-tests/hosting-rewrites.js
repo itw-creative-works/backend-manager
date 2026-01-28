@@ -12,12 +12,12 @@ class HostingRewritesTest extends BaseTest {
     const firstRewrite = rewrites[0];
 
     // Check first rule is correct
-    const firstIsCorrect = firstRewrite?.source === '/backend-manager**' && firstRewrite?.function === 'bm_api';
+    const firstIsCorrect = firstRewrite?.source === '{/backend-manager,/backend-manager/**}' && firstRewrite?.function === 'bm_api';
 
-    // Check no duplicates exist (only one backend-manager rule allowed)
-    const backendManagerCount = rewrites.filter(r => r.source?.startsWith('/backend-manager')).length;
+    // Check no duplicates exist (only one bm_api rule allowed)
+    const bmApiCount = rewrites.filter(r => r.function === 'bm_api').length;
 
-    return firstIsCorrect && backendManagerCount === 1;
+    return firstIsCorrect && bmApiCount === 1;
   }
 
   async fix() {
@@ -26,12 +26,12 @@ class HostingRewritesTest extends BaseTest {
     // Set default
     hosting.rewrites = hosting.rewrites || [];
 
-    // Remove any existing backend-manager rewrites (with or without wildcards)
-    hosting.rewrites = hosting.rewrites.filter(rewrite => !rewrite.source?.startsWith('/backend-manager'));
+    // Remove any existing bm_api rewrites
+    hosting.rewrites = hosting.rewrites.filter(rewrite => rewrite.function !== 'bm_api');
 
     // Add to top
     hosting.rewrites.unshift({
-      source: '/backend-manager**',
+      source: '{/backend-manager,/backend-manager/**}',
       function: 'bm_api',
     });
 
