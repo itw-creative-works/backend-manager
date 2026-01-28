@@ -7,14 +7,36 @@ module.exports = {
     authorize: 'https://discord.com/api/oauth2/authorize',
     tokenize: 'https://discord.com/api/oauth2/token',
     refresh: 'https://discord.com/api/oauth2/token',
+    revoke: 'https://discord.com/api/oauth2/token/revoke',
     status: '',
     removeAccess: 'https://discord.com/channels/@me',
   },
   scope: ['identify', 'email'],
 
-  buildUrl(state, url, assistant) {
-    // Additional URL building if needed for authorize state
-    return url;
+  // Discord doesn't need special auth params
+  authParams: {},
+
+  // Revoke a token with Discord
+  async revokeToken(token, context) {
+    const { assistant, clientId, clientSecret } = context;
+
+    const response = await fetch(this.urls.revoke, {
+      method: 'POST',
+      timeout: 30000,
+      body: new URLSearchParams({
+        token,
+        client_id: clientId,
+        client_secret: clientSecret,
+      }),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    }).catch(e => e);
+
+    if (response instanceof Error) {
+      assistant.log('Discord revokeToken error:', response.message);
+      return { revoked: false, reason: response.message };
+    }
+
+    return { revoked: true };
   },
 
   async verifyIdentity(tokenizeResult, Manager, assistant) {
