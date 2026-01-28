@@ -12,9 +12,6 @@
       combomark: 'https://example.com/combomark.png',
     },
   },
-  mailchimp: {
-    list_id: '36774bf825',
-  },
   github: {
     user: 'username',
     repo_website: 'https://github.com/username/backend-manager',
