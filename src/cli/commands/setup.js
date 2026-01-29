@@ -159,12 +159,13 @@ class SetupCommand extends BaseCommand {
 
   async fetchStats() {
     const self = this.main;
-    const statsFetchResult = await fetch(`${self.apiUrl}/backend-manager/admin/stats`, {
+    const url = `${self.apiUrl}/backend-manager/admin/stats`;
+    const statsFetchResult = await fetch(url, {
       method: 'GET',
       timeout: 30000,
       response: 'json',
       query: {
-        backendManagerKey: self?.runtimeConfigJSON?.backend_manager?.key,
+        backendManagerKey: process.env.BACKEND_MANAGER_KEY,
       },
     })
     .then(json => json)
@@ -172,7 +173,7 @@ class SetupCommand extends BaseCommand {
 
     if (statsFetchResult instanceof Error) {
       if (!statsFetchResult.message.includes('network timeout')) {
-        this.logWarning(`Ran into error while fetching stats endpoint`, statsFetchResult);
+        this.logWarning(`Ran into error while fetching stats endpoint (${url})`, statsFetchResult);
       }
     } else {
       this.logSuccess(`Stats fetched/created properly.`);
