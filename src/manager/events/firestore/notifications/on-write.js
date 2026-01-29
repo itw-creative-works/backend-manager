@@ -36,7 +36,7 @@ module.exports = async ({ Manager, assistant, change, context, libraries }) => {
   if (eventType === 'delete') {
     await admin.firestore().doc('meta/stats')
       .set({
-        'notifications.total': FieldValue.increment(-1),
+        notifications: { total: FieldValue.increment(-1) },
       }, { merge: true });
 
     Manager.Analytics({
@@ -61,7 +61,7 @@ module.exports = async ({ Manager, assistant, change, context, libraries }) => {
   if (eventType === 'create') {
     await admin.firestore().doc('meta/stats')
       .set({
-        'notifications.total': FieldValue.increment(1),
+        notifications: { total: FieldValue.increment(1) },
       }, { merge: true });
 
     Manager.Analytics({
