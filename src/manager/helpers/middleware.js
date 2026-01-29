@@ -184,8 +184,8 @@ Middleware.prototype.run = function (libPath, options) {
 
     // Build context object for route handler
     const context = {
-      assistant: assistant,
       Manager: Manager,
+      assistant: assistant,
       user: assistant.getUser(),
       usage: assistant.usage,
       settings: assistant.settings,
