@@ -11,7 +11,7 @@ const DEFAULT_EMULATOR_PORTS = {
   hosting: 5002,
   storage: 9199,
   pubsub: 8085,
-  ui: 4000,
+  ui: 4050,
 };
 
 const REQUIRED_EMULATORS = {
@@ -22,7 +22,7 @@ const REQUIRED_EMULATORS = {
   hosting: { port: DEFAULT_EMULATOR_PORTS.hosting },
   storage: { port: DEFAULT_EMULATOR_PORTS.storage },
   pubsub: { port: DEFAULT_EMULATOR_PORTS.pubsub },
-  ui: { enabled: true },
+  ui: { enabled: true, port: DEFAULT_EMULATOR_PORTS.ui },
 };
 
 class EmulatorsConfigTest extends BaseTest {

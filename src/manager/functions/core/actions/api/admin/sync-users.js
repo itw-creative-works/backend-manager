@@ -93,11 +93,11 @@ Module.prototype.main = function () {
             // Save to database only if there is a page token
             if (batch.pageToken) {
               await self.libraries.admin.firestore().doc(`meta/stats`)
-                .update({
+                .set({
                   syncUsers: {
                     lastPageToken: batch.pageToken,
                   }
-                })
+                }, { merge: true })
                 .then(r => {
                   assistant.log(`Saved lastPageToken: ${batch.pageToken}`);
                 })

@@ -63,10 +63,10 @@ module.exports = async ({ Manager, assistant, user, context, libraries }) => {
       // Create user doc
       batch.set(admin.firestore().doc(`users/${user.uid}`), userRecord);
 
-      // Increment user count
-      batch.update(admin.firestore().doc('meta/stats'), {
+      // Increment user count (use set+merge so doc is created if missing)
+      batch.set(admin.firestore().doc('meta/stats'), {
         'users.total': FieldValue.increment(1),
-      });
+      }, { merge: true });
 
       await batch.commit();
     }, MAX_RETRIES, RETRY_DELAY_MS);

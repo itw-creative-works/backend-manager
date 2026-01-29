@@ -94,11 +94,11 @@ module.exports = async ({ assistant, Manager, user, settings, analytics, librari
       // Save pageToken for resume
       if (batch.pageToken) {
         await admin.firestore().doc('meta/stats')
-          .update({
+          .set({
             syncUsers: {
               lastPageToken: batch.pageToken,
             }
-          })
+          }, { merge: true })
           .then(() => {
             assistant.log(`Saved lastPageToken: ${batch.pageToken}`);
           })

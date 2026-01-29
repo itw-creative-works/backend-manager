@@ -41,10 +41,10 @@ module.exports = async ({ Manager, assistant, user, context, libraries }) => {
       // Delete user doc
       batch.delete(admin.firestore().doc(`users/${user.uid}`));
 
-      // Decrement user count
-      batch.update(admin.firestore().doc('meta/stats'), {
+      // Decrement user count (use set+merge so doc is created if missing)
+      batch.set(admin.firestore().doc('meta/stats'), {
         'users.total': FieldValue.increment(-1),
-      });
+      }, { merge: true });
 
       await batch.commit();
     }, MAX_RETRIES, RETRY_DELAY_MS);
