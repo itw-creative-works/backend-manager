@@ -13,7 +13,13 @@ class GitignoreTest extends BaseTest {
 
   async run() {
     const gitignorePath = `${this.self.firebaseProjectPath}/.gitignore`;
+    const oldGitignorePath = `${this.self.firebaseProjectPath}/functions/.gitignore`;
     const existingContent = jetpack.read(gitignorePath);
+
+    // Check if old functions/.gitignore exists (should be removed)
+    if (jetpack.exists(oldGitignorePath)) {
+      return false;
+    }
 
     if (!existingContent) {
       return false;
@@ -87,11 +93,17 @@ class GitignoreTest extends BaseTest {
 
   async fix() {
     const gitignorePath = `${this.self.firebaseProjectPath}/.gitignore`;
+    const oldGitignorePath = `${this.self.firebaseProjectPath}/functions/.gitignore`;
     const templatePath = path.resolve(__dirname, '../../../../templates/_.gitignore');
 
     const templateContent = jetpack.read(templatePath);
     if (!templateContent) {
       throw new Error('Could not read .gitignore template file');
+    }
+
+    // Remove old functions/.gitignore if it exists
+    if (jetpack.exists(oldGitignorePath)) {
+      jetpack.remove(oldGitignorePath);
     }
 
     let existingContent = jetpack.read(gitignorePath) || '';
