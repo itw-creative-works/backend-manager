@@ -1,9 +1,0 @@
-{
-  backend_manager: {
-    key: '',
-    namespace: '',
-  },
-  github: {
-    key: '',
-  },
-}

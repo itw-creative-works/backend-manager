@@ -40,7 +40,7 @@ class SetupCommand extends BaseCommand {
     self.remoteconfigJSON = loadJSON(`${self.firebaseProjectPath}/functions/remoteconfig.template.json`);
     self.projectPackage = loadJSON(`${self.firebaseProjectPath}/package.json`);
     self.bemConfigJSON = loadJSON(`${self.firebaseProjectPath}/functions/backend-manager-config.json`);
-    self.gitignore = jetpack.read(`${self.firebaseProjectPath}/functions/.gitignore`) || '';
+    self.gitignore = jetpack.read(`${self.firebaseProjectPath}/.gitignore`) || '';
 
     // Check if package exists
     if (!hasContent(self.package)) {
