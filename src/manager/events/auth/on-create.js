@@ -89,16 +89,13 @@ module.exports = async ({ Manager, assistant, user, context, libraries }) => {
     assistant.log(`onCreate: Sending emails/adding to SendGrid for ${user.uid}`);
 
     // Add to marketing lists (SendGrid + Beehiiv) via centralized endpoint
-    fetch(`${Manager.project.apiUrl}/backend-manager`, {
-      method: 'post',
+    fetch(`${Manager.project.apiUrl}/backend-manager/marketing/contact`, {
+      method: 'POST',
       response: 'json',
       body: {
         backendManagerKey: process.env.BACKEND_MANAGER_KEY,
-        command: 'general:add-marketing-contact',
-        payload: {
-          email: user.email,
-          source: 'auth:on-create',
-        },
+        email: user.email,
+        source: 'auth:on-create',
       },
     }).catch(e => assistant.error('onCreate: add-marketing-contact failed:', e));
 
@@ -140,44 +137,41 @@ async function retryBatchWrite(assistant, fn, maxRetries, delayMs) {
  * Send welcome email (immediate)
  */
 function sendWelcomeEmail(Manager, assistant, user) {
-  return fetch(`${Manager.project.apiUrl}/backend-manager`, {
-    method: 'post',
+  return fetch(`${Manager.project.apiUrl}/backend-manager/admin/email`, {
+    method: 'POST',
     response: 'json',
     body: {
       backendManagerKey: process.env.BACKEND_MANAGER_KEY,
-      command: 'admin:send-email',
-      payload: {
-        to: [{ email: user.email }],
-        categories: ['account/welcome'],
-        subject: `Welcome to ${Manager.config.brand.name}!`,
-        template: 'd-b7f8da3c98ad49a2ad1e187f3a67b546',
-        group: 25928,
-        copy: false,
-        ensureUnique: true,
-        data: {
-          email: {
-            preview: `Welcome aboard! I'm Ian, the CEO and founder of ${Manager.config.brand.name}. I'm here to ensure your journey with us gets off to a great start.`,
-          },
-          body: {
-            title: `Welcome to ${Manager.config.brand.name}!`,
-            message: `
-              Welcome aboard!
-              <br><br>
-              I'm Ian, the founder and CEO of <strong>${Manager.config.brand.name}</strong>, and I'm thrilled to have you with us.
-              Your journey begins today, and we are committed to supporting you every step of the way.
-              <br><br>
-              We are dedicated to ensuring your experience is exceptional.
-              Feel free to reply directly to this email with any questions you may have.
-              <br><br>
-              Thank you for choosing <strong>${Manager.config.brand.name}</strong>. Here's to new beginnings!
-            `,
-          },
-          signoff: {
-            type: 'personal',
-            name: 'Ian Wiedenman, CEO',
-            url: `https://ianwiedenman.com?utm_source=welcome-email&utm_medium=email&utm_campaign=${Manager.config.app.id}`,
-            urlText: '@ianwieds',
-          },
+      to: [{ email: user.email }],
+      categories: ['account/welcome'],
+      subject: `Welcome to ${Manager.config.brand.name}!`,
+      template: 'd-b7f8da3c98ad49a2ad1e187f3a67b546',
+      group: 25928,
+      copy: false,
+      ensureUnique: true,
+      data: {
+        email: {
+          preview: `Welcome aboard! I'm Ian, the CEO and founder of ${Manager.config.brand.name}. I'm here to ensure your journey with us gets off to a great start.`,
+        },
+        body: {
+          title: `Welcome to ${Manager.config.brand.name}!`,
+          message: `
+            Welcome aboard!
+            <br><br>
+            I'm Ian, the founder and CEO of <strong>${Manager.config.brand.name}</strong>, and I'm thrilled to have you with us.
+            Your journey begins today, and we are committed to supporting you every step of the way.
+            <br><br>
+            We are dedicated to ensuring your experience is exceptional.
+            Feel free to reply directly to this email with any questions you may have.
+            <br><br>
+            Thank you for choosing <strong>${Manager.config.brand.name}</strong>. Here's to new beginnings!
+          `,
+        },
+        signoff: {
+          type: 'personal',
+          name: 'Ian Wiedenman, CEO',
+          url: `https://ianwiedenman.com?utm_source=welcome-email&utm_medium=email&utm_campaign=${Manager.config.app.id}`,
+          urlText: '@ianwieds',
         },
       },
     },
@@ -192,45 +186,42 @@ function sendWelcomeEmail(Manager, assistant, user) {
  * Send checkup email (7 days after signup)
  */
 function sendCheckupEmail(Manager, assistant, user) {
-  return fetch(`${Manager.project.apiUrl}/backend-manager`, {
-    method: 'post',
+  return fetch(`${Manager.project.apiUrl}/backend-manager/admin/email`, {
+    method: 'POST',
     response: 'json',
     body: {
       backendManagerKey: process.env.BACKEND_MANAGER_KEY,
-      command: 'admin:send-email',
-      payload: {
-        to: [{ email: user.email }],
-        categories: ['account/checkup'],
-        subject: `How's your experience with ${Manager.config.brand.name}?`,
-        template: 'd-b7f8da3c98ad49a2ad1e187f3a67b546',
-        group: 25928,
-        copy: false,
-        ensureUnique: true,
-        sendAt: moment().add(7, 'days').unix(),
-        data: {
-          email: {
-            preview: `Checking in from ${Manager.config.brand.name} to see how things are going. Let us know if you have any questions or feedback!`,
-          },
-          body: {
-            title: `How's everything going?`,
-            message: `
-              Hi there,
-              <br><br>
-              It's Ian again from <strong>${Manager.config.brand.name}</strong>. Just checking in to see how things are going for you.
-              <br><br>
-              Have you had a chance to explore all our features? Any questions or feedback for us?
-              <br><br>
-              We're always here to help, so don't hesitate to reach out. Just reply to this email and we'll get back to you as soon as possible.
-              <br><br>
-              Thank you for choosing <strong>${Manager.config.brand.name}</strong>. Here's to new beginnings!
-            `,
-          },
-          signoff: {
-            type: 'personal',
-            name: 'Ian Wiedenman, CEO',
-            url: `https://ianwiedenman.com?utm_source=checkup-email&utm_medium=email&utm_campaign=${Manager.config.app.id}`,
-            urlText: '@ianwieds',
-          },
+      to: [{ email: user.email }],
+      categories: ['account/checkup'],
+      subject: `How's your experience with ${Manager.config.brand.name}?`,
+      template: 'd-b7f8da3c98ad49a2ad1e187f3a67b546',
+      group: 25928,
+      copy: false,
+      ensureUnique: true,
+      sendAt: moment().add(7, 'days').unix(),
+      data: {
+        email: {
+          preview: `Checking in from ${Manager.config.brand.name} to see how things are going. Let us know if you have any questions or feedback!`,
+        },
+        body: {
+          title: `How's everything going?`,
+          message: `
+            Hi there,
+            <br><br>
+            It's Ian again from <strong>${Manager.config.brand.name}</strong>. Just checking in to see how things are going for you.
+            <br><br>
+            Have you had a chance to explore all our features? Any questions or feedback for us?
+            <br><br>
+            We're always here to help, so don't hesitate to reach out. Just reply to this email and we'll get back to you as soon as possible.
+            <br><br>
+            Thank you for choosing <strong>${Manager.config.brand.name}</strong>. Here's to new beginnings!
+          `,
+        },
+        signoff: {
+          type: 'personal',
+          name: 'Ian Wiedenman, CEO',
+          url: `https://ianwiedenman.com?utm_source=checkup-email&utm_medium=email&utm_campaign=${Manager.config.app.id}`,
+          urlText: '@ianwieds',
         },
       },
     },
@@ -245,22 +236,19 @@ function sendCheckupEmail(Manager, assistant, user) {
  * Send feedback email (14 days after signup)
  */
 function sendFeedbackEmail(Manager, assistant, user) {
-  return fetch(`${Manager.project.apiUrl}/backend-manager`, {
-    method: 'post',
+  return fetch(`${Manager.project.apiUrl}/backend-manager/admin/email`, {
+    method: 'POST',
     response: 'json',
     body: {
       backendManagerKey: process.env.BACKEND_MANAGER_KEY,
-      command: 'admin:send-email',
-      payload: {
-        to: [{ email: user.email }],
-        categories: ['engagement/feedback'],
-        subject: `Want to share your feedback about ${Manager.config.brand.name}?`,
-        template: 'd-c1522214c67b47058669acc5a81ed663',
-        group: 25928,
-        copy: false,
-        ensureUnique: true,
-        sendAt: moment().add(14, 'days').unix(),
-      },
+      to: [{ email: user.email }],
+      categories: ['engagement/feedback'],
+      subject: `Want to share your feedback about ${Manager.config.brand.name}?`,
+      template: 'd-c1522214c67b47058669acc5a81ed663',
+      group: 25928,
+      copy: false,
+      ensureUnique: true,
+      sendAt: moment().add(14, 'days').unix(),
     },
   })
   .then((json) => {

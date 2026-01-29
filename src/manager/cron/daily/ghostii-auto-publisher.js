@@ -209,28 +209,26 @@ function requestGhostii(settings, content) {
 }
 
 function uploadPost(assistant, settings, article) {
-  return fetch(`${settings.app.server}/bm_api`, {
-    method: 'post',
+  const apiUrl = `https://api.${(settings.app.url || '').replace(/^https?:\/\//, '')}`;
+  return fetch(`${apiUrl}/backend-manager/admin/post`, {
+    method: 'POST',
     timeout: 90000,
     tries: 1,
     response: 'json',
     body: {
       backendManagerKey: process.env.BACKEND_MANAGER_KEY,
-      command: 'admin:create-post',
-      payload: {
-        title: article.title,
-        url: article.title, // This is formatted on the bm_api endpoint
-        description: article.description,
-        headerImageURL: article.headerImageUrl,
-        body: article.body,
-        id: postId++,
-        author: settings.author,
-        categories: article.categories,
-        tags: article.keywords,
-        path: 'ghostii',
-        githubUser: settings.app.github.user,
-        githubRepo: settings.app.github.repo,
-      },
+      title: article.title,
+      url: article.title, // This is formatted on the bm_api endpoint
+      description: article.description,
+      headerImageURL: article.headerImageUrl,
+      body: article.body,
+      id: postId++,
+      author: settings.author,
+      categories: article.categories,
+      tags: article.keywords,
+      path: 'ghostii',
+      githubUser: settings.app.github.user,
+      githubRepo: settings.app.github.repo,
     },
   });
 }

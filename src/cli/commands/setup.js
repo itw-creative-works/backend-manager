@@ -62,7 +62,7 @@ class SetupCommand extends BaseCommand {
     // Set project info
     self.projectId = self.firebaseRC.projects.default;
     self.projectUrl = `https://console.firebase.google.com/project/${self.projectId}`;
-    self.bemApiURL = `https://us-central1-${self?.firebaseRC?.projects?.default}.cloudfunctions.net/bm_api?backendManagerKey=${self?.runtimeConfigJSON?.backend_manager?.key}`;
+    self.apiUrl = `https://api.${(self.bemConfigJSON.brand?.url || '').replace(/^https?:\/\//, '')}`;
 
     // Log
     this.log(`ID: `, chalk.bold(`${self.projectId}`));
@@ -159,12 +159,12 @@ class SetupCommand extends BaseCommand {
 
   async fetchStats() {
     const self = this.main;
-    const statsFetchResult = await fetch(self.bemApiURL, {
-      method: 'post',
+    const statsFetchResult = await fetch(`${self.apiUrl}/backend-manager/admin/stats`, {
+      method: 'GET',
       timeout: 30000,
       response: 'json',
-      body: {
-        command: 'admin:get-stats',
+      query: {
+        backendManagerKey: self?.runtimeConfigJSON?.backend_manager?.key,
       },
     })
     .then(json => json)

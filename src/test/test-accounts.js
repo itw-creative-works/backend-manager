@@ -410,14 +410,13 @@ async function cleanupMarketingProviders(domain, options = {}) {
   await Promise.all(
     emails.map(async (email) => {
       try {
-        const response = await fetch(`${hostingUrl}/backend-manager`, {
-          method: 'post',
+        const response = await fetch(`${hostingUrl}/backend-manager/marketing/contact`, {
+          method: 'DELETE',
           response: 'json',
           timeout: 30000,
           body: {
             backendManagerKey,
-            command: 'general:remove-marketing-contact',
-            payload: { email },
+            email,
           },
         });
 
