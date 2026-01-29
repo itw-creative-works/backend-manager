@@ -11,9 +11,9 @@ class FirebaseAdminTest extends BaseTest {
 
   async run() {
     const pkg = 'firebase-admin';
-    const latest = this.context.packageJSON.dependencies['firebase-admin'];
+    const latest = this.context.packageJSON.peerDependencies['firebase-admin'];
     const mine = this.context.package.dependencies[pkg];
-    const bemv = this.context.packageJSON.dependencies[pkg];
+    const bemv = this.context.packageJSON.peerDependencies[pkg];
 
     // Get level difference
     const levelDifference = wonderfulVersion.levelDifference(latest, mine);
@@ -31,7 +31,7 @@ class FirebaseAdminTest extends BaseTest {
   }
 
   async fix() {
-    await this.installPkg('firebase-admin', `@${this.context.packageJSON.dependencies['firebase-admin']}`);
+    await this.installPkg('firebase-admin', `@${this.context.packageJSON.peerDependencies['firebase-admin']}`);
   }
 
   bemPackageVersionWarning(packageName, current, latest) {

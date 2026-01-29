@@ -1,3 +1,4 @@
+const { FieldValue } = require('firebase-admin/firestore');
 const {
   buildContext,
   generateCsrfToken,
@@ -119,7 +120,7 @@ async function processStatus(context) {
 
     if ((status === 'disconnected' || status === 'error') && settings.removeInvalidTokens) {
       await admin.firestore().doc(`users/${targetUid}`).update({
-        [`oauth2.${settings.provider}`]: admin.firestore.FieldValue.delete(),
+        [`oauth2.${settings.provider}`]: FieldValue.delete(),
         metadata: Manager.Metadata().set({ tag: 'user/oauth2' }),
       });
       assistant.log(`Removed invalid token for user: ${targetUid}`);

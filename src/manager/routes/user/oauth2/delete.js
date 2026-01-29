@@ -1,3 +1,4 @@
+const { FieldValue } = require('firebase-admin/firestore');
 const {
   buildContext,
 } = require('./_helpers.js');
@@ -34,7 +35,7 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
 
   // Delete OAuth data from user document
   await admin.firestore().doc(`users/${targetUid}`).update({
-    [`oauth2.${settings.provider}`]: admin.firestore.FieldValue.delete(),
+    [`oauth2.${settings.provider}`]: FieldValue.delete(),
     metadata: Manager.Metadata().set({ tag: 'user/oauth2' }),
   });
 

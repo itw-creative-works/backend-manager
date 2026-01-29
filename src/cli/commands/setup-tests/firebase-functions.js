@@ -11,9 +11,9 @@ class FirebaseFunctionsTest extends BaseTest {
 
   async run() {
     const pkg = 'firebase-functions';
-    const latest = this.context.packageJSON.dependencies['firebase-functions'];
+    const latest = this.context.packageJSON.peerDependencies['firebase-functions'];
     const mine = this.context.package.dependencies[pkg];
-    const bemv = this.context.packageJSON.dependencies[pkg];
+    const bemv = this.context.packageJSON.peerDependencies[pkg];
 
     // Get level difference
     const levelDifference = wonderfulVersion.levelDifference(latest, mine);
@@ -31,7 +31,7 @@ class FirebaseFunctionsTest extends BaseTest {
   }
 
   async fix() {
-    await this.installPkg('firebase-functions', `@${this.context.packageJSON.dependencies['firebase-functions']}`);
+    await this.installPkg('firebase-functions', `@${this.context.packageJSON.peerDependencies['firebase-functions']}`);
   }
 
   bemPackageVersionWarning(packageName, current, latest) {

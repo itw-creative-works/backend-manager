@@ -1,3 +1,4 @@
+const { FieldValue } = require('firebase-admin/firestore');
 const {
   buildContext,
   loadProvider,
@@ -160,7 +161,7 @@ async function processTokenize({ assistant, Manager, admin, settings }) {
 
   // Delete CSRF token (cleanup)
   await usageDocRef.update({
-    [`oauth2.${stateData.provider}`]: admin.firestore.FieldValue.delete(),
+    [`oauth2.${stateData.provider}`]: FieldValue.delete(),
   });
 
   assistant.log('OAuth2 tokenize complete');

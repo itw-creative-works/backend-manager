@@ -1,3 +1,4 @@
+const { FieldValue } = require('firebase-admin/firestore');
 const _ = require('lodash');
 const moment = require('moment');
 const powertools = require('node-powertools');
@@ -457,7 +458,7 @@ Module.prototype.ensureFirstInstance = function (email) {
     if (isFirstInstance) {
       // Delete email from temporary storage
       await admin.firestore().doc(`temporary/email-queue`).set({
-        [hash]: admin.firestore.FieldValue.delete(),
+        [hash]: FieldValue.delete(),
       }, { merge: true })
         .then((doc) => {
           assistant.log(`ensureFirstInstance(): Deleted email from temporary storage`, hash);

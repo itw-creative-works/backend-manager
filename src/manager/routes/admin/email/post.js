@@ -2,6 +2,7 @@
  * POST /admin/email - Send email via SendGrid
  * Admin-only endpoint to send transactional emails
  */
+const { FieldValue } = require('firebase-admin/firestore');
 const _ = require('lodash');
 const moment = require('moment');
 const powertools = require('node-powertools');
@@ -420,7 +421,7 @@ async function ensureFirstInstance(Manager, assistant, admin, settings, email) {
   if (isFirstInstance) {
     // Delete email from temporary storage
     await admin.firestore().doc(`temporary/email-queue`).set({
-      [hash]: admin.firestore.FieldValue.delete(),
+      [hash]: FieldValue.delete(),
     }, { merge: true })
       .then(() => {
         assistant.log(`ensureFirstInstance(): Deleted email from temporary storage`, hash);

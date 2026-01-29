@@ -1,5 +1,6 @@
 const fetch = require('wonderful-fetch');
 const moment = require('moment');
+const { FieldValue } = require('firebase-admin/firestore');
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
@@ -64,7 +65,7 @@ module.exports = async ({ Manager, assistant, user, context, libraries }) => {
 
       // Increment user count
       batch.update(admin.firestore().doc('meta/stats'), {
-        'users.total': admin.firestore.FieldValue.increment(1),
+        'users.total': FieldValue.increment(1),
       });
 
       await batch.commit();

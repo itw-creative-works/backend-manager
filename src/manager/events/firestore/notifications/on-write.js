@@ -1,3 +1,5 @@
+const { FieldValue } = require('firebase-admin/firestore');
+
 /**
  * Notification subscription write handler
  *
@@ -34,7 +36,7 @@ module.exports = async ({ Manager, assistant, change, context, libraries }) => {
   if (eventType === 'delete') {
     await admin.firestore().doc('meta/stats')
       .update({
-        'notifications.total': admin.firestore.FieldValue.increment(-1),
+        'notifications.total': FieldValue.increment(-1),
       });
 
     Manager.Analytics({
@@ -59,7 +61,7 @@ module.exports = async ({ Manager, assistant, change, context, libraries }) => {
   if (eventType === 'create') {
     await admin.firestore().doc('meta/stats')
       .update({
-        'notifications.total': admin.firestore.FieldValue.increment(1),
+        'notifications.total': FieldValue.increment(1),
       });
 
     Manager.Analytics({
