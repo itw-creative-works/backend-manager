@@ -187,6 +187,7 @@ Middleware.prototype.run = function (libPath, options) {
       assistant: assistant,
       Manager: Manager,
       user: assistant.getUser(),
+      usage: assistant.usage,
       settings: assistant.settings,
       analytics: assistant.analytics,
       libraries: Manager.libraries,
