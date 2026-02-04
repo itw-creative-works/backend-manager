@@ -48,6 +48,7 @@ node_modules/
 .runtimeconfig.json
 service-account*.json
 bem-reload-trigger.js
+_legacy
 
 # ========== Custom Values ==========
 # Add your custom ignore patterns below this line

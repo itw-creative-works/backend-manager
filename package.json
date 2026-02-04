@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "5.0.68",
+  "version": "5.0.70",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -59,7 +59,7 @@
     "glob": "^11.1.0",
     "hcaptcha": "^0.2.0",
     "inquirer": "^8.2.7",
-    "itwcw-package-analytics": "^1.0.6",
+    "itwcw-package-analytics": "^1.0.8",
     "json5": "^2.2.3",
     "jwt-decode": "^4.0.0",
     "lodash": "^4.17.23",
