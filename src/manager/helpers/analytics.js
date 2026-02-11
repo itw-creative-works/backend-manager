@@ -212,7 +212,7 @@ Analytics.prototype.generateId = function (id) {
     : undefined;
 };
 
-Analytics.prototype.event = function (payload) {
+Analytics.prototype.event = function (payload, params) {
   const self = this;
   const Manager = self.Manager;
   const assistant = self.assistant;
@@ -225,6 +225,10 @@ Analytics.prototype.event = function (payload) {
   // https://support.google.com/analytics/answer/13316687?hl=en#zippy=%2Cweb
   // https://support.google.com/analytics/answer/9268042?sjid=4476481583372132143-NC
   // https://developers.google.com/analytics/devguides/collection/protocol/ga4/reference/events#screen_view
+  // Support both: event({ name, params }) and event('name', params)
+  if (typeof payload === 'string') {
+    payload = { name: payload, params: params || {} };
+  }
   payload = payload || {};
 
   // Fix event name

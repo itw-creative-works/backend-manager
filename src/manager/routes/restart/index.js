@@ -3,10 +3,7 @@ const jetpack = require('fs-jetpack');
 module.exports = async ({ assistant, user, analytics }) => {
 
   // Send analytics event
-  analytics.event({
-    name: 'restart',
-    params: {},
-  });
+  analytics.event('restart', {});
 
   // Require authentication
   if (!user.authenticated) {

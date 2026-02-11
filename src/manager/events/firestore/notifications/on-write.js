@@ -42,10 +42,7 @@ module.exports = async ({ Manager, assistant, change, context, libraries }) => {
     Manager.Analytics({
       assistant: assistant,
       uuid: dataBefore?.owner?.uid,
-    }).event({
-      name: 'notification-unsubscribe',
-      params: {},
-    });
+    }).event('notification-unsubscribe', {});
 
     assistant.log('Notification subscription deleted:', dataBefore);
 
@@ -67,10 +64,7 @@ module.exports = async ({ Manager, assistant, change, context, libraries }) => {
     Manager.Analytics({
       assistant: assistant,
       uuid: dataAfter?.owner?.uid,
-    }).event({
-      name: 'notification-subscribe',
-      params: {},
-    });
+    }).event('notification-subscribe', {});
 
     assistant.log('Notification subscription created:', dataAfter);
 

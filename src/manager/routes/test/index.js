@@ -1,10 +1,7 @@
 module.exports = async ({ assistant, analytics }) => {
 
   // Send analytics event
-  analytics.event({
-    name: 'test',
-    params: {},
-  });
+  analytics.event('test', {});
 
   // Log
   assistant.log('Running test');

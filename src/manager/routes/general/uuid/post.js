@@ -22,10 +22,7 @@ module.exports = async ({ assistant, settings, analytics }) => {
     : uuid.v4();
 
   // Send analytics event
-  analytics.event({
-    name: 'general/uuid',
-    params: { version },
-  });
+  analytics.event('general/uuid', { version });
 
   // Log and respond
   assistant.log('UUID Generated', { name, version, namespace, result });

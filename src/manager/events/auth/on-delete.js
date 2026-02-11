@@ -62,10 +62,7 @@ module.exports = async ({ Manager, assistant, user, context, libraries }) => {
   Manager.Analytics({
     assistant: assistant,
     uuid: user.uid,
-  }).event({
-    name: 'user_delete',
-    params: {},
-  });
+  }).event('user_delete', {});
 
   assistant.log(`onDelete: Completed for ${user.uid} (${Date.now() - startTime}ms)`);
 };

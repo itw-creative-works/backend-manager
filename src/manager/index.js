@@ -314,12 +314,7 @@ Manager.prototype.init = function (exporter, options) {
     assistant: self.assistant,
     uuid: self.SERVER_UUID,
   })
-  .event({
-    name: 'admin/initialized',
-    params: {
-      // screen_class: 'MainActivity',
-    },
-  });
+  .event('admin/initialized', {});
 
   // Return
   return self;

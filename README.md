@@ -204,10 +204,7 @@ Route.prototype.main = async function (assistant) {
   }
 
   // Track analytics
-  analytics.event({
-    name: 'my_event',
-    params: { action: 'test' },
-  });
+  analytics.event('my_event', { action: 'test' });
 
   // Validate usage limits
   await usage.validate('requests');
@@ -495,13 +492,10 @@ const analytics = Manager.Analytics({
   uuid: user.auth.uid,
 });
 
-analytics.event({
-  name: 'purchase',
-  params: {
-    item_id: 'product-123',
-    value: 29.99,
-    currency: 'USD',
-  },
+analytics.event('purchase', {
+  item_id: 'product-123',
+  value: 29.99,
+  currency: 'USD',
 });
 ```
 
