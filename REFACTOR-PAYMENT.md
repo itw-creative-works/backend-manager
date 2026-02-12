@@ -59,3 +59,8 @@ Firestore trigger for payments-webhooks/{id}
 * process the webhook data and update the user's subscription data in both their user doc and their subscription doc
 * various checks like
   * if status === completed, do nothing
+
+THen, we need to plan an effective way to test all of these scenarios in our emualted testing environment which you can explore here: /Users/ian/Developer/Repositories/ITW-Creative-Works/backend-manager/src/test
+* we should be able to START with certain subscripton levels (basic/free, premium etc) and then see how events influence and change the subscription status and data in the user doc, subscription doc, webhook event doc, etc
+
+So webhook comes in --> save immediateyl to return 200 to the payment provider --> process the webhook in a separate function trigger to update subscription data and user access (reprocess if something goes wrong, etc)

@@ -36,7 +36,7 @@ Middleware.prototype.run = function (libPath, options) {
     options.setupSettings = typeof options.setupSettings === 'undefined' ? true : options.setupSettings;
     options.cleanSettings = typeof options.cleanSettings === 'undefined' ? true : options.cleanSettings;
     options.includeNonSchemaSettings = typeof options.includeNonSchemaSettings === 'undefined' ? false : options.includeNonSchemaSettings;
-    options.schema = typeof options.schema === 'undefined' ? undefined : options.schema;
+    options.schema = typeof options.schema === 'undefined' ? libPath : options.schema;
     options.parseMultipartFormData = typeof options.parseMultipartFormData === 'undefined' ? true : options.parseMultipartFormData;
 
     // Set base path

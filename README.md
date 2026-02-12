@@ -49,7 +49,7 @@ const { functions } = Manager.libraries;
 // Create a custom function
 exports.myEndpoint = functions
   .runWith({ memory: '256MB', timeoutSeconds: 120 })
-  .https.onRequest((req, res) => Manager.Middleware(req, res).run('myEndpoint', { schema: 'myEndpoint' }));
+  .https.onRequest((req, res) => Manager.Middleware(req, res).run('myEndpoint', { /* options */ }));
 ```
 
 Create `functions/routes/myEndpoint/index.js`:
@@ -282,7 +282,7 @@ Manager.Middleware(req, res).run('routeName', {
   setupAnalytics: true,         // Initialize analytics (default: true)
   setupUsage: true,             // Initialize usage tracking (default: true)
   setupSettings: true,          // Resolve settings from schema (default: true)
-  schema: 'routeName',          // Schema file to use (default: undefined)
+  schema: 'routeName',          // Schema file to use (default: same as route)
   parseMultipartFormData: true, // Parse multipart uploads (default: true)
   routesDir: '/routes',         // Custom routes directory
   schemasDir: '/schemas',       // Custom schemas directory
