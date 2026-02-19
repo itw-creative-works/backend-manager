@@ -243,7 +243,7 @@ OpenAI.prototype.request = function (options) {
     // Load prompt
     const prompt = loadContent(options.prompt, _log);
     const message = loadContent(options.message, _log);
-    const user = options.user?.auth?.uid || assistant.request.geolocation.ip;
+    const user = options.user?.auth?.uid || assistant.request.geolocation.ip || 'unknown';
 
     // Log
     _log('Prompt', prompt);

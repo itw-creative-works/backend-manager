@@ -1,13 +1,14 @@
 const moment = require('moment');
-const fetch = require('node-fetch');
 const uuidv5 = require('uuid').v5;
 const { get, set, merge } = require('lodash');
 
 let sampleUser = {
   api: {},
   auth: {},
-  plan: {
-    id: '',
+  subscription: {
+    product: {
+      id: '',
+    },
     limits: {
 
     }
@@ -52,40 +53,20 @@ ApiManager.prototype.init = function (options) {
     options.officialAPIKeys = options.officialAPIKeys || [];
     options.whitelistedAPIKeys = options.whitelistedAPIKeys || [];
 
-    await fetch('https://us-central1-itw-creative-works.cloudfunctions.net/getApp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: options.app,
-      }),
-    })
-    .then(res => {
-      res.text()
-      .then(text => {
-        if (res.ok) {
-          const data = JSON.parse(text);
+    // Read limits from config products
+    const products = self.Manager.config.products || [];
+    options.plans = {};
 
-          options.plans = {};
+    for (const product of products) {
+      options.plans[product.id] = {
+        limits: product.limits || {},
+      };
+    }
 
-          Object.keys(data.products)
-          .forEach((id, i) => {
-            const product = data.products[id]
-            options.plans[product.planId] = {}
-            options.plans[product.planId].limits = product.limits || {};
-          });
+    self.options = options;
+    self.initialized = true;
 
-          self.options = options;
-          self.initialized = true;
-
-          return resolve(self);
-        } else {
-          throw new Error(text || res.statusText || 'Unknown error.')
-        }
-      })
-    })
-    .catch(e => {
-      return reject(e)
-    })
+    return resolve(self);
   });
 };
 
@@ -107,8 +88,10 @@ ApiManager.prototype._createNewUser = function (authenticatedUser, planId, persi
   let newUser = {
     api: authenticatedUser?.api || {},
     auth: authenticatedUser?.auth || {},
-    plan: {
-      id: planId,
+    subscription: {
+      product: {
+        id: planId,
+      },
       limits: {
       }
     },
@@ -124,7 +107,7 @@ ApiManager.prototype._createNewUser = function (authenticatedUser, planId, persi
   .forEach((id, i) => {
     // console.log('----id', id);
     // console.log('======currentPlan[id]', currentPlan[id]);
-    newUser.plan.limits[id] = get(authenticatedUser, `plan.limits.${id}`, currentPlan[id])
+    newUser.subscription.limits[id] = get(authenticatedUser, `subscription.limits.${id}`, currentPlan[id])
     // const product = data.products[id]
     // options.plans[product.planId] = {}
     // options.plans[product.planId].limits = product.limits || {};
@@ -185,9 +168,9 @@ ApiManager.prototype.getUser = async function (assistant) {
     // console.log('---doesnt exist so reauthing');
     authenticatedUser = await assistant.authenticate({apiKey: apiKey});
     // console.log('---authenticatedUser', authenticatedUser);
-    const planId = authenticatedUser?.plan?.id || 'basic';
+    const planId = authenticatedUser?.subscription?.product?.id || 'basic';
     let workingUID = !authenticatedUser.authenticated
-      ? uuidv5(assistant.request.geolocation.ip, '1b671a64-40d5-491e-99b0-da01ff1f3341')
+      ? uuidv5(assistant.request.geolocation.ip || 'unknown', '1b671a64-40d5-491e-99b0-da01ff1f3341')
       : authenticatedUser.auth.uid
     authenticatedUser.ip = assistant.request.geolocation.ip;
     authenticatedUser.country = assistant.request.geolocation.country;
@@ -229,7 +212,7 @@ function _getUserStat(self, user, stat, def) {
   // console.log('----isWhitelistedAPIKey', isWhitelistedAPIKey);
   return {
     current: !isWhitelistedAPIKey ? get(user, `_APIManager.stats.${stat}`, typeof def !== 'undefined' ? def : 0) : 0,
-    limit: !isWhitelistedAPIKey ? get(user, `plan.limits.${stat}`, typeof def !== 'undefined' ? def : 0) : Infinity,
+    limit: !isWhitelistedAPIKey ? get(user, `subscription.limits.${stat}`, typeof def !== 'undefined' ? def : 0) : Infinity,
   }
 }
 

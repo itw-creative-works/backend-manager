@@ -49,7 +49,7 @@ Module.prototype.main = function () {
     }
 
     const storage = Manager.storage({temporary: true});
-    const ipPath = ['api:general:send-email', 'ips', assistant.request.geolocation.ip];
+    const ipPath = ['api:general:send-email', 'ips', assistant.request.geolocation.ip || 'unknown'];
     const emailPath = ['api:general:send-email', 'emails', payload.data.payload.email];
 
     const ipData = storage.get(ipPath).value() || {};

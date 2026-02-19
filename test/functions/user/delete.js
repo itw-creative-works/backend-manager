@@ -53,7 +53,7 @@ module.exports = {
       name: 'remove-subscription-from-delete-user',
       async run({ firestore, state }) {
         // Remove the subscription (set to null to overwrite)
-        await firestore.set(`users/${state.deleteUid}`, { plan: null }, { merge: true });
+        await firestore.set(`users/${state.deleteUid}`, { subscription: null }, { merge: true });
       },
     },
 

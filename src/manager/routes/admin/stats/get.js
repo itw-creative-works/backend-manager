@@ -157,7 +157,7 @@ async function getAllSubscriptions(admin, assistant) {
   assistant.log('getAllSubscriptions(): Starting...');
 
   const snapshot = await admin.firestore().collection('users')
-    .where('plan.expires.timestampUNIX', '>=', Date.now() / 1000)
+    .where('subscription.expires.timestampUNIX', '>=', Date.now() / 1000)
     .get();
 
   const stats = {
@@ -167,8 +167,8 @@ async function getAllSubscriptions(admin, assistant) {
 
   snapshot.forEach((doc) => {
     const data = doc.data();
-    const planId = data?.plan?.id || 'basic';
-    const frequency = data?.plan?.payment?.frequency || 'unknown';
+    const planId = data?.subscription?.product?.id || 'basic';
+    const frequency = data?.subscription?.payment?.frequency || 'unknown';
     const isAdmin = data?.roles?.admin || false;
     const isVip = data?.roles?.vip || false;
 

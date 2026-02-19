@@ -5,7 +5,7 @@ const path = require('path');
 
 /**
  * POST /user/settings/validate - Validate user settings against defaults
- * Merges user settings with plan-specific defaults from defaults.js
+ * Merges user settings with subscription-specific defaults from defaults.js
  */
 module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
   const { admin } = libraries;
@@ -23,7 +23,7 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
     return assistant.respond('Admin required', { code: 403 });
   }
 
-  // Get user data for plan
+  // Get user data for subscription
   let userData = user;
 
   if (uid !== user.auth.uid) {
@@ -50,7 +50,7 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
   // Load and process defaults
   try {
     const defaults = _.get(require(resolvedPath)(), settings.defaultsPath);
-    const combined = combineDefaults(defaults.all, defaults[userData.plan?.id] || {});
+    const combined = combineDefaults(defaults.all, defaults[userData.subscription?.product?.id] || {});
 
     assistant.log('Combined settings', combined);
 

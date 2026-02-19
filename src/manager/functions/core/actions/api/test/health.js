@@ -13,6 +13,7 @@ Module.prototype.main = function () {
       timestamp: new Date().toISOString(),
       environment: assistant.meta?.environment || 'unknown',
       version: Manager.package?.version || 'unknown',
+      bemVersion: Manager.version || 'unknown',
     };
 
     assistant.log('Health check', response);

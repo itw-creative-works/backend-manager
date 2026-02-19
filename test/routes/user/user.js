@@ -1,8 +1,8 @@
 /**
  * Test: GET /user
  * Tests the user resolve endpoint
- * Returns RESOLVED user account info for authenticated users
- * Validates that resolve-account correctly processes user data
+ * Returns user account info for authenticated users
+ * Validates that User() correctly structures user data
  */
 module.exports = {
   description: 'User resolve (account info)',
@@ -39,9 +39,9 @@ module.exports = {
         assert.equal(user.auth.email, accounts.basic.email, 'Email should match test account');
         assert.equal(user.authenticated, true, 'User should be authenticated');
 
-        // Verify plan properties - basic user should have basic plan
-        assert.equal(user.plan.id, 'basic', 'Plan ID should be basic');
-        assert.equal(user.plan.status, 'active', 'Plan status should be active');
+        // Verify subscription properties - basic user should have basic subscription
+        assert.equal(user.subscription.product.id, 'basic', 'Subscription ID should be basic');
+        assert.equal(user.subscription.status, 'active', 'Subscription status should be active');
 
         // Verify roles - basic user has no special roles
         assert.equal(user.roles.admin, false, 'Basic user should not be admin');
@@ -74,8 +74,8 @@ module.exports = {
         // Verify roles - admin account has roles.admin = true in Firestore
         assert.equal(user.roles.admin, true, 'Admin account should have admin role');
 
-        // Verify plan - admin account is on basic plan
-        assert.equal(user.plan.id, 'basic', 'Admin plan ID should be basic');
+        // Verify subscription - admin account is on basic subscription
+        assert.equal(user.subscription.product.id, 'basic', 'Admin subscription ID should be basic');
       },
     },
 
@@ -101,7 +101,7 @@ module.exports = {
       },
     },
 
-    // Test 5: Premium active user - verify premium plan is retained
+    // Test 5: Premium active user - verify premium subscription is retained
     {
       name: 'premium-active-user-resolved-correctly',
       auth: 'premium-active',
@@ -118,20 +118,20 @@ module.exports = {
         assert.equal(user.auth.uid, accounts['premium-active'].uid, 'UID should match premium test account');
         assert.equal(user.auth.email, accounts['premium-active'].email, 'Email should match premium test account');
 
-        // Verify plan - premium user should retain premium plan
-        assert.equal(user.plan.id, 'premium', 'Plan ID should be premium');
-        assert.equal(user.plan.status, 'active', 'Plan status should be active');
+        // Verify subscription - premium user should retain premium subscription
+        assert.equal(user.subscription.product.id, 'premium', 'Subscription ID should be premium');
+        assert.equal(user.subscription.status, 'active', 'Subscription status should be active');
 
         // Verify expires is in the future
-        const expiresTimestamp = user.plan.expires?.timestampUNIX || 0;
+        const expiresTimestamp = user.subscription.expires?.timestampUNIX || 0;
         const now = Math.floor(Date.now() / 1000);
-        assert.ok(expiresTimestamp > now, 'Premium plan expires should be in the future');
+        assert.ok(expiresTimestamp > now, 'Premium subscription expires should be in the future');
       },
     },
 
-    // Test 6: Premium expired user - verify plan is downgraded to basic
+    // Test 6: Premium expired user - verify subscription retains product but shows cancelled status
     {
-      name: 'premium-expired-user-downgraded',
+      name: 'premium-expired-user-cancelled',
       auth: 'premium-expired',
       timeout: 15000,
 
@@ -145,8 +145,9 @@ module.exports = {
         // Verify auth properties
         assert.equal(user.auth.uid, accounts['premium-expired'].uid, 'UID should match expired premium test account');
 
-        // Verify plan - expired premium should be downgraded to basic by resolve-account
-        assert.equal(user.plan.id, 'basic', 'Expired premium plan should be downgraded to basic');
+        // Verify subscription - product.id stays premium, status reflects cancellation
+        assert.equal(user.subscription.product.id, 'premium', 'Product ID should remain premium');
+        assert.equal(user.subscription.status, 'cancelled', 'Status should be cancelled');
       },
     },
   ],

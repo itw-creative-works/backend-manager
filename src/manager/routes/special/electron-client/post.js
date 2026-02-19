@@ -2,13 +2,14 @@
  * POST /special/electron-client - Setup Electron Manager client
  * Returns client configuration with optional auth
  */
+const path = require('path');
+const { buildPublicConfig } = require(path.join(__dirname, '..', '..', 'app', 'get.js'));
+
 module.exports = async ({ assistant, Manager, settings, analytics, libraries }) => {
-  const fetch = Manager.require('wonderful-fetch');
   const { admin } = libraries;
 
   // appId/app fallback to Manager.config
   let uid = settings.uid;
-  const app = settings.appId || settings.app || Manager.config.app.id;
   let config = settings.config;
 
   let uuid = null;
@@ -42,21 +43,6 @@ module.exports = async ({ assistant, Manager, settings, analytics, libraries }) 
     config = {};
   }
 
-  // Fetch app details
-  const appDetails = await fetch('https://us-central1-itw-creative-works.cloudfunctions.net/getApp', {
-    method: 'post',
-    timeout: 30000,
-    tries: 3,
-    response: 'json',
-    body: {
-      id: app,
-    },
-  }).catch(e => e);
-
-  if (appDetails instanceof Error) {
-    return assistant.respond(`Error fetching app details: ${appDetails}`, { code: 500 });
-  }
-
   // Track analytics
   analytics.event('special/electron-client', { action: 'setup' });
 
@@ -66,7 +52,7 @@ module.exports = async ({ assistant, Manager, settings, analytics, libraries }) 
     timestamp: new Date().toISOString(),
     ip: assistant.request.geolocation.ip,
     country: assistant.request.geolocation.country,
-    app: appDetails,
+    app: buildPublicConfig(Manager.config),
     config: config,
   });
 };

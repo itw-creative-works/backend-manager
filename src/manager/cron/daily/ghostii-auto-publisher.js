@@ -16,7 +16,6 @@ const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 
 // State
 let postId;
-let appObject;
 
 /**
  * Ghostii Auto Publisher cron job
@@ -30,11 +29,8 @@ module.exports = async ({ Manager, assistant, context, libraries }) => {
   // Set post ID
   postId = moment().unix();
 
-  // Get app content
-  appObject = await getAppData(Manager.config.app.id).catch((e) => e);
-  if (appObject instanceof Error) {
-    throw appObject;
-  }
+  // Build app object from local config
+  const appObject = buildAppObject(Manager.config);
 
   // Log
   assistant.log('App object', appObject);
@@ -44,8 +40,6 @@ module.exports = async ({ Manager, assistant, context, libraries }) => {
 
   // Loop through each item
   for (const settings of settingsArray) {
-    const appId = settings.app || appObject.id;
-
     // Fix settings
     settings.articles = settings.articles || 0;
     settings.sources = randomize(settings.sources || []);
@@ -53,16 +47,23 @@ module.exports = async ({ Manager, assistant, context, libraries }) => {
     settings.prompt = settings.prompt || '';
     settings.chance = settings.chance || 1.0;
     settings.author = settings.author || undefined;
-    settings.app = await getAppData(appId).catch((e) => e);
 
-    // Check for errors
-    if (settings.app instanceof Error) {
-      assistant.error('Error fetching app data', settings.app);
-      continue;
+    // Resolve app data for this ghostii item
+    if (settings.app && settings.appUrl) {
+      // Cross-app: fetch from the other project's /app endpoint
+      settings.app = await fetchRemoteApp(settings.appUrl).catch((e) => e);
+
+      if (settings.app instanceof Error) {
+        assistant.error('Error fetching remote app data', settings.app);
+        continue;
+      }
+    } else {
+      // Same-app: use local config
+      settings.app = appObject;
     }
 
     // Log
-    assistant.log(`Settings (app=${appId})`, settings);
+    assistant.log(`Settings (app=${settings.app.id})`, settings);
 
     // Quit if articles are disabled
     if (!settings.articles || !settings.sources.length) {
@@ -87,6 +88,35 @@ module.exports = async ({ Manager, assistant, context, libraries }) => {
     assistant.log('Finished!', result);
   }
 };
+
+/**
+ * Build app object from Manager.config (same shape as getApp response)
+ */
+function buildAppObject(config) {
+  return {
+    id: config.app?.id,
+    name: config.brand?.name,
+    brand: {
+      description: config.brand?.description || '',
+    },
+    url: config.brand?.url,
+    github: {
+      user: config.github?.user,
+      repo: (config.github?.repo_website || '').split('/').pop(),
+    },
+  };
+}
+
+/**
+ * Fetch app data from a remote BEM project's /app endpoint
+ */
+function fetchRemoteApp(appUrl) {
+  return fetch(`${appUrl}/backend-manager/app`, {
+    timeout: 30000,
+    tries: 3,
+    response: 'json',
+  });
+}
 
 async function harvest(assistant, settings) {
   const date = moment().format('MMMM YYYY');
@@ -149,18 +179,6 @@ async function harvest(assistant, settings) {
     // Log
     assistant.log('harvest(): Uploaded post', uploadedPost);
   }
-}
-
-function getAppData(id) {
-  return fetch('https://us-central1-itw-creative-works.cloudfunctions.net/getApp', {
-    method: 'post',
-    timeout: 30000,
-    tries: 3,
-    response: 'json',
-    body: {
-      id: id,
-    },
-  });
 }
 
 function getURLContent(url) {

@@ -82,7 +82,7 @@ Module.prototype.main = function() {
       // Log
       // assistant.log(`Executing: ${resolved.command}`, self.payload, JSON.stringify(self.payload))
       // assistant.log(`Resolved URL: ${Manager.project.functionsUrl}?command=${encodeURIComponent(resolved.command)}&payload=${encodeURIComponent(JSON.stringify(self.assistant.request.data.payload))}`)
-      assistant.log(`bm_api(${resolved.command}): Request (${geolocation.ip} @ ${geolocation.country}, ${geolocation.region}, ${geolocation.city}) [${method} > ${strippedUrl}]`, JSON.stringify(assistant.request.data));
+      assistant.log(`bm_api(${resolved.command}): Request (${geolocation.ip || 'unknown'} @ ${geolocation.country || '?'}, ${geolocation.region || '?'}, ${geolocation.city || '?'}) [${method} > ${strippedUrl}]`, JSON.stringify(assistant.request.data));
       assistant.log(`bm_api(${resolved.command}): Headers`, JSON.stringify(headers));
 
 

@@ -3,7 +3,7 @@
  * Tests: types, default (static + function), value, min, max, required, clean
  */
 module.exports = ({ user }) => {
-  const planId = user?.plan?.id || 'basic';
+  const planId = user?.subscription?.product?.id || 'basic';
   const isPremium = planId !== 'basic';
 
   const schema = {

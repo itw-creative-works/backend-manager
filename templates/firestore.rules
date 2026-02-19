@@ -58,7 +58,7 @@ service cloud.firestore {
       return isWritingField('auth')
         || isWritingField('roles')
         || isWritingField('flags')
-        || isWritingField('plan')
+        || isWritingField('subscription')
         || isWritingField('affiliate')
         || isWritingField('api')
         || isWritingField('usage');

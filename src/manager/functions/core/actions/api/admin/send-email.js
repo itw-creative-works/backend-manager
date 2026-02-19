@@ -192,7 +192,7 @@ Module.prototype.defaultize = function () {
       email.dynamicTemplateData.signoff.urlText = options?.data?.signoff?.urlText || '@ianwieds';
     }
 
-    email.dynamicTemplateData.user = Manager.User(options.user, { defaults: false, prune: false }).properties;
+    email.dynamicTemplateData.user = Manager.User(options.user).properties;
 
     // Get app configuration from Manager.config.brand (backend-manager-config.json)
     const brand = Manager.config?.brand;

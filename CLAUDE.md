@@ -490,6 +490,119 @@ assert.fail(message)                           // Explicit fail
 | `src/test/utils/http-client.js` | HTTP client |
 | `src/test/test-accounts.js` | Test account definitions |
 
+## Usage & Rate Limiting
+
+### Overview
+
+Usage is tracked per-metric (e.g., `requests`, `marketing-subscribe`) with two counters:
+- `period`: Current month's count, reset on the 1st of each month
+- `total`: All-time count, never resets
+
+### Product Rate Limit Modes
+
+Products can set a `rateLimit` field to control how limits are enforced:
+
+| Value | Behavior | Default |
+|-------|----------|---------|
+| `'monthly'` | Full monthly limit available at any time | Yes |
+| `'daily'` | Proportional daily cap: `ceil(limit * dayOfMonth / daysInMonth)` | No |
+
+Example config (not in the template — add per-product as needed):
+```json
+{
+  "id": "basic",
+  "limits": { "requests": 100 },
+  "rateLimit": "daily"
+}
+```
+
+With `rateLimit: 'daily'` and 100 requests/month in a 30-day month:
+- Day 1: max 4 requests used so far
+- Day 15: max 50 requests used so far
+- Day 30: max 100 requests (full allocation)
+
+Unused days roll forward — a user who doesn't use the product for 2 weeks can use a burst later.
+
+### Reset Schedule
+
+| Target | Frequency | What happens |
+|--------|-----------|-------------|
+| Local storage | Daily | Cleared entirely |
+| `usage` collection (unauthenticated) | Daily | Deleted entirely |
+| User doc `usage.*.period` (authenticated) | Monthly (1st) | Reset to 0 |
+
+The daily cron runs at midnight UTC (`0 0 * * *`). Authenticated user period resets only execute on the 1st of the month.
+
+## Subscription System
+
+### Subscription Statuses
+
+| Status | Meaning | User can delete account? |
+|--------|---------|--------------------------|
+| `active` | Subscription is current and valid (includes trialing) | No (unless `product.id === 'basic'`) |
+| `suspended` | Payment failed (Stripe: `past_due`, `unpaid`) | No |
+| `cancelled` | Subscription terminated (Stripe: `canceled`, `incomplete`, `incomplete_expired`) | Yes |
+
+### Stripe Status Mapping
+
+| Stripe Status | `subscription.status` | Notes |
+|---|---|---|
+| `active` | `active` | Normal active subscription |
+| `trialing` | `active` | `trial.activated = true` |
+| `past_due` | `suspended` | Payment failed, retrying |
+| `unpaid` | `suspended` | Payment failed |
+| `canceled` | `cancelled` | Subscription terminated |
+| `incomplete` | `cancelled` | Never completed initial payment |
+| `incomplete_expired` | `cancelled` | Expired before completion |
+| `active` + `cancel_at_period_end` | `active` | `cancellation.pending = true` |
+
+### Unified Subscription Object (`users/{uid}.subscription`)
+
+```javascript
+subscription: {
+  product: {
+    id: 'basic',                   // product ID from config ('basic', 'premium', etc.)
+    name: 'Basic',                 // display name from config
+  },
+  status: 'active',                // 'active' | 'suspended' | 'cancelled'
+  expires: { timestamp, timestampUNIX },
+  trial: {
+    activated: false,              // has user EVER used a trial
+    expires: { timestamp, timestampUNIX },
+  },
+  cancellation: {
+    pending: false,                // true = cancel at period end
+    date: { timestamp, timestampUNIX },
+  },
+  payment: {
+    processor: null,               // 'stripe' | 'paypal' | etc.
+    resourceId: null,              // provider subscription ID (e.g., 'sub_xxx')
+    frequency: null,               // 'monthly' | 'annually'
+    startDate: { timestamp, timestampUNIX },
+    updatedBy: {
+      event: { name: null, id: null },
+      date: { timestamp, timestampUNIX },
+    },
+  },
+}
+```
+
+### Access Check Patterns
+
+```javascript
+// Is premium (paid)?
+user.subscription.status === 'active' && user.subscription.product.id !== 'basic'
+
+// Is on trial?
+user.subscription.trial.activated && user.subscription.status === 'active'
+
+// Has pending cancellation?
+user.subscription.cancellation.pending === true
+
+// Payment failed?
+user.subscription.status === 'suspended'
+```
+
 ## Common Mistakes to Avoid
 
 1. **Don't modify Manager internals directly** - Use factory methods and public APIs

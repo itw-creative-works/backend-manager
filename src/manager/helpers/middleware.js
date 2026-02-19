@@ -78,7 +78,7 @@ Middleware.prototype.run = function (libPath, options) {
     const strippedUrl = stripUrl(url);
 
     // Log
-    assistant.log(`Middleware.process(): Request (${geolocation.ip} @ ${geolocation.country}, ${geolocation.region}, ${geolocation.city}) [${method} > ${strippedUrl}]`, safeStringify(data));
+    assistant.log(`Middleware.process(): Request (${geolocation.ip || 'unknown'} @ ${geolocation.country || '?'}, ${geolocation.region || '?'}, ${geolocation.city || '?'}) [${method} > ${strippedUrl}]`, safeStringify(data));
     assistant.log(`Middleware.process(): Headers`, safeStringify(headers));
 
     // Set paths
@@ -126,13 +126,14 @@ Middleware.prototype.run = function (libPath, options) {
 
     // Log working user
     const workingUser = assistant.getUser();
-    assistant.log(`Middleware.process(): User (${workingUser.auth.uid}, ${workingUser.auth.email}, ${workingUser.plan.id}=${workingUser.plan.status}):`, safeStringify(workingUser));
+    assistant.log(`Middleware.process(): User (${workingUser.auth.uid}, ${workingUser.auth.email}, ${workingUser.subscription.product.id}=${workingUser.subscription.status}):`, safeStringify(workingUser));
 
     // Setup analytics
     if (options.setupAnalytics) {
       const uuid = assistant?.usage?.user?.auth?.uid
         || assistant.request.user.auth.uid
         || assistant.request.geolocation.ip
+        || 'unknown'
 
       assistant.analytics = Manager.Analytics({
         assistant: assistant,
@@ -219,7 +220,7 @@ function clean(obj) {
 function stripUrl(url) {
   const newUrl = new URL(url);
 
-  return `${newUrl.hostname}${newUrl.pathname}`.replace(/\/$/, '');
+  return `${newUrl.host}${newUrl.pathname}`.replace(/\/$/, '');
 }
 
 // Helper to safely stringify objects by truncating long strings (like base64)

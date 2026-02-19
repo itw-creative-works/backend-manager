@@ -162,7 +162,7 @@ async function seedTestAccounts(accounts) {
     throw new Error('Test environment not initialized. Call initRulesTestEnv() first.');
   }
 
-  // Get static account definitions for roles/plan data
+  // Get static account definitions for roles/subscription data
   const { TEST_ACCOUNTS } = require('../test-accounts.js');
 
   // Use withSecurityRulesDisabled to write test data
@@ -174,7 +174,7 @@ async function seedTestAccounts(accounts) {
         continue;
       }
 
-      // Get the static definition for this account type (has roles, plan)
+      // Get the static definition for this account type (has roles, subscription)
       const staticDef = TEST_ACCOUNTS[accountType];
 
       // Build user document with roles for isAdmin() check
@@ -186,9 +186,9 @@ async function seedTestAccounts(accounts) {
         roles: staticDef?.properties?.roles || {},
       };
 
-      // Add plan if present in static definition
-      if (staticDef?.properties?.plan) {
-        userData.plan = staticDef.properties.plan;
+      // Add subscription if present in static definition
+      if (staticDef?.properties?.subscription) {
+        userData.subscription = staticDef.properties.subscription;
       }
 
       await db.doc(`users/${account.uid}`).set(userData, { merge: true });

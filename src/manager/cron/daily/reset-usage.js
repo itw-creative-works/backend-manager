@@ -1,83 +1,86 @@
-const fetch = require('wonderful-fetch');
-
 /**
  * Reset usage cron job
  *
- * Resets daily usage counters in both local storage and Firestore.
+ * Runs daily at midnight UTC and handles different reset schedules:
+ * - Local storage: cleared every day
+ * - Unauthenticated usage collection: deleted every day
+ * - Authenticated user period counters: reset on the 1st (or 2nd as grace window) of each month
  */
 module.exports = async ({ Manager, assistant, context, libraries }) => {
   const storage = Manager.storage({ name: 'usage', temporary: true, clear: false, log: false });
 
   assistant.log('Starting...');
 
-  // Clear local
+  // Clear local storage (daily)
   await clearLocal(assistant, storage);
 
-  // Clear firestore
-  await clearFirestore(Manager, assistant, libraries);
+  // Clear unauthenticated usage collection (daily)
+  await clearUnauthenticatedUsage(assistant, libraries);
+
+  // Reset authenticated user periods (monthly - 1st or 2nd of month)
+  await resetAuthenticatedUsage(Manager, assistant, libraries);
 };
 
 async function clearLocal(assistant, storage) {
-  // Log status
   assistant.log('[local]: Starting...');
 
-  // Log storage
   assistant.log('[local]: storage(apps)', storage.get('apps', {}).value());
   assistant.log('[local]: storage(users)', storage.get('users', {}).value());
 
   // Clear storage
   storage.setState({}).write();
 
-  // Log status
   assistant.log('[local]: Completed!');
 }
 
-async function clearFirestore(Manager, assistant, libraries) {
+async function clearUnauthenticatedUsage(assistant, libraries) {
   const { admin } = libraries;
 
-  // Log status
-  assistant.log('[firestore]: Starting...');
+  assistant.log('[unauthenticated]: Deleting usage collection...');
 
-  // Clear storage
-  const metrics = await fetch('https://us-central1-itw-creative-works.cloudfunctions.net/getApp', {
-    method: 'post',
-    response: 'json',
-    body: {
-      id: Manager.config.app.id,
-    },
+  await admin.firestore().recursiveDelete(admin.firestore().collection('usage'))
+  .then(() => {
+    assistant.log('[unauthenticated]: Deleted usage collection');
   })
-  .then(response => {
-    response.products = response.products || {};
+  .catch((e) => {
+    assistant.errorify(`Error deleting usage collection: ${e}`, { code: 500, log: true });
+  });
+}
 
-    for (let product of Object.values(response.products)) {
-      product = product || {};
-      product.planId = product.planId || '';
+async function resetAuthenticatedUsage(Manager, assistant, libraries) {
+  const { admin } = libraries;
+  const dayOfMonth = new Date().getDate();
 
-      if (product.planId.includes('basic')) {
-        return product.limits;
-      }
+  // Only reset on the 1st of the month
+  if (dayOfMonth !== 1) {
+    assistant.log('[authenticated]: Skipping period reset (not the 1st of the month)');
+    return;
+  }
+
+  assistant.log('[authenticated]: Monthly reset starting...');
+
+  // Gather all unique metric names from ALL products
+  const products = Manager.config.products || [];
+  const metrics = {};
+
+  for (const product of products) {
+    const limits = product.limits || {};
+
+    for (const key of Object.keys(limits)) {
+      metrics[key] = true;
     }
-
-    return new Error('No basic product found');
-  })
-  .catch(e => e);
-
-  // Ensure requests is always included as a default metric
-  if (!(metrics instanceof Error)) {
-    metrics.requests = metrics.requests || 1;
   }
 
-  // Log status
-  assistant.log('[firestore]: Resetting metrics', metrics);
+  // Ensure requests is always included
+  metrics.requests = true;
 
-  if (metrics instanceof Error) {
-    throw assistant.errorify(`Failed to check providers: ${metrics}`, { code: 500 });
-  }
+  const metricNames = Object.keys(metrics);
 
-  // Reset all metrics with for loop of metrics
-  // TODO: OPTIMIZATION: Put all of the changes into a single batch
-  for (const metric of Object.keys(metrics)) {
-    assistant.log(`[firestore]: Resetting ${metric} for all users`);
+  assistant.log('[authenticated]: Resetting metrics', metricNames);
+
+  // Reset each metric for users who have usage > 0
+  for (const metric of metricNames) {
+    assistant.log(`[authenticated]: Resetting ${metric} for all users`);
 
     await Manager.Utilities().iterateCollection((batch, index) => {
       return new Promise(async (resolve, reject) => {
@@ -91,7 +94,7 @@ async function clearFirestore(Manager, assistant, libraries) {
           data.usage[metric].total = data.usage[metric].total || 0;
           data.usage[metric].last = data.usage[metric].last || {};
 
-          // Yeet if its 0
+          // Skip if already 0
           if (data.usage[metric].period <= 0) {
             continue;
           }
@@ -103,14 +106,13 @@ async function clearFirestore(Manager, assistant, libraries) {
           // Update the doc
           await doc.ref.update({ usage: data.usage })
           .then(r => {
-            assistant.log(`[firestore]: Reset ${metric} for ${doc.id} (${original} -> 0)`);
+            assistant.log(`[authenticated]: Reset ${metric} for ${doc.id} (${original} -> 0)`);
           })
           .catch(e => {
             assistant.errorify(`Error resetting ${metric} for ${doc.id}: ${e}`, { code: 500, log: true });
           });
         }
 
-        // Complete
         return resolve();
       });
     }, {
@@ -122,19 +124,12 @@ async function clearFirestore(Manager, assistant, libraries) {
       log: true,
     })
     .then((r) => {
-      assistant.log(`[firestore]: Reset ${metric} for all users complete!`);
+      assistant.log(`[authenticated]: Reset ${metric} for all users complete!`);
     })
     .catch(e => {
       assistant.errorify(`Error resetting ${metric} for all users: ${e}`, { code: 500, log: true });
     });
   }
 
-  // Clear usage in firestore by deleting the entire collection
-  await admin.firestore().recursiveDelete(admin.firestore().collection('usage'))
-  .then(() => {
-    assistant.log('[firestore]: Deleted usage collection');
-  })
-  .catch((e) => {
-    assistant.errorify(`Error deleting usage collection: ${e}`, { code: 500, log: true });
-  });
+  assistant.log('[authenticated]: Monthly reset completed!');
 }

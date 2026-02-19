@@ -460,13 +460,14 @@ const userProps = Manager.User(existingData, { defaults: true }).properties;
 // User structure:
 {
   auth: { uid, email, temporary },
-  plan: {
-    id: 'basic',           // basic | advanced | premium
-    status: 'active',      // active | suspended | cancelled
+  subscription: {
+    product: { id, name },   // product from config ('basic', 'premium', etc.)
+    status: 'active',        // active | suspended | cancelled
     expires: { timestamp, timestampUNIX },
     trial: { activated, expires: {...} },
+    cancellation: { pending, date: {...} },
     limits: {},
-    payment: { processor, orderId, resourceId, frequency, active, startDate, updatedBy }
+    payment: { processor, resourceId, frequency, startDate, updatedBy }
   },
   roles: { admin, betaTester, developer },
   affiliate: { code, referrals, referrer },
@@ -478,7 +479,6 @@ const userProps = Manager.User(existingData, { defaults: true }).properties;
 }
 
 // Methods
-userProps.resolve();           // Check plan expiration
 userProps.merge(otherUser);    // Merge with another user object
 ```
 
@@ -602,7 +602,7 @@ const results = await utilities.iterateCollection(
     collection: 'users',
     batchSize: 1000,
     maxBatches: 10,
-    where: [{ field: 'plan.id', operator: '==', value: 'premium' }],
+    where: [{ field: 'subscription.product.id', operator: '==', value: 'premium' }],
     orderBy: { field: 'activity.created.timestamp', direction: 'desc' },
     startAfter: 'lastDocId',
     log: true,
@@ -710,7 +710,7 @@ const user = await assistant.authenticate();
   authenticated: true,
   auth: { uid: 'abc123', email: 'user@example.com' },
   roles: { admin: false, betaTester: false, developer: false },
-  plan: { id: 'basic', status: 'active', ... },
+  subscription: { product: { id: 'basic', name: 'Basic' }, status: 'active', ... },
   api: { clientId: '...', privateKey: '...' },
   // ... other user properties
 }
@@ -856,6 +856,80 @@ module.exports = {
 **Auth levels:** `none`, `user`/`basic`, `admin`, `premium-active`, `premium-expired`
 
 See `CLAUDE.md` for complete test API documentation.
+
+## Subscription System
+
+BEM includes a built-in payment/subscription system with Stripe integration (extensible to other providers).
+
+### Subscription Statuses
+
+| Status | Meaning | User can delete account? |
+|--------|---------|--------------------------|
+| `active` | Subscription is current and valid (includes trialing) | No (unless `product.id === 'basic'`) |
+| `suspended` | Payment failed (Stripe: `past_due`, `unpaid`) | No |
+| `cancelled` | Subscription terminated (Stripe: `canceled`, `incomplete`, `incomplete_expired`) | Yes |
+
+### Stripe Status Mapping
+
+| Stripe Status | `subscription.status` | Notes |
+|---|---|---|
+| `active` | `active` | Normal active subscription |
+| `trialing` | `active` | `trial.activated = true` |
+| `past_due` | `suspended` | Payment failed, retrying |
+| `unpaid` | `suspended` | Payment failed |
+| `canceled` | `cancelled` | Subscription terminated |
+| `incomplete` | `cancelled` | Never completed initial payment |
+| `incomplete_expired` | `cancelled` | Expired before completion |
+| `active` + `cancel_at_period_end` | `active` | `cancellation.pending = true` |
+
+### Unified Subscription Object
+
+The same subscription shape is stored in `users/{uid}.subscription` and `payments-subscriptions/{subId}.subscription`:
+
+```javascript
+subscription: {
+  product: {
+    id: 'basic',                   // product ID from config ('basic', 'premium', etc.)
+    name: 'Basic',                 // display name from config
+  },
+  status: 'active',                // 'active' | 'suspended' | 'cancelled'
+  expires: { timestamp, timestampUNIX },
+  trial: {
+    activated: false,              // has user EVER used a trial
+    expires: { timestamp, timestampUNIX },
+  },
+  cancellation: {
+    pending: false,                // true = cancel at period end
+    date: { timestamp, timestampUNIX },
+  },
+  payment: {
+    processor: null,               // 'stripe' | 'paypal' | etc.
+    resourceId: null,              // provider subscription ID (e.g., 'sub_xxx')
+    frequency: null,               // 'monthly' | 'annually'
+    startDate: { timestamp, timestampUNIX },
+    updatedBy: {
+      event: { name: null, id: null },
+      date: { timestamp, timestampUNIX },
+    },
+  },
+}
+```
+
+### Access Check Patterns
+
+```javascript
+// Is premium (paid)?
+user.subscription.status === 'active' && user.subscription.product.id !== 'basic'
+
+// Is on trial?
+user.subscription.trial.activated && user.subscription.status === 'active'
+
+// Has pending cancellation?
+user.subscription.cancellation.pending === true
+
+// Payment failed?
+user.subscription.status === 'suspended'
+```
 
 ## Final Words
 

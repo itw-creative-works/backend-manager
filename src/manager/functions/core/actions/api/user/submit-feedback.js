@@ -1,5 +1,4 @@
 const pushid = require('pushid');
-const fetch = require('wonderful-fetch');
 const powertools = require('node-powertools');
 
 function Module() {
@@ -34,55 +33,42 @@ Module.prototype.main = function () {
         decision.promptReview = true;
       }
 
-      // Get app data
-      fetch(`https://us-central1-itw-creative-works.cloudfunctions.net/getApp`, {
-        method: 'post',
-        response: 'json',
-        body: {
-          id: Manager.config.app.id,
-        }
-      })
-      .then((response) => {
-        response.reviews = response.reviews || {};
-        response.reviews.enabled = typeof response.reviews.enabled === 'undefined' ? true : response.reviews.enabled;
-        response.reviews.sites = response.reviews.sites || [];
+      // Get review config from local config
+      const reviews = { ...(Manager.config.reviews || {}) };
+      reviews.enabled = typeof reviews.enabled === 'undefined' ? true : reviews.enabled;
+      reviews.sites = reviews.sites || [];
 
-        // If reviews are enabled and there are review sites, prompt review
-        if (response.reviews.enabled && response.reviews.sites.length > 0) {
-          decision.reviewURL = powertools.random(response.reviews.sites);
-        } else {
-          decision.promptReview = false;
-        }
+      // If reviews are enabled and there are review sites, prompt review
+      if (decision.promptReview && reviews.enabled && reviews.sites.length > 0) {
+        decision.reviewURL = powertools.random(reviews.sites);
+      } else {
+        decision.promptReview = false;
+      }
 
-        assistant.log('Feedback submitted', docId, {appReviewData: response.reviews, request: request, decision: decision});
+      assistant.log('Feedback submitted', docId, {appReviewData: reviews, request: request, decision: decision});
 
-        // Save feedback to firestore
-        self.libraries.admin.firestore().doc(`feedback/${docId}`)
-        .set({
-          created: assistant.meta.startTime,
-          feedback: request,
-          decision: decision,
-          owner: {
-            uid: user?.auth?.uid ?? null,
-          },
-          metadata: Manager.Metadata().set({tag: 'user:submit-feedback'}),
-        }, {merge: true})
-        .then(r => {
-          return resolve({
-            data: {
-              review: decision,
-              originalRequest: request,
-            }
-          });
-        })
-        .catch((e) => {
-          return reject(assistant.errorify(`Failed to save feedback: ${e.message}`, {code: 500, sentry: true}));
-        })
+      // Save feedback to firestore
+      self.libraries.admin.firestore().doc(`feedback/${docId}`)
+      .set({
+        created: assistant.meta.startTime,
+        feedback: request,
+        decision: decision,
+        owner: {
+          uid: user?.auth?.uid ?? null,
+        },
+        metadata: Manager.Metadata().set({tag: 'user:submit-feedback'}),
+      }, {merge: true})
+      .then(r => {
+        return resolve({
+          data: {
+            review: decision,
+            originalRequest: request,
+          }
+        });
       })
       .catch((e) => {
-        return reject(assistant.errorify(`Failed to get app: ${e.message}`, {code: 500, sentry: true}));
+        return reject(assistant.errorify(`Failed to save feedback: ${e.message}`, {code: 500, sentry: true}));
       })
-
     })
     .catch((e) => {
       return reject(e);

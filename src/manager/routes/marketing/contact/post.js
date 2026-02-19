@@ -58,7 +58,7 @@ module.exports = async ({ assistant, Manager, settings, analytics }) => {
 
     // Check rate limit via Usage API
     try {
-      await usage.validate('marketing-subscribe', { throw: true, useCaptchaResponse: false });
+      await usage.validate('marketing-subscribe', { useCaptchaResponse: false });
       usage.increment('marketing-subscribe');
       await usage.update();
     } catch (e) {

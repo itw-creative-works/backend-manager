@@ -1,220 +1,343 @@
-const _ = require('lodash');
 const uuid4 = require('uuid').v4;
-const shortid = require('shortid');
 const powertools = require('node-powertools');
 const UIDGenerator = require('uid-generator');
 const uidgen = new UIDGenerator(256);
 
 /**
- * Helper: returns value if defined, otherwise returns defaultValue (if useDefaults=true) or null
- * @param {*} value - The value to check
- * @param {*} defaultValue - The default value to use if value is null/undefined
- * @param {boolean} useDefaults - Whether to use defaultValue or return null
- * @returns {*}
+ * User schema definition
+ *
+ * Each leaf field is { type, default, nullable }
+ * Special keys:
+ *   $passthrough  — preserve all existing keys from input, don't strip unknowns
+ *   $template     — shape applied to every dynamic key in a $passthrough object
+ *   '$template'   — (string value) reference to parent's $template
+ *   '$timestamp'  — shorthand for { timestamp, timestampUNIX } defaulting to epoch
+ *   '$timestamp:now' — same but defaults to current time
+ *   '$uuid', '$randomId', '$apiKey', '$oldDate' — resolved at runtime
  */
-function getWithDefault(value, defaultValue, useDefaults) {
-  return value ?? (useDefaults ? defaultValue : null);
+const SCHEMA = {
+  auth: {
+    uid: { type: 'string', default: null, nullable: true },
+    email: { type: 'string', default: null, nullable: true },
+    temporary: { type: 'boolean', default: false },
+  },
+  subscription: {
+    product: {
+      id: { type: 'string', default: 'basic' },
+      name: { type: 'string', default: 'Basic' },
+    },
+    status: { type: 'string', default: 'active' },
+    expires: '$timestamp',
+    trial: {
+      claimed: { type: 'boolean', default: false },
+      expires: '$timestamp',
+    },
+    cancellation: {
+      pending: { type: 'boolean', default: false },
+      date: '$timestamp',
+    },
+    payment: {
+      processor: { type: 'string', default: null, nullable: true },
+      resourceId: { type: 'string', default: null, nullable: true },
+      frequency: { type: 'string', default: null, nullable: true },
+      startDate: '$timestamp',
+      updatedBy: {
+        event: {
+          name: { type: 'string', default: null, nullable: true },
+          id: { type: 'string', default: null, nullable: true },
+        },
+        date: '$timestamp',
+      },
+    },
+  },
+  roles: {
+    $passthrough: true,
+    admin: { type: 'boolean', default: false },
+    betaTester: { type: 'boolean', default: false },
+    developer: { type: 'boolean', default: false },
+  },
+  flags: {
+    $passthrough: true,
+    signupProcessed: { type: 'boolean', default: false },
+  },
+  affiliate: {
+    code: { type: 'string', default: '$randomId' },
+    referrals: { type: 'array', default: [] },
+  },
+  activity: {
+    lastActivity: '$timestamp:now',
+    created: '$timestamp:now',
+    geolocation: {
+      ip: { type: 'string', default: null, nullable: true },
+      continent: { type: 'string', default: null, nullable: true },
+      country: { type: 'string', default: null, nullable: true },
+      region: { type: 'string', default: null, nullable: true },
+      city: { type: 'string', default: null, nullable: true },
+      latitude: { type: 'number', default: 0 },
+      longitude: { type: 'number', default: 0 },
+    },
+    client: {
+      language: { type: 'string', default: null, nullable: true },
+      mobile: { type: 'boolean', default: false },
+      device: { type: 'string', default: null, nullable: true },
+      platform: { type: 'string', default: null, nullable: true },
+      browser: { type: 'string', default: null, nullable: true },
+      vendor: { type: 'string', default: null, nullable: true },
+      runtime: { type: 'string', default: null, nullable: true },
+      userAgent: { type: 'string', default: null, nullable: true },
+      url: { type: 'string', default: null, nullable: true },
+    },
+  },
+  api: {
+    clientId: { type: 'string', default: '$uuid' },
+    privateKey: { type: 'string', default: '$apiKey' },
+  },
+  usage: {
+    $passthrough: true,
+    $template: {
+      period: { type: 'number', default: 0 },
+      total: { type: 'number', default: 0 },
+      last: {
+        id: { type: 'string', default: null, nullable: true },
+        timestamp: { type: 'string', default: '$oldDate' },
+        timestampUNIX: { type: 'number', default: 0 },
+      },
+    },
+    requests: '$template',
+  },
+  personal: {
+    birthday: '$timestamp',
+    gender: { type: 'string', default: null, nullable: true },
+    location: {
+      country: { type: 'string', default: null, nullable: true },
+      region: { type: 'string', default: null, nullable: true },
+      city: { type: 'string', default: null, nullable: true },
+    },
+    name: {
+      first: { type: 'string', default: null, nullable: true },
+      last: { type: 'string', default: null, nullable: true },
+    },
+    company: {
+      name: { type: 'string', default: null, nullable: true },
+      position: { type: 'string', default: null, nullable: true },
+    },
+    telephone: {
+      countryCode: { type: 'number', default: 0 },
+      national: { type: 'number', default: 0 },
+    },
+  },
+  oauth2: {
+    $passthrough: true,
+  },
+  attribution: {
+    affiliate: {
+      code: { type: 'string', default: null, nullable: true },
+      timestamp: { type: 'string', default: null, nullable: true },
+      url: { type: 'string', default: null, nullable: true },
+      page: { type: 'string', default: null, nullable: true },
+    },
+    utm: {
+      tags: { $passthrough: true },
+      timestamp: { type: 'string', default: null, nullable: true },
+      url: { type: 'string', default: null, nullable: true },
+      page: { type: 'string', default: null, nullable: true },
+    },
+  },
+};
+
+/**
+ * Check if a schema node is a leaf field definition (has 'type' and 'default')
+ */
+function isLeaf(node) {
+  return node !== null
+    && typeof node === 'object'
+    && typeof node.type === 'string'
+    && 'default' in node;
 }
 
-function User(Manager, settings, options) {
+/**
+ * Coerce a value to the expected type. Returns the coerced value or undefined if coercion fails.
+ */
+function coerce(value, type) {
+  if (typeof value === type) {
+    return value;
+  }
+
+  switch (type) {
+    case 'number': {
+      const n = Number(value);
+      return Number.isNaN(n) ? undefined : n;
+    }
+    case 'boolean': {
+      if (value === 'true' || value === 1) return true;
+      if (value === 'false' || value === 0) return false;
+      return Boolean(value);
+    }
+    case 'string': {
+      return String(value);
+    }
+    default: {
+      return undefined;
+    }
+  }
+}
+
+/**
+ * Resolve a single leaf field value
+ */
+function resolveLeaf(leaf, value, ctx) {
+  // Null handling
+  if (value === null) {
+    return leaf.nullable ? null : resolveDefault(leaf.default, ctx);
+  }
+
+  // Undefined → apply default
+  if (value === undefined) {
+    return resolveDefault(leaf.default, ctx);
+  }
+
+  // Array type — just check it's an array, don't coerce
+  if (leaf.type === 'array') {
+    return Array.isArray(value) ? value : resolveDefault(leaf.default, ctx);
+  }
+
+  // Type coercion
+  if (typeof value !== leaf.type) {
+    const coerced = coerce(value, leaf.type);
+    return coerced !== undefined ? coerced : resolveDefault(leaf.default, ctx);
+  }
+
+  return value;
+}
+
+/**
+ * Resolve a default value, handling special tokens
+ */
+function resolveDefault(def, ctx) {
+  if (typeof def !== 'string' || !def.startsWith('$')) {
+    // For arrays, return a fresh copy to avoid shared references
+    if (Array.isArray(def)) {
+      return [...def];
+    }
+    return def;
+  }
+
+  switch (def) {
+    case '$uuid':
+      return `${uuid4()}`;
+    case '$randomId':
+      return ctx.Manager.Utilities().randomId({ size: 8 });
+    case '$apiKey':
+      return `${uidgen.generateSync()}`;
+    case '$oldDate':
+      return ctx.oldDate;
+    case '$oldDateUNIX':
+      return ctx.oldDateUNIX;
+    case '$now':
+      return ctx.now;
+    case '$nowUNIX':
+      return ctx.nowUNIX;
+    default:
+      return def;
+  }
+}
+
+/**
+ * Expand $timestamp shorthand into a schema branch
+ */
+function expandTimestamp(variant) {
+  const useNow = variant === '$timestamp:now';
+
+  return {
+    timestamp: { type: 'string', default: useNow ? '$now' : '$oldDate' },
+    timestampUNIX: { type: 'number', default: useNow ? '$nowUNIX' : 0 },
+  };
+}
+
+/**
+ * Recursively resolve a schema node against input data
+ */
+function resolve(schema, data, ctx) {
+  data = data || {};
+  const result = {};
+
+  // If $passthrough, start by copying all existing keys from data
+  const isPassthrough = schema.$passthrough === true;
+  const template = schema.$template || null;
+
+  if (isPassthrough) {
+    // Copy all data keys first (they'll be overwritten by defined schema fields below)
+    for (const key of Object.keys(data)) {
+      if (template && !key.startsWith('$') && !(key in schema)) {
+        // Dynamic key — resolve against template
+        result[key] = resolve(template, data[key], ctx);
+      } else if (!(key in schema) || key.startsWith('$')) {
+        // Unknown key not in schema — passthrough as-is
+        result[key] = data[key];
+      }
+    }
+  }
+
+  // Now resolve each defined schema field
+  for (const [key, node] of Object.entries(schema)) {
+    // Skip meta keys
+    if (key.startsWith('$')) {
+      continue;
+    }
+
+    // Handle string shorthands
+    if (typeof node === 'string') {
+      if (node === '$template') {
+        // Resolve against parent's $template
+        result[key] = resolve(template, data[key], ctx);
+        continue;
+      }
+      if (node.startsWith('$timestamp')) {
+        // Expand timestamp shorthand and recurse
+        result[key] = resolve(expandTimestamp(node), data[key], ctx);
+        continue;
+      }
+    }
+
+    // Leaf field
+    if (isLeaf(node)) {
+      result[key] = resolveLeaf(node, data[key], ctx);
+      continue;
+    }
+
+    // Nested branch (plain object)
+    if (node !== null && typeof node === 'object') {
+      result[key] = resolve(node, data[key], ctx);
+      continue;
+    }
+  }
+
+  return result;
+}
+
+// ─── User constructor ───
+
+function User(Manager, settings) {
   const self = this;
 
   self.Manager = Manager;
 
   settings = settings || {};
-  options = options || {};
 
-  options.defaults = typeof options.defaults === 'undefined' ? true : options.defaults;
-  options.prune = typeof options.prune === 'undefined' ? false : options.prune;
+  // Build resolver context
+  const now = powertools.timestamp(new Date(), { output: 'string' });
+  const ctx = {
+    Manager,
+    now: now,
+    nowUNIX: powertools.timestamp(now, { output: 'unix' }),
+    oldDate: powertools.timestamp(new Date(0), { output: 'string' }),
+    oldDateUNIX: powertools.timestamp(new Date(0), { output: 'unix' }),
+  };
 
-  const now = powertools.timestamp(new Date(), {output: 'string'});
-  const nowUNIX = powertools.timestamp(now, {output: 'unix'});
-  const oldDate = powertools.timestamp(new Date(0), {output: 'string'})
-  const oldDateUNIX = powertools.timestamp(oldDate, {output: 'unix'});
-
-  const defaults = options.defaults;
-
-  self.properties = {
-    auth: {
-      uid: settings?.auth?.uid ?? null,
-      email: settings?.auth?.email ?? null,
-      temporary: getWithDefault(settings?.auth?.temporary, false, defaults),
-    },
-    plan: {
-      id: getWithDefault(settings?.plan?.id, 'basic', defaults), // intro | basic | advanced | premium
-      status: getWithDefault(settings?.plan?.status, 'cancelled', defaults), // active | suspended | cancelled
-      expires: {
-        timestamp: getWithDefault(settings?.plan?.expires?.timestamp, oldDate, defaults),
-        timestampUNIX: getWithDefault(settings?.plan?.expires?.timestampUNIX, oldDateUNIX, defaults),
-      },
-      trial: {
-        activated: getWithDefault(settings?.plan?.trial?.activated, false, defaults),
-        expires: {
-          timestamp: getWithDefault(settings?.plan?.trial?.expires?.timestamp, oldDate, defaults),
-          timestampUNIX: getWithDefault(settings?.plan?.trial?.expires?.timestampUNIX, oldDateUNIX, defaults),
-        },
-      },
-      limits: {
-        // devices: settings?.plan?.limits?.devices ?? null,
-      },
-      payment: {
-        processor: settings?.plan?.payment?.processor ?? null, // paypal | stripe | chargebee, etc
-        orderId: settings?.plan?.payment?.orderId ?? null, // xxx-xxx-xxx
-        resourceId: settings?.plan?.payment?.resourceId ?? null, // x-xxxxxx
-        frequency: settings?.plan?.payment?.frequency ?? null, // monthly || annually
-        active: getWithDefault(settings?.plan?.payment?.active, false, defaults), // true | false
-        startDate: {
-          timestamp: getWithDefault(settings?.plan?.payment?.startDate?.timestamp, now, defaults), // x-xxxxxx
-          timestampUNIX: getWithDefault(settings?.plan?.payment?.startDate?.timestampUNIX, nowUNIX, defaults), // x-xxxxxx
-        },
-        updatedBy: {
-          event: {
-            name: settings?.plan?.payment?.updatedBy?.event?.name ?? null, // x-xxxxxx
-            id: settings?.plan?.payment?.updatedBy?.event?.id ?? null, // x-xxxxxx
-          },
-          date: {
-            timestamp: getWithDefault(settings?.plan?.payment?.updatedBy?.date?.timestamp, now, defaults), // x-xxxxxx
-            timestampUNIX: getWithDefault(settings?.plan?.payment?.updatedBy?.date?.timestampUNIX, nowUNIX, defaults), // x-xxxxxx
-          },
-        },
-      }
-    },
-    roles: {
-      admin: getWithDefault(settings?.roles?.admin, false, defaults),
-      betaTester: getWithDefault(settings?.roles?.betaTester, false, defaults),
-      developer: getWithDefault(settings?.roles?.developer, false, defaults),
-    },
-    flags: {
-      signupProcessed: getWithDefault(settings?.flags?.signupProcessed, false, defaults),
-    },
-    affiliate: {
-      code: getWithDefault(settings?.affiliate?.code, self.Manager.Utilities().randomId({size: 7}), defaults),
-      referrals: settings?.affiliate?.referrals ?? [],
-    },
-    activity: {
-      lastActivity: {
-        timestamp: getWithDefault(settings?.activity?.lastActivity?.timestamp, now, defaults),
-        timestampUNIX: getWithDefault(settings?.activity?.lastActivity?.timestampUNIX, nowUNIX, defaults),
-      },
-      created: {
-        timestamp: getWithDefault(settings?.activity?.created?.timestamp, now, defaults),
-        timestampUNIX: getWithDefault(settings?.activity?.created?.timestampUNIX, nowUNIX, defaults),
-      },
-      geolocation: {
-        ip: getWithDefault(settings?.activity?.geolocation?.ip, '', defaults),
-        continent: getWithDefault(settings?.activity?.geolocation?.continent, '', defaults),
-        country: getWithDefault(settings?.activity?.geolocation?.country, '', defaults),
-        region: getWithDefault(settings?.activity?.geolocation?.region, '', defaults),
-        city: getWithDefault(settings?.activity?.geolocation?.city, '', defaults),
-        latitude: getWithDefault(settings?.activity?.geolocation?.latitude, 0, defaults),
-        longitude: getWithDefault(settings?.activity?.geolocation?.longitude, 0, defaults),
-      },
-      client: {
-        language: getWithDefault(settings?.activity?.client?.language, '', defaults),
-        mobile: getWithDefault(settings?.activity?.client?.mobile, false, defaults),
-        device: getWithDefault(settings?.activity?.client?.device, '', defaults),
-        platform: getWithDefault(settings?.activity?.client?.platform, '', defaults),
-        browser: getWithDefault(settings?.activity?.client?.browser, '', defaults),
-        vendor: getWithDefault(settings?.activity?.client?.vendor, '', defaults),
-        runtime: getWithDefault(settings?.activity?.client?.runtime, '', defaults),
-        userAgent: getWithDefault(settings?.activity?.client?.userAgent, '', defaults),
-        url: getWithDefault(settings?.activity?.client?.url, '', defaults),
-      },
-    },
-    api: {
-      clientId: getWithDefault(settings?.api?.clientId, `${uuid4()}`, defaults),
-      privateKey: getWithDefault(settings?.api?.privateKey, `${uidgen.generateSync()}`, defaults),
-    },
-    usage: {
-      requests: {
-        period: getWithDefault(settings?.usage?.requests?.period, 0, defaults),
-        total: getWithDefault(settings?.usage?.requests?.total, 0, defaults),
-        last: {
-          id: getWithDefault(settings?.usage?.requests?.last?.id, '', defaults),
-          timestamp: getWithDefault(settings?.usage?.requests?.last?.timestamp, oldDate, defaults),
-          timestampUNIX: getWithDefault(settings?.usage?.requests?.last?.timestampUNIX, oldDateUNIX, defaults),
-        },
-      },
-    },
-    personal: {
-      birthday: {
-        timestamp: getWithDefault(settings?.personal?.birthday?.timestamp, oldDate, defaults),
-        timestampUNIX: getWithDefault(settings?.personal?.birthday?.timestampUNIX, oldDateUNIX, defaults),
-      },
-      gender: getWithDefault(settings?.personal?.gender, '', defaults),
-      location: {
-        country: getWithDefault(settings?.personal?.location?.country, '', defaults),
-        region: getWithDefault(settings?.personal?.location?.region, '', defaults),
-        city: getWithDefault(settings?.personal?.location?.city, '', defaults),
-      },
-      name: {
-        first: getWithDefault(settings?.personal?.name?.first, '', defaults),
-        last: getWithDefault(settings?.personal?.name?.last, '', defaults),
-      },
-      company: {
-        name: getWithDefault(settings?.personal?.company?.name, '', defaults),
-        position: getWithDefault(settings?.personal?.company?.position, '', defaults),
-      },
-      telephone: {
-        countryCode: getWithDefault(settings?.personal?.telephone?.countryCode, 0, defaults),
-        national: getWithDefault(settings?.personal?.telephone?.national, 0, defaults),
-      },
-    },
-    oauth2: {
-      // updated: {
-      //   timestamp: getWithDefault(settings?.oauth2?.updated?.timestamp, oldDate, defaults),
-      //   timestampUNIX: getWithDefault(settings?.oauth2?.updated?.timestampUNIX, oldDateUNIX, defaults),
-      // },
-    },
-  }
-
-  if (options.prune) {
-    self.properties = pruneObject(self.properties);
-  }
-
-  self.resolve = function (options) {
-    options = options || {};
-    options.defaultPlan = options.defaultPlan || 'basic';
-    const planId = self.properties?.plan?.id ?? options.defaultPlan;
-    const premiumExpire = self.properties?.plan?.expires?.timestamp ?? 0;
-
-    let difference = ((new Date(premiumExpire).getTime() - new Date().getTime())/(24*3600*1000));
-    // console.log('---difference', difference);
-    if (difference <= -1) {
-      _.set(self.properties, 'plan.id', options.defaultPlan);
-      // console.log('---REVERTED TO BASIC BECAUSE EXPIRED');
-    } else {
-      // console.log('---ITS FINE');
-    }
-    return self;
-  }
-
-  self.merge = function (userObject) {
-    self.properties = _.merge({}, self.properties, userObject)
-    return self;
-  }
+  // Resolve
+  self.properties = resolve(SCHEMA, settings, ctx);
 
   return self;
-}
-
-
-// https://stackoverflow.com/a/26202058/7305269
-function pruneObject(obj) {
-  return function prune(current) {
-    _.forOwn(current, function (value, key) {
-      if (_.isUndefined(value) || _.isNull(value) || _.isNaN(value) ||
-        (_.isObject(value) && _.isEmpty(prune(value)))) {
-
-        delete current[key];
-      }
-    });
-    // remove any leftover undefined values from the delete
-    // operation on an array
-    if (_.isArray(current)) _.pull(current, undefined);
-
-    return current;
-
-  }(_.cloneDeep(obj));  // Do not modify the original object, create a clone instead
 }
 
 module.exports = User;

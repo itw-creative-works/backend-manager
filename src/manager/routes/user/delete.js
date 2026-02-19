@@ -29,10 +29,12 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
 
   const userData = userDoc.data();
 
-  // Disallow deleting users with active subscriptions
+  // Disallow deleting users with active or suspended paid subscriptions
+  const subStatus = userData?.subscription?.status;
+  const subId = userData?.subscription?.product?.id;
   if (
-    (userData?.plan?.status && userData?.plan?.status !== 'cancelled')
-    || userData?.plan?.payment?.active
+    (subStatus === 'active' || subStatus === 'suspended')
+    && subId !== 'basic'
   ) {
     return assistant.respond(
       'This account cannot be deleted because it has a paid subscription attached to it. In order to delete the account, you must first cancel the paid subscription.',

@@ -1,5 +1,4 @@
 const pushid = require('pushid');
-const fetch = require('wonderful-fetch');
 const powertools = require('node-powertools');
 
 /**
@@ -30,17 +29,8 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
     decision.promptReview = true;
   }
 
-  // Get app data for review URLs
-  const appResponse = await fetch('https://us-central1-itw-creative-works.cloudfunctions.net/getApp', {
-    method: 'post',
-    response: 'json',
-    body: { id: Manager.config.app.id },
-  }).catch((e) => {
-    assistant.error(`Failed to get app: ${e.message}`);
-    return {};
-  });
-
-  const reviews = appResponse.reviews || {};
+  // Get review config from local config
+  const reviews = { ...(Manager.config.reviews || {}) };
   reviews.enabled = typeof reviews.enabled === 'undefined' ? true : reviews.enabled;
   reviews.sites = reviews.sites || [];
 

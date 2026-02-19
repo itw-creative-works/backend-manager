@@ -23,21 +23,21 @@ function Analytics(Manager, options) {
 
   // Set request properties
   self.request = {
-    ip: self.assistant?.request?.geolocation?.ip || '127.0.0.1',
-    country: self.assistant?.request?.geolocation?.country || '',
-    city: self.assistant?.request?.geolocation?.city || '',
-    region: self.assistant?.request?.geolocation?.region || '',
-    referrer: self.assistant?.request?.referrer || '',
-    userAgent: self.assistant?.request?.client?.userAgent || '',
-    language: (self.assistant?.request?.client?.language || '').split(',')[0],
+    ip: self.assistant?.request?.geolocation?.ip || null,
+    country: self.assistant?.request?.geolocation?.country || null,
+    city: self.assistant?.request?.geolocation?.city || null,
+    region: self.assistant?.request?.geolocation?.region || null,
+    referrer: self.assistant?.request?.referrer || null,
+    userAgent: self.assistant?.request?.client?.userAgent || null,
+    language: (self.assistant?.request?.client?.language || '').split(',')[0] || null,
     mobile: self.assistant?.request?.client?.mobile || false,
-    platform: self.assistant?.request?.client?.platform || '',
+    platform: self.assistant?.request?.client?.platform || null,
     name: self.assistant?.meta?.name || '',
   }
 
   // Remove blacklisted user agents
-  self.request.userAgent = BLOCKED_USER_AGENTS.some((regex) => self.request.userAgent.match(regex))
-    ? ''
+  self.request.userAgent = self.request.userAgent && BLOCKED_USER_AGENTS.some((regex) => self.request.userAgent.match(regex))
+    ? null
     : self.request.userAgent;
 
   // Fix options
@@ -110,11 +110,11 @@ function Analytics(Manager, options) {
     authenticated: {
       value: authUser?.auth?.uid ? true : false,
     },
-    plan_id: {
-      value: authUser?.plan?.id || 'basic',
+    subscription_id: {
+      value: authUser?.subscription?.product?.id || 'basic',
     },
-    plan_trial_activated: {
-      value: authUser?.plan?.trial?.activated || false,
+    subscription_trial_activated: {
+      value: authUser?.subscription?.trial?.activated || false,
     },
     activity_created: {
       value: moment(authUser?.activity?.created?.timestampUNIX

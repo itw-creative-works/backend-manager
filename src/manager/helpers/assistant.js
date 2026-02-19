@@ -221,7 +221,8 @@ BackendAssistant.prototype.init = function (ref, options) {
   }
   self.request.url = tryUrl(self);
   self.request.path = self.ref.req.path || '';
-  self.request.user = self.resolveAccount({authenticated: false});
+  self.request.user = self.Manager.User({}).properties;
+  self.request.user.authenticated = false;
 
   // Set body and query
   if (options.accept === 'json') {
@@ -656,7 +657,8 @@ BackendAssistant.prototype.authenticate = async function (options) {
 
     // Resolve the user
     if (options.resolve) {
-      self.request.user = self.resolveAccount(user);
+      self.request.user = self.Manager.User(user).properties;
+      self.request.user.authenticated = user.authenticated || false;
       return self.request.user;
     } else {
       return user;
@@ -763,11 +765,6 @@ BackendAssistant.prototype.authenticate = async function (options) {
   }
 };
 
-BackendAssistant.prototype.resolveAccount = function (user) {
-  const ResolveAccount = new (require('resolve-account'))();
-
-  return ResolveAccount.resolve(undefined, user)
-}
 
 BackendAssistant.prototype.parseRepo = function (repo) {
   let repoSplit = repo.split('/');
@@ -795,43 +792,35 @@ BackendAssistant.prototype.parseRepo = function (repo) {
 BackendAssistant.prototype.getHeaderIp = function (headers) {
   headers = headers || {};
 
-  return (
+  const value =
     // these are present for cloudflare requests (11/21/2020)
     headers['cf-connecting-ip']
     || headers['fastly-temp-xff']
 
     // these are present for non-cloudflare requests (11/21/2020)
     || headers['x-appengine-user-ip']
-    || headers['x-forwarded-for']
+    || headers['x-forwarded-for'];
 
     // Not sure about these
     // || headers['fastly-client-ip']
 
-    // If unsure, return local IP
-    || '127.0.0.1'
-  )
-  .split(',')[0]
-  .trim();
+  return value ? value.split(',')[0].trim() : null;
 }
 
 BackendAssistant.prototype.getHeaderContinent = function (headers) {
   headers = headers || {};
 
-  return (
+  const value =
     // these are present for cloudflare requests (11/21/2020)
-    headers['cf-ipcontinent']
+    headers['cf-ipcontinent'];
 
-    // If unsure, return ZZ
-    || 'ZZ'
-  )
-  .split(',')[0]
-  .trim();
+  return value ? value.split(',')[0].trim() : null;
 }
 
 BackendAssistant.prototype.getHeaderCountry = function (headers) {
   headers = headers || {};
 
-  return (
+  const value =
     // these are present for cloudflare requests (11/21/2020)
     headers['cf-ipcountry']
 
@@ -839,46 +828,34 @@ BackendAssistant.prototype.getHeaderCountry = function (headers) {
     || headers['x-country-code']
 
     // these are present for non-cloudflare requests (11/21/2020)
-    || headers['x-appengine-country']
+    || headers['x-appengine-country'];
 
-    // If unsure, return ZZ
-    || 'ZZ'
-  )
-  .split(',')[0]
-  .trim();
+  return value ? value.split(',')[0].trim() : null;
 }
 
 BackendAssistant.prototype.getHeaderRegion = function (headers) {
   headers = headers || {};
 
-  return (
+  const value =
     // these are present for cloudflare requests (11/21/2020)
     headers['cf-region']
 
     // these are present for non-cloudflare requests (11/21/2020)
-    || headers['x-appengine-region']
+    || headers['x-appengine-region'];
 
-    // If unsure, return unknown
-    || 'Unknown'
-  )
-  .split(',')[0]
-  .trim();
+  return value ? value.split(',')[0].trim() : null;
 }
 
 BackendAssistant.prototype.getHeaderCity = function (headers) {
   headers = headers || {};
 
-  return (
+  const value =
     // these are present for cloudflare requests (11/21/2020)
     headers['cf-ipcity']
 
-    || headers['x-appengine-city']
+    || headers['x-appengine-city'];
 
-    // If unsure, return unknown
-    || 'Unknown'
-  )
-  .split(',')[0]
-  .trim();
+  return value ? value.split(',')[0].trim() : null;
 }
 
 BackendAssistant.prototype.getHeaderLatitude = function (headers) {
@@ -917,33 +894,27 @@ BackendAssistant.prototype.getHeaderLongitude = function (headers) {
 BackendAssistant.prototype.getHeaderUserAgent = function (headers) {
   headers = headers || {};
 
-  return (
-    headers['user-agent']
-    || ''
-  )
-  .trim();
+  const value = headers['user-agent'];
+
+  return value ? value.trim() : null;
 }
 
 BackendAssistant.prototype.getHeaderLanguage = function (headers) {
   headers = headers || {};
 
-  return (
+  const value =
     headers['accept-language']
-    || headers['x-orig-accept-language']
-    || ''
-  )
-  .trim();
+    || headers['x-orig-accept-language'];
+
+  return value ? value.trim() : null;
 }
 
 BackendAssistant.prototype.getHeaderPlatform = function (headers) {
   headers = headers || {};
 
-  return (
-    headers['sec-ch-ua-platform']
-    || ''
-  )
-  .replace(/"/ig, '')
-  .trim();
+  const value = headers['sec-ch-ua-platform'];
+
+  return value ? value.replace(/"/ig, '').trim() : null;
 }
 
 BackendAssistant.prototype.getHeaderMobile = function (headers) {
@@ -959,7 +930,7 @@ BackendAssistant.prototype.getHeaderUrl = function (headers) {
   const self = this;
   headers = headers || {};
 
-  return (
+  const value =
     // Origin header (most reliable for CORS requests)
     headers['origin']
 
@@ -968,12 +939,9 @@ BackendAssistant.prototype.getHeaderUrl = function (headers) {
     || headers['referer']
 
     // Reconstruct from host and path if available
-    || (headers['host'] ? `https://${headers['host']}${self.ref.req?.originalUrl || self.ref.req?.url || ''}` : '')
+    || (headers['host'] ? `https://${headers['host']}${self.ref.req?.originalUrl || self.ref.req?.url || ''}` : null);
 
-    // If unsure, return empty string
-    || ''
-  )
-  .trim();
+  return value ? value.trim() : null;
 }
 
 /**

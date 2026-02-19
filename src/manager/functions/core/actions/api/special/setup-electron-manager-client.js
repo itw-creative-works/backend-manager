@@ -1,3 +1,6 @@
+const path = require('path');
+const { buildPublicConfig } = require(path.join(__dirname, '..', '..', '..', '..', '..', 'routes', 'app', 'get.js'));
+
 function Module() {
 
 }
@@ -11,10 +14,7 @@ Module.prototype.main = function () {
 
   return new Promise(async function(resolve, reject) {
 
-    const fetch = Manager.require('wonderful-fetch');
-
     let uid = payload.data.payload.uid;
-    const app = payload.data.payload.appId || payload.data.payload.app || Manager.config.app.id;
     let config = payload.data.payload.config || {};
 
     let uuid = null;
@@ -68,32 +68,17 @@ Module.prototype.main = function () {
       config = {};
     }
 
-    // Fetch app details
-    await fetch('https://us-central1-itw-creative-works.cloudfunctions.net/getApp', {
-      method: 'post',
-      timeout: 30000,
-      tries: 3,
-      response: 'json',
-      body: {
-        id: app,
-      },
-    })
-    .then(result => {
-      return resolve({
-        data: {
-          uuid: uuid,
-          signInToken: signInToken,
-          timestamp: new Date().toISOString(),
-          ip: assistant.request.geolocation.ip,
-          country: assistant.request.geolocation.country,
-          app: result,
-          config: config,
-        }
-      });
-    })
-    .catch(e => {
-      return reject(assistant.errorify(`Error fetching app details: ${e}`, {code: 500}));
-    })
+    return resolve({
+      data: {
+        uuid: uuid,
+        signInToken: signInToken,
+        timestamp: new Date().toISOString(),
+        ip: assistant.request.geolocation.ip,
+        country: assistant.request.geolocation.country,
+        app: buildPublicConfig(Manager.config),
+        config: config,
+      }
+    });
 
   });
 

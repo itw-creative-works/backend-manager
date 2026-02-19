@@ -43,7 +43,7 @@ module.exports = async ({ assistant, Manager, settings, analytics }) => {
 
   // Check spam filter using local storage
   const storage = Manager.storage({ temporary: true });
-  const ipPath = ['api:general:email', 'ips', assistant.request.geolocation.ip];
+  const ipPath = ['api:general:email', 'ips', assistant.request.geolocation.ip || 'unknown'];
   const emailPath = ['api:general:email', 'emails', settings.email];
 
   const ipData = storage.get(ipPath).value() || {};

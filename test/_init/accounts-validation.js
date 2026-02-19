@@ -48,9 +48,9 @@ module.exports = {
       assert.hasProperty(userDoc, 'activity.created.timestamp', `Account '${accountId}' should have activity.created.timestamp`);
       assert.hasProperty(userDoc, 'activity.created.timestampUNIX', `Account '${accountId}' should have activity.created.timestampUNIX`);
 
-      // Validate plan fields (merged from test account properties)
-      assert.hasProperty(userDoc, 'plan.id', `Account '${accountId}' should have plan.id`);
-      assert.hasProperty(userDoc, 'plan.status', `Account '${accountId}' should have plan.status`);
+      // Validate subscription fields (merged from test account properties)
+      assert.hasProperty(userDoc, 'subscription.product.id', `Account '${accountId}' should have subscription.product.id`);
+      assert.hasProperty(userDoc, 'subscription.status', `Account '${accountId}' should have subscription.status`);
     }
 
     return { success: true };

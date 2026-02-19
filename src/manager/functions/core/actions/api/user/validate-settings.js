@@ -36,7 +36,7 @@ Module.prototype.main = function () {
       // Load the file
       try {
         const defaults = _.get(require(resolvedPath)(), payload.data.payload.defaultsPath);
-        const combined = combine(defaults.all, defaults[user.plan.id] || {})
+        const combined = combine(defaults.all, defaults[user.subscription.product.id] || {})
 
         assistant.log('Combined settings', combined)
 

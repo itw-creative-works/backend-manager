@@ -506,7 +506,7 @@ module.exports = {
         const { user } = response.data;
 
         assert.equal(user.authenticated, false, 'Should be unauthenticated');
-        assert.equal(user.plan, 'basic', 'Should default to basic plan');
+        assert.equal(user.subscription, 'basic', 'Should default to basic subscription');
       },
     },
 

@@ -2,7 +2,7 @@ const powertools = require('node-powertools');
 
 /**
  * GET /user/subscription - Get user subscription info
- * Returns plan, expiry, trial, and payment status
+ * Returns subscription, expiry, trial, and payment status
  */
 module.exports = async ({ assistant, user, settings, libraries }) => {
   const { admin } = libraries;
@@ -38,21 +38,37 @@ module.exports = async ({ assistant, user, settings, libraries }) => {
   const oldDateUNIX = powertools.timestamp(oldDate, { output: 'unix' });
 
   const result = {
-    plan: {
-      id: userData?.plan?.id || 'unknown',
+    subscription: {
+      product: {
+        id: userData?.subscription?.product?.id || 'basic',
+        name: userData?.subscription?.product?.name || 'Basic',
+      },
+      status: userData?.subscription?.status || 'active',
       expires: {
-        timestamp: userData?.plan?.expires?.timestamp || oldDate,
-        timestampUNIX: userData?.plan?.expires?.timestampUNIX || oldDateUNIX,
+        timestamp: userData?.subscription?.expires?.timestamp || oldDate,
+        timestampUNIX: userData?.subscription?.expires?.timestampUNIX || oldDateUNIX,
       },
       trial: {
-        activated: userData?.plan?.trial?.activated ?? false,
+        activated: userData?.subscription?.trial?.activated ?? false,
+        expires: {
+          timestamp: userData?.subscription?.trial?.expires?.timestamp || oldDate,
+          timestampUNIX: userData?.subscription?.trial?.expires?.timestampUNIX || oldDateUNIX,
+        },
+      },
+      cancellation: {
+        pending: userData?.subscription?.cancellation?.pending ?? false,
         date: {
-          timestamp: userData?.plan?.trial?.date?.timestamp || oldDate,
-          timestampUNIX: userData?.plan?.trial?.date?.timestampUNIX || oldDateUNIX,
+          timestamp: userData?.subscription?.cancellation?.date?.timestamp || oldDate,
+          timestampUNIX: userData?.subscription?.cancellation?.date?.timestampUNIX || oldDateUNIX,
         },
       },
       payment: {
-        active: userData?.plan?.payment?.active ?? false,
+        processor: userData?.subscription?.payment?.processor || null,
+        frequency: userData?.subscription?.payment?.frequency || null,
+        startDate: {
+          timestamp: userData?.subscription?.payment?.startDate?.timestamp || oldDate,
+          timestampUNIX: userData?.subscription?.payment?.startDate?.timestampUNIX || oldDateUNIX,
+        },
       },
     },
   };

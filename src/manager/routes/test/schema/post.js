@@ -3,10 +3,10 @@
  * Returns the resolved settings for testing purposes
  */
 module.exports = async ({ assistant, user, settings }) => {
-  assistant.log('test/schema: User plan info', {
-    planId: user.plan?.id,
-    planStatus: user.plan?.status,
-    fullPlan: user.plan,
+  assistant.log('test/schema: User subscription info', {
+    subscriptionId: user.subscription?.product?.id,
+    subscriptionStatus: user.subscription?.status,
+    fullSubscription: user.subscription,
   });
 
   return assistant.respond({
@@ -14,7 +14,7 @@ module.exports = async ({ assistant, user, settings }) => {
     user: {
       authenticated: user.authenticated,
       uid: user.auth?.uid || null,
-      plan: user.plan?.id || 'basic',
+      subscription: user.subscription?.product?.id || 'basic',
     },
   });
 };

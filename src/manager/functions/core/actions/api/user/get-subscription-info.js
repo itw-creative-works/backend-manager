@@ -18,21 +18,37 @@ Module.prototype.main = function () {
     Api.resolveUser({adminRequired: false})
     .then(async (user) => {
       const result = {
-        plan: {
-          id: user?.plan?.id || 'unknown',
+        subscription: {
+          product: {
+            id: user?.subscription?.product?.id || 'basic',
+            name: user?.subscription?.product?.name || 'Basic',
+          },
+          status: user?.subscription?.status || 'active',
           expires: {
-            timestamp: user?.plan?.expires?.timestamp || oldDate,
-            timestampUNIX: user?.plan?.expires?.timestampUNIX || oldDateUNIX,
+            timestamp: user?.subscription?.expires?.timestamp || oldDate,
+            timestampUNIX: user?.subscription?.expires?.timestampUNIX || oldDateUNIX,
           },
           trial: {
-            activated: user?.plan?.trial?.activated ?? false,
+            activated: user?.subscription?.trial?.activated ?? false,
+            expires: {
+              timestamp: user?.subscription?.trial?.expires?.timestamp || oldDate,
+              timestampUNIX: user?.subscription?.trial?.expires?.timestampUNIX || oldDateUNIX,
+            },
+          },
+          cancellation: {
+            pending: user?.subscription?.cancellation?.pending ?? false,
             date: {
-              timestamp: user?.plan?.trial?.date?.timestamp || oldDate,
-              timestampUNIX: user?.plan?.trial?.date?.timestampUNIX || oldDateUNIX,
-            }
+              timestamp: user?.subscription?.cancellation?.date?.timestamp || oldDate,
+              timestampUNIX: user?.subscription?.cancellation?.date?.timestampUNIX || oldDateUNIX,
+            },
           },
           payment: {
-            active: user?.plan?.payment?.active ?? false,
+            processor: user?.subscription?.payment?.processor || null,
+            frequency: user?.subscription?.payment?.frequency || null,
+            startDate: {
+              timestamp: user?.subscription?.payment?.startDate?.timestamp || oldDate,
+              timestampUNIX: user?.subscription?.payment?.startDate?.timestampUNIX || oldDateUNIX,
+            },
           },
         }
       }

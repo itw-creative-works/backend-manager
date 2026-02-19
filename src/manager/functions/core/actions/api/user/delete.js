@@ -17,10 +17,12 @@ Module.prototype.main = function () {
     .then(async (user) => {
       const uid = user?.auth?.uid;
 
-      // Disallow deleting users with subscriptions in any state other than cancelled or active payments
+      // Disallow deleting users with active or suspended paid subscriptions
+      const subStatus = user?.subscription?.status;
+      const subId = user?.subscription?.product?.id;
       if (
-        (user?.plan?.status && user?.plan?.status !== 'cancelled')
-        || user?.plan?.payment?.active
+        (subStatus === 'active' || subStatus === 'suspended')
+        && subId !== 'basic'
       ) {
         return reject(assistant.errorify(`This account cannot be deleted because it has a paid subscription attached to it. In order to delete the account, you must first cancel the paid subscription.`, {code: 400}));
       }

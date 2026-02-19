@@ -1,7 +1,7 @@
 /**
  * Test: user:get-subscription-info
  * Tests the user get subscription info command
- * Returns plan details for authenticated users
+ * Returns subscription details for authenticated users
  */
 module.exports = {
   description: 'User get subscription info',
@@ -17,17 +17,17 @@ module.exports = {
         const response = await http.command('user:get-subscription-info', {});
 
         assert.isSuccess(response, 'Get subscription info should succeed for authenticated user');
-        assert.hasProperty(response, 'data.plan', 'Response should contain plan object');
-        assert.hasProperty(response, 'data.plan.id', 'Plan should have id');
-        assert.hasProperty(response, 'data.plan.expires', 'Plan should have expires');
-        assert.hasProperty(response, 'data.plan.trial', 'Plan should have trial info');
-        assert.hasProperty(response, 'data.plan.payment', 'Plan should have payment info');
+        assert.hasProperty(response, 'data.subscription', 'Response should contain subscription object');
+        assert.hasProperty(response, 'data.subscription.product.id', 'Subscription should have id');
+        assert.hasProperty(response, 'data.subscription.expires', 'Subscription should have expires');
+        assert.hasProperty(response, 'data.subscription.trial', 'Subscription should have trial info');
+        assert.hasProperty(response, 'data.subscription.payment', 'Subscription should have payment info');
       },
     },
 
-    // Test 2: Plan has correct structure
+    // Test 2: Subscription has correct structure
     {
-      name: 'plan-structure-valid',
+      name: 'subscription-structure-valid',
       auth: 'basic',
       timeout: 15000,
 
@@ -36,31 +36,26 @@ module.exports = {
 
         assert.isSuccess(response, 'Get subscription info should succeed');
 
-        const plan = response.data.plan;
+        const subscription = response.data.subscription;
 
         // Check expires structure
-        assert.hasProperty(response, 'data.plan.expires.timestamp', 'expires should have timestamp');
-        assert.hasProperty(response, 'data.plan.expires.timestampUNIX', 'expires should have timestampUNIX');
+        assert.hasProperty(response, 'data.subscription.expires.timestamp', 'expires should have timestamp');
+        assert.hasProperty(response, 'data.subscription.expires.timestampUNIX', 'expires should have timestampUNIX');
 
         // Check trial structure
         assert.ok(
-          typeof plan.trial.activated === 'boolean',
+          typeof subscription.trial.activated === 'boolean',
           'trial.activated should be boolean'
         );
-        assert.hasProperty(response, 'data.plan.trial.date', 'trial should have date');
-        assert.hasProperty(response, 'data.plan.trial.date.timestamp', 'trial.date should have timestamp');
 
         // Check payment structure
-        assert.ok(
-          typeof plan.payment.active === 'boolean',
-          'payment.active should be boolean'
-        );
+        assert.hasProperty(response, 'data.subscription.payment', 'subscription should have payment');
       },
     },
 
     // Test 3: Premium user has active subscription
     {
-      name: 'premium-user-has-active-plan',
+      name: 'premium-user-has-active-subscription',
       auth: 'premium-active',
       timeout: 15000,
 
@@ -68,9 +63,8 @@ module.exports = {
         const response = await http.command('user:get-subscription-info', {});
 
         assert.isSuccess(response, 'Get subscription info should succeed for premium user');
-        // The API returns plan.id from the user doc (test account has plan.id = 'premium')
-        assert.hasProperty(response, 'data.plan.id', 'Premium user should have plan id');
-        assert.hasProperty(response, 'data.plan.payment', 'Premium user should have payment info');
+        assert.hasProperty(response, 'data.subscription.product.id', 'Premium user should have subscription id');
+        assert.hasProperty(response, 'data.subscription.payment', 'Premium user should have payment info');
       },
     },
 
@@ -84,8 +78,8 @@ module.exports = {
         const response = await http.command('user:get-subscription-info', {});
 
         assert.isSuccess(response, 'Get subscription info should succeed for expired premium');
-        assert.hasProperty(response, 'data.plan.id', 'Should still have plan id');
-        assert.hasProperty(response, 'data.plan.expires.timestampUNIX', 'Should have expires timestamp');
+        assert.hasProperty(response, 'data.subscription.product.id', 'Should still have subscription id');
+        assert.hasProperty(response, 'data.subscription.expires.timestampUNIX', 'Should have expires timestamp');
       },
     },
 

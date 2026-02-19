@@ -171,7 +171,7 @@ async function buildEmail(Manager, assistant, settings) {
     email.dynamicTemplateData.signoff.urlText = settings?.data?.signoff?.urlText || '@ianwieds';
   }
 
-  email.dynamicTemplateData.user = Manager.User(settings.user, { defaults: false, prune: false }).properties;
+  email.dynamicTemplateData.user = Manager.User(settings.user).properties;
 
   // Get app configuration from Manager.config.brand
   const brand = Manager.config?.brand;

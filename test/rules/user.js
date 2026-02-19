@@ -6,7 +6,7 @@
  * - Users can read their own document
  * - Users can write to their own document (non-protected fields only)
  * - Users cannot read/write other users' documents
- * - Protected fields (auth, roles, flags, plan, affiliate, api, usage) cannot be written by users
+ * - Protected fields (auth, roles, flags, subscription, affiliate, api, usage) cannot be written by users
  *
  * @see templates/firestore.rules
  */
@@ -130,20 +130,20 @@ module.exports = {
       },
     },
 
-    // Test 7: User cannot write 'plan' field (protected)
+    // Test 7: User cannot write 'subscription' field (protected)
     {
-      name: 'user-cannot-write-plan-field',
+      name: 'user-cannot-write-subscription-field',
       auth: 'none',
 
       async run({ rules, accounts }) {
         const uid = accounts.basic.uid;
         const db = rules.asAccount('basic');
 
-        // Should fail - plan is protected
+        // Should fail - subscription is protected
         await rules.expectFailure(
           db.doc(`users/${uid}`).set({
-            plan: {
-              id: 'premium',
+            subscription: {
+              product: { id: 'premium' },
               status: 'active',
             },
           }, { merge: true })
@@ -317,7 +317,7 @@ module.exports = {
         await rules.expectSuccess(
           db.doc(`users/${basicUid}`).set({
             roles: { premium: true },
-            plan: { id: 'pro', status: 'active' },
+            subscription: { product: { id: 'pro' }, status: 'active' },
           }, { merge: true })
         );
       },
@@ -337,7 +337,7 @@ module.exports = {
           db.doc(`users/${newUid}`).set({
             auth: { uid: newUid, email: 'new@test.com' },
             roles: {},
-            plan: { id: 'basic', status: 'active' },
+            subscription: { product: { id: 'basic' }, status: 'active' },
           })
         );
       },

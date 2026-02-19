@@ -1,11 +1,10 @@
 /**
  * Usage
  * Meant to check and update usage for a user
- * Uses the ITWCW apps/{app}/products/{product}/limits/{metric} to check limits
+ * Reads product limits from Manager.config.products
  * Stores usage in the user's firestore document OR in local/temp storage if no user
  */
 
-const fetch = require('wonderful-fetch');
 const moment = require('moment');
 const _ = require('lodash');
 const hcaptcha = require('hcaptcha');
@@ -16,14 +15,12 @@ function Usage(m) {
   self.Manager = m;
 
   self.user = null;
-  self.app = null;
   self.options = null;
   self.assistant = null;
   self.storage = null;
 
   self.paths = {
     user: '',
-    app: '',
   }
 
   self.initialized = false;
@@ -37,8 +34,6 @@ Usage.prototype.init = function (assistant, options) {
 
     // Set options
     options = options || {};
-    options.app = options.app || Manager.config.app.id;
-    options.refetch = typeof options.refetch === 'undefined' ? false : options.refetch;
     options.clear = typeof options.clear === 'undefined' ? false : options.clear;
     options.today = typeof options.today === 'undefined' ? undefined : options.today;
     options.key = typeof options.key === 'undefined' ? undefined : options.key;
@@ -60,20 +55,15 @@ Usage.prototype.init = function (assistant, options) {
     // Set assistant
     self.assistant = assistant;
 
-    // Setup storage
+    // Setup storage (used for unauthenticated local-mode usage tracking)
     self.storage = Manager.storage({name: 'usage', temporary: true, clear: options.clear, log: options.log});
 
     // Set local key
-    self.key = (options.key || self.assistant.request.geolocation.ip || '')
+    self.key = (options.key || self.assistant.request.geolocation.ip || 'unknown')
       // .replace(/[\.:]/g, '_');
 
     // Set paths
     self.paths.user = `users.${self.key}`;
-    self.paths.app = `apps.${options.app}`;
-
-    // Get storage data
-    const appLastFetched = moment(self.storage.get(`${self.paths.app}.lastFetched`, 0).value());
-    const diff = moment().diff(appLastFetched, 'hours');
 
     // Authenticate user (user will be resolved as well)
     self.user = await assistant.authenticate();
@@ -100,31 +90,6 @@ Usage.prototype.init = function (assistant, options) {
     }
 
     // Log
-    self.log(`Usage.init(): Checking if usage data needs to be fetched (${diff} hours)...`);
-
-    // Get app data to get plan limits using cached data if possible
-    if (diff > 1 || options.refetch) {
-      await self.getApp(options.app)
-        .then((json) => {
-          // Write data and last fetched to storage
-          self.storage.set(`${self.paths.app}.data`, json).write();
-          self.storage.set(`${self.paths.app}.lastFetched`, new Date().toISOString()).write();
-        })
-        .catch(e => {
-          assistant.errorify(`Usage.init(): Error fetching app data: ${e}`, {code: 500, sentry: true});
-        });
-    }
-
-    // Get app data
-    self.app = self.storage.get(`${self.paths.app}.data`, {}).value();
-
-    // Check for app data
-    if (!self.app) {
-      return reject(new Error('Usage.init(): No app data found'));
-    }
-
-    // Log
-    self.log(`Usage.init(): Got app data`, self.app);
     self.log(`Usage.init(): Got user`, self.user);
 
     // Set initialized to true
@@ -146,7 +111,7 @@ Usage.prototype.validate = function (name, options) {
     options = options || {};
     options.useCaptchaResponse = typeof options.useCaptchaResponse === 'undefined' ? true : options.useCaptchaResponse;
     options.log = typeof options.log === 'undefined' ? true : options.log;
-    options.throw = typeof options.throw === 'undefined' ? false : options.throw;
+    options._forceReject = typeof options._forceReject === 'undefined' ? false : options._forceReject;
 
     // Check for required options
     const period = self.getUsage(name);
@@ -164,8 +129,8 @@ Usage.prototype.validate = function (name, options) {
       );
     }
 
-    // Dev mode throw
-    if (options.throw) {
+    // Force reject (for testing/debugging)
+    if (options._forceReject) {
       return _reject();
     }
 
@@ -177,7 +142,21 @@ Usage.prototype.validate = function (name, options) {
       return resolve(true);
     }
 
-    // If they are under the limit, resolve
+    // Check proportional daily allowance (for products with rateLimit: 'daily')
+    const dailyAllowance = self.getDailyAllowance(name);
+    if (dailyAllowance !== null) {
+      if (options.log) {
+        assistant.log(`Usage.validate(): Daily allowance check: ${period}/${dailyAllowance} (monthly: ${allowed}) for ${name} (${self.key})`);
+      }
+
+      if (period >= dailyAllowance) {
+        return reject(
+          assistant.errorify(`You have reached your daily usage limit for ${name} (${period}/${dailyAllowance}). Your monthly limit is ${allowed}.`, {code: 429})
+        );
+      }
+    }
+
+    // If they are under the monthly limit, resolve
     if (period < allowed) {
       self.log(`Usage.validate(): Valid for ${name}`);
 
@@ -283,20 +262,65 @@ Usage.prototype.getUsage = function (name) {
   }
 };
 
-Usage.prototype.getLimit = function (name) {
+Usage.prototype.getProduct = function (id) {
   const self = this;
   const Manager = self.Manager;
-  const assistant = self.assistant;
 
-  // Get key
-  const key = `products.${self.options.app}-${self.user.plan.id}.limits`;
+  const products = Manager.config.products || [];
 
-  // Get limit
+  // Look up by provided ID, or fall back to user's subscription product
+  id = id || self.user.subscription.product.id;
+
+  return products.find(p => p.id === id)
+    || products.find(p => p.id === 'basic')
+    || {};
+};
+
+Usage.prototype.getLimit = function (name) {
+  const self = this;
+
+  const limits = self.getProduct().limits || {};
+
+  // Return specific limit or all limits
   if (name) {
-    return _.get(self.app, `${key}.${name}`, 0);
-  } else {
-    return _.get(self.app, key, {});
+    return limits[name] || 0;
   }
+
+  return limits;
+};
+
+/**
+ * Get the proportional daily allowance for a metric
+ * Based on how far into the month we are: ceil(monthlyLimit * dayOfMonth / daysInMonth)
+ *
+ * Returns null if the product uses monthly rate limiting (no daily cap)
+ * Products can set rateLimit: 'daily' | 'monthly' (default: 'monthly')
+ */
+Usage.prototype.getDailyAllowance = function (name) {
+  const self = this;
+
+  // Get the product config
+  const product = self.getProduct();
+  const rateLimit = product.rateLimit || 'monthly';
+
+  // If monthly rate limiting, no daily cap
+  if (rateLimit !== 'daily') {
+    return null;
+  }
+
+  // Get the monthly limit
+  const monthlyLimit = self.getLimit(name);
+  if (!monthlyLimit) {
+    return null;
+  }
+
+  // Calculate proportional allowance based on day of month
+  const now = new Date();
+  const dayOfMonth = now.getDate();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+
+  // ceil ensures at least 1 usage per day even with very low limits
+  return Math.ceil(monthlyLimit * (dayOfMonth / daysInMonth));
 };
 
 Usage.prototype.update = function () {
@@ -368,51 +392,6 @@ Usage.prototype.log = function () {
   if (self.options.log) {
     self.assistant.log(...arguments);
   }
-};
-
-Usage.prototype.getApp = function (id) {
-  const self = this;
-
-  // Shortcuts
-  const Manager = self.Manager;
-  const assistant = self.assistant;
-
-  return new Promise(function(resolve, reject) {
-    const { admin } = Manager.libraries;
-
-    try {
-      // If we're on ITW, we can read directly from Firestore
-      // If we don't do this, calling getApp on ITW will call getApp on ITW again and again
-      if (Manager.config.app.id === 'itw-creative-works') {
-        admin.firestore().doc(`apps/${id}`)
-          .get()
-          .then((r) => {
-            const data = r.data();
-
-            // Check for data
-            if (!data) {
-              return reject(new Error('No data found'));
-            }
-
-            // Resolve
-            return resolve(data);
-          })
-          .catch((e) => reject(e));
-      } else {
-        fetch('https://us-central1-itw-creative-works.cloudfunctions.net/getApp', {
-          method: 'post',
-          response: 'json',
-          body: {
-            id: id,
-          },
-        })
-        .then((json) => resolve(json))
-        .catch((e) => reject(e));
-      }
-    } catch (e) {
-      return reject(e);
-    }
-  });
 };
 
 module.exports = Usage;

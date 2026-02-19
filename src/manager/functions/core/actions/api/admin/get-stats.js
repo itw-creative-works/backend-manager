@@ -265,7 +265,7 @@ Module.prototype.getAllSubscriptions = function () {
 
     // Get subscriptions
     await self.libraries.admin.firestore().collection('users')
-    .where('plan.expires.timestampUNIX', '>=', new Date().getTime() / 1000)
+    .where('subscription.expires.timestampUNIX', '>=', new Date().getTime() / 1000)
     .get()
     .then((snapshot) => {
       const stats = {
@@ -280,8 +280,8 @@ Module.prototype.getAllSubscriptions = function () {
       snapshot
       .forEach((doc, i) => {
         const data = doc.data();
-        const planId = data?.plan?.id || 'basic';
-        const frequency = data?.plan?.payment?.frequency || 'unknown';
+        const planId = data?.subscription?.product?.id || 'basic';
+        const frequency = data?.subscription?.payment?.frequency || 'unknown';
         const isAdmin = data?.roles?.admin || false;
         const isVip = data?.roles?.vip || false;
 
