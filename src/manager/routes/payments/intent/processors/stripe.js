@@ -38,6 +38,26 @@ module.exports = {
 
     assistant?.log(`Stripe checkout: priceId=${priceId}, uid=${uid}, customerId=${customer.id}, trial=${trial}, trialDays=${product.trial?.days || 'none'}`);
 
+    // Build confirmation redirect URL with order details
+    const baseUrl = config.brand?.url;
+    const amount = product.prices?.[frequency]?.amount || 0;
+
+    const confirmationUrl = new URL('/payment/confirmation', baseUrl);
+    confirmationUrl.searchParams.set('orderId', '{CHECKOUT_SESSION_ID}');
+    confirmationUrl.searchParams.set('productId', productId);
+    confirmationUrl.searchParams.set('productName', product.name || productId);
+    confirmationUrl.searchParams.set('amount', trial && product.trial?.days ? '0' : String(amount));
+    confirmationUrl.searchParams.set('currency', 'USD');
+    confirmationUrl.searchParams.set('frequency', frequency);
+    confirmationUrl.searchParams.set('paymentMethod', 'stripe');
+    confirmationUrl.searchParams.set('trial', String(!!trial && !!product.trial?.days));
+    confirmationUrl.searchParams.set('track', 'true');
+
+    const cancelUrl = new URL('/payment/checkout', baseUrl);
+    cancelUrl.searchParams.set('product', productId);
+    cancelUrl.searchParams.set('frequency', frequency);
+    cancelUrl.searchParams.set('payment', 'cancelled');
+
     // Build session params
     const sessionParams = {
       mode: 'subscription',
@@ -51,8 +71,8 @@ module.exports = {
           uid: uid,
         },
       },
-      success_url: `${config.brand?.url || 'https://example.com'}/account/?payment=success`,
-      cancel_url: `${config.brand?.url || 'https://example.com'}/account/?payment=cancelled`,
+      success_url: confirmationUrl.toString(),
+      cancel_url: cancelUrl.toString(),
       metadata: {
         uid: uid,
         productId: productId,
