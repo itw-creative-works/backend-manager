@@ -18,9 +18,13 @@ const cron = path.resolve(__dirname, './cron');
 const events = path.resolve(__dirname, './events');
 
 const BEM_CONFIG_TEMPLATE_PATH = path.resolve(__dirname, '../../templates/backend-manager-config.json');
+const BEM_PACKAGE = require('../../package.json');
 
 function Manager() {
   const self = this;
+
+  // BEM library version
+  self.version = BEM_PACKAGE.version;
 
   // Constants
   self.SERVER_UUID = '11111111-1111-1111-1111-111111111111';
@@ -129,8 +133,6 @@ Manager.prototype.init = function (exporter, options) {
     {},
     requireJSON5(BEM_CONFIG_TEMPLATE_PATH, true),
     requireJSON5(self.project.backendManagerConfigPath, true),
-    // Load RUNTIME_CONFIG from .env (deprecated, will be removed in future versions)
-    process.env.RUNTIME_CONFIG ? JSON5.parse(process.env.RUNTIME_CONFIG) : {},
   );
 
   // Resolve legacy paths
@@ -459,12 +461,6 @@ Manager.prototype.Roles = function () {
   const self = this;
   self.libraries.Roles = self.libraries.Roles || require('./helpers/roles.js');
   return new self.libraries.Roles(self, ...arguments);
-};
-
-Manager.prototype.SubscriptionResolver = function () {
-  const self = this;
-  self.libraries.SubscriptionResolver = self.libraries.SubscriptionResolver || require('./helpers/subscription-resolver.js');
-  return new self.libraries.SubscriptionResolver(self, ...arguments);
 };
 
 Manager.prototype.Usage = function () {
@@ -924,11 +920,17 @@ Manager.prototype.setupFunctions = function (exporter, options) {
   .firestore.document('notifications/{token}')
   .onWrite((change, context) => self.EventMiddleware({ change, context }).run(`${events}/firestore/notifications/on-write.js`));
 
+  exporter.bm_paymentsWebhookOnWrite =
+  self.libraries.functions
+  .runWith({memory: '256MB', timeoutSeconds: 60})
+  .firestore.document('payments-webhooks/{eventId}')
+  .onWrite((change, context) => self.EventMiddleware({ change, context }).run(`${events}/firestore/payments-webhooks/on-write.js`));
+
   // Setup cron jobs
   exporter.bm_cronDaily =
   self.libraries.functions
   .runWith({ memory: '256MB', timeoutSeconds: 60 * 5})
-  .pubsub.schedule('every 24 hours')
+  .pubsub.schedule('0 0 * * *')
   .onRun((context) => self.EventMiddleware({ context }).run(`${cron}/daily.js`));
 };
 
@@ -1096,37 +1098,6 @@ Manager.prototype.setupCustomServer = function (_library, options) {
 
     // Emit event
     self.emit('online', new Event('online'), server, app);
-  });
-}
-
-// Setup Custom Server
-Manager.prototype.getApp = function (id) {
-  const self = this;
-
-  // Get the app
-  return new Promise(function(resolve, reject) {
-    const fetch = require('wonderful-fetch');
-
-    // Set ID
-    id = id || self.config.app.id;
-
-    // If no ID, reject
-    if (!id) {
-      return reject(new Error('No ID provided'));
-    }
-
-    // Fetch the app
-    fetch(`https://us-central1-itw-creative-works.cloudfunctions.net/getApp`, {
-      method: 'post',
-      response: 'json',
-      timeout: 30000,
-      tries: 3,
-      body: {
-        id: id,
-      }
-    })
-    .then((r) => resolve(r))
-    .catch((e) => reject(e));
   });
 }
 

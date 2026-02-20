@@ -26,14 +26,17 @@ function buildPublicConfig(config) {
     },
     reviews: config.reviews || {},
     firebaseConfig: config.firebaseConfig || {},
-    products: (config.products || []).map(p => ({
-      id: p.id,
-      name: p.name,
-      type: p.type,
-      limits: p.limits || {},
-      trial: p.trial || {},
-      prices: p.prices || {},
-    })),
+    payment: {
+      processors: config.payment?.processors || {},
+      products: (config.payment?.products || []).map(p => ({
+        id: p.id,
+        name: p.name,
+        type: p.type,
+        limits: p.limits || {},
+        trial: p.trial || {},
+        prices: p.prices || {},
+      })),
+    },
   };
 }
 

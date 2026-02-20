@@ -102,14 +102,10 @@ class TestCommand extends BaseCommand {
       return null;
     }
 
-    // Extract values from expected config structure
+    // Derive convenience values
     const projectId = config.firebaseConfig?.projectId;
     const backendManagerKey = argv.key || process.env.BACKEND_MANAGER_KEY;
     const appId = config.brand?.id;
-    const brandName = config.brand?.name;
-    const githubRepoWebsite = config.github?.repo_website;
-
-    // Extract domain from brand.contact.email (e.g., 'support@example.com' -> 'example.com')
     const contactEmail = config.brand?.contact?.email || '';
     const domain = contactEmail.includes('@') ? contactEmail.split('@')[1] : '';
 
@@ -135,7 +131,16 @@ class TestCommand extends BaseCommand {
       return null;
     }
 
-    return { appId, projectId, backendManagerKey, domain, brandName, githubRepoWebsite };
+    // Pass entire config + convenience aliases used by runner/helpers
+    return {
+      ...config,
+      appId,
+      projectId,
+      backendManagerKey,
+      domain,
+      brandName: config.brand?.name,
+      githubRepoWebsite: config.github?.repo_website,
+    };
   }
 
   /**

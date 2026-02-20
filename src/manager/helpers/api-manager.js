@@ -54,7 +54,7 @@ ApiManager.prototype.init = function (options) {
     options.whitelistedAPIKeys = options.whitelistedAPIKeys || [];
 
     // Read limits from config products
-    const products = self.Manager.config.products || [];
+    const products = self.Manager.config.payment?.products || [];
     options.plans = {};
 
     for (const product of products) {

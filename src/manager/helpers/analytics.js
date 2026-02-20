@@ -113,8 +113,8 @@ function Analytics(Manager, options) {
     subscription_id: {
       value: authUser?.subscription?.product?.id || 'basic',
     },
-    subscription_trial_activated: {
-      value: authUser?.subscription?.trial?.activated || false,
+    subscription_trial_claimed: {
+      value: authUser?.subscription?.trial?.claimed || false,
     },
     activity_created: {
       value: moment(authUser?.activity?.created?.timestampUNIX

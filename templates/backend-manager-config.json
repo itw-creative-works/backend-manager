@@ -25,6 +25,56 @@
     secret: 'ABCx1234567890ABCDEFGH',
   },
   oauth2: {},
+  payment: {
+    processors: {
+      stripe: {
+        publishableKey: null,
+      },
+      paypal: {
+        clientId: null,
+      },
+      chargebee: {
+        site: null,
+      },
+      coinbase: {
+        enabled: false,
+      },
+    },
+    products: [
+      {
+        id: 'basic',
+        name: 'Basic',
+        type: 'subscription',
+        limits: {
+          requests: 100,
+        },
+      },
+      {
+        id: 'premium',
+        name: 'Premium',
+        type: 'subscription',
+        limits: {
+          requests: 1000,
+        },
+        trial: {
+          days: 14,
+        },
+        prices: {
+          monthly: {
+            amount: 4.99,
+            stripe: 'price_xxx',
+            paypal: 'P-xxx',
+          },
+          annually: {
+            amount: 49.99,
+            stripe: 'price_yyy',
+            paypal: 'P-yyy',
+          },
+        },
+      },
+      // Add more products/tiers here
+    ],
+  },
   firebaseConfig: {
     apiKey: '123-456',
     authDomain: 'PROJECT-ID.firebaseapp.com',
@@ -50,40 +100,6 @@
       // app: 'other-app-id',              // Optional: target a different app
       // appUrl: 'https://api.otherapp.com', // Required if app is set (fetches /backend-manager/app)
     }
-  ],
-  products: [
-    {
-      id: 'basic',
-      name: 'Basic',
-      type: 'subscription',
-      limits: {
-        requests: 100,
-      },
-    },
-    {
-      id: 'premium',
-      name: 'Premium',
-      type: 'subscription',
-      limits: {
-        requests: 1000,
-      },
-      trial: {
-        days: 14,
-      },
-      prices: {
-        monthly: {
-          amount: 4.99,
-          stripe: 'price_xxx',
-          paypal: 'P-xxx',
-        },
-        annually: {
-          amount: 49.99,
-          stripe: 'price_yyy',
-          paypal: 'P-yyy',
-        },
-      },
-    },
-    // Add more products/tiers here
   ],
   reviews: {
     enabled: true,

@@ -1,7 +1,7 @@
 /**
  * Usage
  * Meant to check and update usage for a user
- * Reads product limits from Manager.config.products
+ * Reads product limits from Manager.config.payment.products
  * Stores usage in the user's firestore document OR in local/temp storage if no user
  */
 
@@ -266,7 +266,7 @@ Usage.prototype.getProduct = function (id) {
   const self = this;
   const Manager = self.Manager;
 
-  const products = Manager.config.products || [];
+  const products = Manager.config.payment?.products || [];
 
   // Look up by provided ID, or fall back to user's subscription product
   id = id || self.user.subscription.product.id;

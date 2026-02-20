@@ -14,6 +14,7 @@ const EmulatorsCommand = require('./commands/emulators');
 const CleanCommand = require('./commands/clean');
 const IndexesCommand = require('./commands/indexes');
 const WatchCommand = require('./commands/watch');
+const StripeCommand = require('./commands/stripe');
 
 function Main() {}
 
@@ -109,6 +110,12 @@ Main.prototype.process = async function (args) {
   // Watch (trigger hot reload when BEM source changes)
   if (self.options['watch']) {
     const cmd = new WatchCommand(self);
+    return await cmd.execute();
+  }
+
+  // Stripe webhook forwarding (standalone)
+  if (self.options['stripe'] || self.options['stripe:listen']) {
+    const cmd = new StripeCommand(self);
     return await cmd.execute();
   }
 };

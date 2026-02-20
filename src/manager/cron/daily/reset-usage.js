@@ -60,7 +60,7 @@ async function resetAuthenticatedUsage(Manager, assistant, libraries) {
   assistant.log('[authenticated]: Monthly reset starting...');
 
   // Gather all unique metric names from ALL products
-  const products = Manager.config.products || [];
+  const products = Manager.config.payment?.products || [];
   const metrics = {};
 
   for (const product of products) {

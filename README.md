@@ -464,7 +464,7 @@ const userProps = Manager.User(existingData, { defaults: true }).properties;
     product: { id, name },   // product from config ('basic', 'premium', etc.)
     status: 'active',        // active | suspended | cancelled
     expires: { timestamp, timestampUNIX },
-    trial: { activated, expires: {...} },
+    trial: { claimed, expires: {...} },
     cancellation: { pending, date: {...} },
     limits: {},
     payment: { processor, resourceId, frequency, startDate, updatedBy }
@@ -501,7 +501,7 @@ analytics.event('purchase', {
 
 **Auto-tracked User Properties:**
 - `app_version`, `device_category`, `operating_system`, `platform`
-- `authenticated`, `plan_id`, `plan_trial_activated`, `activity_created`
+- `authenticated`, `subscription_id`, `subscription_trial_claimed`, `activity_created`
 - `country`, `city`, `language`, `age`, `gender`
 
 ### Usage
@@ -734,6 +734,7 @@ npx backend-manager <command>
 | `bem deploy` | Deploy functions to Firebase |
 | `bem test [paths...]` | Run integration tests |
 | `bem emulators` | Start Firebase emulators (keep-alive mode) |
+| `bem stripe` | Start Stripe CLI webhook forwarding to local server |
 | `bem version`, `bem v` | Show BEM version |
 | `bem clear` | Clear cache and temp files |
 | `bem install`, `bem i` | Install BEM (local or production) |
@@ -748,6 +749,7 @@ Set these in your `functions/.env` file:
 | Variable | Description |
 |----------|-------------|
 | `BACKEND_MANAGER_KEY` | Admin authentication key |
+| `STRIPE_SECRET_KEY` | Stripe secret key (enables auto webhook forwarding in `serve`/`emulators`) |
 
 ## Response Headers
 
@@ -874,7 +876,7 @@ BEM includes a built-in payment/subscription system with Stripe integration (ext
 | Stripe Status | `subscription.status` | Notes |
 |---|---|---|
 | `active` | `active` | Normal active subscription |
-| `trialing` | `active` | `trial.activated = true` |
+| `trialing` | `active` | `trial.claimed = true` |
 | `past_due` | `suspended` | Payment failed, retrying |
 | `unpaid` | `suspended` | Payment failed |
 | `canceled` | `cancelled` | Subscription terminated |
@@ -895,7 +897,7 @@ subscription: {
   status: 'active',                // 'active' | 'suspended' | 'cancelled'
   expires: { timestamp, timestampUNIX },
   trial: {
-    activated: false,              // has user EVER used a trial
+    claimed: false,                // has user EVER used a trial
     expires: { timestamp, timestampUNIX },
   },
   cancellation: {
@@ -922,7 +924,7 @@ subscription: {
 user.subscription.status === 'active' && user.subscription.product.id !== 'basic'
 
 // Is on trial?
-user.subscription.trial.activated && user.subscription.status === 'active'
+user.subscription.trial.claimed && user.subscription.status === 'active'
 
 // Has pending cancellation?
 user.subscription.cancellation.pending === true

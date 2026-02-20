@@ -49,7 +49,7 @@ module.exports = async ({ assistant, user, settings, libraries }) => {
         timestampUNIX: userData?.subscription?.expires?.timestampUNIX || oldDateUNIX,
       },
       trial: {
-        activated: userData?.subscription?.trial?.activated ?? false,
+        claimed: userData?.subscription?.trial?.claimed ?? false,
         expires: {
           timestamp: userData?.subscription?.trial?.expires?.timestamp || oldDate,
           timestampUNIX: userData?.subscription?.trial?.expires?.timestampUNIX || oldDateUNIX,

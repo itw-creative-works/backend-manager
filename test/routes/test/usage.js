@@ -171,17 +171,18 @@ module.exports = {
     {
       name: 'unauthenticated-usage-by-ip',
       async run({ http, assert, state }) {
-        // Unauthenticated requests use IP as key (127.0.0.1 in emulator)
-        state.unauthKey = '127.0.0.1';
+        // Unauthenticated requests use IP as key (no proxy headers in emulator, so falls back to 'unknown')
+        state.unauthKey = 'unknown';
 
         const response = await http.as('none').post('test/usage', {});
 
         assert.isSuccess(response, 'Unauthenticated usage increment should succeed');
         assert.equal(response.data.authenticated, false, 'Should report as unauthenticated');
-        assert.equal(response.data.key, state.unauthKey, 'Key should be 127.0.0.1');
+        assert.equal(response.data.key, state.unauthKey, 'Key should be unknown');
 
-        // Verify increment happened
-        assert.equal(response.data.after.period, 1, 'Period should be 1 after first increment');
+        // Verify increment happened (relative check — prior tests may have incremented too)
+        state.unauthPeriod = response.data.after.period;
+        assert.equal(response.data.after.period, response.data.before.period + 1, 'Period should increment by 1');
       },
     },
 
@@ -193,7 +194,7 @@ module.exports = {
 
         assert.ok(usageDoc, 'Usage doc should exist in usage collection');
         assert.ok(usageDoc?.requests, 'Usage doc should have the requests metric');
-        assert.equal(usageDoc.requests.period, 1, 'Persisted period should be 1');
+        assert.equal(usageDoc.requests.period, state.unauthPeriod, 'Persisted period should match');
       },
     },
 

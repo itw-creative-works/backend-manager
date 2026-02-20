@@ -29,7 +29,7 @@ Module.prototype.main = function () {
             timestampUNIX: user?.subscription?.expires?.timestampUNIX || oldDateUNIX,
           },
           trial: {
-            activated: user?.subscription?.trial?.activated ?? false,
+            claimed: user?.subscription?.trial?.claimed ?? false,
             expires: {
               timestamp: user?.subscription?.trial?.expires?.timestamp || oldDate,
               timestampUNIX: user?.subscription?.trial?.expires?.timestampUNIX || oldDateUNIX,

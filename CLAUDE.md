@@ -490,6 +490,24 @@ assert.fail(message)                           // Explicit fail
 | `src/test/utils/http-client.js` | HTTP client |
 | `src/test/test-accounts.js` | Test account definitions |
 
+## Stripe Webhook Forwarding
+
+BEM auto-starts Stripe CLI webhook forwarding when running `npx bm serve` or `npx bm emulators`. This forwards Stripe test webhooks to the local server so the full payment pipeline works end-to-end during development.
+
+**Requirements:**
+- `STRIPE_SECRET_KEY` set in `functions/.env`
+- `BACKEND_MANAGER_KEY` set in `functions/.env`
+- [Stripe CLI](https://stripe.com/docs/stripe-cli) installed
+
+**Standalone usage:**
+```bash
+npx bm stripe
+```
+
+If any prerequisite is missing, webhook forwarding is silently skipped with an info message.
+
+The forwarding URL is: `http://localhost:{hostingPort}/backend-manager/payments/webhook?processor=stripe&key={BACKEND_MANAGER_KEY}`
+
 ## Usage & Rate Limiting
 
 ### Overview
@@ -548,7 +566,7 @@ The daily cron runs at midnight UTC (`0 0 * * *`). Authenticated user period res
 | Stripe Status | `subscription.status` | Notes |
 |---|---|---|
 | `active` | `active` | Normal active subscription |
-| `trialing` | `active` | `trial.activated = true` |
+| `trialing` | `active` | `trial.claimed = true` |
 | `past_due` | `suspended` | Payment failed, retrying |
 | `unpaid` | `suspended` | Payment failed |
 | `canceled` | `cancelled` | Subscription terminated |
@@ -567,7 +585,7 @@ subscription: {
   status: 'active',                // 'active' | 'suspended' | 'cancelled'
   expires: { timestamp, timestampUNIX },
   trial: {
-    activated: false,              // has user EVER used a trial
+    claimed: false,                // has user EVER used a trial
     expires: { timestamp, timestampUNIX },
   },
   cancellation: {
@@ -594,7 +612,7 @@ subscription: {
 user.subscription.status === 'active' && user.subscription.product.id !== 'basic'
 
 // Is on trial?
-user.subscription.trial.activated && user.subscription.status === 'active'
+user.subscription.trial.claimed && user.subscription.status === 'active'
 
 // Has pending cancellation?
 user.subscription.cancellation.pending === true
@@ -635,6 +653,8 @@ user.subscription.status === 'suspended'
 | Main API handler | `src/manager/functions/core/actions/api.js` |
 | Config template | `templates/backend-manager-config.json` |
 | CLI entry | `src/cli/index.js` |
+| Stripe webhook forwarding | `src/cli/commands/stripe.js` |
+| Stripe shared library | `src/manager/libraries/stripe.js` |
 
 ## Environment Detection
 

@@ -23,6 +23,9 @@ class EmulatorsCommand extends BaseCommand {
     const watcher = new WatchCommand(this.main);
     watcher.startBackground();
 
+    // Start Stripe webhook forwarding in background
+    this.startStripeWebhookForwarding();
+
     // Run emulators with keep-alive command (use single quotes since runWithEmulators wraps in double quotes)
     const keepAliveCommand = "echo ''; echo 'Emulators ready. Press Ctrl+C to shut down...'; sleep 86400";
 

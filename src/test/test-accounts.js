@@ -1,9 +1,9 @@
 const uuid = require('uuid');
 
 /**
- * Helper to create a future expiration date for premium plans
- * resolve-account checks plan.expires to determine if plan is active
- * If expires is in the past (or default 1970), plan gets downgraded to basic
+ * Helper to create a future expiration date for premium subscriptions
+ * User() checks subscription.expires to determine if subscription is active
+ * If expires is in the past (or default 1970), subscription gets downgraded to basic
  */
 function getFutureExpires(years = 10) {
   const futureDate = new Date();
@@ -15,7 +15,7 @@ function getFutureExpires(years = 10) {
 }
 
 /**
- * Helper to create a past expiration date for expired plans
+ * Helper to create a past expiration date for expired subscriptions
  */
 function getPastExpires(years = 1) {
   const pastDate = new Date();
@@ -37,8 +37,8 @@ function getPastExpires(years = 1) {
  * - email: Email with {domain} placeholder (resolved at runtime)
  * - properties: Object to merge into user doc after auth:on-create
  *
- * IMPORTANT: Premium accounts MUST have plan.expires set to a future date
- * or resolve-account will downgrade them to basic
+ * IMPORTANT: Premium accounts MUST have subscription.expires set to a future date
+ * and subscription.status set to 'active'
  */
 const STATIC_ACCOUNTS = {
   admin: {
@@ -47,7 +47,7 @@ const STATIC_ACCOUNTS = {
     email: '_test.admin@{domain}',
     properties: {
       roles: { admin: true },
-      plan: { id: 'basic', status: 'active' },
+      subscription: { product: { id: 'basic' }, status: 'active' },
     },
   },
   basic: {
@@ -56,7 +56,7 @@ const STATIC_ACCOUNTS = {
     email: '_test.basic@{domain}',
     properties: {
       roles: {},
-      plan: { id: 'basic', status: 'active' },
+      subscription: { product: { id: 'basic' }, status: 'active' },
     },
   },
   'premium-active': {
@@ -65,7 +65,7 @@ const STATIC_ACCOUNTS = {
     email: '_test.premium-active@{domain}',
     properties: {
       roles: {},
-      plan: { id: 'premium', status: 'active', expires: getFutureExpires() },
+      subscription: { product: { id: 'premium' }, status: 'active', expires: getFutureExpires() },
     },
   },
   'premium-expired': {
@@ -74,7 +74,7 @@ const STATIC_ACCOUNTS = {
     email: '_test.premium-expired@{domain}',
     properties: {
       roles: {},
-      plan: { id: 'premium', status: 'cancelled', expires: getPastExpires() },
+      subscription: { product: { id: 'premium' }, status: 'cancelled', expires: getPastExpires() },
     },
   },
   delete: {
@@ -83,7 +83,7 @@ const STATIC_ACCOUNTS = {
     email: '_test.delete@{domain}',
     properties: {
       roles: {},
-      plan: { id: 'premium', status: 'active', expires: getFutureExpires() }, // Active subscription - deletion should be blocked initially
+      subscription: { product: { id: 'premium' }, status: 'active', expires: getFutureExpires() }, // Active subscription - deletion should be blocked initially
     },
   },
   'delete-by-admin': {
@@ -92,7 +92,7 @@ const STATIC_ACCOUNTS = {
     email: '_test.delete-by-admin@{domain}',
     properties: {
       roles: {},
-      // No plan - can be deleted immediately by admin
+      // No subscription - can be deleted immediately by admin
     },
   },
   referrer: {
@@ -101,7 +101,7 @@ const STATIC_ACCOUNTS = {
     email: '_test.referrer@{domain}',
     properties: {
       roles: {},
-      plan: { id: 'basic', status: 'active' },
+      subscription: { product: { id: 'basic' }, status: 'active' },
       affiliate: { code: 'TESTREF', referrals: [] },
     },
   },
@@ -111,7 +111,7 @@ const STATIC_ACCOUNTS = {
     email: '_test.referred@{domain}',
     properties: {
       roles: {},
-      plan: { id: 'basic', status: 'active' },
+      subscription: { product: { id: 'basic' }, status: 'active' },
     },
   },
   'referred-invalid': {
@@ -120,7 +120,7 @@ const STATIC_ACCOUNTS = {
     email: '_test.referred-invalid@{domain}',
     properties: {
       roles: {},
-      plan: { id: 'basic', status: 'active' },
+      subscription: { product: { id: 'basic' }, status: 'active' },
     },
   },
 };
@@ -130,22 +130,40 @@ const STATIC_ACCOUNTS = {
  * These accounts transition through states via webhook tests
  */
 const JOURNEY_ACCOUNTS = {
-  'journey-upgrade': {
-    id: 'journey-upgrade',
-    uid: '_test-journey-upgrade',
-    email: '_test.journey-upgrade@{domain}',
+  'journey-payments-upgrade': {
+    id: 'journey-payments-upgrade',
+    uid: '_test-journey-payments-upgrade',
+    email: '_test.journey-payments-upgrade@{domain}',
     properties: {
       roles: {},
-      plan: { id: 'basic', status: 'active' }, // Starts as basic, upgraded via Stripe webhook
+      subscription: { product: { id: 'basic' }, status: 'active' }, // Starts as basic, upgraded via Stripe webhook
     },
   },
-  'journey-cancel': {
-    id: 'journey-cancel',
-    uid: '_test-journey-cancel',
-    email: '_test.journey-cancel@{domain}',
+  'journey-payments-cancel': {
+    id: 'journey-payments-cancel',
+    uid: '_test-journey-payments-cancel',
+    email: '_test.journey-payments-cancel@{domain}',
     properties: {
       roles: {},
-      plan: { id: 'premium', status: 'active', expires: getFutureExpires() }, // Starts as premium, cancelled via Stripe webhook
+      subscription: { product: { id: 'basic' }, status: 'active' }, // Test's first step overwrites with correct paid product from config
+    },
+  },
+  'journey-payments-suspend': {
+    id: 'journey-payments-suspend',
+    uid: '_test-journey-payments-suspend',
+    email: '_test.journey-payments-suspend@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'basic' }, status: 'active' }, // Test's first step overwrites with correct paid product from config
+    },
+  },
+  'journey-payments-trial': {
+    id: 'journey-payments-trial',
+    uid: '_test-journey-payments-trial',
+    email: '_test.journey-payments-trial@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'basic' }, status: 'active' }, // Starts as basic, upgraded via trial webhook
     },
   },
 };
@@ -275,7 +293,7 @@ async function createAccount(admin, account) {
     waited += pollInterval;
   }
 
-  // Merge test-specific properties (roles, plan, etc.)
+  // Merge test-specific properties (roles, subscription, etc.)
   await userRef.set(account.properties, { merge: true });
 
   return { uid: account.uid, email: account.email };
@@ -330,6 +348,26 @@ async function deleteTestUsers(admin) {
         } else {
           results.failed.push({ uid: account.uid, error: error.message });
         }
+      }
+    })
+  );
+
+  // Clean up payment-related collections for test accounts
+  const testUids = Object.values(TEST_ACCOUNTS).map(a => a.uid);
+  const paymentCollections = ['payments-subscriptions', 'payments-webhooks', 'payments-intents'];
+
+  await Promise.all(
+    paymentCollections.map(async (collection) => {
+      try {
+        const snapshot = await admin.firestore().collection(collection)
+          .where('uid', 'in', testUids)
+          .get();
+
+        await Promise.all(
+          snapshot.docs.map(doc => doc.ref.delete())
+        );
+      } catch (e) {
+        // Collection may not exist yet — ignore
       }
     })
   );

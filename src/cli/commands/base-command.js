@@ -156,6 +156,95 @@ class BaseCommand {
   isPortInUse(port) {
     return this.getProcessOnPort(port) !== null;
   }
+
+  /**
+   * Start Stripe CLI webhook forwarding in the background
+   * Forwards Stripe test webhooks to the local server
+   * Gracefully skips if stripe CLI or STRIPE_SECRET_KEY is missing
+   * @returns {object|null} - Child process handle or null if skipped
+   */
+  startStripeWebhookForwarding() {
+    const projectDir = this.main.firebaseProjectPath;
+    const functionsDir = path.join(projectDir, 'functions');
+
+    // Load .env so STRIPE_SECRET_KEY and BACKEND_MANAGER_KEY are available
+    const envPath = path.join(functionsDir, '.env');
+    if (jetpack.exists(envPath)) {
+      require('dotenv').config({ path: envPath });
+    }
+
+    // Check for Stripe secret key
+    if (!process.env.STRIPE_SECRET_KEY) {
+      this.log(chalk.gray('  (Stripe webhook forwarding disabled - STRIPE_SECRET_KEY not set in .env)\n'));
+      return null;
+    }
+
+    // Check for Backend Manager key
+    if (!process.env.BACKEND_MANAGER_KEY) {
+      this.log(chalk.gray('  (Stripe webhook forwarding disabled - BACKEND_MANAGER_KEY not set in .env)\n'));
+      return null;
+    }
+
+    // Check if stripe CLI is installed
+    let stripePath;
+    try {
+      stripePath = execSync('which stripe', { encoding: 'utf8' }).trim();
+    } catch (e) {
+      this.log(chalk.gray('  (Stripe webhook forwarding disabled - install Stripe CLI: https://stripe.com/docs/stripe-cli)\n'));
+      return null;
+    }
+
+    // Resolve hosting port from firebase.json (default 5002)
+    let hostingPort = 5002;
+    const firebaseJsonPath = path.join(projectDir, 'firebase.json');
+    if (jetpack.exists(firebaseJsonPath)) {
+      try {
+        const JSON5 = require('json5');
+        const firebaseConfig = JSON5.parse(jetpack.read(firebaseJsonPath));
+        hostingPort = firebaseConfig.emulators?.hosting?.port || hostingPort;
+      } catch (e) {
+        // Use default
+      }
+    }
+
+    const forwardUrl = `http://localhost:${hostingPort}/backend-manager/payments/webhook?processor=stripe&key=${process.env.BACKEND_MANAGER_KEY}`;
+
+    this.log(chalk.gray(`  Stripe webhook forwarding -> localhost:${hostingPort}\n`));
+
+    const stripeProcess = spawn(stripePath, [
+      'listen',
+      '--forward-to', forwardUrl,
+      '--api-key', process.env.STRIPE_SECRET_KEY,
+    ], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      detached: false,
+    });
+
+    // Prefix output with [Stripe]
+    const prefixStream = (stream) => {
+      stream.on('data', (data) => {
+        const lines = data.toString().split('\n').filter(l => l.trim());
+        for (const line of lines) {
+          console.log(chalk.gray(`  [Stripe] ${line}`));
+        }
+      });
+    };
+
+    prefixStream(stripeProcess.stdout);
+    prefixStream(stripeProcess.stderr);
+
+    stripeProcess.on('error', (error) => {
+      this.log(chalk.yellow(`  [Stripe] Error: ${error.message}`));
+    });
+
+    stripeProcess.on('close', (code) => {
+      if (code !== 0 && code !== null) {
+        this.log(chalk.yellow(`  [Stripe] Exited with code ${code}`));
+      }
+    });
+
+    return stripeProcess;
+  }
 }
 
 module.exports = BaseCommand;

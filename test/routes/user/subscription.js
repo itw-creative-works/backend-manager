@@ -44,8 +44,8 @@ module.exports = {
 
         // Check trial structure
         assert.ok(
-          typeof subscription.trial.activated === 'boolean',
-          'trial.activated should be boolean'
+          typeof subscription.trial.claimed === 'boolean',
+          'trial.claimed should be boolean'
         );
 
         // Check payment structure

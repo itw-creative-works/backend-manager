@@ -14,6 +14,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.84] - 2026-02-19
+### BREAKING
+- Moved `config.products` to `config.payment.products`. All product lookups now use `config.payment.products`.
+- Renamed `subscription.trial.activated` to `subscription.trial.claimed` across the entire subscription schema, API responses, analytics properties, and tests.
+- Renamed analytics user property `plan_id` to `subscription_id` and `plan_trial_activated` to `subscription_trial_claimed`.
+- Removed `Manager.getApp()` method (previously fetched from ITW Creative Works endpoint).
+- Removed `Manager.SubscriptionResolver()` factory method.
+- Removed deprecated `RUNTIME_CONFIG` .env loading from config merge.
+- Test accounts now use `subscription.*` instead of `plan.*`.
+
+### Added
+- Stripe payment integration with shared library (`src/manager/libraries/stripe.js`) and `toUnified()` transformer that maps Stripe subscription states to the unified subscription schema.
+- Test payment processor library that delegates to Stripe's transformer with `processor: 'test'`.
+- Payment webhook route (`POST /payments/webhook`) with processor-specific handlers for Stripe (with signature verification) and test, including idempotent event storage in `payments-webhooks` Firestore collection.
+- Payment intent route (`POST /payments/intent`) for creating checkout sessions with processor-specific handlers.
+- Firestore trigger (`bm_paymentsWebhookOnWrite`) that processes stored webhook events and updates user subscription documents.
+- Payment schemas for webhook and intent validation.
+- `payment.processors` config section for Stripe, PayPal, Chargebee, and Coinbase configuration.
+- `npx bm stripe` CLI command for standalone Stripe webhook forwarding.
+- Auto-start Stripe CLI webhook forwarding with `npx bm emulators` (gracefully skips when prerequisites are missing).
+- `Manager.version` property exposing the BEM package version.
+- Journey test accounts for payment lifecycle testing (upgrade, cancel, suspend, trial).
+- Stripe fixture data for subscription states (active, trialing, canceled).
+- Tests for `stripe-to-unified` transformer, payment webhook route, and payment intent route.
+- Test cleanup for payment-related Firestore collections (`payments-subscriptions`, `payments-webhooks`, `payments-intents`).
+
+### Changed
+- Cron schedule from `every 24 hours` to `0 0 * * *` (explicit midnight UTC).
+- Test runner now passes full config object (with convenience aliases) for payment processor access.
+- Unauthenticated usage tests now use relative assertions instead of absolute values.
+
+### Removed
+- Removed `PAYPAL_CLIENT_ID` and `CHARGEBEE_SITE` from `.env` template (now configured via `payment.processors` in config).
+
 # [5.0.39] - 2025-01-12
 ### Added
 - New test infrastructure with Firebase emulator support for reliable, isolated testing.
