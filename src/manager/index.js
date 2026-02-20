@@ -709,6 +709,14 @@ Manager.prototype.debug = function () {
 // Setup functions
 Manager.prototype.setupFunctions = function (exporter, options) {
   const self = this;
+  const resourceZone = options.resourceZone;
+
+  // Helper to create a function builder with region + runtime options
+  function fn(runtimeOptions) {
+    return self.libraries.functions
+      .runWith(runtimeOptions)
+      .region(resourceZone);
+  }
 
   // Log
   if (options.log) {
@@ -717,8 +725,7 @@ Manager.prototype.setupFunctions = function (exporter, options) {
 
   // Setup functions
   exporter.bm_api =
-  self.libraries.functions
-  .runWith({memory: '256MB', timeoutSeconds: 60 * 5})
+  fn({memory: '256MB', timeoutSeconds: 60 * 5})
   .https.onRequest(async (req, res) => {
     const route = self.BemRouter(req, res).resolve();
 
@@ -734,8 +741,7 @@ Manager.prototype.setupFunctions = function (exporter, options) {
   // Setup legacy functions
   if (options.setupFunctionsLegacy) {
     exporter.bm_signUpHandler =
-    self.libraries.functions
-    .runWith({memory: '256MB', timeoutSeconds: 60})
+    fn({memory: '256MB', timeoutSeconds: 60})
     .https.onRequest(async (req, res) => {
       const Module = require(`${_legacy}/actions/sign-up-handler.js`);
       Module.init(self, { req: req, res: res, });
@@ -750,8 +756,7 @@ Manager.prototype.setupFunctions = function (exporter, options) {
 
     // Admin
     exporter.bm_createPost =
-    self.libraries.functions
-    .runWith({memory: '256MB', timeoutSeconds: 60})
+    fn({memory: '256MB', timeoutSeconds: 60})
     .https.onRequest(async (req, res) => {
       const Module = require(`${_legacy}/admin/create-post.js`);
       Module.init(self, { req: req, res: res, });
@@ -765,8 +770,7 @@ Manager.prototype.setupFunctions = function (exporter, options) {
     });
 
     exporter.bm_firestoreWrite =
-    self.libraries.functions
-    .runWith({memory: '256MB', timeoutSeconds: 60})
+    fn({memory: '256MB', timeoutSeconds: 60})
     .https.onRequest(async (req, res) => {
       const Module = require(`${_legacy}/admin/firestore-write.js`);
       Module.init(self, { req: req, res: res, });
@@ -780,8 +784,7 @@ Manager.prototype.setupFunctions = function (exporter, options) {
     });
 
     exporter.bm_getStats =
-    self.libraries.functions
-    .runWith({memory: '256MB', timeoutSeconds: 420})
+    fn({memory: '256MB', timeoutSeconds: 420})
     .https.onRequest(async (req, res) => {
       const Module = require(`${_legacy}/admin/get-stats.js`);
       Module.init(self, { req: req, res: res, });
@@ -795,8 +798,7 @@ Manager.prototype.setupFunctions = function (exporter, options) {
     });
 
     exporter.bm_sendNotification =
-    self.libraries.functions
-    .runWith({memory: '1GB', timeoutSeconds: 420})
+    fn({memory: '1GB', timeoutSeconds: 420})
     .https.onRequest(async (req, res) => {
       const Module = require(`${_legacy}/admin/send-notification.js`);
       Module.init(self, { req: req, res: res, });
@@ -810,8 +812,7 @@ Manager.prototype.setupFunctions = function (exporter, options) {
     });
 
     exporter.bm_query =
-    self.libraries.functions
-    .runWith({memory: '256MB', timeoutSeconds: 60})
+    fn({memory: '256MB', timeoutSeconds: 60})
     .https.onRequest(async (req, res) => {
       const Module = require(`${_legacy}/admin/query.js`);
       Module.init(self, { req: req, res: res, });
@@ -825,8 +826,7 @@ Manager.prototype.setupFunctions = function (exporter, options) {
     });
 
     exporter.bm_createPostHandler =
-    self.libraries.functions
-    .runWith({memory: '256MB', timeoutSeconds: 60})
+    fn({memory: '256MB', timeoutSeconds: 60})
     .https.onRequest(async (req, res) => {
       const Module = require(`${_legacy}/actions/create-post-handler.js`);
       Module.init(self, { req: req, res: res, });
@@ -840,8 +840,7 @@ Manager.prototype.setupFunctions = function (exporter, options) {
     });
 
     exporter.bm_generateUuid =
-    self.libraries.functions
-    .runWith({memory: '256MB', timeoutSeconds: 60})
+    fn({memory: '256MB', timeoutSeconds: 60})
     .https.onRequest(async (req, res) => {
       const Module = require(`${_legacy}/actions/generate-uuid.js`);
       Module.init(self, { req: req, res: res, });
@@ -856,8 +855,7 @@ Manager.prototype.setupFunctions = function (exporter, options) {
 
     // Test
     exporter.bm_test_authenticate =
-    self.libraries.functions
-    .runWith({memory: '256MB', timeoutSeconds: 60})
+    fn({memory: '256MB', timeoutSeconds: 60})
     .https.onRequest(async (req, res) => {
       const Module = require(`${_legacy}/test/authenticate.js`);
       Module.init(self, { req: req, res: res, });
@@ -871,8 +869,7 @@ Manager.prototype.setupFunctions = function (exporter, options) {
     });
 
     exporter.bm_test_webhook =
-    self.libraries.functions
-    .runWith({memory: '256MB', timeoutSeconds: 60})
+    fn({memory: '256MB', timeoutSeconds: 60})
     .https.onRequest(async (req, res) => {
       const Module = require(`${_legacy}/test/webhook.js`);
       Module.init(self, { req: req, res: res, });
@@ -889,47 +886,40 @@ Manager.prototype.setupFunctions = function (exporter, options) {
   // Setup identity functions
   if (options.setupFunctionsIdentity) {
     exporter.bm_authBeforeCreate =
-    self.libraries.functions
-    .runWith({memory: '256MB', timeoutSeconds: 60})
+    fn({memory: '256MB', timeoutSeconds: 60})
     .auth.user()
     .beforeCreate((user, context) => self.EventMiddleware({ user, context }).run(`${events}/auth/before-create.js`));
 
     exporter.bm_authBeforeSignIn =
-    self.libraries.functions
-    .runWith({memory: '256MB', timeoutSeconds: 60})
+    fn({memory: '256MB', timeoutSeconds: 60})
     .auth.user()
     .beforeSignIn((user, context) => self.EventMiddleware({ user, context }).run(`${events}/auth/before-signin.js`));
   }
 
   // Setup events
   exporter.bm_authOnCreate =
-  self.libraries.functions
-  .runWith({memory: '256MB', timeoutSeconds: 60})
+  fn({memory: '256MB', timeoutSeconds: 60})
   .auth.user()
   .onCreate((user, context) => self.EventMiddleware({ user, context }).run(`${events}/auth/on-create.js`));
 
   exporter.bm_authOnDelete =
-  self.libraries.functions
-  .runWith({memory: '256MB', timeoutSeconds: 60})
+  fn({memory: '256MB', timeoutSeconds: 60})
   .auth.user()
   .onDelete((user, context) => self.EventMiddleware({ user, context }).run(`${events}/auth/on-delete.js`));
 
   exporter.bm_notificationsOnWrite =
-  self.libraries.functions
-  .runWith({memory: '256MB', timeoutSeconds: 60})
+  fn({memory: '256MB', timeoutSeconds: 60})
   .firestore.document('notifications/{token}')
   .onWrite((change, context) => self.EventMiddleware({ change, context }).run(`${events}/firestore/notifications/on-write.js`));
 
   exporter.bm_paymentsWebhookOnWrite =
-  self.libraries.functions
-  .runWith({memory: '256MB', timeoutSeconds: 60})
+  fn({memory: '256MB', timeoutSeconds: 60})
   .firestore.document('payments-webhooks/{eventId}')
   .onWrite((change, context) => self.EventMiddleware({ change, context }).run(`${events}/firestore/payments-webhooks/on-write.js`));
 
   // Setup cron jobs
   exporter.bm_cronDaily =
-  self.libraries.functions
-  .runWith({ memory: '256MB', timeoutSeconds: 60 * 5})
+  fn({memory: '256MB', timeoutSeconds: 60 * 5})
   .pubsub.schedule('0 0 * * *')
   .onRun((context) => self.EventMiddleware({ context }).run(`${cron}/daily.js`));
 };

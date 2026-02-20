@@ -59,11 +59,19 @@ module.exports = async ({ Manager, assistant, change, context, libraries }) => {
       eventId: eventId,
     });
 
-    assistant.log(`Unified result: status=${unified.status}, product=${unified.product.id}, frequency=${unified.payment.frequency}, trial.claimed=${unified.trial.claimed}, cancellation.pending=${unified.cancellation.pending}`);
+    assistant.log(`Unified result: status=${unified.status}, product=${unified.product.id}, frequency=${unified.payment.frequency}, trial.claimed=${unified.trial.claimed}, cancellation.pending=${unified.cancellation.pending}`, unified);
 
     // Build timestamps
     const now = powertools.timestamp(new Date(), { output: 'string' });
     const nowUNIX = powertools.timestamp(now, { output: 'unix' });
+
+    /**
+     * POTENTIAL ENHANCEMENT:
+     * Check the time of the incoming event against the metadata.updated.timestamp.
+     * If the incoming event is older than the last update, it may be a delayed webhook and we should skip processing to avoid overwriting newer subscription data with stale data. This would require storing the timestamp of the last processed event in the user's subscription metadata and comparing it here before proceeding with the update.
+     *
+     * Also, consider re-fetching the actual resource
+     */
 
     // Write unified subscription to user doc
     await admin.firestore().doc(`users/${uid}`).set({
