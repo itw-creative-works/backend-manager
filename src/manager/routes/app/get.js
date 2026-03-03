@@ -14,29 +14,12 @@ module.exports = async ({ assistant, Manager }) => {
  */
 function buildPublicConfig(config) {
   return {
-    id: config.app?.id,
-    name: config.brand?.name,
-    description: config.brand?.description,
-    url: config.brand?.url,
-    email: config.brand?.contact?.email,
-    images: config.brand?.images || {},
-    github: {
-      user: config.github?.user,
-      repo: (config.github?.repo_website || '').split('/').pop(),
-    },
-    reviews: config.reviews || {},
+    brand: config.brand || {},
+    github: config.github || {},
+    oauth2: config.oauth2 || {},
+    payment: config.payment || {},
     firebaseConfig: config.firebaseConfig || {},
-    payment: {
-      processors: config.payment?.processors || {},
-      products: (config.payment?.products || []).map(p => ({
-        id: p.id,
-        name: p.name,
-        type: p.type,
-        limits: p.limits || {},
-        trial: p.trial || {},
-        prices: p.prices || {},
-      })),
-    },
+    reviews: config.reviews || {},
   };
 }
 

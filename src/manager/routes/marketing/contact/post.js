@@ -9,9 +9,7 @@ const dns = require('dns').promises;
 // Load disposable domains list
 const DISPOSABLE_DOMAINS = require(path.join(__dirname, '..', '..', '..', 'libraries', 'disposable-domains.json'));
 const DISPOSABLE_SET = new Set(DISPOSABLE_DOMAINS.map(d => d.toLowerCase()));
-
-// Load OpenAI library
-const OpenAI = require(path.join(__dirname, '..', '..', '..', 'libraries', 'openai'));
+const { inferContact } = require(path.join(__dirname, '..', '..', '..', 'libraries', 'infer-contact.js'));
 
 module.exports = async ({ assistant, Manager, settings, analytics }) => {
 
@@ -100,7 +98,7 @@ module.exports = async ({ assistant, Manager, settings, analytics }) => {
   // Infer name if not provided
   let nameInferred = null;
   if (!firstName && !lastName) {
-    nameInferred = await inferName(email, assistant);
+    nameInferred = await inferContact(email, assistant);
     firstName = nameInferred.firstName;
     lastName = nameInferred.lastName;
   }
@@ -210,102 +208,6 @@ async function validateWithZeroBounce(email) {
     console.error('ZeroBounce validation error:', e);
     return { valid: true, error: e.message };
   }
-}
-
-// Helper: Infer name from email
-async function inferName(email, assistant) {
-  if (process.env.OPENAI_API_KEY) {
-    const aiResult = await inferNameWithAI(email, assistant);
-    if (aiResult && (aiResult.firstName || aiResult.lastName)) {
-      return aiResult;
-    }
-  }
-
-  return inferNameFromEmail(email);
-}
-
-// Helper: Use AI to infer name
-async function inferNameWithAI(email, assistant) {
-  try {
-    const ai = new OpenAI(assistant);
-    const result = await ai.request({
-      model: 'gpt-5-mini',
-      timeout: 30000,
-      maxTokens: 1024,
-      moderate: false,
-      response: 'json',
-      prompt: {
-        content: `
-          <identity>
-            You extract names and company from email addresses.
-          </identity>
-
-          <format>
-            Return ONLY valid JSON like so:
-            {
-              "firstName": "...",
-              "lastName": "...",
-              "company": "...",
-              "confidence": "..."
-            }
-
-            If you cannot determine a name, use empty strings.
-          </format>
-        `,
-      },
-      message: {
-        content: `Email: ${email}`,
-      },
-    });
-
-    if (result?.firstName !== undefined) {
-      return {
-        firstName: capitalize(result.firstName || ''),
-        lastName: capitalize(result.lastName || ''),
-        company: capitalize(result.company || ''),
-        confidence: typeof result.confidence === 'number' ? result.confidence : 0.5,
-        method: 'ai',
-      };
-    }
-  } catch (e) {
-    console.error('AI name inference error:', e);
-  }
-
-  return null;
-}
-
-// Helper: Regex-based name inference
-function inferNameFromEmail(email) {
-  const local = email.split('@')[0];
-  const cleaned = local.replace(/[0-9]+$/, '');
-  const parts = cleaned.split(/[._-]/);
-
-  if (parts.length >= 2) {
-    return {
-      firstName: capitalize(parts[0]),
-      lastName: capitalize(parts.slice(1).join(' ')),
-      confidence: 0.5,
-      method: 'regex',
-    };
-  }
-
-  return {
-    firstName: capitalize(cleaned),
-    lastName: '',
-    confidence: 0.25,
-    method: 'regex',
-  };
-}
-
-// Helper: Capitalize string
-function capitalize(str) {
-  if (!str) {
-    return '';
-  }
-  return str
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ');
 }
 
 // Helper: Add contact to SendGrid

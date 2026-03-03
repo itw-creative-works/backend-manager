@@ -12,8 +12,8 @@ const {
  *   - authorize (default): Get authorization URL
  *   - status: Check connection status
  */
-module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
-  const context = await buildContext({ assistant, Manager, user, settings, libraries });
+module.exports = async ({ assistant, user, settings }) => {
+  const context = await buildContext({ assistant, user, settings });
 
   if (context.error) {
     return assistant.respond(context.error.message, { code: context.error.code });

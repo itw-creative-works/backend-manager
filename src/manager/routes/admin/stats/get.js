@@ -39,7 +39,7 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
 
   // Update stats if requested
   if (settings.update) {
-    const error = await updateStats(admin, assistant, Manager, data, settings.update);
+    const error = await updateStats(assistant, data, settings.update);
 
     if (error) {
       return assistant.respond(error.message, { code: 500 });
@@ -58,7 +58,9 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
   return assistant.respond(data);
 };
 
-async function updateStats(admin, assistant, Manager, existingData, update) {
+async function updateStats(assistant, existingData, update) {
+  const Manager = assistant.Manager;
+  const { admin } = Manager.libraries;
   const stats = admin.firestore().doc('meta/stats');
   const newData = {
     app: Manager.config?.app?.id || null,
@@ -70,7 +72,7 @@ async function updateStats(admin, assistant, Manager, existingData, update) {
 
   // Update notification stats
   if (update === true || update?.notifications) {
-    const count = await getAllNotifications(admin, assistant).catch((e) => e);
+    const count = await getAllNotifications(assistant).catch((e) => e);
 
     if (count instanceof Error) {
       error = new Error(`Failed getting notifications: ${count.message}`);
@@ -81,7 +83,7 @@ async function updateStats(admin, assistant, Manager, existingData, update) {
 
   // Update subscription stats
   if (!error && (update === true || update?.subscriptions)) {
-    const subscriptions = await getAllSubscriptions(admin, assistant).catch((e) => e);
+    const subscriptions = await getAllSubscriptions(assistant).catch((e) => e);
 
     if (subscriptions instanceof Error) {
       error = new Error(`Failed getting subscriptions: ${subscriptions.message}`);
@@ -92,7 +94,7 @@ async function updateStats(admin, assistant, Manager, existingData, update) {
 
   // Update user stats
   if (!error && (!existingData?.users?.total || update === true || update?.users)) {
-    const users = await getAllUsers(admin, assistant).catch((e) => e);
+    const users = await getAllUsers(assistant).catch((e) => e);
 
     if (users instanceof Error) {
       error = new Error(`Failed getting users: ${users.message}`);
@@ -103,7 +105,7 @@ async function updateStats(admin, assistant, Manager, existingData, update) {
 
   // Update online users
   if (!error && (update === true || update?.online)) {
-    const online = await countOnlineUsers(admin, assistant);
+    const online = await countOnlineUsers(assistant);
 
     _.set(newData, 'users.online', online);
   }
@@ -125,7 +127,9 @@ async function updateStats(admin, assistant, Manager, existingData, update) {
   return error;
 }
 
-async function getAllUsers(admin, assistant) {
+async function getAllUsers(assistant) {
+  const { admin } = assistant.Manager.libraries;
+
   assistant.log('getAllUsers(): Starting...');
 
   const users = [];
@@ -142,7 +146,9 @@ async function getAllUsers(admin, assistant) {
   return users;
 }
 
-async function getAllNotifications(admin, assistant) {
+async function getAllNotifications(assistant) {
+  const { admin } = assistant.Manager.libraries;
+
   assistant.log('getAllNotifications(): Starting...');
 
   const snap = await admin.firestore().collection('notifications').count().get();
@@ -153,7 +159,9 @@ async function getAllNotifications(admin, assistant) {
   return count;
 }
 
-async function getAllSubscriptions(admin, assistant) {
+async function getAllSubscriptions(assistant) {
+  const { admin } = assistant.Manager.libraries;
+
   assistant.log('getAllSubscriptions(): Starting...');
 
   const snapshot = await admin.firestore().collection('users')
@@ -195,7 +203,8 @@ async function getAllSubscriptions(admin, assistant) {
   return stats;
 }
 
-async function countOnlineUsers(admin, assistant) {
+async function countOnlineUsers(assistant) {
+  const { admin } = assistant.Manager.libraries;
   let online = 0;
 
   const paths = ['gatherings/online', 'sessions/app', 'sessions/online'];

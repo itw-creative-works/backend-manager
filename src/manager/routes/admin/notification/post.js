@@ -9,9 +9,7 @@ const BAD_TOKEN_REASONS = [
 ];
 const BATCH_SIZE = 500;
 
-module.exports = async ({ assistant, Manager, user, settings, analytics, libraries }) => {
-  const { admin } = libraries;
-
+module.exports = async ({ assistant, user, settings, analytics }) => {
   // Require authentication
   if (!user.authenticated) {
     return assistant.respond('Authentication required', { code: 401 });
@@ -66,7 +64,7 @@ module.exports = async ({ assistant, Manager, user, settings, analytics, librari
   };
 
   // Process tokens and send notifications
-  await processTokens(Manager, assistant, admin, notification, filterOptions, response);
+  await processTokens(assistant, notification, filterOptions, response);
 
   // Track analytics
   analytics.event('admin/notification', { sent: response.sent });
@@ -75,13 +73,15 @@ module.exports = async ({ assistant, Manager, user, settings, analytics, librari
 };
 
 // Helper: Process tokens and send notifications
-async function processTokens(Manager, assistant, admin, notification, options, response) {
+async function processTokens(assistant, notification, options, response) {
+  const Manager = assistant.Manager;
+
   // If a specific token is provided, send directly to it (useful for testing)
   if (options.token) {
     assistant.log(`Sending to specific token: ${options.token}`);
 
     try {
-      await sendBatch(assistant, admin, [options.token], 0, notification, response);
+      await sendBatch(assistant, [options.token], 0, notification, response);
       assistant.log('Single token notification sent successfully.');
     } catch (e) {
       assistant.error('Error sending to specific token', e);
@@ -144,7 +144,7 @@ async function processTokens(Manager, assistant, admin, notification, options, r
       // Send the batch
       try {
         assistant.log(`Sending batch ${index} with ${batchTokens.length} tokens.`);
-        await sendBatch(assistant, admin, batchTokens, index, notification, response);
+        await sendBatch(assistant, batchTokens, index, notification, response);
       } catch (e) {
         assistant.error(`Error sending batch ${index}`, e);
       }
@@ -166,7 +166,8 @@ async function processTokens(Manager, assistant, admin, notification, options, r
 }
 
 // Helper: Send batch of notifications
-async function sendBatch(assistant, admin, batch, id, notification, response) {
+async function sendBatch(assistant, batch, id, notification, response) {
+  const { admin } = assistant.Manager.libraries;
   try {
     assistant.log(`Sending batch #${id}: tokens=${batch.length}...`, notification);
 
@@ -210,7 +211,7 @@ async function sendBatch(assistant, admin, batch, id, notification, response) {
 
     // Clean bad tokens
     if (result.failureCount > 0) {
-      await cleanTokens(assistant, admin, batch, result.responses, id, response);
+      await cleanTokens(assistant, batch, result.responses, id, response);
     }
 
     // Update response
@@ -221,7 +222,7 @@ async function sendBatch(assistant, admin, batch, id, notification, response) {
 }
 
 // Helper: Clean bad tokens
-async function cleanTokens(assistant, admin, batch, results, id, response) {
+async function cleanTokens(assistant, batch, results, id, response) {
   assistant.log(`Cleaning ${results.length} tokens of batch ID: ${id}`);
 
   const cleanPromises = results
@@ -234,7 +235,7 @@ async function cleanTokens(assistant, admin, batch, results, id, response) {
         return null;
       }
 
-      return deleteToken(assistant, admin, item.token, item.error.code, response);
+      return deleteToken(assistant, item.token, item.error.code, response);
     })
     .filter(Boolean);
 
@@ -247,7 +248,8 @@ async function cleanTokens(assistant, admin, batch, results, id, response) {
 }
 
 // Helper: Delete bad token
-async function deleteToken(assistant, admin, token, errorCode, response) {
+async function deleteToken(assistant, token, errorCode, response) {
+  const { admin } = assistant.Manager.libraries;
   try {
     await admin.firestore().doc(`${PATH_NOTIFICATIONS}/${token}`).delete();
 

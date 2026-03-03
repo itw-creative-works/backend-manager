@@ -12,8 +12,8 @@ module.exports = function (payload, config) {
       },
       categories: ['download'],
       subject: `Free ${config.brand.name} download link for ${payload.name || 'you'}!`,
-      template: 'd-1d730ac8cc544b7cbccc8fa4a4b3f9ce',
-      group: 25927,
+      template: 'main/misc/app-download-link',
+      group: 'marketing',
       copy: false,
       data: {},
     }

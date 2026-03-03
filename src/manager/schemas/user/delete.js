@@ -4,4 +4,9 @@ module.exports = ({ user }) => ({
     default: user?.auth?.uid,
     required: false,
   },
+  reason: {
+    types: ['string'],
+    default: '',
+    max: 500,
+  },
 });

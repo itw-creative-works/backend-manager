@@ -22,7 +22,7 @@ module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
   assistant.log('Running hook:', settings.path);
 
   // Load the hook
-  const hook = loadHook(Manager, assistant, settings.path);
+  const hook = loadHook(assistant, settings.path);
 
   if (!hook) {
     return assistant.respond(`Hook not found: ${settings.path}`, { code: 404 });
@@ -55,7 +55,8 @@ module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
 };
 
 // Helper: Load hook from multiple paths
-function loadHook(Manager, assistant, hookPath) {
+function loadHook(assistant, hookPath) {
+  const Manager = assistant.Manager;
   const paths = [
     `${Manager.rootDirectory}/functions/core/${hookPath}`,
     `${Manager.cwd}/${hookPath}`,

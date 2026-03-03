@@ -14,18 +14,16 @@ const {
  *   - tokenize (default): Exchange authorization code for tokens
  *   - refresh: Refresh access token
  */
-module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
-  const { admin } = libraries;
-
+module.exports = async ({ assistant, user, settings }) => {
   assistant.log('OAuth2 POST request', { action: settings.action });
 
   switch (settings.action) {
     case 'refresh':
-      return processRefresh({ assistant, Manager, user, settings, libraries });
+      return processRefresh({ assistant, user, settings });
 
     case 'tokenize':
     default:
-      return processTokenize({ assistant, Manager, admin, settings });
+      return processTokenize({ assistant, settings });
   }
 };
 
@@ -33,7 +31,9 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
 // Handlers
 // ============================================================================
 
-async function processTokenize({ assistant, Manager, admin, settings }) {
+async function processTokenize({ assistant, settings }) {
+  const Manager = assistant.Manager;
+  const { admin } = Manager.libraries;
   assistant.log('processTokenize settings', {
     hasCode: !!settings.code,
     codeType: typeof settings.code,
@@ -52,9 +52,7 @@ async function processTokenize({ assistant, Manager, admin, settings }) {
   }
 
   // Build redirect URI
-  const redirectUri = assistant.isDevelopment()
-    ? 'https://localhost:4000/oauth2'
-    : `${Manager.config.brand.url}/oauth2`;
+  const redirectUri = `${Manager.project.websiteUrl}/oauth2`;
 
   // Decrypt and validate state
   let stateData;
@@ -169,14 +167,14 @@ async function processTokenize({ assistant, Manager, admin, settings }) {
   return assistant.respond({ success: true });
 }
 
-async function processRefresh({ assistant, Manager, user, settings, libraries }) {
-  const context = await buildContext({ assistant, Manager, user, settings, libraries });
+async function processRefresh({ assistant, user, settings }) {
+  const context = await buildContext({ assistant, user, settings });
 
   if (context.error) {
     return assistant.respond(context.error.message, { code: context.error.code });
   }
 
-  const { admin, oauth2Provider, targetUid, targetUser, clientId, clientSecret } = context;
+  const { Manager, admin, oauth2Provider, targetUid, targetUser, clientId, clientSecret } = context;
 
   const refreshToken = targetUser?.oauth2?.[settings.provider]?.token?.refresh_token;
 

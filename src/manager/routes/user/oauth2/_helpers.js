@@ -14,8 +14,9 @@ const STATE_KEY = process.env.BACKEND_MANAGER_KEY
  * Build context object with common OAuth2 data
  * Used by GET, POST, DELETE handlers
  */
-async function buildContext({ assistant, Manager, user, settings, libraries, requireProvider = true }) {
-  const { admin } = libraries;
+async function buildContext({ assistant, user, settings, requireProvider = true }) {
+  const Manager = assistant.Manager;
+  const { admin } = Manager.libraries;
 
   // Require authentication
   if (!user.authenticated) {
@@ -43,9 +44,7 @@ async function buildContext({ assistant, Manager, user, settings, libraries, req
   }
 
   // Build redirect URI
-  const redirectUri = assistant.isDevelopment()
-    ? 'https://localhost:4000/oauth2'
-    : `${Manager.config.brand.url}/oauth2`;
+  const redirectUri = `${Manager.project.websiteUrl}/oauth2`;
 
   // If provider not required (e.g., tokenize gets it from encrypted state), skip loading
   if (!requireProvider) {

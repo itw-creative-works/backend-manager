@@ -51,18 +51,6 @@ Module.prototype.main = function () {
       return reject(assistant.errorify(email.message, { code: 400 }));
     }
 
-    // Check for duplicate emails being sent
-    const uniqueResult = await self.ensureFirstInstance(email);
-
-    // If not unique, return early
-    if (!uniqueResult) {
-      return resolve({
-        data: {
-          status: 'non-unique',
-        },
-      });
-    }
-
     // If scheduled beyond SendGrid's limit, queue it
     if (email.sendAt && email.sendAt >= moment().add(SEND_AT_LIMIT, 'hours').unix()) {
       await self.saveToEmailQueue(email).catch(e => e);
@@ -151,7 +139,6 @@ Module.prototype.defaultize = function () {
 
     // Set defaults
     options.copy = typeof options.copy === 'undefined' ? true : options.copy;
-    options.ensureUnique = typeof options.ensureUnique === 'undefined' ? true : options.ensureUnique;
     options.categories = powertools.arrayify(options.categories || []);
 
     email.to = powertools.arrayify(options.to || []);
@@ -262,38 +249,6 @@ Module.prototype.defaultize = function () {
     email.cc = email.cc.filter(obj => !email.to.some(obj2 => obj.email === obj2.email));
     email.bcc = email.bcc.filter(obj => !email.to.some(obj2 => obj.email === obj2.email));
 
-    // Try to get contact name from SendGrid
-    await fetch(`https://api.sendgrid.com/v3/marketing/contacts/search/emails`, {
-      method: 'post',
-      response: 'json',
-      timeout: 60000,
-      headers: {
-        'Authorization': `Bearer ${process.env.SENDGRID_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: {
-        emails: email.to.map(obj => obj.email),
-      },
-    })
-      .then((json) => {
-        assistant.log('Got contact names', json);
-
-        // Update names from contacts
-        email.to.forEach((to) => {
-          const match = json.result[to.email];
-          if (match) {
-            email.to[0].name = match.contact.first_name || email.dynamicTemplateData.user.personal.name.first;
-          }
-        });
-      })
-      .catch((e) => {
-        if (e.status === 404) {
-          assistant.log('Contact does not exist in database');
-        } else {
-          assistant.error('Failed to get contact names', e);
-        }
-      });
-
     // Log resolved email
     assistant.log('Resolved email.to', email.to);
 
@@ -331,7 +286,6 @@ Module.prototype.defaultize = function () {
     email.dynamicTemplateData.email.unsubscribeUrl = `https://itwcreativeworks.com/portal/account/email-preferences?email=${encode(email.to[0].email)}&asmId=${encode(email.asm.groupId)}&templateId=${encode(email.templateId)}&appName=${email.dynamicTemplateData.app.name}&appUrl=${email.dynamicTemplateData.app.url}`;
     email.dynamicTemplateData.email.categories = email.categories;
     email.dynamicTemplateData.email.carbonCopy = options.copy;
-    email.dynamicTemplateData.email.ensureUnique = options.ensureUnique;
 
     // Handle raw HTML content (overrides template)
     if (options.html) {
@@ -349,16 +303,6 @@ Module.prototype.defaultize = function () {
     email.headers = {
       'List-Unsubscribe': `<${email.dynamicTemplateData.email.unsubscribeUrl}>`,
     };
-
-    // Generate email hash for deduplication
-    email.hash = crypto.createHash('sha256');
-    email.hash.update(
-      email.to.map(obj => obj.email).join(',')
-      + email.from.email
-      + email.subject
-      + options.categories.join(',')
-    );
-    email.hash = email.hash.digest('hex');
 
     // Clone and clean data for stringified version
     const emailClonedData = _.cloneDeep(email.dynamicTemplateData);
@@ -397,81 +341,6 @@ Module.prototype.saveToEmailQueue = function (email) {
         assistant.error(`saveToEmailQueue(): Failed ${email.dynamicTemplateData.email.id}`, e);
         return reject(e);
       });
-  });
-};
-
-Module.prototype.ensureFirstInstance = function (email) {
-  const self = this;
-  const Manager = self.Manager;
-  const assistant = self.assistant;
-  const payload = self.payload;
-
-  return new Promise(async function(resolve, reject) {
-    const timeout = assistant.isDevelopment() ? 3000 : 45000;
-    const { admin } = self.libraries;
-
-    const hash = email.hash;
-    const id = email.dynamicTemplateData.email.id;
-    const options = payload.data.payload;
-
-    assistant.log(`ensureFirstInstance(): Checking for unique email hash=${hash}, id=${id}`);
-
-    // Skip uniqueness check if disabled
-    if (!options.ensureUnique) {
-      assistant.log(`ensureFirstInstance(): Skipping unique email check`);
-      return resolve(true);
-    }
-
-    // Save email to temporary storage
-    await admin.firestore().doc(`temporary/email-queue`).set({
-      [hash]: {
-        [id]: assistant.meta.startTime.timestampUNIX,
-      },
-    }, { merge: true })
-      .then((doc) => {
-        assistant.log(`ensureFirstInstance(): Saved email to temporary storage`, hash);
-      })
-      .catch((e) => {
-        assistant.error(`ensureFirstInstance(): Failed to save email to temporary storage`, hash, e);
-      });
-
-    // Wait for timeout to allow duplicates to register
-    assistant.log(`ensureFirstInstance(): Waiting for ${timeout / 1000} sec`);
-    await powertools.poll(async (index) => {
-      return false;
-    }, { interval: 1000, timeout: timeout })
-      .catch((e) => {
-        assistant.log(`ensureFirstInstance(): Timeout reached`);
-      });
-
-    // Check if this is the first instance
-    const result = await admin.firestore().doc(`temporary/email-queue`).get()
-      .then((doc) => doc.data()?.[hash] || {})
-      .catch((e) => ({}));
-
-    const length = Object.keys(result).length;
-    const isFirstInstance = length === 1 || result[id] === Math.min(...Object.values(result));
-
-    assistant.log(`ensureFirstInstance(): Result`, result);
-    assistant.log(`ensureFirstInstance(): Result isFirstInstance`, length, isFirstInstance);
-
-    if (isFirstInstance) {
-      // Delete email from temporary storage
-      await admin.firestore().doc(`temporary/email-queue`).set({
-        [hash]: FieldValue.delete(),
-      }, { merge: true })
-        .then((doc) => {
-          assistant.log(`ensureFirstInstance(): Deleted email from temporary storage`, hash);
-        })
-        .catch((e) => {
-          assistant.error(`ensureFirstInstance(): Failed to delete email from temporary storage`, hash, e);
-        });
-
-      return resolve(true);
-    } else {
-      assistant.warn(`ensureFirstInstance(): Email is not unique`, hash, length, result);
-      return resolve(false);
-    }
   });
 };
 

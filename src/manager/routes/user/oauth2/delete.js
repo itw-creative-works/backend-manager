@@ -8,14 +8,14 @@ const {
  *
  * Revokes tokens with the provider (best effort) and removes the connection.
  */
-module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
-  const context = await buildContext({ assistant, Manager, user, settings, libraries });
+module.exports = async ({ assistant, user, settings }) => {
+  const context = await buildContext({ assistant, user, settings });
 
   if (context.error) {
     return assistant.respond(context.error.message, { code: context.error.code });
   }
 
-  const { admin, oauth2Provider, targetUid, targetUser, clientId, clientSecret } = context;
+  const { Manager, admin, oauth2Provider, targetUid, targetUser, clientId, clientSecret } = context;
 
   assistant.log('OAuth2 DELETE request', { provider: settings.provider });
 

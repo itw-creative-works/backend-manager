@@ -93,7 +93,7 @@ module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
   assistant.log('main(): Creating post...', settings);
 
   // Extract all images
-  const imageResult = await extractImages(Manager, assistant, octokit, settings).catch(e => e);
+  const imageResult = await extractImages(assistant, octokit, settings).catch(e => e);
   if (imageResult instanceof Error) {
     return assistant.respond(imageResult.message, { code: 400 });
   }
@@ -119,8 +119,7 @@ module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
 };
 
 // Helper: Extract and upload images
-async function extractImages(Manager, assistant, octokit, settings) {
-  const fetch = Manager.require('wonderful-fetch');
+async function extractImages(assistant, octokit, settings) {
 
   const matches = settings.body.matchAll(IMAGE_REGEX);
   const images = Array.from(matches).map(match => ({
@@ -146,7 +145,7 @@ async function extractImages(Manager, assistant, octokit, settings) {
     const image = images[index];
 
     // Download image
-    const download = await downloadImage(Manager, assistant, image.src, image.alt).catch(e => e);
+    const download = await downloadImage(assistant, image.src, image.alt).catch(e => e);
 
     assistant.log('extractImages(): download', download);
 
@@ -176,8 +175,8 @@ async function extractImages(Manager, assistant, octokit, settings) {
 }
 
 // Helper: Download image
-async function downloadImage(Manager, assistant, src, alt) {
-  const fetch = Manager.require('wonderful-fetch');
+async function downloadImage(assistant, src, alt) {
+  const fetch = assistant.Manager.require('wonderful-fetch');
   const hyphenated = hyphenate(alt);
 
   assistant.log(`downloadImage(): src=${src}, alt=${alt}, hyphenated=${hyphenated}`);

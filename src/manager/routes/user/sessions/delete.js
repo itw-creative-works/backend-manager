@@ -26,10 +26,10 @@ module.exports = async ({ assistant, user, settings, libraries }) => {
   let count = 0;
 
   // Sign out of main session
-  count += await signOutOfSession(admin, assistant, uid, sessionPath);
+  count += await signOutOfSession(assistant, uid, sessionPath);
 
   // Legacy for somiibo and old electron-manager
-  count += await signOutOfSession(admin, assistant, uid, 'gatherings/online');
+  count += await signOutOfSession(assistant, uid, 'gatherings/online');
 
   // Revoke Firebase refresh tokens
   try {
@@ -47,7 +47,8 @@ module.exports = async ({ assistant, user, settings, libraries }) => {
 /**
  * Sign out of a specific session path
  */
-async function signOutOfSession(admin, assistant, uid, sessionPath) {
+async function signOutOfSession(assistant, uid, sessionPath) {
+  const { admin } = assistant.Manager.libraries;
   let count = 0;
 
   const snapshot = await admin.database().ref(sessionPath)

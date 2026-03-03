@@ -4,7 +4,7 @@ const moment = require('moment');
 const JSON5 = require('json5');
 
 const PROMPT = `
-  Company: {app.name}: {app.brand.description}
+  Company: {app.brand.name}: {app.brand.description}
   Date: {date}
   Instructions: {prompt}
 
@@ -63,7 +63,7 @@ module.exports = async ({ Manager, assistant, context, libraries }) => {
     }
 
     // Log
-    assistant.log(`Settings (app=${settings.app.id})`, settings);
+    assistant.log(`Settings (app=${settings.app.brand.id})`, settings);
 
     // Quit if articles are disabled
     if (!settings.articles || !settings.sources.length) {
@@ -90,21 +90,12 @@ module.exports = async ({ Manager, assistant, context, libraries }) => {
 };
 
 /**
- * Build app object from Manager.config (same shape as getApp response)
+ * Build app object from Manager.config (same shape as /app endpoint response)
  */
 function buildAppObject(config) {
-  return {
-    id: config.app?.id,
-    name: config.brand?.name,
-    brand: {
-      description: config.brand?.description || '',
-    },
-    url: config.brand?.url,
-    github: {
-      user: config.github?.user,
-      repo: (config.github?.repo_website || '').split('/').pop(),
-    },
-  };
+  const { buildPublicConfig } = require(require('path').join(__dirname, '..', '..', 'routes', 'app', 'get.js'));
+
+  return buildPublicConfig(config);
 }
 
 /**
@@ -122,7 +113,7 @@ async function harvest(assistant, settings) {
   const date = moment().format('MMMM YYYY');
 
   // Log
-  assistant.log(`harvest(): Starting ${settings.app.id}...`);
+  assistant.log(`harvest(): Starting ${settings.app.brand.id}...`);
 
   // Process the number of sources in the settings
   for (let index = 0; index < settings.articles; index++) {
@@ -218,16 +209,16 @@ function requestGhostii(settings, content) {
       description: content,
       insertLinks: true,
       headerImageUrl: 'unsplash',
-      url: settings.app.url,
+      url: settings.app.brand.url,
       sectionQuantity: powertools.random(3, 6, { mode: 'gaussian' }),
-      feedUrl: `${settings.app.url}/feeds/posts.json`,
+      feedUrl: `${settings.app.brand.url}/feeds/posts.json`,
       links: settings.links,
     },
   });
 }
 
 function uploadPost(assistant, settings, article) {
-  const apiUrl = `https://api.${(settings.app.url || '').replace(/^https?:\/\//, '')}`;
+  const apiUrl = `https://api.${(settings.app.brand.url || '').replace(/^https?:\/\//, '')}`;
   return fetch(`${apiUrl}/backend-manager/admin/post`, {
     method: 'POST',
     timeout: 90000,

@@ -4,10 +4,7 @@
  */
 const path = require('path');
 const { merge } = require('lodash');
-
-module.exports = async ({ assistant, Manager, settings, analytics }) => {
-  const fetch = Manager.require('wonderful-fetch');
-
+module.exports = async ({ assistant, Manager, settings }) => {
   // Validate required parameters
   if (!settings.id) {
     return assistant.respond('Parameter {id} is required.', { code: 400 });
@@ -22,10 +19,7 @@ module.exports = async ({ assistant, Manager, settings, analytics }) => {
       email: 3,
     },
     delay: 1,
-    payload: {
-      backendManagerKey: process.env.BACKEND_MANAGER_KEY,
-      app: Manager.config.app.id,
-    },
+    payload: {},
   };
 
   // Load email template
@@ -75,25 +69,18 @@ module.exports = async ({ assistant, Manager, settings, analytics }) => {
 
   assistant.log('Email payload:', emailPayload);
 
-  // Send the email via NEW admin/email API
-  const result = await fetch(`${Manager.project.apiUrl}/backend-manager/admin/email`, {
-    method: 'post',
-    response: 'json',
-    log: true,
-    headers: {
-      'Authorization': `Bearer ${process.env.BACKEND_MANAGER_KEY}`,
-    },
-    body: emailPayload.payload,
-  }).catch(e => e);
+  // Send email directly via library
+  const email = Manager.Email(assistant);
+  const result = await email.send(emailPayload.payload).catch(e => e);
 
   if (result instanceof Error) {
-    return assistant.respond(`Error sending email: ${result}`, { code: 500, sentry: true });
+    return assistant.respond(result.message, { code: result.code || 500, sentry: result.code !== 400 });
   }
 
-  assistant.log('Response:', result);
+  assistant.log('Response:', result.status);
 
   // Track analytics
-  analytics.event('general/email', { id: settings.id });
+  assistant.analytics.event('general/email', { id: settings.id });
 
   return assistant.respond({ success: true });
 };

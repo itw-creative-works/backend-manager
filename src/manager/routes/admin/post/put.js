@@ -66,7 +66,7 @@ module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
   assistant.log('main(): Editing post...', settings);
 
   // Fetch existing post using NEW API format
-  const fetchedPost = await fetchPost(Manager, assistant, settings.url).catch(e => e);
+  const fetchedPost = await fetchPost(assistant, settings.url).catch(e => e);
   if (fetchedPost instanceof Error) {
     return assistant.respond(fetchedPost.message, { code: fetchedPost.status || 404 });
   }
@@ -86,7 +86,8 @@ module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
 };
 
 // Helper: Fetch existing post
-async function fetchPost(Manager, assistant, url) {
+async function fetchPost(assistant, url) {
+  const Manager = assistant.Manager;
   const fetch = Manager.require('wonderful-fetch');
 
   // Use NEW API format

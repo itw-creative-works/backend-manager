@@ -112,7 +112,7 @@ Module.prototype.main = function () {
           });
       }
 
-      // Note: SendGrid list and welcome emails are now handled by auth:on-create
+      // Note: SendGrid list, welcome emails, and name inference are handled by user/signup route
 
       return resolve({
         data: {

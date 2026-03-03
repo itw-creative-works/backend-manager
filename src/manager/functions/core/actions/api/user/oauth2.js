@@ -25,13 +25,9 @@ Module.prototype.main = function () {
     Api.resolveUser({adminRequired: true})
     .then(async (user) => {
 
-      self.ultimateJekyllOAuth2Url = assistant.isDevelopment()
-        ? `https://localhost:4000/oauth2`
-        : `${Manager.config.brand.url}/oauth2`
+      self.ultimateJekyllOAuth2Url = `${Manager.project.websiteUrl}/oauth2`
       self.oauth2 = null;
       self.omittedPayloadFields = ['redirect', 'referrer', 'provider', 'state'];
-
-      // self.ultimateJekyllOAuth2Url = `${Manager.config.brand.url}/oauth2`;
 
       // Options
       // payload.data.payload.uid = payload.data.payload.uid;
@@ -40,7 +36,7 @@ Module.prototype.main = function () {
         : payload.data.payload.redirect
 
       payload.data.payload.referrer = typeof payload.data.payload.referrer === 'undefined'
-        ? (assistant.isDevelopment() ? `https://localhost:4000/account` : `${Manager.config.brand.url}/account`)
+        ? `${Manager.project.websiteUrl}/account`
         : payload.data.payload.referrer
 
       payload.data.payload.serverUrl = typeof payload.data.payload.serverUrl === 'undefined'

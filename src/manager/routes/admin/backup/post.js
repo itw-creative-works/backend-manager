@@ -43,7 +43,7 @@ module.exports = async ({ assistant, Manager, user, settings, analytics, librari
     outputUriPrefix: bucketAddress,
     collectionIds: [],
   }).catch(async (e) => {
-    await setMetaStats(assistant, admin, e);
+    await setMetaStats(assistant, e);
     return e;
   });
 
@@ -55,7 +55,7 @@ module.exports = async ({ assistant, Manager, user, settings, analytics, librari
 
   assistant.log('Saved backup successfully:', response.metadata.outputUriPrefix);
 
-  await setMetaStats(assistant, admin, null);
+  await setMetaStats(assistant, null);
 
   // Track analytics
   analytics.event('admin/backup', { status: 'success' });
@@ -64,7 +64,8 @@ module.exports = async ({ assistant, Manager, user, settings, analytics, librari
 };
 
 // Helper: Set meta stats
-async function setMetaStats(assistant, admin, error) {
+async function setMetaStats(assistant, error) {
+  const { admin } = assistant.Manager.libraries;
   const isError = error instanceof Error;
 
   await admin.firestore().doc('meta/stats')

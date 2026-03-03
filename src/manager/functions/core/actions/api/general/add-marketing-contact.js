@@ -1,11 +1,11 @@
 const fetch = require('wonderful-fetch');
 const path = require('path');
 const dns = require('dns').promises;
-const OpenAI = require(path.join(__dirname, '..', '..', '..', '..', '..', 'libraries', 'openai'));
 
 // Load disposable domains list
 const DISPOSABLE_DOMAINS = require(path.join(__dirname, '..', '..', '..', '..', '..', 'libraries', 'disposable-domains.json'));
 const DISPOSABLE_SET = new Set(DISPOSABLE_DOMAINS.map(d => d.toLowerCase()));
+const { inferContact } = require(path.join(__dirname, '..', '..', '..', '..', '..', 'libraries', 'infer-contact.js'));
 
 function Module() {}
 
@@ -108,7 +108,7 @@ Module.prototype.main = function () {
     // Infer name if not provided
     let nameInferred = null;
     if (!firstName && !lastName) {
-      nameInferred = await inferName(email, assistant);
+      nameInferred = await inferContact(email, assistant);
       firstName = nameInferred.firstName;
       lastName = nameInferred.lastName;
     }
@@ -246,141 +246,6 @@ async function checkMxRecord(domain) {
   } catch (e) {
     return false;
   }
-}
-
-/**
- * Infer first/last name from email address
- * Uses ChatGPT if OPENAI_API_KEY exists, otherwise regex parsing
- */
-async function inferName(email, assistant) {
-  // Try ChatGPT first if available
-  if (process.env.OPENAI_API_KEY) {
-    const aiResult = await inferNameWithAI(email, assistant);
-    if (aiResult && (aiResult.firstName || aiResult.lastName)) {
-      return aiResult;
-    }
-  }
-
-  // Fallback to regex parsing
-  return inferNameFromEmail(email);
-}
-
-/**
- * Use ChatGPT to infer name from email
- */
-async function inferNameWithAI(email, assistant) {
-  try {
-    const ai = new OpenAI(assistant);
-    const result = await ai.request({
-      // model: 'gpt-4.1-nano',
-      model: 'gpt-5-mini',
-      timeout: 30000,
-      maxTokens: 1024,
-      moderate: false,
-      response: 'json',
-      prompt: {
-        content: `
-          <identity>
-            You extract names and company from email addresses.
-          </identity>
-
-          <format>
-            Return ONLY valid JSON like so:
-            {
-              "firstName": "...", // First name <string>, capitalized
-              "lastName": "...", // Last name <string>, capitalized
-              "company": "...", // Company name <string>, capitalized
-              "confidence": "..." // Confidence level <number>, 0-1 scale
-            }
-
-            If you cannot determine a name, use empty strings.
-          </format>
-
-          <examples>
-            <example>
-              <input>john.smith@acme.com</input>
-              <output>{"firstName": "John", "lastName": "Smith", "company": "Acme", "confidence": 0.9}</output>
-            </example>
-            <example>
-              <input>jsmith123@gmail.com</input>
-              <output>{"firstName": "J", "lastName": "Smith", "company": "", "confidence": 0.4}</output>
-            </example>
-            <example>
-              <input>support@bigcorp.io</input>
-              <output>{"firstName": "", "lastName": "", "company": "Bigcorp", "confidence": 0.7}</output>
-            </example>
-            <example>
-              <input>mary_jane_watson@stark-industries.com</input>
-              <output>{"firstName": "Mary", "lastName": "Watson", "company": "Stark Industries", "confidence": 0.85}</output>
-            </example>
-            <example>
-              <input>info@company.org</input>
-              <output>{"firstName": "", "lastName": "", "company": "Company", "confidence": 0.6}</output>
-            </example>
-          </examples>
-        `,
-      },
-      message: {
-        content: `Email: ${email}`,
-      },
-    });
-
-    if (result?.firstName !== undefined) {
-      return {
-        firstName: capitalize(result.firstName || ''),
-        lastName: capitalize(result.lastName || ''),
-        company: capitalize(result.company || ''),
-        confidence: typeof result.confidence === 'number' ? result.confidence : 0.5,
-        method: 'ai',
-      };
-    }
-  } catch (e) {
-    console.error('AI name inference error:', e);
-  }
-
-  return null;
-}
-
-/**
- * Regex-based name inference from email
- */
-function inferNameFromEmail(email) {
-  const local = email.split('@')[0];
-
-  // Remove trailing numbers
-  const cleaned = local.replace(/[0-9]+$/, '');
-
-  // Split on common separators
-  const parts = cleaned.split(/[._-]/);
-
-  if (parts.length >= 2) {
-    return {
-      firstName: capitalize(parts[0]),
-      lastName: capitalize(parts.slice(1).join(' ')),
-      confidence: 0.5,
-      method: 'regex',
-    };
-  }
-
-  return {
-    firstName: capitalize(cleaned),
-    lastName: '',
-    confidence: 0.25,
-    method: 'regex',
-  };
-}
-
-/**
- * Capitalize first letter of each word
- */
-function capitalize(str) {
-  if (!str) {
-    return '';
-  }
-  return str
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(' ');
 }
 
 /**
