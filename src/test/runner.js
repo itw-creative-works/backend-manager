@@ -1,4 +1,6 @@
+const os = require('os');
 const path = require('path');
+const Module = require('module');
 const jetpack = require('fs-jetpack');
 const chalk = require('chalk');
 
@@ -52,6 +54,16 @@ class TestRunner {
    * Main run method
    */
   async run() {
+    // Abort if BEM is running from the user's home directory (e.g., accidental ~/node_modules install)
+    const homeDir = os.homedir();
+    if (__dirname.startsWith(path.join(homeDir, 'node_modules'))) {
+      console.error(chalk.red('\n  ERROR: BEM is running from ~/node_modules (home directory install).'));
+      console.error(chalk.red('  This is likely an accidental global install that shadows local project copies.'));
+      console.error(chalk.red(`  Fix: rm -rf ${path.join(homeDir, 'node_modules')} ${path.join(homeDir, 'package.json')} ${path.join(homeDir, 'package-lock.json')}`));
+      console.error(chalk.red(`  Running from: ${__dirname}\n`));
+      process.exit(1);
+    }
+
     // Set testing flag to skip external API calls (emails, SendGrid)
     process.env.BEM_TESTING = 'true';
 
@@ -92,7 +104,7 @@ class TestRunner {
     // Discover and run tests
     // BEM tests are in the top-level test/ directory of the package
     const bemTestsDir = path.resolve(__dirname, '../../test');
-    const projectTestsDir = path.join(this.options.projectDir, 'test', 'bem');
+    const projectTestsDir = path.join(this.options.projectDir, 'test');
 
     // Run BEM default tests
     if (jetpack.exists(bemTestsDir)) {
@@ -347,7 +359,7 @@ class TestRunner {
     if (source === 'bem') {
       return path.relative(path.resolve(__dirname, '../../test'), testFile);
     }
-    return path.relative(path.join(this.options.projectDir, 'test', 'bem'), testFile);
+    return path.relative(path.join(this.options.projectDir, 'test'), testFile);
   }
 
   /**
@@ -358,7 +370,23 @@ class TestRunner {
     let testModule;
 
     try {
-      testModule = require(testFile);
+      const searchPaths = [
+        path.join(this.options.projectDir, 'functions'),
+        path.resolve(__dirname, '../../'),
+      ];
+      const origResolve = Module._resolveFilename.bind(Module);
+      Module._resolveFilename = function (request, parent, isMain, options) {
+        if (!request.startsWith('.') && !path.isAbsolute(request)) {
+          const extra = (options && options.paths) ? options.paths : [];
+          options = { ...options, paths: [...extra, ...searchPaths] };
+        }
+        return origResolve(request, parent, isMain, options);
+      };
+      try {
+        testModule = require(testFile);
+      } finally {
+        Module._resolveFilename = origResolve;
+      }
     } catch (error) {
       console.log(chalk.red(`    ✗ ${relativePath}`));
       console.log(chalk.red(`      Failed to load: ${error.message}`));

@@ -393,6 +393,7 @@ module.exports = {
         });
 
         assert.equal(user.subscription.payment.processor, 'stripe', 'processor preserved');
+        assert.equal(user.subscription.payment.orderId, null, 'missing orderId defaults to null');
         assert.equal(user.subscription.payment.resourceId, 'sub_123', 'resourceId preserved');
         assert.equal(user.subscription.payment.frequency, null, 'missing frequency defaults to null');
         assert.ok(user.subscription.payment.startDate.timestamp, 'missing startDate gets default');

@@ -2,7 +2,7 @@
 
 /**
  * BEM Test Runner Entry Point
- * This script is executed by the CLI test command inside firebase emulators:exec
+ * This script is executed by the CLI test command inside the Firebase emulator
  * It reads configuration from BEM_TEST_CONFIG environment variable and runs the test suite
  */
 
