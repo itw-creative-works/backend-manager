@@ -167,6 +167,10 @@ class BaseCommand {
     const projectDir = this.main.firebaseProjectPath;
     const functionsDir = path.join(projectDir, 'functions');
 
+    // Quit early here because its not supported yet
+    this.log(chalk.gray('  (Stripe webhook forwarding is currently disabled - coming soon!)\n'));
+    return null;
+
     // Load .env so STRIPE_SECRET_KEY and BACKEND_MANAGER_KEY are available
     const envPath = path.join(functionsDir, '.env');
     if (jetpack.exists(envPath)) {

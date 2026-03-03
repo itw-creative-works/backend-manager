@@ -24,7 +24,7 @@ const FirestoreIndexesInJsonTest = require('./firestore-indexes-in-json');
 const RealtimeRulesInJsonTest = require('./realtime-rules-in-json');
 const StorageRulesInJsonTest = require('./storage-rules-in-json');
 const RemoteconfigTemplateInJsonTest = require('./remoteconfig-template-in-json');
-const EmulatorsConfigTest = require('./emulators-config');
+const EmulatorConfigTest = require('./emulator-config');
 const HostingRewritesTest = require('./hosting-rewrites');
 const FirestoreIndexesSyncedTest = require('./firestore-indexes-synced');
 const StorageLifecyclePolicyTest = require('./storage-lifecycle-policy');
@@ -35,6 +35,7 @@ const StorageRulesFileTest = require('./storage-rules-file');
 const RemoteconfigTemplateFileTest = require('./remoteconfig-template-file');
 const HostingFolderTest = require('./hosting-folder');
 const PublicHtmlFilesTest = require('./public-html-files');
+const FirestoreIndexesRequiredTest = require('./firestore-indexes-required');
 const LegacyTestsCleanupTest = require('./legacy-tests-cleanup');
 
 /**
@@ -64,12 +65,13 @@ function getTests(context) {
     new RealtimeRulesInJsonTest(context),
     new StorageRulesInJsonTest(context),
     new RemoteconfigTemplateInJsonTest(context),
-    new EmulatorsConfigTest(context),
+    new EmulatorConfigTest(context),
     new HostingRewritesTest(context),
-    new FirestoreIndexesSyncedTest(context),
     new StorageLifecyclePolicyTest(context),
     new FirestoreRulesFileTest(context),
     new FirestoreIndexesFileTest(context),
+    new FirestoreIndexesRequiredTest(context),
+    new FirestoreIndexesSyncedTest(context),
     new RealtimeRulesFileTest(context),
     new StorageRulesFileTest(context),
     new RemoteconfigTemplateFileTest(context),

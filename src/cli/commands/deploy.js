@@ -7,7 +7,7 @@ class DeployCommand extends BaseCommand {
     const self = this.main;
 
     // Quick check that not using local packages
-    let deps = JSON.stringify(self.package.dependencies);
+    let deps = JSON.stringify(self.packageJSON.dependencies);
     let hasLocal = deps.includes('file:');
     if (hasLocal) {
       this.logError(`Please remove local packages before deploying!`);

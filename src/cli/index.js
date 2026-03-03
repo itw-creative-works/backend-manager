@@ -1,5 +1,16 @@
+const os = require('os');
+const path = require('path');
 const argv = require('yargs').argv;
 const _ = require('lodash');
+
+// Abort if running from ~/node_modules (accidental home directory install)
+const _homeDir = os.homedir();
+if (__dirname.startsWith(path.join(_homeDir, 'node_modules'))) {
+  console.error(`\nERROR: BEM is running from ~/node_modules (home directory install).`);
+  console.error(`This shadows the local project copy. Fix:`);
+  console.error(`  rm -rf ~/node_modules ~/package.json ~/package-lock.json\n`);
+  process.exit(1);
+}
 
 // Import commands
 const VersionCommand = require('./commands/version');
@@ -10,11 +21,13 @@ const InstallCommand = require('./commands/install');
 const ServeCommand = require('./commands/serve');
 const DeployCommand = require('./commands/deploy');
 const TestCommand = require('./commands/test');
-const EmulatorsCommand = require('./commands/emulators');
+const EmulatorCommand = require('./commands/emulator');
 const CleanCommand = require('./commands/clean');
 const IndexesCommand = require('./commands/indexes');
 const WatchCommand = require('./commands/watch');
 const StripeCommand = require('./commands/stripe');
+const FirestoreCommand = require('./commands/firestore');
+const AuthCommand = require('./commands/auth');
 
 function Main() {}
 
@@ -95,9 +108,9 @@ Main.prototype.process = async function (args) {
     return await cmd.execute();
   }
 
-  // Emulators (keep-alive mode)
-  if (self.options['emulators'] || self.options['emulator']) {
-    const cmd = new EmulatorsCommand(self);
+  // Emulator (keep-alive mode)
+  if (self.options['emulator'] || self.options['emulators']) {
+    const cmd = new EmulatorCommand(self);
     return await cmd.execute();
   }
 
@@ -116,6 +129,20 @@ Main.prototype.process = async function (args) {
   // Stripe webhook forwarding (standalone)
   if (self.options['stripe'] || self.options['stripe:listen']) {
     const cmd = new StripeCommand(self);
+    return await cmd.execute();
+  }
+
+  // Firestore utility commands
+  if (self.options['firestore:get'] || self.options['firestore:set']
+    || self.options['firestore:query'] || self.options['firestore:delete']) {
+    const cmd = new FirestoreCommand(self);
+    return await cmd.execute();
+  }
+
+  // Auth utility commands
+  if (self.options['auth:get'] || self.options['auth:list']
+    || self.options['auth:delete'] || self.options['auth:set-claims']) {
+    const cmd = new AuthCommand(self);
     return await cmd.execute();
   }
 };

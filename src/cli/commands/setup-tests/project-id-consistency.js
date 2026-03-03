@@ -9,7 +9,7 @@ const chalk = require('chalk');
  * - functions/backend-manager-config.json (firebaseConfig.projectId)
  * - functions/service-account.json (project_id)
  *
- * Mismatches cause tests to fail when running emulators in separate terminals
+ * Mismatches cause tests to fail when running emulator in separate terminals
  * because different parts of the system connect to different Firestore databases.
  */
 class ProjectIdConsistencyTest extends BaseTest {

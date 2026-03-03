@@ -12,8 +12,7 @@ class ServeCommand extends BaseCommand {
     watcher.startBackground();
 
     // Start Stripe webhook forwarding in background
-    // Ignored because we cant really fully process them unless the emulator is running
-    // this.startStripeWebhookForwarding();
+    this.startStripeWebhookForwarding();
 
     // Execute
     await powertools.execute(`firebase serve --port ${port}`, { log: true });

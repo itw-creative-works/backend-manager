@@ -4,8 +4,8 @@ const chalk = require('chalk');
 const jetpack = require('fs-jetpack');
 const JSON5 = require('json5');
 const powertools = require('node-powertools');
-const { DEFAULT_EMULATOR_PORTS } = require('./setup-tests/emulators-config');
-const EmulatorsCommand = require('./emulators');
+const { DEFAULT_EMULATOR_PORTS } = require('./setup-tests/emulator-config');
+const EmulatorCommand = require('./emulator');
 
 class TestCommand extends BaseCommand {
   async execute() {
@@ -42,14 +42,14 @@ class TestCommand extends BaseCommand {
     // Build the test command
     const testCommand = this.buildTestCommand(testConfig);
 
-    // Check if emulators are already running
-    const emulatorsRunning = this.areEmulatorsRunning(emulatorPorts);
+    // Check if emulator is already running
+    const emulatorRunning = this.isEmulatorRunning(emulatorPorts);
 
-    if (emulatorsRunning) {
-      this.log(chalk.cyan('Running tests against EXISTING emulators'));
+    if (emulatorRunning) {
+      this.log(chalk.cyan('Running tests against EXISTING emulator'));
       await this.runTestsDirectly(testCommand, functionsDir, emulatorPorts);
     } else {
-      this.log(chalk.cyan('Starting emulators and running tests...'));
+      this.log(chalk.cyan('Starting emulator and running tests...'));
       await this.runEmulatorTests(testCommand);
     }
   }
@@ -164,16 +164,16 @@ class TestCommand extends BaseCommand {
   }
 
   /**
-   * Check if emulators are already running
+   * Check if emulator is already running
    */
-  areEmulatorsRunning(emulatorPorts) {
+  isEmulatorRunning(emulatorPorts) {
     // Check if functions emulator port is in use
-    // If it is, assume all emulators are running
+    // If it is, assume emulator is running
     return this.isPortInUse(emulatorPorts.functions);
   }
 
   /**
-   * Run tests directly (emulators already running)
+   * Run tests directly (emulator already running)
    */
   async runTestsDirectly(testCommand, functionsDir, emulatorPorts) {
     this.log(chalk.gray(`  Hosting: http://127.0.0.1:${emulatorPorts.hosting}`));
@@ -192,16 +192,16 @@ class TestCommand extends BaseCommand {
   }
 
   /**
-   * Run tests with Firebase emulators (starts emulators, runs tests, shuts down)
+   * Run tests with Firebase emulator (starts emulator, runs tests, shuts down)
    */
   async runEmulatorTests(testCommand) {
-    this.log(chalk.gray('  Starting Firebase emulators...\n'));
+    this.log(chalk.gray('  Starting Firebase emulator...\n'));
 
-    // Use EmulatorsCommand to run tests with emulators
-    const emulatorsCmd = new EmulatorsCommand(this.main);
+    // Use EmulatorCommand to run tests with emulator
+    const emulatorCmd = new EmulatorCommand(this.main);
 
     try {
-      await emulatorsCmd.runWithEmulators(testCommand);
+      await emulatorCmd.runWithEmulator(testCommand);
     } catch (error) {
       // Only exit with error if it wasn't a user-initiated exit
       if (error.code !== 0) {

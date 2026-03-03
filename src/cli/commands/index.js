@@ -8,8 +8,10 @@ module.exports = {
   ServeCommand: require('./serve'),
   DeployCommand: require('./deploy'),
   TestCommand: require('./test'),
-  EmulatorsCommand: require('./emulators'),
+  EmulatorCommand: require('./emulator'),
   CleanCommand: require('./clean'),
   IndexesCommand: require('./indexes'),
   WatchCommand: require('./watch'),
+  FirestoreCommand: require('./firestore'),
+  AuthCommand: require('./auth'),
 };
