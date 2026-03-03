@@ -1,16 +1,22 @@
 const powertools = require('node-powertools');
+const transitions = require('./transitions/index.js');
+const { trackPayment } = require('./analytics.js');
 
 /**
  * Firestore trigger: payments-webhooks/{eventId} onWrite
  *
  * Processes pending webhook events:
- * 1. Transforms raw processor data into unified subscription object
- * 2. Updates the user's subscription in users/{uid}
- * 3. Stores the subscription doc in payments-subscriptions/{resourceId}
- * 4. Marks the webhook as completed
+ * 1. Loads the processor library
+ * 2. Fetches the latest resource from the processor API (not the stale webhook payload)
+ * 3. Branches on event.category to transform + write:
+ *    - subscription → toUnifiedSubscription → users/{uid}.subscription + payments-orders/{orderId}
+ *    - one-time    → toUnifiedOneTime → payments-orders/{orderId}
+ * 4. Detects state transitions and dispatches handler files (non-blocking)
+ * 5. Marks the webhook as completed
  */
-module.exports = async ({ Manager, assistant, change, context, libraries }) => {
-  const { admin } = libraries;
+module.exports = async ({ assistant, change, context }) => {
+  const Manager = assistant.Manager;
+  const admin = Manager.libraries.admin;
 
   const dataAfter = change.after.data();
 
@@ -27,94 +33,61 @@ module.exports = async ({ Manager, assistant, change, context, libraries }) => {
 
   try {
     const processor = dataAfter.processor;
-    const uid = dataAfter.uid;
+    const uid = dataAfter.owner;
     const raw = dataAfter.raw;
     const eventType = dataAfter.event?.type;
+    const category = dataAfter.event?.category;
+    const resourceType = dataAfter.event?.resourceType;
+    const resourceId = dataAfter.event?.resourceId;
 
-    assistant.log(`Processing webhook ${eventId}: processor=${processor}, eventType=${eventType}, uid=${uid || 'null'}`);
+    assistant.log(`Processing webhook ${eventId}: processor=${processor}, eventType=${eventType}, category=${category}, resourceType=${resourceType}, resourceId=${resourceId}, uid=${uid || 'null'}`);
 
     // Validate UID
     if (!uid) {
       throw new Error('Webhook event has no UID — cannot process');
     }
 
-    // Load the shared library for this processor (only needs toUnified, not SDK init)
+    // Validate category
+    if (!category) {
+      throw new Error(`Webhook event has no category — cannot process`);
+    }
+
+    // Load the shared library for this processor
     let library;
     try {
-      library = require(`../../../libraries/${processor}.js`);
+      library = require(`../../../libraries/payment-processors/${processor}.js`);
     } catch (e) {
       throw new Error(`Unknown processor library: ${processor}`);
     }
 
-    // Extract the subscription object from the raw event
-    // Stripe sends events with event.data.object as the subscription
-    const rawSubscription = raw.data?.object || {};
+    // Fetch the latest resource from the processor API
+    // This ensures we always work with the most current state, not stale webhook data
+    const rawFallback = raw.data?.object || {};
+    const resource = await library.fetchResource(resourceType, resourceId, rawFallback, { admin, eventType, config: Manager.config });
 
-    assistant.log(`Raw subscription: stripeStatus=${rawSubscription.status}, cancelAtPeriodEnd=${rawSubscription.cancel_at_period_end}, trialEnd=${rawSubscription.trial_end || 'none'}, resourceId=${rawSubscription.id}`);
-
-    // Transform raw data into unified subscription object
-    const unified = library.toUnified(rawSubscription, {
-      config: Manager.config,
-      eventName: eventType,
-      eventId: eventId,
-    });
-
-    assistant.log(`Unified result: status=${unified.status}, product=${unified.product.id}, frequency=${unified.payment.frequency}, trial.claimed=${unified.trial.claimed}, cancellation.pending=${unified.cancellation.pending}`, unified);
+    assistant.log(`Fetched resource: type=${resourceType}, id=${resourceId}, status=${resource.status || 'unknown'}`);
 
     // Build timestamps
     const now = powertools.timestamp(new Date(), { output: 'string' });
     const nowUNIX = powertools.timestamp(now, { output: 'unix' });
+    const webhookReceivedUNIX = dataAfter.metadata?.received?.timestampUNIX || nowUNIX;
 
-    /**
-     * POTENTIAL ENHANCEMENT:
-     * Check the time of the incoming event against the metadata.updated.timestamp.
-     * If the incoming event is older than the last update, it may be a delayed webhook and we should skip processing to avoid overwriting newer subscription data with stale data. This would require storing the timestamp of the last processed event in the user's subscription metadata and comparing it here before proceeding with the update.
-     *
-     * Also, consider re-fetching the actual resource
-     */
+    // Extract orderId from resource metadata (set at intent creation)
+    const orderId = resource.metadata?.orderId || null;
 
-    // Write unified subscription to user doc
-    await admin.firestore().doc(`users/${uid}`).set({
-      subscription: unified,
-    }, { merge: true });
-
-    assistant.log(`Updated users/${uid}.subscription: status=${unified.status}, product=${unified.product.id}`);
-
-    // Write to payments-subscriptions/{resourceId}
-    const resourceId = unified.payment.resourceId;
-    if (resourceId) {
-      await admin.firestore().doc(`payments-subscriptions/${resourceId}`).set({
-        uid: uid,
-        processor: processor,
-        subscription: unified,
-        raw: rawSubscription,
-        metadata: {
-          created: {
-            timestamp: now,
-            timestampUNIX: nowUNIX,
-          },
-          updated: {
-            timestamp: now,
-            timestampUNIX: nowUNIX,
-          },
-          updatedBy: {
-            event: {
-              name: eventType,
-              id: eventId,
-            },
-          },
-        },
-      }, { merge: true });
-
-      assistant.log(`Updated payments-subscriptions/${resourceId}: uid=${uid}, eventType=${eventType}`);
-    } else {
-      assistant.log(`No resourceId in unified result, skipping payments-subscriptions write`);
+    // Process the payment event (subscription or one-time)
+    if (category !== 'subscription' && category !== 'one-time') {
+      throw new Error(`Unknown event category: ${category}`);
     }
 
-    // Mark webhook as completed
+    const transitionName = await processPaymentEvent({ category, library, resource, resourceType, uid, processor, eventType, eventId, resourceId, orderId, now, nowUNIX, webhookReceivedUNIX, assistant });
+
+    // Mark webhook as completed (include transition name for auditing/testing)
     await webhookRef.set({
       status: 'completed',
-      uid: uid,
+      owner: uid,
+      orderId: orderId,
+      transition: transitionName,
       metadata: {
         processed: {
           timestamp: now,
@@ -123,7 +96,7 @@ module.exports = async ({ Manager, assistant, change, context, libraries }) => {
       },
     }, { merge: true });
 
-    assistant.log(`Webhook ${eventId} completed: wrote users/${uid}, payments-subscriptions/${resourceId || 'skipped'}, payments-webhooks/${eventId}=completed`);
+    assistant.log(`Webhook ${eventId} completed`);
   } catch (e) {
     assistant.error(`Webhook ${eventId} failed: ${e.message}`, e);
 
@@ -134,3 +107,152 @@ module.exports = async ({ Manager, assistant, change, context, libraries }) => {
     }, { merge: true });
   }
 };
+
+/**
+ * Process a payment event (subscription or one-time)
+ * 1. Staleness check
+ * 2. Read user doc (for transition detection)
+ * 3. Transform raw resource → unified object
+ * 4. Build order object
+ * 5. Detect and dispatch transition handlers (non-blocking)
+ * 6. Track analytics (non-blocking)
+ * 7. Write to Firestore (user doc for subscriptions + payments-orders)
+ */
+async function processPaymentEvent({ category, library, resource, resourceType, uid, processor, eventType, eventId, resourceId, orderId, now, nowUNIX, webhookReceivedUNIX, assistant }) {
+  const Manager = assistant.Manager;
+  const admin = Manager.libraries.admin;
+  const isSubscription = category === 'subscription';
+
+  // Staleness check: skip if a newer webhook already wrote to this order
+  if (orderId) {
+    const existingDoc = await admin.firestore().doc(`payments-orders/${orderId}`).get();
+    if (existingDoc.exists) {
+      const existingUpdatedUNIX = existingDoc.data()?.metadata?.updated?.timestampUNIX || 0;
+      if (webhookReceivedUNIX < existingUpdatedUNIX) {
+        assistant.log(`Stale webhook ${eventId}: received=${webhookReceivedUNIX}, existing updated=${existingUpdatedUNIX}, skipping`);
+        return null;
+      }
+    }
+  }
+
+  // Read current user doc (needed for transition detection + handler context)
+  const userDoc = await admin.firestore().doc(`users/${uid}`).get();
+  const userData = userDoc.exists ? userDoc.data() : {};
+  const before = isSubscription ? (userData.subscription || null) : null;
+
+  assistant.log(`User doc for ${uid}: exists=${userDoc.exists}, email=${userData?.auth?.email || 'null'}, name=${userData?.personal?.name?.first || 'null'}, subscription=${userData?.subscription?.product?.id || 'null'}`);
+
+  // Auto-fill user name from payment processor if not already set
+  if (!userData?.personal?.name?.first) {
+    const customerName = extractCustomerName(resource, resourceType);
+    if (customerName?.first) {
+      await admin.firestore().doc(`users/${uid}`).set({
+        personal: { name: customerName },
+      }, { merge: true });
+      assistant.log(`Auto-filled user name from ${resourceType}: ${customerName.first} ${customerName.last || ''}`);
+    }
+  }
+
+  // Transform raw resource → unified object
+  const transformOptions = { config: Manager.config, eventName: eventType, eventId: eventId };
+  const unified = isSubscription
+    ? library.toUnifiedSubscription(resource, transformOptions)
+    : library.toUnifiedOneTime(resource, transformOptions);
+
+  assistant.log(`Unified ${category}: product=${unified.product.id}, status=${unified.status}`, unified);
+
+  // Build the order object (single source of truth for handlers + Firestore)
+  const order = {
+    id: orderId,
+    type: category,
+    owner: uid,
+    processor: processor,
+    resourceId: resourceId,
+    unified: unified,
+    metadata: {
+      created: {
+        timestamp: now,
+        timestampUNIX: nowUNIX,
+      },
+      updated: {
+        timestamp: now,
+        timestampUNIX: nowUNIX,
+      },
+      updatedBy: {
+        event: {
+          name: eventType,
+          id: eventId,
+        },
+      },
+    },
+  };
+
+  // Detect and dispatch transition (non-blocking)
+  const shouldRunHandlers = !assistant.isTesting() || process.env.TEST_EXTENDED_MODE;
+  const transitionName = transitions.detectTransition(category, before, unified, eventType);
+
+  if (transitionName) {
+    assistant.log(`Transition detected: ${category}/${transitionName} (before.status=${before?.status || 'null'}, after.status=${unified.status})`);
+
+    if (shouldRunHandlers) {
+      transitions.dispatch(transitionName, category, {
+        before, after: unified, order, uid, userDoc: userData, assistant,
+      });
+    } else {
+      assistant.log(`Transition handler skipped (testing mode): ${category}/${transitionName}`);
+    }
+  }
+
+  // Track payment analytics (non-blocking)
+  if (transitionName && shouldRunHandlers) {
+    trackPayment({ category, transitionName, unified, uid, processor, assistant });
+  }
+
+  // Write unified subscription to user doc (subscriptions only)
+  if (isSubscription) {
+    await admin.firestore().doc(`users/${uid}`).set({ subscription: unified }, { merge: true });
+    assistant.log(`Updated users/${uid}.subscription: status=${unified.status}, product=${unified.product.id}`);
+  }
+
+  // Write to payments-orders/{orderId}
+  if (orderId) {
+    await admin.firestore().doc(`payments-orders/${orderId}`).set(order, { merge: true });
+    assistant.log(`Updated payments-orders/${orderId}: type=${category}, uid=${uid}, eventType=${eventType}`);
+  }
+
+  return transitionName;
+}
+
+/**
+ * Extract customer name from a raw payment processor resource
+ *
+ * @param {object} resource - Raw processor resource (Stripe subscription, session, invoice)
+ * @param {string} resourceType - 'subscription' | 'session' | 'invoice'
+ * @returns {{ first: string, last: string }|null}
+ */
+function extractCustomerName(resource, resourceType) {
+  let fullName = null;
+
+  // Checkout sessions have customer_details.name
+  if (resourceType === 'session') {
+    fullName = resource.customer_details?.name;
+  }
+
+  // Invoices have customer_name
+  if (resourceType === 'invoice') {
+    fullName = resource.customer_name;
+  }
+
+  // Subscriptions only have customer ID, no name
+
+  if (!fullName) {
+    return null;
+  }
+
+  const { capitalize } = require('../../../libraries/infer-contact.js');
+  const parts = fullName.trim().split(/\s+/);
+  return {
+    first: capitalize(parts[0]) || null,
+    last: capitalize(parts.slice(1).join(' ')) || null,
+  };
+}

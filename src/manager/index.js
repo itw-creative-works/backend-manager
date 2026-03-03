@@ -178,12 +178,20 @@ Manager.prototype.init = function (exporter, options) {
     ? 'http://localhost:5002'
     : `https://api.${(self.config.brand?.url || '').replace(/^https?:\/\//, '')}`;
 
+  // Set website URL
+  // Development: https://localhost:4000 (local hosting)
+  // Production: https://{domain} (from brand.url)
+  self.project.websiteUrl = self.assistant.isDevelopment()
+    ? 'https://localhost:4000'
+    : self.config.brand?.url || '';
+
   // Set environment
   process.env.ENVIRONMENT = process.env.ENVIRONMENT || self.assistant.meta.environment;
 
   // Set BEM env variables
   process.env.BEM_FUNCTIONS_URL = self.project.functionsUrl;
   process.env.BEM_API_URL = self.project.apiUrl;
+  process.env.BEM_WEBSITE_URL = self.project.websiteUrl;
 
   // Use the working Firebase logger that they disabled for whatever reason
   if (
@@ -497,6 +505,18 @@ Manager.prototype.Metadata = function () {
   const self = this;
   self.libraries.Metadata = self.libraries.Metadata || require('./helpers/metadata.js');
   return new self.libraries.Metadata(self, ...arguments);
+};
+
+Manager.prototype.Email = function (assistant) {
+  const self = this;
+  self.libraries.Email = self.libraries.Email || require('./libraries/email.js');
+  return new self.libraries.Email(assistant);
+};
+
+Manager.prototype.AI = function (assistant, key) {
+  const self = this;
+  self.libraries.AI = self.libraries.AI || require('./libraries/openai.js');
+  return new self.libraries.AI(assistant, key);
 };
 
 // For importing API libraries

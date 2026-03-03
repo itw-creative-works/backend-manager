@@ -7,7 +7,7 @@ const powertools = require('node-powertools');
  * The Firestore onWrite trigger handles async processing
  *
  * This handler is processor-agnostic. Each processor module defines:
- *   - parseWebhook(req) — extracts { eventId, eventType, raw, uid }
+ *   - parseWebhook(req) — extracts { eventId, eventType, category, resourceType, resourceId, raw, uid }
  *   - isSupported(eventType) — returns true for events we should process
  */
 module.exports = async ({ assistant, Manager, libraries }) => {
@@ -45,13 +45,19 @@ module.exports = async ({ assistant, Manager, libraries }) => {
     return assistant.respond(`Failed to parse webhook: ${e.message}`, { code: 400 });
   }
 
-  const { eventId, eventType, raw, uid } = parsed;
+  const { eventId, eventType, category, resourceType, resourceId, raw, uid } = parsed;
 
-  assistant.log(`Parsed webhook: eventId=${eventId}, eventType=${eventType}, uid=${uid || 'null'}`);
+  assistant.log(`Parsed webhook: eventId=${eventId}, eventType=${eventType}, category=${category || 'null'}, resourceType=${resourceType || 'null'}, uid=${uid || 'null'}`);
 
   // Let the processor decide if this event type is relevant
   if (processorModule.isSupported && !processorModule.isSupported(eventType)) {
-    assistant.log(`Ignoring event type: ${eventType}`);
+    assistant.log(`Ignoring unsupported event type: ${eventType}`);
+    return assistant.respond({ received: true, ignored: true });
+  }
+
+  // Skip events with no category (e.g., checkout.session.completed for subscription mode)
+  if (!category) {
+    assistant.log(`Ignoring event with no category: ${eventType}`);
     return assistant.respond({ received: true, ignored: true });
   }
 
@@ -76,9 +82,12 @@ module.exports = async ({ assistant, Manager, libraries }) => {
     processor: processor,
     status: 'pending',
     raw: raw,
-    uid: uid,
+    owner: uid,
     event: {
       type: eventType,
+      category: category,
+      resourceType: resourceType,
+      resourceId: resourceId,
     },
     error: null,
     metadata: {
@@ -93,7 +102,7 @@ module.exports = async ({ assistant, Manager, libraries }) => {
     },
   });
 
-  assistant.log(`Saved payments-webhooks/${eventId}: eventType=${eventType}, processor=${processor}, uid=${uid}`);
+  assistant.log(`Saved payments-webhooks/${eventId}: eventType=${eventType}, category=${category}, processor=${processor}, uid=${uid}`);
 
   // Return 200 immediately
   return assistant.respond({ received: true });

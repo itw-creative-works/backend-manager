@@ -13,7 +13,7 @@ module.exports = () => ({
   },
   frequency: {
     types: ['string'],
-    required: true,
+    default: null,
   },
   trial: {
     types: ['boolean'],

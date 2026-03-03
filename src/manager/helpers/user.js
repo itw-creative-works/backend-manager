@@ -38,8 +38,10 @@ const SCHEMA = {
     },
     payment: {
       processor: { type: 'string', default: null, nullable: true },
+      orderId: { type: 'string', default: null, nullable: true },
       resourceId: { type: 'string', default: null, nullable: true },
       frequency: { type: 'string', default: null, nullable: true },
+      price: { type: 'number', default: 0 },
       startDate: '$timestamp',
       updatedBy: {
         event: {

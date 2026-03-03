@@ -58,6 +58,7 @@ service cloud.firestore {
       return isWritingField('auth')
         || isWritingField('roles')
         || isWritingField('flags')
+        || isWritingField('plan') // REMOVE THIS WHEN ALL PROJECTS UPDATED
         || isWritingField('subscription')
         || isWritingField('affiliate')
         || isWritingField('api')

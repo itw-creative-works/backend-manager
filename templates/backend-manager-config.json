@@ -62,13 +62,44 @@
         prices: {
           monthly: {
             amount: 4.99,
-            stripe: 'price_xxx',
-            paypal: 'P-xxx',
+            stripe: null,
+            paypal: null,
           },
           annually: {
             amount: 49.99,
-            stripe: 'price_yyy',
-            paypal: 'P-yyy',
+            stripe: null,
+            paypal: null,
+          },
+        },
+      },
+      {
+        id: 'ultimate',
+        name: 'Ultimate',
+        type: 'subscription',
+        limits: {
+          requests: 10000,
+        },
+        prices: {
+          monthly: {
+            amount: 19.99,
+            stripe: null,
+            paypal: null,
+          },
+          annually: {
+            amount: 199.99,
+            stripe: null,
+            paypal: null,
+          },
+        },
+      },
+      {
+        id: 'credits-100',
+        name: '100 Credits',
+        type: 'one-time',
+        prices: {
+          once: {
+            amount: 9.99,
+            stripe: null,
           },
         },
       },
@@ -106,5 +137,12 @@
     sites: [
       'trustpilot.com',
     ],
+  },
+  dataRequest: {
+    // Additional queries to include in GDPR data exports
+    // BEM always exports: users, auth record, data-requests, payments-intents, payments-orders
+    // Single doc: { path: 'collection/{uid}', redact: ['field.to.redact'] }
+    // Collection query: { collection: 'my-data', where: [['ownerField', '==', '{uid}']] }
+    queries: [],
   },
 }
