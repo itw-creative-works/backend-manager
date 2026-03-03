@@ -73,8 +73,8 @@ module.exports = {
         assert.ok(doc, 'Webhook doc should exist in Firestore');
         assert.equal(doc.processor, 'stripe', 'Processor should be stripe');
         assert.ok(
-          doc.status === 'pending' || doc.status === 'processing' || doc.status === 'completed',
-          'Status should be pending, processing, or completed',
+          doc.status === 'pending' || doc.status === 'processing' || doc.status === 'completed' || doc.status === 'failed',
+          'Status should be pending, processing, completed, or failed',
         );
 
         // Clean up

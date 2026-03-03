@@ -1,0 +1,28 @@
+{
+  "id": "in_test_sub_payment_failed",
+  "object": "invoice",
+  "amount_due": 999,
+  "amount_paid": 0,
+  "amount_remaining": 999,
+  "attempt_count": 1,
+  "attempted": true,
+  "billing_reason": "subscription_cycle",
+  "collection_method": "charge_automatically",
+  "created": 1771623118,
+  "currency": "usd",
+  "customer": "cus_test_sub_fail",
+  "livemode": false,
+  "metadata": {},
+  "parent": {
+    "subscription_details": {
+      "subscription": "sub_test_failed_sub",
+      "metadata": {
+        "uid": "test-uid-sub-fail"
+      }
+    },
+    "type": "subscription_details"
+  },
+  "status": "open",
+  "subtotal": 999,
+  "total": 999
+}

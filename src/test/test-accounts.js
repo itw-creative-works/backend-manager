@@ -166,6 +166,125 @@ const JOURNEY_ACCOUNTS = {
       subscription: { product: { id: 'basic' }, status: 'active' }, // Starts as basic, upgraded via trial webhook
     },
   },
+  'journey-payments-failure': {
+    id: 'journey-payments-failure',
+    uid: '_test-journey-payments-failure',
+    email: '_test.journey-payments-failure@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'basic' }, status: 'active' }, // Test's first step overwrites with correct paid product from config
+    },
+  },
+  'journey-payments-plan-change': {
+    id: 'journey-payments-plan-change',
+    uid: '_test-journey-payments-plan-change',
+    email: '_test.journey-payments-plan-change@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'basic' }, status: 'active' }, // Test's first step overwrites with correct paid product from config
+    },
+  },
+  'journey-payments-one-time': {
+    id: 'journey-payments-one-time',
+    uid: '_test-journey-payments-one-time',
+    email: '_test.journey-payments-one-time@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'basic' }, status: 'active' },
+    },
+  },
+  'journey-payments-intent': {
+    id: 'journey-payments-intent',
+    uid: '_test-journey-payments-intent',
+    email: '_test.journey-payments-intent@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'basic' }, status: 'active' },
+    },
+  },
+  'journey-payments-cancel-route': {
+    id: 'journey-payments-cancel-route',
+    uid: '_test-journey-payments-cancel-route',
+    email: '_test.journey-payments-cancel-route@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'basic' }, status: 'active' },
+    },
+  },
+  'route-cancel-success': {
+    id: 'route-cancel-success',
+    uid: '_test-route-cancel-success',
+    email: '_test.route-cancel-success@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'basic' }, status: 'active' },
+    },
+  },
+  'journey-payments-portal-route': {
+    id: 'journey-payments-portal-route',
+    uid: '_test-journey-payments-portal-route',
+    email: '_test.journey-payments-portal-route@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'basic' }, status: 'active' },
+    },
+  },
+  'journey-payments-intent-trial': {
+    id: 'journey-payments-intent-trial',
+    uid: '_test-journey-payments-intent-trial',
+    email: '_test.journey-payments-intent-trial@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'basic' }, status: 'active' },
+    },
+  },
+  // Dedicated accounts for cancel validation tests — each needs a distinct, non-conflicting subscription state
+  'cancel-no-processor': {
+    id: 'cancel-no-processor',
+    uid: '_test-cancel-no-processor',
+    email: '_test.cancel-no-processor@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'premium', name: 'Premium' }, status: 'active', expires: getFutureExpires(), cancellation: { pending: false }, payment: { processor: null, resourceId: null } },
+    },
+  },
+  'cancel-already-pending': {
+    id: 'cancel-already-pending',
+    uid: '_test-cancel-already-pending',
+    email: '_test.cancel-already-pending@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'premium', name: 'Premium' }, status: 'active', expires: getFutureExpires(), cancellation: { pending: true }, payment: { processor: 'stripe', resourceId: 'sub_test_fake' } },
+    },
+  },
+  'cancel-unknown-processor': {
+    id: 'cancel-unknown-processor',
+    uid: '_test-cancel-unknown-processor',
+    email: '_test.cancel-unknown-processor@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'premium', name: 'Premium' }, status: 'active', expires: getFutureExpires(), cancellation: { pending: false }, payment: { processor: 'unknown-processor', resourceId: 'sub_test_fake' } },
+    },
+  },
+  // Dedicated accounts for portal validation tests
+  'portal-no-processor': {
+    id: 'portal-no-processor',
+    uid: '_test-portal-no-processor',
+    email: '_test.portal-no-processor@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'premium', name: 'Premium' }, status: 'active', expires: getFutureExpires(), payment: { processor: null, resourceId: null } },
+    },
+  },
+  'portal-unknown-processor': {
+    id: 'portal-unknown-processor',
+    uid: '_test-portal-unknown-processor',
+    email: '_test.portal-unknown-processor@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'premium', name: 'Premium' }, status: 'active', expires: getFutureExpires(), payment: { processor: 'unknown-processor', resourceId: 'sub_test_fake' } },
+    },
+  },
 };
 
 /**
@@ -354,13 +473,13 @@ async function deleteTestUsers(admin) {
 
   // Clean up payment-related collections for test accounts
   const testUids = Object.values(TEST_ACCOUNTS).map(a => a.uid);
-  const paymentCollections = ['payments-subscriptions', 'payments-webhooks', 'payments-intents'];
+  const paymentCollections = ['payments-orders', 'payments-webhooks', 'payments-intents'];
 
   await Promise.all(
     paymentCollections.map(async (collection) => {
       try {
         const snapshot = await admin.firestore().collection(collection)
-          .where('uid', 'in', testUids)
+          .where('owner', 'in', testUids)
           .get();
 
         await Promise.all(

@@ -32,6 +32,7 @@ module.exports = {
           frequency: 'monthly',
         });
         assert.isSuccess(response, 'Intent should succeed');
+        state.orderId = response.data.orderId;
 
         // Wait for subscription to activate
         await waitFor(async () => {
@@ -42,6 +43,7 @@ module.exports = {
         const userDoc = await firestore.get(`users/${uid}`);
         assert.equal(userDoc.subscription?.product?.id, paidProduct.id, `Should start as ${paidProduct.id}`);
         assert.equal(userDoc.subscription?.status, 'active', 'Should be active');
+        assert.equal(userDoc.subscription?.payment?.orderId, state.orderId, 'Order ID should match intent');
 
         state.subscriptionId = userDoc.subscription.payment.resourceId;
       },
@@ -89,6 +91,9 @@ module.exports = {
           return doc?.status === 'completed';
         }, 15000, 500);
 
+        const webhookDoc = await firestore.get(`payments-webhooks/${state.eventId1}`);
+        assert.equal(webhookDoc.transition, 'cancellation-requested', 'Transition should be cancellation-requested');
+
         const userDoc = await firestore.get(`users/${state.uid}`);
 
         assert.equal(userDoc.subscription.status, 'active', 'Status should still be active');
@@ -133,6 +138,9 @@ module.exports = {
           const doc = await firestore.get(`payments-webhooks/${state.eventId2}`);
           return doc?.status === 'completed';
         }, 15000, 500);
+
+        const webhookDoc = await firestore.get(`payments-webhooks/${state.eventId2}`);
+        assert.equal(webhookDoc.transition, 'subscription-cancelled', 'Transition should be subscription-cancelled');
 
         const userDoc = await firestore.get(`users/${state.uid}`);
 

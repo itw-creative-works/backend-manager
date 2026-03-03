@@ -42,9 +42,15 @@ module.exports = {
 
         assert.isSuccess(response, 'Intent should succeed');
         assert.ok(response.data.id, 'Should return intent ID');
+        assert.ok(response.data.orderId, 'Should return orderId');
+        assert.match(response.data.orderId, /^\d{4}-\d{4}-\d{4}$/, 'orderId should be XXXX-XXXX-XXXX format');
         assert.ok(response.data.url, 'Should return URL');
 
         state.intentId = response.data.id;
+        state.orderId = response.data.orderId;
+
+        // Derive webhook event ID from intent ID (same timestamp)
+        state.eventId = response.data.id.replace('_test-cs-', '_test-evt-');
       },
     },
 
@@ -62,6 +68,7 @@ module.exports = {
         assert.equal(userDoc.subscription.product.id, state.paidProductId, `Product should be ${state.paidProductId}`);
         assert.equal(userDoc.subscription.status, 'active', 'Status should be active');
         assert.equal(userDoc.subscription.payment.processor, 'test', 'Processor should be test');
+        assert.equal(userDoc.subscription.payment.orderId, state.orderId, 'Order ID should match intent');
         assert.ok(userDoc.subscription.payment.resourceId, 'Resource ID should be set');
         assert.equal(userDoc.subscription.payment.frequency, 'monthly', 'Frequency should be monthly');
         assert.equal(userDoc.subscription.cancellation.pending, false, 'Should not be pending cancellation');
@@ -71,25 +78,45 @@ module.exports = {
     },
 
     {
-      name: 'subscription-doc-created',
+      name: 'order-doc-created',
       async run({ firestore, assert, state }) {
-        const subDoc = await firestore.get(`payments-subscriptions/${state.subscriptionId}`);
+        const orderDoc = await firestore.get(`payments-orders/${state.orderId}`);
 
-        assert.ok(subDoc, 'Subscription doc should exist');
-        assert.equal(subDoc.uid, state.uid, 'UID should match');
-        assert.equal(subDoc.processor, 'test', 'Processor should be test');
-        assert.equal(subDoc.subscription.product.id, state.paidProductId, `Product should be ${state.paidProductId}`);
-        assert.equal(subDoc.subscription.status, 'active', 'Status should be active');
+        assert.ok(orderDoc, 'Order doc should exist');
+        assert.equal(orderDoc.id, state.orderId, 'ID should match orderId');
+        assert.equal(orderDoc.type, 'subscription', 'Type should be subscription');
+        assert.equal(orderDoc.owner, state.uid, 'Owner should match');
+        assert.equal(orderDoc.processor, 'test', 'Processor should be test');
+        assert.equal(orderDoc.resourceId, state.subscriptionId, 'Resource ID should match');
+        assert.equal(orderDoc.unified.product.id, state.paidProductId, `Product should be ${state.paidProductId}`);
+        assert.equal(orderDoc.unified.status, 'active', 'Status should be active');
+      },
+    },
+
+    {
+      name: 'webhook-transition-new-subscription',
+      async run({ firestore, assert, state, waitFor }) {
+        await waitFor(async () => {
+          const doc = await firestore.get(`payments-webhooks/${state.eventId}`);
+          return doc?.status === 'completed';
+        }, 15000, 500);
+
+        const webhookDoc = await firestore.get(`payments-webhooks/${state.eventId}`);
+        assert.ok(webhookDoc, 'Webhook doc should exist');
+        assert.equal(webhookDoc.transition, 'new-subscription', 'Transition should be new-subscription');
+        assert.equal(webhookDoc.orderId, state.orderId, 'Webhook doc orderId should match intent');
       },
     },
 
     {
       name: 'intent-doc-created',
       async run({ firestore, assert, state }) {
-        const intentDoc = await firestore.get(`payments-intents/${state.intentId}`);
+        const intentDoc = await firestore.get(`payments-intents/${state.orderId}`);
 
         assert.ok(intentDoc, 'Intent doc should exist');
-        assert.equal(intentDoc.uid, state.uid, 'UID should match');
+        assert.equal(intentDoc.id, state.orderId, 'ID should match orderId');
+        assert.equal(intentDoc.intentId, state.intentId, 'Intent ID should match processor session ID');
+        assert.equal(intentDoc.owner, state.uid, 'Owner should match');
         assert.equal(intentDoc.processor, 'test', 'Processor should be test');
         assert.equal(intentDoc.status, 'pending', 'Intent status should be pending');
         assert.equal(intentDoc.productId, state.paidProductId, `Product should be ${state.paidProductId}`);

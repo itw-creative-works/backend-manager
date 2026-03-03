@@ -1,10 +1,10 @@
 /**
- * Test: Stripe toUnified()
+ * Test: Stripe toUnifiedSubscription()
  * Unit tests for the Stripe library's raw subscription → unified subscription transformation
  *
  * Tests the pure function directly — no emulator, no Firestore, no HTTP
  */
-const Stripe = require('../../src/manager/libraries/stripe.js');
+const Stripe = require('../../src/manager/libraries/payment-processors/stripe.js');
 
 // Real Stripe CLI fixtures (generated via `stripe trigger`)
 const FIXTURE_ACTIVE = require('../fixtures/stripe/subscription-active.json');
@@ -34,12 +34,12 @@ const MOCK_CONFIG = {
   },
 };
 
-function toUnified(rawSubscription, options) {
-  return Stripe.toUnified(rawSubscription, { config: MOCK_CONFIG, ...options });
+function toUnifiedSubscription(rawSubscription, options) {
+  return Stripe.toUnifiedSubscription(rawSubscription, { config: MOCK_CONFIG, ...options });
 }
 
 module.exports = {
-  description: 'Stripe toUnified() transformation',
+  description: 'Stripe toUnifiedSubscription() transformation',
   type: 'group',
 
   tests: [
@@ -48,7 +48,7 @@ module.exports = {
     {
       name: 'status-active',
       async run({ assert }) {
-        const result = toUnified({ status: 'active' });
+        const result = toUnifiedSubscription({ status: 'active' });
         assert.equal(result.status, 'active', 'Stripe active → unified active');
       },
     },
@@ -56,7 +56,7 @@ module.exports = {
     {
       name: 'status-trialing',
       async run({ assert }) {
-        const result = toUnified({ status: 'trialing', trial_start: 1000, trial_end: 2000 });
+        const result = toUnifiedSubscription({ status: 'trialing', trial_start: 1000, trial_end: 2000 });
         assert.equal(result.status, 'active', 'Stripe trialing → unified active');
       },
     },
@@ -64,7 +64,7 @@ module.exports = {
     {
       name: 'status-past-due',
       async run({ assert }) {
-        const result = toUnified({ status: 'past_due' });
+        const result = toUnifiedSubscription({ status: 'past_due' });
         assert.equal(result.status, 'suspended', 'Stripe past_due → unified suspended');
       },
     },
@@ -72,7 +72,7 @@ module.exports = {
     {
       name: 'status-unpaid',
       async run({ assert }) {
-        const result = toUnified({ status: 'unpaid' });
+        const result = toUnifiedSubscription({ status: 'unpaid' });
         assert.equal(result.status, 'suspended', 'Stripe unpaid → unified suspended');
       },
     },
@@ -80,7 +80,7 @@ module.exports = {
     {
       name: 'status-canceled',
       async run({ assert }) {
-        const result = toUnified({ status: 'canceled' });
+        const result = toUnifiedSubscription({ status: 'canceled' });
         assert.equal(result.status, 'cancelled', 'Stripe canceled → unified cancelled');
       },
     },
@@ -88,7 +88,7 @@ module.exports = {
     {
       name: 'status-incomplete',
       async run({ assert }) {
-        const result = toUnified({ status: 'incomplete' });
+        const result = toUnifiedSubscription({ status: 'incomplete' });
         assert.equal(result.status, 'cancelled', 'Stripe incomplete → unified cancelled');
       },
     },
@@ -96,7 +96,7 @@ module.exports = {
     {
       name: 'status-incomplete-expired',
       async run({ assert }) {
-        const result = toUnified({ status: 'incomplete_expired' });
+        const result = toUnifiedSubscription({ status: 'incomplete_expired' });
         assert.equal(result.status, 'cancelled', 'Stripe incomplete_expired → unified cancelled');
       },
     },
@@ -104,7 +104,7 @@ module.exports = {
     {
       name: 'status-unknown-defaults-to-cancelled',
       async run({ assert }) {
-        const result = toUnified({ status: 'some_future_status' });
+        const result = toUnifiedSubscription({ status: 'some_future_status' });
         assert.equal(result.status, 'cancelled', 'Unknown status → cancelled');
       },
     },
@@ -114,7 +114,7 @@ module.exports = {
     {
       name: 'product-resolves-monthly-price',
       async run({ assert }) {
-        const result = toUnified({ plan: { id: 'price_plus_monthly' } });
+        const result = toUnifiedSubscription({ plan: { id: 'price_plus_monthly' } });
         assert.equal(result.product.id, 'plus', 'Should resolve to plus');
         assert.equal(result.product.name, 'Plus', 'Should have correct name');
       },
@@ -123,7 +123,7 @@ module.exports = {
     {
       name: 'product-resolves-annual-price',
       async run({ assert }) {
-        const result = toUnified({ plan: { id: 'price_pro_annually' } });
+        const result = toUnifiedSubscription({ plan: { id: 'price_pro_annually' } });
         assert.equal(result.product.id, 'pro', 'Should resolve to pro');
         assert.equal(result.product.name, 'Pro', 'Should have correct name');
       },
@@ -132,7 +132,7 @@ module.exports = {
     {
       name: 'product-resolves-from-items-array',
       async run({ assert }) {
-        const result = toUnified({
+        const result = toUnifiedSubscription({
           items: { data: [{ price: { id: 'price_plus_monthly' } }] },
         });
         assert.equal(result.product.id, 'plus', 'Should resolve from items.data[0].price.id');
@@ -142,7 +142,7 @@ module.exports = {
     {
       name: 'product-falls-back-to-basic-on-unknown-price',
       async run({ assert }) {
-        const result = toUnified({ plan: { id: 'price_nonexistent' } });
+        const result = toUnifiedSubscription({ plan: { id: 'price_nonexistent' } });
         assert.equal(result.product.id, 'basic', 'Unknown price → basic');
         assert.equal(result.product.name, 'Basic', 'Unknown price → Basic name');
       },
@@ -151,7 +151,7 @@ module.exports = {
     {
       name: 'product-falls-back-to-basic-on-missing-plan',
       async run({ assert }) {
-        const result = toUnified({});
+        const result = toUnifiedSubscription({});
         assert.equal(result.product.id, 'basic', 'No plan → basic');
       },
     },
@@ -159,7 +159,7 @@ module.exports = {
     {
       name: 'product-falls-back-to-basic-without-config',
       async run({ assert }) {
-        const result = Stripe.toUnified({ plan: { id: 'price_plus_monthly' } }, {});
+        const result = Stripe.toUnifiedSubscription({ plan: { id: 'price_plus_monthly' } }, {});
         assert.equal(result.product.id, 'basic', 'No config → basic');
       },
     },
@@ -169,7 +169,7 @@ module.exports = {
     {
       name: 'frequency-month',
       async run({ assert }) {
-        const result = toUnified({ plan: { interval: 'month' } });
+        const result = toUnifiedSubscription({ plan: { interval: 'month' } });
         assert.equal(result.payment.frequency, 'monthly', 'month → monthly');
       },
     },
@@ -177,7 +177,7 @@ module.exports = {
     {
       name: 'frequency-year',
       async run({ assert }) {
-        const result = toUnified({ plan: { interval: 'year' } });
+        const result = toUnifiedSubscription({ plan: { interval: 'year' } });
         assert.equal(result.payment.frequency, 'annually', 'year → annually');
       },
     },
@@ -185,7 +185,7 @@ module.exports = {
     {
       name: 'frequency-week',
       async run({ assert }) {
-        const result = toUnified({ plan: { interval: 'week' } });
+        const result = toUnifiedSubscription({ plan: { interval: 'week' } });
         assert.equal(result.payment.frequency, 'weekly', 'week → weekly');
       },
     },
@@ -193,7 +193,7 @@ module.exports = {
     {
       name: 'frequency-day',
       async run({ assert }) {
-        const result = toUnified({ plan: { interval: 'day' } });
+        const result = toUnifiedSubscription({ plan: { interval: 'day' } });
         assert.equal(result.payment.frequency, 'daily', 'day → daily');
       },
     },
@@ -201,7 +201,7 @@ module.exports = {
     {
       name: 'frequency-null-when-missing',
       async run({ assert }) {
-        const result = toUnified({});
+        const result = toUnifiedSubscription({});
         assert.equal(result.payment.frequency, null, 'Missing interval → null');
       },
     },
@@ -209,7 +209,7 @@ module.exports = {
     {
       name: 'frequency-from-items-recurring',
       async run({ assert }) {
-        const result = toUnified({
+        const result = toUnifiedSubscription({
           items: { data: [{ price: { recurring: { interval: 'year' } } }] },
         });
         assert.equal(result.payment.frequency, 'annually', 'items recurring year → annually');
@@ -221,7 +221,7 @@ module.exports = {
     {
       name: 'trial-claimed-when-both-dates-present',
       async run({ assert }) {
-        const result = toUnified({ trial_start: 1700000000, trial_end: 1701209600 });
+        const result = toUnifiedSubscription({ trial_start: 1700000000, trial_end: 1701209600 });
         assert.equal(result.trial.claimed, true, 'Both trial dates → claimed');
         assert.ok(result.trial.expires.timestampUNIX > 0, 'Trial expires should be set');
       },
@@ -230,7 +230,7 @@ module.exports = {
     {
       name: 'trial-not-claimed-when-no-dates',
       async run({ assert }) {
-        const result = toUnified({});
+        const result = toUnifiedSubscription({});
         assert.equal(result.trial.claimed, false, 'No trial dates → not claimed');
       },
     },
@@ -238,7 +238,7 @@ module.exports = {
     {
       name: 'trial-not-claimed-when-only-start',
       async run({ assert }) {
-        const result = toUnified({ trial_start: 1700000000 });
+        const result = toUnifiedSubscription({ trial_start: 1700000000 });
         assert.equal(result.trial.claimed, false, 'Only trial_start → not claimed');
       },
     },
@@ -246,7 +246,7 @@ module.exports = {
     {
       name: 'trial-not-claimed-when-null-dates',
       async run({ assert }) {
-        const result = toUnified({ trial_start: null, trial_end: null });
+        const result = toUnifiedSubscription({ trial_start: null, trial_end: null });
         assert.equal(result.trial.claimed, false, 'Null trial dates → not claimed');
       },
     },
@@ -257,7 +257,7 @@ module.exports = {
       name: 'cancellation-pending-when-cancel-at-period-end',
       async run({ assert }) {
         const futureTimestamp = Math.floor(Date.now() / 1000) + 86400 * 30;
-        const result = toUnified({
+        const result = toUnifiedSubscription({
           cancel_at_period_end: true,
           cancel_at: futureTimestamp,
           current_period_end: futureTimestamp,
@@ -271,7 +271,7 @@ module.exports = {
       name: 'cancellation-pending-uses-period-end-when-no-cancel-at',
       async run({ assert }) {
         const futureTimestamp = Math.floor(Date.now() / 1000) + 86400 * 30;
-        const result = toUnified({
+        const result = toUnifiedSubscription({
           cancel_at_period_end: true,
           current_period_end: futureTimestamp,
         });
@@ -283,7 +283,7 @@ module.exports = {
       name: 'cancellation-already-cancelled',
       async run({ assert }) {
         const pastTimestamp = Math.floor(Date.now() / 1000) - 86400;
-        const result = toUnified({
+        const result = toUnifiedSubscription({
           cancel_at_period_end: false,
           canceled_at: pastTimestamp,
         });
@@ -295,7 +295,7 @@ module.exports = {
     {
       name: 'cancellation-none',
       async run({ assert }) {
-        const result = toUnified({
+        const result = toUnifiedSubscription({
           cancel_at_period_end: false,
           canceled_at: null,
         });
@@ -309,7 +309,7 @@ module.exports = {
       name: 'expires-from-period-end',
       async run({ assert }) {
         const futureTimestamp = Math.floor(Date.now() / 1000) + 86400 * 30;
-        const result = toUnified({ current_period_end: futureTimestamp });
+        const result = toUnifiedSubscription({ current_period_end: futureTimestamp });
         assert.ok(result.expires.timestampUNIX > 0, 'Should have expiration');
       },
     },
@@ -317,7 +317,7 @@ module.exports = {
     {
       name: 'expires-defaults-to-epoch-when-missing',
       async run({ assert }) {
-        const result = toUnified({});
+        const result = toUnifiedSubscription({});
         assert.equal(result.expires.timestampUNIX, 0, 'Missing period_end → epoch');
       },
     },
@@ -326,7 +326,7 @@ module.exports = {
       name: 'start-date-from-raw',
       async run({ assert }) {
         const startTimestamp = Math.floor(Date.now() / 1000) - 86400 * 30;
-        const result = toUnified({ start_date: startTimestamp });
+        const result = toUnifiedSubscription({ start_date: startTimestamp });
         assert.ok(result.payment.startDate.timestampUNIX > 0, 'Should have start date');
       },
     },
@@ -334,7 +334,7 @@ module.exports = {
     {
       name: 'start-date-defaults-to-epoch-when-missing',
       async run({ assert }) {
-        const result = toUnified({});
+        const result = toUnifiedSubscription({});
         assert.equal(result.payment.startDate.timestampUNIX, 0, 'Missing start_date → epoch');
       },
     },
@@ -344,7 +344,7 @@ module.exports = {
     {
       name: 'payment-processor-always-stripe',
       async run({ assert }) {
-        const result = toUnified({});
+        const result = toUnifiedSubscription({});
         assert.equal(result.payment.processor, 'stripe', 'Processor should always be stripe');
       },
     },
@@ -352,7 +352,7 @@ module.exports = {
     {
       name: 'payment-resource-id-from-subscription-id',
       async run({ assert }) {
-        const result = toUnified({ id: 'sub_abc123' });
+        const result = toUnifiedSubscription({ id: 'sub_abc123' });
         assert.equal(result.payment.resourceId, 'sub_abc123', 'resourceId should be subscription ID');
       },
     },
@@ -360,15 +360,31 @@ module.exports = {
     {
       name: 'payment-resource-id-null-when-missing',
       async run({ assert }) {
-        const result = toUnified({});
+        const result = toUnifiedSubscription({});
         assert.equal(result.payment.resourceId, null, 'Missing ID → null resourceId');
+      },
+    },
+
+    {
+      name: 'payment-order-id-from-metadata',
+      async run({ assert }) {
+        const result = toUnifiedSubscription({ metadata: { orderId: '1234-5678-9012' } });
+        assert.equal(result.payment.orderId, '1234-5678-9012', 'orderId should come from metadata');
+      },
+    },
+
+    {
+      name: 'payment-order-id-null-when-missing',
+      async run({ assert }) {
+        const result = toUnifiedSubscription({});
+        assert.equal(result.payment.orderId, null, 'Missing metadata → null orderId');
       },
     },
 
     {
       name: 'payment-event-metadata-passed-through',
       async run({ assert }) {
-        const result = toUnified({}, { eventName: 'customer.subscription.created', eventId: 'evt_123' });
+        const result = toUnifiedSubscription({}, { eventName: 'customer.subscription.created', eventId: 'evt_123' });
         assert.equal(result.payment.updatedBy.event.name, 'customer.subscription.created', 'Event name passed through');
         assert.equal(result.payment.updatedBy.event.id, 'evt_123', 'Event ID passed through');
       },
@@ -377,7 +393,7 @@ module.exports = {
     {
       name: 'payment-event-metadata-null-when-missing',
       async run({ assert }) {
-        const result = toUnified({});
+        const result = toUnifiedSubscription({});
         assert.equal(result.payment.updatedBy.event.name, null, 'Missing event name → null');
         assert.equal(result.payment.updatedBy.event.id, null, 'Missing event ID → null');
       },
@@ -389,7 +405,7 @@ module.exports = {
       name: 'full-active-subscription-shape',
       async run({ assert }) {
         const now = Math.floor(Date.now() / 1000);
-        const result = toUnified({
+        const result = toUnifiedSubscription({
           id: 'sub_full_test',
           status: 'active',
           plan: { id: 'price_pro_monthly', interval: 'month' },
@@ -425,13 +441,14 @@ module.exports = {
     {
       name: 'empty-subscription-gets-safe-defaults',
       async run({ assert }) {
-        const result = toUnified({});
+        const result = toUnifiedSubscription({});
 
         assert.equal(result.product.id, 'basic', 'Empty → basic product');
         assert.equal(result.status, 'cancelled', 'Empty → cancelled (no status field)');
         assert.equal(result.trial.claimed, false, 'Empty → trial not claimed');
         assert.equal(result.cancellation.pending, false, 'Empty → not pending');
         assert.equal(result.payment.processor, 'stripe', 'Empty → still stripe');
+        assert.equal(result.payment.orderId, null, 'Empty → null orderId');
         assert.equal(result.payment.resourceId, null, 'Empty → null resourceId');
         assert.equal(result.payment.frequency, null, 'Empty → null frequency');
       },
@@ -442,7 +459,7 @@ module.exports = {
     {
       name: 'fixture-active-status',
       async run({ assert }) {
-        const result = toUnified(FIXTURE_ACTIVE);
+        const result = toUnifiedSubscription(FIXTURE_ACTIVE);
         assert.equal(result.status, 'active', 'Real active fixture → active');
         assert.equal(result.payment.processor, 'stripe', 'Processor is stripe');
         assert.equal(result.payment.resourceId, FIXTURE_ACTIVE.id, 'resourceId matches fixture ID');
@@ -452,7 +469,7 @@ module.exports = {
     {
       name: 'fixture-active-frequency',
       async run({ assert }) {
-        const result = toUnified(FIXTURE_ACTIVE);
+        const result = toUnifiedSubscription(FIXTURE_ACTIVE);
         assert.equal(result.payment.frequency, 'monthly', 'Real active fixture → monthly');
       },
     },
@@ -460,7 +477,7 @@ module.exports = {
     {
       name: 'fixture-active-dates',
       async run({ assert }) {
-        const result = toUnified(FIXTURE_ACTIVE);
+        const result = toUnifiedSubscription(FIXTURE_ACTIVE);
         assert.ok(result.expires.timestampUNIX > 0, 'Should have real expiration');
         assert.ok(result.payment.startDate.timestampUNIX > 0, 'Should have real start date');
         assert.equal(result.trial.claimed, false, 'No trial on active fixture');
@@ -472,7 +489,7 @@ module.exports = {
       name: 'fixture-active-product-falls-back',
       async run({ assert }) {
         // Fixture price IDs won't match our mock config, so it should fall back to basic
-        const result = toUnified(FIXTURE_ACTIVE);
+        const result = toUnifiedSubscription(FIXTURE_ACTIVE);
         assert.equal(result.product.id, 'basic', 'Unknown price → basic fallback');
       },
     },
@@ -480,7 +497,7 @@ module.exports = {
     {
       name: 'fixture-canceled-status',
       async run({ assert }) {
-        const result = toUnified(FIXTURE_CANCELED);
+        const result = toUnifiedSubscription(FIXTURE_CANCELED);
         assert.equal(result.status, 'cancelled', 'Real canceled fixture → cancelled');
         assert.equal(result.cancellation.pending, false, 'Not pending — already cancelled');
         assert.ok(result.cancellation.date.timestampUNIX > 0, 'Should have cancellation date');
@@ -492,7 +509,7 @@ module.exports = {
       async run({ assert }) {
         assert.ok(FIXTURE_CANCELED.ended_at, 'Canceled fixture should have ended_at');
         assert.ok(FIXTURE_CANCELED.canceled_at, 'Canceled fixture should have canceled_at');
-        const result = toUnified(FIXTURE_CANCELED);
+        const result = toUnifiedSubscription(FIXTURE_CANCELED);
         assert.equal(result.payment.resourceId, FIXTURE_CANCELED.id, 'resourceId matches');
       },
     },
@@ -500,7 +517,7 @@ module.exports = {
     {
       name: 'fixture-trialing-status',
       async run({ assert }) {
-        const result = toUnified(FIXTURE_TRIALING);
+        const result = toUnifiedSubscription(FIXTURE_TRIALING);
         assert.equal(result.status, 'active', 'Real trialing fixture → active');
         assert.equal(result.trial.claimed, true, 'Trialing fixture → trial claimed');
         assert.ok(result.trial.expires.timestampUNIX > 0, 'Trial expiration should be set');
@@ -512,7 +529,7 @@ module.exports = {
       async run({ assert }) {
         assert.ok(FIXTURE_TRIALING.trial_start, 'Trialing fixture should have trial_start');
         assert.ok(FIXTURE_TRIALING.trial_end, 'Trialing fixture should have trial_end');
-        const result = toUnified(FIXTURE_TRIALING);
+        const result = toUnifiedSubscription(FIXTURE_TRIALING);
         assert.equal(result.cancellation.pending, false, 'No cancellation on trialing fixture');
         assert.equal(result.payment.frequency, 'monthly', 'Trialing fixture → monthly');
       },
@@ -525,7 +542,7 @@ module.exports = {
         const names = ['active', 'canceled', 'trialing'];
 
         for (let i = 0; i < fixtures.length; i++) {
-          const result = toUnified(fixtures[i]);
+          const result = toUnifiedSubscription(fixtures[i]);
           const label = names[i];
 
           assert.ok(result.product, `${label}: should have product`);
@@ -549,7 +566,7 @@ module.exports = {
       name: 'combo-trialing-with-pending-cancel',
       async run({ assert }) {
         const now = Math.floor(Date.now() / 1000);
-        const result = toUnified({
+        const result = toUnifiedSubscription({
           id: 'sub_trial_cancel',
           status: 'trialing',
           trial_start: now - 86400 * 3,
@@ -573,7 +590,7 @@ module.exports = {
       name: 'combo-trial-payment-fails',
       async run({ assert }) {
         const now = Math.floor(Date.now() / 1000);
-        const result = toUnified({
+        const result = toUnifiedSubscription({
           id: 'sub_trial_fail',
           status: 'incomplete_expired',
           trial_start: now - 86400 * 14,
@@ -596,7 +613,7 @@ module.exports = {
       name: 'combo-active-with-past-trial',
       async run({ assert }) {
         const now = Math.floor(Date.now() / 1000);
-        const result = toUnified({
+        const result = toUnifiedSubscription({
           id: 'sub_past_trial',
           status: 'active',
           trial_start: now - 86400 * 30,
@@ -619,7 +636,7 @@ module.exports = {
       name: 'combo-pending-cancel-reactivated',
       async run({ assert }) {
         const now = Math.floor(Date.now() / 1000);
-        const result = toUnified({
+        const result = toUnifiedSubscription({
           id: 'sub_reactivated',
           status: 'active',
           cancel_at_period_end: false,
@@ -641,7 +658,7 @@ module.exports = {
       name: 'combo-suspended-with-pending-cancel',
       async run({ assert }) {
         const now = Math.floor(Date.now() / 1000);
-        const result = toUnified({
+        const result = toUnifiedSubscription({
           id: 'sub_suspended_cancel',
           status: 'past_due',
           cancel_at_period_end: true,
@@ -663,7 +680,7 @@ module.exports = {
       name: 'combo-trialing-past-due',
       async run({ assert }) {
         const now = Math.floor(Date.now() / 1000);
-        const result = toUnified({
+        const result = toUnifiedSubscription({
           id: 'sub_trial_past_due',
           status: 'past_due',
           trial_start: now - 86400 * 14,

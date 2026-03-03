@@ -56,16 +56,16 @@ module.exports = {
     },
 
     {
-      name: 'rejects-missing-frequency',
+      name: 'rejects-missing-frequency-for-subscription',
       async run({ http, assert, config }) {
-        const paidProduct = config.payment.products.find(p => p.id !== 'basic' && p.prices);
+        const paidProduct = config.payment.products.find(p => p.id !== 'basic' && p.type === 'subscription' && p.prices);
 
         const response = await http.as('basic').post('payments/intent', {
           processor: 'stripe',
           productId: paidProduct.id,
         });
 
-        assert.isError(response, 400, 'Should reject missing frequency');
+        assert.isError(response, 400, 'Should reject missing frequency for subscription product');
       },
     },
 
@@ -116,9 +116,10 @@ module.exports = {
     {
       name: 'succeeds-with-test-processor',
       async run({ http, assert, config, firestore, accounts, waitFor }) {
+        const uid = accounts['journey-payments-intent'].uid;
         const paidProduct = config.payment.products.find(p => p.id !== 'basic' && p.prices);
 
-        const response = await http.as('basic').post('payments/intent', {
+        const response = await http.as('journey-payments-intent').post('payments/intent', {
           processor: 'test',
           productId: paidProduct.id,
           frequency: 'monthly',
@@ -126,38 +127,37 @@ module.exports = {
 
         assert.isSuccess(response, 'Should succeed with test processor');
         assert.ok(response.data.id, 'Should return intent ID');
+        assert.ok(response.data.orderId, 'Should return orderId');
+        assert.match(response.data.orderId, /^\d{4}-\d{4}-\d{4}$/, 'orderId should be XXXX-XXXX-XXXX format');
         assert.ok(response.data.url, 'Should return URL');
 
-        // Verify intent doc was saved
-        const intentDoc = await firestore.get(`payments-intents/${response.data.id}`);
+        // Verify intent doc was saved (keyed by orderId)
+        const intentDoc = await firestore.get(`payments-intents/${response.data.orderId}`);
         assert.ok(intentDoc, 'Intent doc should exist');
+        assert.equal(intentDoc.intentId, response.data.id, 'Intent ID should match response');
         assert.equal(intentDoc.processor, 'test', 'Processor should be test');
         assert.equal(intentDoc.productId, paidProduct.id, 'Product should match');
 
-        // Clean up: wait for auto-webhook to process, then restore basic user
+        // Wait for auto-webhook to process and activate the subscription
         await waitFor(async () => {
-          const userDoc = await firestore.get(`users/${accounts.basic.uid}`);
+          const userDoc = await firestore.get(`users/${uid}`);
           return userDoc?.subscription?.product?.id === paidProduct.id;
         }, 15000, 500).catch(() => {});
-
-        await firestore.set(`users/${accounts.basic.uid}`, {
-          subscription: { product: { id: 'basic' }, status: 'active' },
-        }, { merge: true });
       },
     },
 
     {
       name: 'downgrades-trial-for-user-with-history',
       async run({ http, assert, config, accounts, firestore, waitFor }) {
+        const uid = accounts['journey-payments-intent-trial'].uid;
         const paidProduct = config.payment.products.find(p => p.id !== 'basic' && p.prices);
-        const uid = accounts.basic.uid;
-        const subDocPath = `payments-subscriptions/_test-sub-history-${uid}`;
+        const orderDocPath = `payments-orders/_test-order-history-${uid}`;
 
         // Create fake subscription history so user is ineligible for trial
-        await firestore.set(subDocPath, { uid, processor: 'test', status: 'cancelled' });
+        await firestore.set(orderDocPath, { owner: uid, type: 'subscription', processor: 'test', status: 'cancelled' });
 
         try {
-          const response = await http.as('basic').post('payments/intent', {
+          const response = await http.as('journey-payments-intent-trial').post('payments/intent', {
             processor: 'test',
             productId: paidProduct.id,
             frequency: 'monthly',
@@ -167,21 +167,17 @@ module.exports = {
           // Should succeed (not reject with 400) — trial silently downgraded
           assert.isSuccess(response, 'Should not reject — trial silently downgraded');
 
-          // Verify intent saved with trial=false
-          const intentDoc = await firestore.get(`payments-intents/${response.data.id}`);
+          // Verify intent saved with trial=false (keyed by orderId)
+          const intentDoc = await firestore.get(`payments-intents/${response.data.orderId}`);
           assert.equal(intentDoc.trial, false, 'Trial should be false (downgraded)');
 
-          // Clean up: wait for auto-webhook, restore basic user
+          // Wait for auto-webhook to activate the subscription
           await waitFor(async () => {
             const userDoc = await firestore.get(`users/${uid}`);
             return userDoc?.subscription?.product?.id === paidProduct.id;
           }, 15000, 500).catch(() => {});
-
-          await firestore.set(`users/${uid}`, {
-            subscription: { product: { id: 'basic' }, status: 'active' },
-          }, { merge: true });
         } finally {
-          await firestore.delete(subDocPath);
+          await firestore.delete(orderDocPath);
         }
       },
     },

@@ -43,8 +43,13 @@ module.exports = {
 
         assert.isSuccess(response, 'Intent should succeed');
         assert.ok(response.data.id, 'Should return intent ID');
+        assert.ok(response.data.orderId, 'Should return orderId');
 
         state.intentId = response.data.id;
+        state.orderId = response.data.orderId;
+
+        // Derive webhook event ID from intent ID (same timestamp)
+        state.eventId = response.data.id.replace('_test-cs-', '_test-evt-');
       },
     },
 
@@ -62,8 +67,15 @@ module.exports = {
         assert.equal(userDoc.subscription.product.id, state.paidProductId, `Product should be ${state.paidProductId}`);
         assert.equal(userDoc.subscription.status, 'active', 'Status should be active');
         assert.equal(userDoc.subscription.trial.claimed, true, 'Trial should be claimed');
+        assert.equal(userDoc.subscription.payment.orderId, state.orderId, 'Order ID should match intent');
 
         state.subscriptionId = userDoc.subscription.payment.resourceId;
+
+        // Verify the auto-fired webhook triggered new-subscription (trial is a property, not a separate transition)
+        const webhookDoc = await firestore.get(`payments-webhooks/${state.eventId}`);
+        assert.ok(webhookDoc, 'Webhook doc should exist');
+        assert.equal(webhookDoc.transition, 'new-subscription', 'Transition should be new-subscription (trial detected inside handler)');
+        assert.equal(webhookDoc.orderId, state.orderId, 'Webhook doc orderId should match intent');
       },
     },
 
@@ -107,6 +119,10 @@ module.exports = {
           const doc = await firestore.get(`payments-webhooks/${state.eventId2}`);
           return doc?.status === 'completed';
         }, 15000, 500);
+
+        // Trial → active paid is the same status/product, so no transition fires
+        const webhookDoc = await firestore.get(`payments-webhooks/${state.eventId2}`);
+        assert.equal(webhookDoc.transition, null, 'No transition (same status/product, trial already claimed)');
 
         const userDoc = await firestore.get(`users/${state.uid}`);
 
