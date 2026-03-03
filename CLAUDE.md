@@ -51,13 +51,19 @@ src/
     index.js                          # Main Manager class
     helpers/                          # Helper classes
       assistant.js                    # Request/response handling
-      user.js                         # User property structure
+      user.js                         # User property structure + schema
       analytics.js                    # GA4 integration
       usage.js                        # Rate limiting
       middleware.js                   # Request pipeline
       settings.js                     # Schema validation
       utilities.js                    # Batch operations
       metadata.js                     # Timestamps/tags
+    libraries/
+      payment-processors/             # Shared payment processor utilities
+        stripe.js                     # Stripe SDK init, fetchResource, toUnified*
+        test.js                       # Test processor (delegates to Stripe shapes)
+        order-id.js                   # Order ID generation (XXXX-XXXX-XXXX)
+        resolve-price-id.js           # Shared price ID resolver from config
     functions/core/                   # Built-in functions
       actions/
         api.js                        # Main bm_api handler
@@ -65,14 +71,35 @@ src/
       events/
         auth/                         # Auth event handlers
         firestore/                    # Firestore triggers
+          payments-webhooks/          # Webhook processing pipeline
+            on-write.js               # Orchestrator: fetch→transform→transition→write
+            analytics.js              # Payment analytics tracking (GA4, Meta, TikTok)
+            transitions/              # State transition detection + handlers
+              index.js                # Transition detection logic
+              send-email.js           # Shared email helper for handlers
+              subscription/           # Subscription transition handlers
+              one-time/               # One-time payment transition handlers
       cron/
         daily.js                      # Daily cron runner
         daily/{job}.js                # Individual cron jobs
     routes/                           # Built-in routes
+      payments/
+        intent/                       # POST /payments/intent
+          post.js                     # Intent creation orchestrator
+          processors/                 # Per-processor intent creators
+            stripe.js                 # Stripe Checkout Session creation
+            test.js                   # Test processor (auto-fires webhooks)
+        webhook/                      # POST /payments/webhook
+          post.js                     # Webhook ingestion + Firestore write
+          processors/                 # Per-processor webhook parsers
+            stripe.js                 # Stripe event parsing + categorization
+            test.js                   # Test processor (delegates to Stripe)
     schemas/                          # Built-in schemas
   cli/
     index.js                          # CLI entry point
     commands/                         # CLI commands
+  test/
+    test-accounts.js                  # Test account definitions (static + journey)
 templates/
   backend-manager-config.json         # Config template
 ```
@@ -387,10 +414,10 @@ Manager.handlers.bm_api = function (mod, position) {
 ### Running Tests
 ```bash
 # Option 1: Two terminals
-npx bm emulators  # Terminal 1 - keeps emulators running
-npx bm test       # Terminal 2 - runs tests
+npx bm emulator  # Terminal 1 - keeps emulator running
+npx bm test      # Terminal 2 - runs tests
 
-# Option 2: Single command (auto-starts emulators)
+# Option 2: Single command (auto-starts emulator)
 npx bm test
 ```
 
@@ -492,7 +519,7 @@ assert.fail(message)                           // Explicit fail
 
 ## Stripe Webhook Forwarding
 
-BEM auto-starts Stripe CLI webhook forwarding when running `npx bm serve` or `npx bm emulators`. This forwards Stripe test webhooks to the local server so the full payment pipeline works end-to-end during development.
+BEM auto-starts Stripe CLI webhook forwarding when running `npx bm serve` or `npx bm emulator`. This forwards Stripe test webhooks to the local server so the full payment pipeline works end-to-end during development.
 
 **Requirements:**
 - `STRIPE_SECRET_KEY` set in `functions/.env`
@@ -507,6 +534,62 @@ npx bm stripe
 If any prerequisite is missing, webhook forwarding is silently skipped with an info message.
 
 The forwarding URL is: `http://localhost:{hostingPort}/backend-manager/payments/webhook?processor=stripe&key={BACKEND_MANAGER_KEY}`
+
+## CLI Utility Commands
+
+Quick commands for reading/writing Firestore and managing Auth users directly from the terminal. Works in any BEM consumer project (requires `functions/service-account.json` for production, or `--emulator` for local).
+
+### Firestore Commands
+
+```bash
+npx bm firestore:get <path>                          # Read a document
+npx bm firestore:set <path> '<json>'                 # Write/merge a document
+npx bm firestore:set <path> '<json>' --no-merge      # Overwrite a document entirely
+npx bm firestore:query <collection>                  # Query a collection (default limit 25)
+  --where "field==value"                              #   Filter (repeatable for AND)
+  --orderBy "field:desc"                              #   Sort
+  --limit N                                           #   Limit results
+npx bm firestore:delete <path>                       # Delete a document (prompts for confirmation)
+```
+
+### Auth Commands
+
+```bash
+npx bm auth:get <uid-or-email>                       # Get user by UID or email (auto-detected via @)
+npx bm auth:list [--limit N] [--page-token T]        # List users (default 100)
+npx bm auth:delete <uid-or-email>                    # Delete user (prompts for confirmation)
+npx bm auth:set-claims <uid-or-email> '<json>'       # Set custom claims
+```
+
+### Shared Flags
+
+| Flag | Description |
+|------|-------------|
+| `--emulator` | Target local emulator instead of production |
+| `--force` | Skip confirmation on destructive operations |
+| `--raw` | Compact JSON output (for piping to `jq` etc.) |
+
+### Examples
+
+```bash
+# Read a user document from production
+npx bm firestore:get users/abc123
+
+# Write to emulator
+npx bm firestore:set users/test123 '{"name":"Test User"}' --emulator
+
+# Query with filters
+npx bm firestore:query users --where "subscription.status==active" --limit 10
+
+# Look up auth user by email
+npx bm auth:get user@example.com
+
+# Set admin claims
+npx bm auth:set-claims user@example.com '{"admin":true}'
+
+# Delete from emulator (no confirmation needed)
+npx bm firestore:delete users/test123 --emulator
+```
 
 ## Usage & Rate Limiting
 
@@ -594,8 +677,10 @@ subscription: {
   },
   payment: {
     processor: null,               // 'stripe' | 'paypal' | etc.
+    orderId: null,                 // BEM order ID (e.g., '1234-5678-9012')
     resourceId: null,              // provider subscription ID (e.g., 'sub_xxx')
     frequency: null,               // 'monthly' | 'annually'
+    price: 0,                      // resolved from config (number, e.g., 4.99)
     startDate: { timestamp, timestampUNIX },
     updatedBy: {
       event: { name: null, id: null },
@@ -620,6 +705,159 @@ user.subscription.cancellation.pending === true
 // Payment failed?
 user.subscription.status === 'suspended'
 ```
+
+## Payment Transition Handlers
+
+### Overview
+
+When a webhook changes a subscription or processes a one-time payment, BEM detects the state transition and dispatches to a handler file. Handlers are fire-and-forget (non-blocking) — they run after the transition is detected but before or during the Firestore writes. Handler failures never block webhook processing.
+
+Handlers are skipped during tests unless `TEST_EXTENDED_MODE` is set.
+
+### Transition Detection
+
+The `transitions/index.js` module compares the **before** state (current `users/{uid}.subscription`) with the **after** state (new unified subscription) to detect what changed.
+
+### Subscription Transitions
+
+| Transition | Before → After | File |
+|---|---|---|
+| `new-subscription` | basic/null → active paid | `transitions/subscription/new-subscription.js` |
+| `payment-failed` | active → suspended | `transitions/subscription/payment-failed.js` |
+| `payment-recovered` | suspended → active | `transitions/subscription/payment-recovered.js` |
+| `cancellation-requested` | pending=false → pending=true | `transitions/subscription/cancellation-requested.js` |
+| `subscription-cancelled` | non-cancelled → cancelled | `transitions/subscription/subscription-cancelled.js` |
+| `plan-changed` | active product A → active product B | `transitions/subscription/plan-changed.js` |
+
+Note: Trials are NOT a separate transition. The `new-subscription` handler checks `after.trial.claimed` to determine if the subscription started with a trial.
+
+### One-Time Transitions
+
+| Transition | Event Type | File |
+|---|---|---|
+| `purchase-completed` | `checkout.session.completed` | `transitions/one-time/purchase-completed.js` |
+| `purchase-failed` | `invoice.payment_failed` | `transitions/one-time/purchase-failed.js` |
+
+### Handler Interface
+
+All handlers are in `src/manager/events/firestore/payments-webhooks/transitions/` and export a single async function:
+
+```javascript
+module.exports = async function ({ before, after, uid, userDoc, admin, assistant, Manager, eventType, eventId }) {
+  // before: previous subscription state (null for new/one-time)
+  // after: new unified state (subscription or one-time)
+  // userDoc: full user document data
+  // eventType: original webhook event type (e.g., 'customer.subscription.updated')
+  // eventId: webhook event ID
+};
+```
+
+### Creating a New Transition Handler
+
+1. Add detection logic in `transitions/index.js` (in priority order)
+2. Create handler file in `transitions/{category}/{name}.js`
+3. Handler receives full context — use `assistant.log()` for logging, `Manager.project.apiUrl` for API calls
+
+## Payment System Architecture
+
+### Pipeline
+
+The payment system follows a linear pipeline: **Intent → Webhook → On-Write → Transition**.
+
+1. **Intent** (`POST /payments/intent`): Client requests a payment session. BEM validates the product, generates an order ID (`XXXX-XXXX-XXXX`), and delegates to the processor module (e.g., Stripe creates a Checkout Session). Saves to `payments-intents/{orderId}`.
+
+2. **Webhook** (`POST /payments/webhook?processor=X&key=Y`): Processor sends event data. BEM parses and categorizes the event (`subscription` or `one-time`), extracts the UID, and saves to `payments-webhooks/{eventId}` with `status: 'pending'`.
+
+3. **On-Write** (Firestore trigger on `payments-webhooks/{eventId}`): Fetches the latest resource from the processor API (not stale webhook data), transforms it into a unified object, detects state transitions, dispatches handlers, tracks analytics, and writes to `users/{uid}.subscription` (subscriptions) and `payments-orders/{orderId}`.
+
+4. **Transitions** (fire-and-forget): Handler files run asynchronously after detection. Failures never block webhook processing. Skipped during tests unless `TEST_EXTENDED_MODE` is set.
+
+### Processor Interface
+
+Each processor implements two modules:
+
+**Intent processor** (`routes/payments/intent/processors/{processor}.js`):
+```javascript
+module.exports = {
+  async createIntent({ uid, orderId, product, productId, frequency, trial, confirmationUrl, cancelUrl, Manager, assistant }) {
+    return { id, url, raw };
+  },
+};
+```
+
+**Webhook processor** (`routes/payments/webhook/processors/{processor}.js`):
+```javascript
+module.exports = {
+  isSupported(eventType) { return boolean; },
+  parseWebhook(req) { return { eventId, eventType, category, resourceType, resourceId, raw, uid }; },
+};
+```
+
+**Shared library** (`libraries/payment-processors/{processor}.js`):
+```javascript
+module.exports = {
+  init() { /* return SDK instance */ },
+  async fetchResource(resourceType, resourceId, rawFallback, context) { /* return resource */ },
+  toUnifiedSubscription(rawSubscription, options) { /* return unified object */ },
+  toUnifiedOneTime(rawResource, options) { /* return unified object */ },
+};
+```
+
+### Product Configuration
+
+Products are defined in `backend-manager-config.json` under `payment.products`:
+
+```javascript
+payment: {
+  products: [
+    {
+      id: 'basic',           // Free tier (no prices)
+      name: 'Basic',
+      type: 'subscription',
+      limits: { requests: 100 },
+    },
+    {
+      id: 'premium',         // Paid subscription
+      name: 'Premium',
+      type: 'subscription',
+      limits: { requests: 1000 },
+      trial: { days: 14 },   // Optional trial period
+      prices: {
+        monthly:  { amount: 4.99,  stripe: 'price_xxx', paypal: null },
+        annually: { amount: 49.99, stripe: 'price_yyy', paypal: null },
+      },
+    },
+    {
+      id: 'credits-100',     // One-time purchase
+      name: '100 Credits',
+      type: 'one-time',
+      prices: {
+        once: { amount: 9.99, stripe: 'price_zzz' },
+      },
+    },
+  ],
+}
+```
+
+Key rules:
+- `type` is `'subscription'` (default) or `'one-time'`
+- Subscription prices are keyed by frequency: `monthly`, `annually`
+- One-time prices are keyed as `once`
+- Each price object has processor-specific IDs (`stripe`, `paypal`, etc.)
+- `basic` product has no `prices` — it's the free tier
+
+### Firestore Collections
+
+| Collection | Key | Purpose |
+|---|---|---|
+| `payments-intents/{orderId}` | Order ID | Intent metadata (processor, product, status) |
+| `payments-webhooks/{eventId}` | Processor event ID | Webhook processing state + transition result |
+| `payments-orders/{orderId}` | Order ID | Unified order data (single source of truth for orders) |
+| `users/{uid}.subscription` | User UID | Current subscription state (subscriptions only) |
+
+### Test Processor
+
+The `test` processor generates Stripe-shaped data and auto-fires webhooks to the local server. Only available in non-production environments. Use `processor: 'test'` in intent requests during testing. The test webhook processor delegates to Stripe's parser since it generates Stripe-shaped payloads.
 
 ## Common Mistakes to Avoid
 
@@ -648,13 +886,25 @@ user.subscription.status === 'suspended'
 | Middleware pipeline | `src/manager/helpers/middleware.js` |
 | Schema validation | `src/manager/helpers/settings.js` |
 | Rate limiting | `src/manager/helpers/usage.js` |
-| User properties | `src/manager/helpers/user.js` |
+| User properties + schema | `src/manager/helpers/user.js` |
 | Batch utilities | `src/manager/helpers/utilities.js` |
 | Main API handler | `src/manager/functions/core/actions/api.js` |
 | Config template | `templates/backend-manager-config.json` |
 | CLI entry | `src/cli/index.js` |
 | Stripe webhook forwarding | `src/cli/commands/stripe.js` |
-| Stripe shared library | `src/manager/libraries/stripe.js` |
+| Firebase init helper (CLI) | `src/cli/commands/firebase-init.js` |
+| Firestore CLI commands | `src/cli/commands/firestore.js` |
+| Auth CLI commands | `src/cli/commands/auth.js` |
+| Intent creation | `src/manager/routes/payments/intent/post.js` |
+| Webhook ingestion | `src/manager/routes/payments/webhook/post.js` |
+| Webhook processing (on-write) | `src/manager/events/firestore/payments-webhooks/on-write.js` |
+| Payment analytics | `src/manager/events/firestore/payments-webhooks/analytics.js` |
+| Transition detection | `src/manager/events/firestore/payments-webhooks/transitions/index.js` |
+| Payment processor libraries | `src/manager/libraries/payment-processors/` |
+| Stripe library | `src/manager/libraries/payment-processors/stripe.js` |
+| Price ID resolver | `src/manager/libraries/payment-processors/resolve-price-id.js` |
+| Order ID generator | `src/manager/libraries/payment-processors/order-id.js` |
+| Test accounts | `src/test/test-accounts.js` |
 
 ## Environment Detection
 

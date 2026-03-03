@@ -23,11 +23,18 @@ BEM
   * Teach it how to mock requests and use test user's SECRET API KEYS to authenticate requests
   * BEM should create a few test accounts: basic, then one for each plan level
 
+TODO
+Update deps!!!! theres lots
+* we culd have a test that TRIES EACH IMPORT ?? incase updating it fails due to ESM VULLSHIT?
+
 
 ADD HEALTHCHECK TO BEM!!!
   ✗ https://api.clockii.com/backend-manager?command=healthcheck → fetch failed
 
 TODO
+PAYMENT
+https://hookdeck.com/webhooks/platforms/guide-to-paypal-webhooks-features-and-best-practices
+
 
 # TEST REWRRK
 btw... the account.json needs to be removed. remove it from BEM and the consumong project. when we make our test system, we DO NOT NEED TO STORE THE ACCOUBT IN A JSON file. we just need a source of truth in BEM for what uid/emails to look for

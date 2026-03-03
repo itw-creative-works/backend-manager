@@ -733,7 +733,7 @@ npx backend-manager <command>
 | `bem serve` | Start local Firebase emulator |
 | `bem deploy` | Deploy functions to Firebase |
 | `bem test [paths...]` | Run integration tests |
-| `bem emulators` | Start Firebase emulators (keep-alive mode) |
+| `bem emulator` | Start Firebase emulator (keep-alive mode) |
 | `bem stripe` | Start Stripe CLI webhook forwarding to local server |
 | `bem version`, `bem v` | Show BEM version |
 | `bem clear` | Clear cache and temp files |
@@ -741,6 +741,16 @@ npx backend-manager <command>
 | `bem clean:npm` | Clean and reinstall npm modules |
 | `bem firestore:indexes:get` | Get Firestore indexes |
 | `bem cwd` | Show current working directory |
+| `bem firestore:get <path>` | Read a Firestore document |
+| `bem firestore:set <path> '<json>'` | Write/merge a Firestore document |
+| `bem firestore:query <collection>` | Query a Firestore collection |
+| `bem firestore:delete <path>` | Delete a Firestore document |
+| `bem auth:get <uid-or-email>` | Get an Auth user by UID or email |
+| `bem auth:list` | List Auth users |
+| `bem auth:delete <uid-or-email>` | Delete an Auth user |
+| `bem auth:set-claims <uid-or-email> '<json>'` | Set custom claims on an Auth user |
+
+All Firestore and Auth commands support `--emulator` to target the local emulator, `--force` to skip confirmation, and `--raw` for compact JSON output.
 
 ## Environment Variables
 
@@ -749,7 +759,7 @@ Set these in your `functions/.env` file:
 | Variable | Description |
 |----------|-------------|
 | `BACKEND_MANAGER_KEY` | Admin authentication key |
-| `STRIPE_SECRET_KEY` | Stripe secret key (enables auto webhook forwarding in `serve`/`emulators`) |
+| `STRIPE_SECRET_KEY` | Stripe secret key (enables auto webhook forwarding in `serve`/`emulator`) |
 
 ## Response Headers
 
@@ -761,16 +771,16 @@ bm-properties: {"code":200,"tag":"functionName/executionId","usage":{...},"schem
 
 ## Testing
 
-BEM includes an integration test framework that runs against Firebase emulators.
+BEM includes an integration test framework that runs against the Firebase emulator.
 
 ### Running Tests
 
 ```bash
 # Option 1: Two terminals (recommended for development)
-npx bm emulators  # Terminal 1 - keeps emulators running
-npx bm test       # Terminal 2 - runs tests
+npx bm emulator  # Terminal 1 - keeps emulator running
+npx bm test      # Terminal 2 - runs tests
 
-# Option 2: Single command (auto-starts emulators, shuts down after)
+# Option 2: Single command (auto-starts emulator, shuts down after)
 npx bm test
 ```
 
@@ -886,7 +896,7 @@ BEM includes a built-in payment/subscription system with Stripe integration (ext
 
 ### Unified Subscription Object
 
-The same subscription shape is stored in `users/{uid}.subscription` and `payments-subscriptions/{subId}.subscription`:
+The same subscription shape is stored in `users/{uid}.subscription` and `payments-orders/{orderId}.subscription`:
 
 ```javascript
 subscription: {

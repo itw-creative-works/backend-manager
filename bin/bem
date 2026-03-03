@@ -1,6 +1,0 @@
-#!/usr/bin/env node
-let Main = new (require('../src/cli/index.js'))(process.argv);
-(async function() {
-  'use strict';
-  await Main.process(process.argv);
-}());

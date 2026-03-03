@@ -33,7 +33,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Payment schemas for webhook and intent validation.
 - `payment.processors` config section for Stripe, PayPal, Chargebee, and Coinbase configuration.
 - `npx bm stripe` CLI command for standalone Stripe webhook forwarding.
-- Auto-start Stripe CLI webhook forwarding with `npx bm emulators` (gracefully skips when prerequisites are missing).
+- Auto-start Stripe CLI webhook forwarding with `npx bm emulator` (gracefully skips when prerequisites are missing).
 - `Manager.version` property exposing the BEM package version.
 - Journey test accounts for payment lifecycle testing (upgrade, cancel, suspend, trial).
 - Stripe fixture data for subscription states (active, trialing, canceled).
@@ -57,7 +57,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Firestore security rules testing support.
 - HTTP client with auth helpers (`http.as('admin').command()`).
 - Rich assertion library (`isSuccess`, `isError`, `hasProperty`, etc.).
-- New `bm emulators` command for standalone emulator management.
+- New `bm emulator` command for standalone emulator management.
 - Enhanced `bm test` with path filtering and parallel test support.
 
 ### Changed
