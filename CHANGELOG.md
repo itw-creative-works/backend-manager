@@ -14,6 +14,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.104] - 2026-03-02
+### Added
+- `POST /payments/cancel`: cancels subscription at period end via processor abstraction (Stripe sets `cancel_at_period_end=true`; test processor writes webhook directly into the Firestore pipeline).
+- `POST /payments/portal`: creates Stripe Billing Portal session with cancellation disabled (users must use the cancel endpoint).
+- Payment transition pipeline: `transitions/index.js` detects all subscription state changes (new-subscription, payment-failed, payment-recovered, cancellation-requested, subscription-cancelled, plan-changed) and one-time transitions (purchase-completed, purchase-failed). Handlers fire-and-forget, send transactional emails.
+- Payment analytics: `analytics.js` tracks GA4 payment events for all transitions (non-blocking, skipped in tests).
+- Shared payment processor libraries: `payment-processors/stripe.js` (toUnifiedSubscription, toUnifiedOneTime, resolveCustomer, fetchResource), `payment-processors/test.js`, `payment-processors/order-id.js`, `payment-processors/resolve-price-id.js`.
+- `Email` library (`libraries/email.js`): shared transactional email via SendGrid, used by transition handlers and admin routes.
+- `infer-contact.js` library: infers user name from payment processor data, auto-fills on first purchase.
+- `routes/user/data-request/` (get/post/delete): GDPR data request endpoints.
+- `cron/daily/data-requests.js`: daily cron to process pending GDPR data requests.
+- CLI commands: `auth` (get/list/delete/set-claims), `firestore` (get/set/query/delete), `firebase-init`, `emulator` (renamed from `emulators`).
+- `setup-tests/firestore-indexes-required.js`: validates required Firestore indexes exist before tests run.
+- Comprehensive payment test suite: journey tests for one-time purchase, one-time failure, payment failure, plan change, cancel endpoint; route validation tests for cancel and portal; unit tests for `toUnifiedOneTime()`, `stripe-parse-webhook`, `infer-contact`, `email`; real Stripe CLI fixtures.
+- Dedicated isolated test accounts for every mutating payment test (no shared state between tests).
+
+### Changed
+- `admin/email/post.js`, `general/email/post.js`: refactored to delegate to shared Email library (~400 lines removed from each).
+- `marketing/contact/post.js`, `api/general/add-marketing-contact.js`: delegate to infer-contact + marketing library.
+- `user/signup/post.js`: rewritten with new middleware pattern.
+- `auth/on-create.js`: simplified, inline logic moved to middleware.
+- `api/admin/send-email.js`: removed `ensureUnique` and SendGrid contact name lookup (handled by Email library).
+- All admin routes: middleware pattern cleanup.
+- `config.payment.products` now supports `type: 'one-time'` products with `prices.once` key.
+- Test runner: improved discovery, filtering, and output formatting.
+
+### Removed
+- `src/manager/libraries/stripe.js`, `src/manager/libraries/test.js`: replaced by `payment-processors/` shared libs.
+- `REFACTOR-BEM-API.md`, `REFACTOR-MIDDLEWARE.md`, `REFACTOR-PAYMENT.md`: work completed, files deleted.
+- `bin/bem`: replaced by `bin/backend-manager`.
+
 # [5.0.84] - 2026-02-19
 ### BREAKING
 - Moved `config.products` to `config.payment.products`. All product lookups now use `config.payment.products`.
