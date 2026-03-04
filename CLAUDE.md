@@ -59,11 +59,12 @@ src/
       utilities.js                    # Batch operations
       metadata.js                     # Timestamps/tags
     libraries/
-      payment-processors/             # Shared payment processor utilities
-        stripe.js                     # Stripe SDK init, fetchResource, toUnified*
-        test.js                       # Test processor (delegates to Stripe shapes)
+      payment/                        # Shared payment utilities
         order-id.js                   # Order ID generation (XXXX-XXXX-XXXX)
-        resolve-price-id.js           # Shared price ID resolver from config
+        processors/                   # Payment processor libraries
+          stripe.js                   # Stripe SDK init, fetchResource, toUnified*, resolvePriceId
+          paypal.js                   # PayPal fetchResource, toUnified* (custom_id parsing)
+          test.js                     # Test processor (delegates to Stripe shapes)
     functions/core/                   # Built-in functions
       actions/
         api.js                        # Main bm_api handler
@@ -88,12 +89,28 @@ src/
           post.js                     # Intent creation orchestrator
           processors/                 # Per-processor intent creators
             stripe.js                 # Stripe Checkout Session creation
+            paypal.js                 # PayPal subscription creation
             test.js                   # Test processor (auto-fires webhooks)
         webhook/                      # POST /payments/webhook
           post.js                     # Webhook ingestion + Firestore write
           processors/                 # Per-processor webhook parsers
             stripe.js                 # Stripe event parsing + categorization
+            paypal.js                 # PayPal event parsing + categorization
             test.js                   # Test processor (delegates to Stripe)
+        cancel/                       # POST /payments/cancel
+          processors/
+            stripe.js                 # Stripe cancel_at_period_end
+            paypal.js                 # PayPal subscription cancel
+            test.js                   # Test cancel (writes webhook doc)
+        refund/                       # POST /payments/refund
+          processors/
+            stripe.js                 # Stripe refund + immediate cancel
+            paypal.js                 # PayPal refund + cancel
+            test.js                   # Test refund (writes webhook doc)
+        portal/                       # POST /payments/portal
+          processors/
+            stripe.js                 # Stripe billing portal URL
+            paypal.js                 # PayPal management URL
     schemas/                          # Built-in schemas
   cli/
     index.js                          # CLI entry point
@@ -781,9 +798,24 @@ The payment system follows a linear pipeline: **Intent → Webhook → On-Write 
 
 4. **Transitions** (fire-and-forget): Handler files run asynchronously after detection. Failures never block webhook processing. Skipped during tests unless `TEST_EXTENDED_MODE` is set.
 
+### 3-Layer Architecture
+
+The payment system is cleanly separated into three independent layers:
+
+| Layer | Purpose | Tests |
+|-------|---------|-------|
+| **Processor input** (Stripe, PayPal, Test) | Parse raw webhooks + transform to unified shape | Helper tests per processor (`stripe-to-unified.js`, `paypal-to-unified.js`, etc.) |
+| **Unified pipeline** (processor-agnostic) | Transition detection, Firestore writes, analytics | Journey tests (`journey-payments-*.js`) |
+| **Transition handlers** (fire-and-forget) | Emails, notifications, side effects | Skipped during tests unless `TEST_EXTENDED_MODE` |
+
+Each processor transforms its raw data into the **same unified shape**. Once data enters the pipeline, the code doesn't know or care which processor it came from. This means:
+- Adding a new processor = implement the processor interface (below). The pipeline handles the rest.
+- Journey tests use the `test` processor but exercise the full unified pipeline end-to-end.
+- Processor-specific tests only need to verify correct transformation to the unified shape.
+
 ### Processor Interface
 
-Each processor implements two modules:
+Each processor implements three modules:
 
 **Intent processor** (`routes/payments/intent/processors/{processor}.js`):
 ```javascript
@@ -802,7 +834,32 @@ module.exports = {
 };
 ```
 
-**Shared library** (`libraries/payment-processors/{processor}.js`):
+**Cancel processor** (`routes/payments/cancel/processors/{processor}.js`):
+```javascript
+module.exports = {
+  async cancelAtPeriodEnd({ resourceId, uid, subscription, assistant }) { /* cancel at end of period */ },
+};
+```
+
+**Refund processor** (`routes/payments/refund/processors/{processor}.js`):
+```javascript
+module.exports = {
+  async processRefund({ resourceId, uid, subscription, assistant }) {
+    return { amount, currency, full };
+  },
+};
+```
+
+**Portal processor** (`routes/payments/portal/processors/{processor}.js`):
+```javascript
+module.exports = {
+  async createPortalSession({ resourceId, uid, returnUrl, assistant }) {
+    return { url };
+  },
+};
+```
+
+**Shared library** (`libraries/payment/processors/{processor}.js`):
 ```javascript
 module.exports = {
   init() { /* return SDK instance */ },
@@ -812,15 +869,37 @@ module.exports = {
 };
 ```
 
+### Product Resolution
+
+Products are resolved differently per processor, but always end up matching a product in `config.payment.products`:
+
+| Processor | Resolution chain | Stable ID |
+|-----------|-----------------|-----------|
+| **Stripe** | `sub.items.data[0].price.product` or `raw.plan.product` → match `product.stripe.productId` or `legacyProductIds` | `prod_xxx` |
+| **PayPal** | `sub → plan_id → plan → product_id` → match `product.paypal.productId` | PayPal catalog product ID |
+| **Test** | Uses `product.stripe.productId` in Stripe-shaped data | Same as Stripe |
+
+Falls back to `{ id: 'basic' }` if no match found.
+
+### Processor-Specific Details
+
+**Stripe:** Uses `metadata.uid` and `metadata.orderId` on subscriptions for UID/order resolution.
+
+**PayPal:** Uses `custom_id` field on subscriptions with format `uid:{uid},orderId:{orderId}`. Product resolution fetches the plan from the subscription, then gets `product_id` from the plan. Plans are scoped by `product_id` query param to avoid cross-brand matches on shared PayPal accounts.
+
 ### Product Configuration
 
 Products are defined in `backend-manager-config.json` under `payment.products`:
 
 ```javascript
 payment: {
+  processors: {
+    stripe: { publishableKey: 'pk_live_...' },
+    paypal: { clientId: 'ARvf...' },
+  },
   products: [
     {
-      id: 'basic',           // Free tier (no prices)
+      id: 'basic',           // Free tier (no prices, no processor keys)
       name: 'Basic',
       type: 'subscription',
       limits: { requests: 100 },
@@ -830,30 +909,31 @@ payment: {
       name: 'Premium',
       type: 'subscription',
       limits: { requests: 1000 },
-      trial: { days: 14 },   // Optional trial period
-      prices: {
-        monthly:  { amount: 4.99,  stripe: 'price_xxx', paypal: null },
-        annually: { amount: 49.99, stripe: 'price_yyy', paypal: null },
-      },
+      trial: { days: 14 },
+      prices: { monthly: 4.99, annually: 49.99 },       // Flat numbers only
+      stripe: { productId: 'prod_xxx', legacyProductIds: ['prod_OLD'] },
+      paypal: { productId: 'PROD-abc123' },
     },
     {
       id: 'credits-100',     // One-time purchase
       name: '100 Credits',
       type: 'one-time',
-      prices: {
-        once: { amount: 9.99, stripe: 'price_zzz' },
-      },
+      prices: { once: 9.99 },
+      stripe: { productId: 'prod_yyy' },
+      paypal: { productId: null },
     },
   ],
 }
 ```
 
 Key rules:
-- `type` is `'subscription'` (default) or `'one-time'`
-- Subscription prices are keyed by frequency: `monthly`, `annually`
-- One-time prices are keyed as `once`
-- Each price object has processor-specific IDs (`stripe`, `paypal`, etc.)
-- `basic` product has no `prices` — it's the free tier
+- `prices` contains **flat numbers only** — no processor-specific IDs
+- Processor IDs live at the product level: `stripe: { productId }`, `paypal: { productId }`
+- `stripe.productId` is stable — never changes even when prices change
+- `stripe.legacyProductIds` maps old pre-migration Stripe products to this product
+- Price IDs (Stripe `price_xxx`, PayPal plan IDs) are **resolved at runtime** by matching amount + interval against active prices on the processor's product
+- `basic` product has no `prices` and no processor keys — it's the free tier
+- `archived: true` stops offering a product to new subscribers while keeping it resolvable for existing ones
 
 ### Firestore Collections
 
@@ -909,10 +989,10 @@ The `test` processor generates Stripe-shaped data and auto-fires webhooks to the
 | Webhook processing (on-write) | `src/manager/events/firestore/payments-webhooks/on-write.js` |
 | Payment analytics | `src/manager/events/firestore/payments-webhooks/analytics.js` |
 | Transition detection | `src/manager/events/firestore/payments-webhooks/transitions/index.js` |
-| Payment processor libraries | `src/manager/libraries/payment-processors/` |
-| Stripe library | `src/manager/libraries/payment-processors/stripe.js` |
-| Price ID resolver | `src/manager/libraries/payment-processors/resolve-price-id.js` |
-| Order ID generator | `src/manager/libraries/payment-processors/order-id.js` |
+| Payment processor libraries | `src/manager/libraries/payment/processors/` |
+| Stripe library | `src/manager/libraries/payment/processors/stripe.js` |
+| PayPal library | `src/manager/libraries/payment/processors/paypal.js` |
+| Order ID generator | `src/manager/libraries/payment/order-id.js` |
 | Test accounts | `src/test/test-accounts.js` |
 
 ## Environment Detection

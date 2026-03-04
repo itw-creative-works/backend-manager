@@ -20,7 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `POST /payments/portal`: creates Stripe Billing Portal session with cancellation disabled (users must use the cancel endpoint).
 - Payment transition pipeline: `transitions/index.js` detects all subscription state changes (new-subscription, payment-failed, payment-recovered, cancellation-requested, subscription-cancelled, plan-changed) and one-time transitions (purchase-completed, purchase-failed). Handlers fire-and-forget, send transactional emails.
 - Payment analytics: `analytics.js` tracks GA4 payment events for all transitions (non-blocking, skipped in tests).
-- Shared payment processor libraries: `payment-processors/stripe.js` (toUnifiedSubscription, toUnifiedOneTime, resolveCustomer, fetchResource), `payment-processors/test.js`, `payment-processors/order-id.js`, `payment-processors/resolve-price-id.js`.
+- Shared payment processor libraries: `payment/processors/stripe.js` (toUnifiedSubscription, toUnifiedOneTime, resolveCustomer, resolvePriceId, fetchResource), `payment/processors/paypal.js`, `payment/processors/test.js`, `payment/order-id.js`.
 - `Email` library (`libraries/email.js`): shared transactional email via SendGrid, used by transition handlers and admin routes.
 - `infer-contact.js` library: infers user name from payment processor data, auto-fills on first purchase.
 - `routes/user/data-request/` (get/post/delete): GDPR data request endpoints.
@@ -41,7 +41,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Test runner: improved discovery, filtering, and output formatting.
 
 ### Removed
-- `src/manager/libraries/stripe.js`, `src/manager/libraries/test.js`: replaced by `payment-processors/` shared libs.
+- `src/manager/libraries/stripe.js`, `src/manager/libraries/test.js`: replaced by `payment/processors/` shared libs.
 - `REFACTOR-BEM-API.md`, `REFACTOR-MIDDLEWARE.md`, `REFACTOR-PAYMENT.md`: work completed, files deleted.
 - `bin/bem`: replaced by `bin/backend-manager`.
 
