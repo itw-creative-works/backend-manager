@@ -1,0 +1,65 @@
+{
+  "status": "SUSPENDED",
+  "id": "I-MTPRX0B9LV4R",
+  "plan_id": "P-4BS10577GL664413KNGUAJ5Q",
+  "start_time": "2026-03-04T10:09:59Z",
+  "quantity": "1",
+  "create_time": "2026-03-04T10:09:59Z",
+  "update_time": "2026-03-20T14:00:00Z",
+  "custom_id": "uid:test-user-789,orderId:ord-sub-123",
+  "plan_overridden": false,
+  "subscriber": {
+    "email_address": "sb-buyer@personal.example.com",
+    "payer_id": "BUYERPAYERID123",
+    "name": {
+      "given_name": "Test",
+      "surname": "Buyer"
+    }
+  },
+  "billing_info": {
+    "outstanding_balance": {
+      "currency_code": "USD",
+      "value": "15.0"
+    },
+    "cycle_executions": [
+      {
+        "tenure_type": "REGULAR",
+        "sequence": 1,
+        "cycles_completed": 1,
+        "cycles_remaining": 0,
+        "current_pricing_scheme_version": 1,
+        "total_cycles": 0
+      }
+    ],
+    "last_payment": {
+      "amount": {
+        "currency_code": "USD",
+        "value": "15.0"
+      },
+      "time": "2026-03-04T10:12:00Z"
+    },
+    "failed_payments_count": 3
+  },
+  "links": [
+    {
+      "href": "https://api.sandbox.paypal.com/v1/billing/subscriptions/I-MTPRX0B9LV4R",
+      "rel": "edit",
+      "method": "PATCH"
+    },
+    {
+      "href": "https://api.sandbox.paypal.com/v1/billing/subscriptions/I-MTPRX0B9LV4R",
+      "rel": "self",
+      "method": "GET"
+    },
+    {
+      "href": "https://api.sandbox.paypal.com/v1/billing/subscriptions/I-MTPRX0B9LV4R/activate",
+      "rel": "activate",
+      "method": "POST"
+    },
+    {
+      "href": "https://api.sandbox.paypal.com/v1/billing/subscriptions/I-MTPRX0B9LV4R/cancel",
+      "rel": "cancel",
+      "method": "POST"
+    }
+  ]
+}

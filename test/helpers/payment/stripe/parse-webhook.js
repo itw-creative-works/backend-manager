@@ -5,14 +5,14 @@
  * Verifies that parseWebhook() correctly determines category, resourceType, resourceId,
  * and uid for each supported event type. Uses real Stripe CLI fixtures where available.
  */
-const stripeProcessor = require('../../src/manager/routes/payments/webhook/processors/stripe.js');
+const stripeProcessor = require('../../../../src/manager/routes/payments/webhook/processors/stripe.js');
 
 // Real Stripe CLI fixtures
-const FIXTURE_INVOICE_MANUAL = require('../fixtures/stripe/invoice-payment-failed.json');
-const FIXTURE_CHECKOUT_PAYMENT = require('../fixtures/stripe/checkout-session-completed.json');
+const FIXTURE_INVOICE_MANUAL = require('../../../fixtures/stripe/invoice-payment-failed.json');
+const FIXTURE_CHECKOUT_PAYMENT = require('../../../fixtures/stripe/checkout-session-completed.json');
 
 // Hand-crafted fixture (subscription-related invoice failure)
-const FIXTURE_INVOICE_SUB = require('../fixtures/stripe/invoice-subscription-payment-failed.json');
+const FIXTURE_INVOICE_SUB = require('../../../fixtures/stripe/invoice-subscription-payment-failed.json');
 
 function parseWebhook(event) {
   return stripeProcessor.parseWebhook({ body: event });

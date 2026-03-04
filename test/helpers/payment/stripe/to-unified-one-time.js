@@ -4,24 +4,26 @@
  *
  * Tests the pure function directly — no emulator, no Firestore, no HTTP
  */
-const Stripe = require('../../src/manager/libraries/payment-processors/stripe.js');
+const Stripe = require('../../../../src/manager/libraries/payment/processors/stripe.js');
 
 // Real Stripe CLI fixtures (generated via `stripe trigger`)
-const FIXTURE_SESSION = require('../fixtures/stripe/checkout-session-completed.json');
-const FIXTURE_INVOICE_FAILED = require('../fixtures/stripe/invoice-payment-failed.json');
+const FIXTURE_SESSION = require('../../../fixtures/stripe/checkout-session-completed.json');
+const FIXTURE_INVOICE_FAILED = require('../../../fixtures/stripe/invoice-payment-failed.json');
 
-// Mock config matching the BEM template
+// Mock config matching the BEM template (new flat price structure)
 const MOCK_CONFIG = {
   payment: {
     products: [
       { id: 'basic', name: 'Basic', type: 'subscription', limits: { requests: 100 } },
       {
         id: 'credits-100', name: '100 Credits', type: 'one-time',
-        prices: { once: { amount: 9.99, stripe: 'price_credits_100' } },
+        prices: { once: 9.99 },
+        stripe: { productId: 'prod_credits_100' },
       },
       {
         id: 'credits-500', name: '500 Credits', type: 'one-time',
-        prices: { once: { amount: 39.99, stripe: 'price_credits_500' } },
+        prices: { once: 39.99 },
+        stripe: { productId: 'prod_credits_500' },
       },
     ],
   },

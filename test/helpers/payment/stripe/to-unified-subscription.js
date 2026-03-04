@@ -4,31 +4,27 @@
  *
  * Tests the pure function directly — no emulator, no Firestore, no HTTP
  */
-const Stripe = require('../../src/manager/libraries/payment-processors/stripe.js');
+const Stripe = require('../../../../src/manager/libraries/payment/processors/stripe.js');
 
 // Real Stripe CLI fixtures (generated via `stripe trigger`)
-const FIXTURE_ACTIVE = require('../fixtures/stripe/subscription-active.json');
-const FIXTURE_CANCELED = require('../fixtures/stripe/subscription-canceled.json');
-const FIXTURE_TRIALING = require('../fixtures/stripe/subscription-trialing.json');
+const FIXTURE_ACTIVE = require('../../../fixtures/stripe/subscription-active.json');
+const FIXTURE_CANCELED = require('../../../fixtures/stripe/subscription-canceled.json');
+const FIXTURE_TRIALING = require('../../../fixtures/stripe/subscription-trialing.json');
 
-// Mock config matching the BEM template
+// Mock config matching the BEM template (new flat price structure)
 const MOCK_CONFIG = {
   payment: {
     products: [
       { id: 'basic', name: 'Basic', type: 'subscription', limits: { requests: 100 } },
       {
         id: 'plus', name: 'Plus', type: 'subscription',
-        prices: {
-          monthly: { amount: 9.99, stripe: 'price_plus_monthly' },
-          annually: { amount: 99.99, stripe: 'price_plus_annually' },
-        },
+        prices: { monthly: 9.99, annually: 99.99 },
+        stripe: { productId: 'prod_plus' },
       },
       {
         id: 'pro', name: 'Pro', type: 'subscription',
-        prices: {
-          monthly: { amount: 29.99, stripe: 'price_pro_monthly' },
-          annually: { amount: 299.99, stripe: 'price_pro_annually' },
-        },
+        prices: { monthly: 29.99, annually: 299.99 },
+        stripe: { productId: 'prod_pro', legacyProductIds: ['prod_pro_old'] },
       },
     ],
   },
@@ -112,18 +108,18 @@ module.exports = {
     // ─── Product resolution ───
 
     {
-      name: 'product-resolves-monthly-price',
+      name: 'product-resolves-from-plan-product',
       async run({ assert }) {
-        const result = toUnifiedSubscription({ plan: { id: 'price_plus_monthly' } });
+        const result = toUnifiedSubscription({ plan: { product: 'prod_plus' } });
         assert.equal(result.product.id, 'plus', 'Should resolve to plus');
         assert.equal(result.product.name, 'Plus', 'Should have correct name');
       },
     },
 
     {
-      name: 'product-resolves-annual-price',
+      name: 'product-resolves-pro-from-plan-product',
       async run({ assert }) {
-        const result = toUnifiedSubscription({ plan: { id: 'price_pro_annually' } });
+        const result = toUnifiedSubscription({ plan: { product: 'prod_pro' } });
         assert.equal(result.product.id, 'pro', 'Should resolve to pro');
         assert.equal(result.product.name, 'Pro', 'Should have correct name');
       },
@@ -133,18 +129,29 @@ module.exports = {
       name: 'product-resolves-from-items-array',
       async run({ assert }) {
         const result = toUnifiedSubscription({
-          items: { data: [{ price: { id: 'price_plus_monthly' } }] },
+          items: { data: [{ price: { product: 'prod_plus' } }] },
         });
-        assert.equal(result.product.id, 'plus', 'Should resolve from items.data[0].price.id');
+        assert.equal(result.product.id, 'plus', 'Should resolve from items.data[0].price.product');
       },
     },
 
     {
-      name: 'product-falls-back-to-basic-on-unknown-price',
+      name: 'product-resolves-legacy-product-id',
       async run({ assert }) {
-        const result = toUnifiedSubscription({ plan: { id: 'price_nonexistent' } });
-        assert.equal(result.product.id, 'basic', 'Unknown price → basic');
-        assert.equal(result.product.name, 'Basic', 'Unknown price → Basic name');
+        const result = toUnifiedSubscription({
+          items: { data: [{ price: { product: 'prod_pro_old' } }] },
+        });
+        assert.equal(result.product.id, 'pro', 'Legacy product ID → pro');
+        assert.equal(result.product.name, 'Pro', 'Legacy product ID → Pro name');
+      },
+    },
+
+    {
+      name: 'product-falls-back-to-basic-on-unknown-product',
+      async run({ assert }) {
+        const result = toUnifiedSubscription({ plan: { product: 'prod_nonexistent' } });
+        assert.equal(result.product.id, 'basic', 'Unknown product → basic');
+        assert.equal(result.product.name, 'Basic', 'Unknown product → Basic name');
       },
     },
 
@@ -159,7 +166,7 @@ module.exports = {
     {
       name: 'product-falls-back-to-basic-without-config',
       async run({ assert }) {
-        const result = Stripe.toUnifiedSubscription({ plan: { id: 'price_plus_monthly' } }, {});
+        const result = Stripe.toUnifiedSubscription({ plan: { product: 'prod_plus' } }, {});
         assert.equal(result.product.id, 'basic', 'No config → basic');
       },
     },
@@ -408,7 +415,7 @@ module.exports = {
         const result = toUnifiedSubscription({
           id: 'sub_full_test',
           status: 'active',
-          plan: { id: 'price_pro_monthly', interval: 'month' },
+          plan: { product: 'prod_pro', interval: 'month' },
           current_period_end: now + 86400 * 30,
           current_period_start: now,
           start_date: now - 86400 * 60,
@@ -488,9 +495,9 @@ module.exports = {
     {
       name: 'fixture-active-product-falls-back',
       async run({ assert }) {
-        // Fixture price IDs won't match our mock config, so it should fall back to basic
+        // Fixture product IDs won't match our mock config, so it should fall back to basic
         const result = toUnifiedSubscription(FIXTURE_ACTIVE);
-        assert.equal(result.product.id, 'basic', 'Unknown price → basic fallback');
+        assert.equal(result.product.id, 'basic', 'Unknown product → basic fallback');
       },
     },
 
@@ -576,7 +583,7 @@ module.exports = {
           canceled_at: null,
           current_period_end: now + 86400 * 11,
           start_date: now - 86400 * 3,
-          plan: { id: 'price_plus_monthly', interval: 'month' },
+          plan: { product: 'prod_plus', interval: 'month' },
         });
 
         assert.equal(result.status, 'active', 'Trialing + cancel → still active');
@@ -599,7 +606,7 @@ module.exports = {
           canceled_at: now,
           current_period_end: now - 86400,
           start_date: now - 86400 * 14,
-          plan: { id: 'price_plus_monthly', interval: 'month' },
+          plan: { product: 'prod_plus', interval: 'month' },
         });
 
         assert.equal(result.status, 'cancelled', 'Failed trial → cancelled');
@@ -622,7 +629,7 @@ module.exports = {
           canceled_at: null,
           current_period_end: now + 86400 * 14,
           start_date: now - 86400 * 30,
-          plan: { id: 'price_pro_monthly', interval: 'month' },
+          plan: { product: 'prod_pro', interval: 'month' },
         });
 
         assert.equal(result.status, 'active', 'Active with past trial → active');
@@ -646,7 +653,7 @@ module.exports = {
           start_date: now - 86400 * 40,
           trial_start: null,
           trial_end: null,
-          plan: { id: 'price_pro_monthly', interval: 'month' },
+          plan: { product: 'prod_pro', interval: 'month' },
         });
 
         assert.equal(result.status, 'active', 'Reactivated → active');
@@ -668,7 +675,7 @@ module.exports = {
           start_date: now - 86400 * 60,
           trial_start: null,
           trial_end: null,
-          plan: { id: 'price_plus_monthly', interval: 'month' },
+          plan: { product: 'prod_plus', interval: 'month' },
         });
 
         assert.equal(result.status, 'suspended', 'Past due → suspended');
@@ -689,7 +696,7 @@ module.exports = {
           canceled_at: null,
           current_period_end: now + 86400,
           start_date: now - 86400 * 14,
-          plan: { id: 'price_plus_monthly', interval: 'month' },
+          plan: { product: 'prod_plus', interval: 'month' },
         });
 
         assert.equal(result.status, 'suspended', 'Trial ended + payment failed → suspended');
