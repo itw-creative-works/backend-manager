@@ -793,6 +793,14 @@ npx bm test project:rules/     # Only project's rules tests
 npx bm test user/ admin/       # Multiple paths
 ```
 
+### Log Files
+
+Both `npx bm emulator` and `npx bm test` automatically save all output to log files in the project directory:
+- **`emulator.log`** — Full emulator + Cloud Functions output
+- **`test.log`** — Test runner output (when running against an existing emulator)
+
+Logs are overwritten on each run. Use them to debug failing tests or review function output.
+
 ### Test Locations
 
 - **BEM core tests:** `test/`

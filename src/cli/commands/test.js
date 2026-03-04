@@ -1,5 +1,6 @@
 const BaseCommand = require('./base-command');
 const path = require('path');
+const fs = require('fs');
 const chalk = require('chalk');
 const jetpack = require('fs-jetpack');
 const JSON5 = require('json5');
@@ -176,15 +177,43 @@ class TestCommand extends BaseCommand {
    * Run tests directly (emulator already running)
    */
   async runTestsDirectly(testCommand, functionsDir, emulatorPorts) {
+    const projectDir = this.main.firebaseProjectPath;
+
     this.log(chalk.gray(`  Hosting: http://127.0.0.1:${emulatorPorts.hosting}`));
     this.log(chalk.gray(`  Firestore: 127.0.0.1:${emulatorPorts.firestore}`));
     this.log(chalk.gray(`  Auth: 127.0.0.1:${emulatorPorts.auth}`));
-    this.log(chalk.gray(`  UI: http://127.0.0.1:${emulatorPorts.ui}\n`));
+    this.log(chalk.gray(`  UI: http://127.0.0.1:${emulatorPorts.ui}`));
+
+    // Set up log file in the project directory
+    const logPath = path.join(projectDir, 'test.log');
+    const logStream = fs.createWriteStream(logPath, { flags: 'w' });
+
+    this.log(chalk.gray(`  Logs saving to: ${logPath}\n`));
 
     try {
       await powertools.execute(testCommand, {
-        log: true,
+        log: false,
         cwd: functionsDir,
+        config: {
+          stdio: ['inherit', 'pipe', 'pipe'],
+        },
+      }, (child) => {
+        // Tee stdout to both console and log file
+        child.stdout.on('data', (data) => {
+          process.stdout.write(data);
+          logStream.write(data);
+        });
+
+        // Tee stderr to both console and log file
+        child.stderr.on('data', (data) => {
+          process.stderr.write(data);
+          logStream.write(data);
+        });
+
+        // Clean up log stream when child exits
+        child.on('close', () => {
+          logStream.end();
+        });
       });
     } catch (error) {
       process.exit(1);

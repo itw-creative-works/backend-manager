@@ -1,5 +1,6 @@
 const BaseCommand = require('./base-command');
 const path = require('path');
+const fs = require('fs');
 const chalk = require('chalk');
 const jetpack = require('fs-jetpack');
 const JSON5 = require('json5');
@@ -60,9 +61,35 @@ class EmulatorCommand extends BaseCommand {
     // Use double quotes for command wrapper since the command may contain single quotes (JSON strings)
     const emulatorCommand = `BEM_TESTING=true firebase emulators:exec --only functions,firestore,auth,database,hosting,pubsub --ui "${command}"`;
 
+    // Set up log file in the project directory
+    const logPath = path.join(projectDir, 'emulator.log');
+    const logStream = fs.createWriteStream(logPath, { flags: 'w' });
+
+    this.log(chalk.gray(`  Logs saving to: ${logPath}\n`));
+
     await powertools.execute(emulatorCommand, {
-      log: true,
+      log: false,
       cwd: projectDir,
+      config: {
+        stdio: ['inherit', 'pipe', 'pipe'],
+      },
+    }, (child) => {
+      // Tee stdout to both console and log file
+      child.stdout.on('data', (data) => {
+        process.stdout.write(data);
+        logStream.write(data);
+      });
+
+      // Tee stderr to both console and log file
+      child.stderr.on('data', (data) => {
+        process.stderr.write(data);
+        logStream.write(data);
+      });
+
+      // Clean up log stream when child exits
+      child.on('close', () => {
+        logStream.end();
+      });
     });
   }
 

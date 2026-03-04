@@ -421,6 +421,15 @@ npx bm test      # Terminal 2 - runs tests
 npx bm test
 ```
 
+### Log Files
+Both `npx bm emulator` and `npx bm test` automatically save all output to log files in the project directory while still streaming to the console:
+- **`emulator.log`** — Full emulator output (Firebase emulator + Cloud Functions logs)
+- **`test.log`** — Test runner output (when running against an existing emulator)
+
+When `npx bm test` starts its own emulator, logs go to `emulator.log` (since it delegates to the emulator command). When running against an already-running emulator, logs go to `test.log`.
+
+These files are overwritten on each run and are gitignored (`*.log`). Use them to search for errors, debug webhook pipelines, or review full function output after a test run.
+
 ### Filtering Tests
 ```bash
 npx bm test rules/             # Run rules tests (both BEM and project)
