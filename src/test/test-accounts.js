@@ -285,6 +285,52 @@ const JOURNEY_ACCOUNTS = {
       subscription: { product: { id: 'premium', name: 'Premium' }, status: 'active', expires: getFutureExpires(), payment: { processor: 'unknown-processor', resourceId: 'sub_test_fake' } },
     },
   },
+  // Dedicated accounts for refund validation tests
+  'refund-active-no-cancel': {
+    id: 'refund-active-no-cancel',
+    uid: '_test-refund-active-no-cancel',
+    email: '_test.refund-active-no-cancel@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'premium', name: 'Premium' }, status: 'active', expires: getFutureExpires(), cancellation: { pending: false }, payment: { processor: 'test', resourceId: 'sub_test_fake' } },
+    },
+  },
+  'refund-no-processor': {
+    id: 'refund-no-processor',
+    uid: '_test-refund-no-processor',
+    email: '_test.refund-no-processor@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'premium', name: 'Premium' }, status: 'cancelled', expires: getPastExpires(), cancellation: { pending: false }, payment: { processor: null, resourceId: null } },
+    },
+  },
+  'refund-unknown-processor': {
+    id: 'refund-unknown-processor',
+    uid: '_test-refund-unknown-processor',
+    email: '_test.refund-unknown-processor@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'premium', name: 'Premium' }, status: 'cancelled', expires: getPastExpires(), cancellation: { pending: false }, payment: { processor: 'unknown-processor', resourceId: 'sub_test_fake' } },
+    },
+  },
+  'refund-expired-payment': {
+    id: 'refund-expired-payment',
+    uid: '_test-refund-expired-payment',
+    email: '_test.refund-expired-payment@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'premium', name: 'Premium' }, status: 'cancelled', expires: getPastExpires(), cancellation: { pending: false }, payment: { processor: 'test', resourceId: 'sub_test_fake', startDate: getPastExpires() } },
+    },
+  },
+  'route-refund-success': {
+    id: 'route-refund-success',
+    uid: '_test-route-refund-success',
+    email: '_test.route-refund-success@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'basic' }, status: 'active' },
+    },
+  },
 };
 
 /**
