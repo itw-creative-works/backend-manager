@@ -12,7 +12,7 @@ module.exports = {
    * @param {object} options.assistant - Assistant instance for logging
    */
   async cancelAtPeriodEnd({ resourceId, uid, assistant }) {
-    const StripeLib = require('../../../../libraries/payment-processors/stripe.js');
+    const StripeLib = require('../../../../libraries/payment/processors/stripe.js');
     const stripe = StripeLib.init();
 
     await stripe.subscriptions.update(resourceId, { cancel_at_period_end: true });

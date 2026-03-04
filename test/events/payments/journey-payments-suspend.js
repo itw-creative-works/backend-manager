@@ -23,7 +23,7 @@ module.exports = {
         state.uid = uid;
         state.paidProductId = paidProduct.id;
         state.paidProductName = paidProduct.name;
-        state.paidPriceId = paidProduct.prices.monthly.stripe;
+        state.paidStripeProductId = paidProduct.stripe?.productId;
 
         // Create subscription via test intent
         const response = await http.as('journey-payments-suspend').post('payments/intent', {
@@ -70,7 +70,7 @@ module.exports = {
               start_date: Math.floor(Date.now() / 1000) - 86400 * 60,
               trial_start: null,
               trial_end: null,
-              plan: { id: state.paidPriceId, interval: 'month' },
+              plan: { product: state.paidStripeProductId, interval: 'month' },
             },
           },
         });
@@ -121,7 +121,7 @@ module.exports = {
               start_date: Math.floor(Date.now() / 1000) - 86400 * 60,
               trial_start: null,
               trial_end: null,
-              plan: { id: state.paidPriceId, interval: 'month' },
+              plan: { product: state.paidStripeProductId, interval: 'month' },
             },
           },
         });

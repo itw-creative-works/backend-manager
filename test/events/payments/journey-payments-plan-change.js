@@ -24,8 +24,8 @@ module.exports = {
         const productB = paidProducts[1];
 
         state.uid = uid;
-        state.productA = { id: productA.id, name: productA.name, priceId: productA.prices.monthly.stripe };
-        state.productB = { id: productB.id, name: productB.name, priceId: productB.prices.monthly.stripe };
+        state.productA = { id: productA.id, name: productA.name, stripeProductId: productA.stripe?.productId };
+        state.productB = { id: productB.id, name: productB.name, stripeProductId: productB.stripe?.productId };
 
         // Create subscription via test intent (product A)
         const response = await http.as('journey-payments-plan-change').post('payments/intent', {
@@ -58,7 +58,7 @@ module.exports = {
 
         state.eventId = `_test-evt-journey-plan-change-${Date.now()}`;
 
-        // Send subscription.updated with a different product's price ID
+        // Send subscription.updated with a different product's Stripe product ID
         const response = await http.as('none').post(`payments/webhook?processor=test&key=${config.backendManagerKey}`, {
           id: state.eventId,
           type: 'customer.subscription.updated',
@@ -75,7 +75,7 @@ module.exports = {
               start_date: Math.floor(Date.now() / 1000) - 86400 * 30,
               trial_start: null,
               trial_end: null,
-              plan: { id: state.productB.priceId, interval: 'month' },
+              plan: { product: state.productB.stripeProductId, interval: 'month' },
             },
           },
         });

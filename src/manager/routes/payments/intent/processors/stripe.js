@@ -1,5 +1,3 @@
-const resolvePriceId = require('../../../../libraries/payment-processors/resolve-price-id.js');
-
 /**
  * Stripe intent processor
  * Creates Stripe Checkout Sessions for subscription and one-time purchases
@@ -20,13 +18,13 @@ module.exports = {
    */
   async createIntent({ uid, orderId, product, productId, frequency, trial, confirmationUrl, cancelUrl, assistant }) {
     // Initialize Stripe SDK
-    const StripeLib = require('../../../../libraries/payment-processors/stripe.js');
+    const StripeLib = require('../../../../libraries/payment/processors/stripe.js');
     const stripe = StripeLib.init();
 
     const productType = product.type || 'subscription';
 
-    // Resolve the Stripe price ID based on product type
-    const priceId = resolvePriceId(product, productType, frequency);
+    // Resolve the Stripe price ID at runtime (fetches active prices from Stripe product)
+    const priceId = await StripeLib.resolvePriceId(product, productType, frequency);
 
     // Resolve or create Stripe customer (keyed by uid in metadata)
     const email = assistant?.getUser()?.auth?.email || null;

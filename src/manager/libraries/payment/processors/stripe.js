@@ -72,6 +72,16 @@ const Stripe = {
   },
 
   /**
+   * Extract the internal orderId from a Stripe resource
+   *
+   * @param {object} resource - Raw Stripe resource (subscription, session, invoice)
+   * @returns {string|null}
+   */
+  getOrderId(resource) {
+    return resource.metadata?.orderId || null;
+  },
+
+  /**
    * Transform a raw Stripe subscription object into the unified subscription shape
    * This produces the exact same object stored in users/{uid}.subscription
    *
@@ -176,6 +186,69 @@ const Stripe = {
     const customer = await stripe.customers.create(params);
     assistant.log(`Created new Stripe customer: ${customer.id}`);
     return customer;
+  },
+
+  /**
+   * Resolve the Stripe price ID by fetching active prices from the Stripe product
+   * and matching by interval + amount.
+   *
+   * @param {object} product - Product object from config (must have .prices and .stripe.productId)
+   * @param {string} productType - 'subscription' or 'one-time'
+   * @param {string} frequency - 'monthly', 'annually', etc. (subscriptions) — ignored for one-time
+   * @returns {Promise<string>} Stripe price ID
+   * @throws {Error} If product is archived, missing Stripe product ID, or no matching price found
+   */
+  async resolvePriceId(product, productType, frequency) {
+    if (product.archived) {
+      throw new Error(`Product ${product.id} is archived`);
+    }
+
+    const stripeProductId = product.stripe?.productId;
+
+    if (!stripeProductId) {
+      throw new Error(`No Stripe product ID for ${product.id}`);
+    }
+
+    const key = productType === 'subscription' ? frequency : 'once';
+    const expectedAmount = product.prices?.[key];
+
+    if (!expectedAmount) {
+      throw new Error(`No price configured for ${product.id}/${key}`);
+    }
+
+    const amountCents = Math.round(expectedAmount * 100);
+
+    // Fetch active prices from Stripe for this product
+    const stripe = this.init();
+
+    const prices = [];
+    for await (const price of stripe.prices.list({ product: stripeProductId, active: true, limit: 100 })) {
+      prices.push(price);
+    }
+
+    // Match by interval + amount
+    if (productType === 'subscription') {
+      const interval = frequency === 'annually' ? 'year' : 'month';
+      const match = prices.find(p =>
+        p.recurring?.interval === interval
+        && p.unit_amount === amountCents
+      );
+
+      if (!match) {
+        throw new Error(`No active Stripe price for ${product.id}/${frequency} at $${expectedAmount} (product: ${stripeProductId})`);
+      }
+
+      return match.id;
+    }
+
+    // One-time: match by amount, no recurring
+    const match = prices.find(p => !p.recurring && p.unit_amount === amountCents);
+
+    if (!match) {
+      throw new Error(`No active Stripe price for ${product.id}/once at $${expectedAmount} (product: ${stripeProductId})`);
+    }
+
+    return match.id;
   },
 
   /**
@@ -330,29 +403,28 @@ function resolveFrequency(raw) {
 }
 
 /**
- * Resolve product by matching the Stripe price ID against config products
+ * Resolve product by matching the Stripe product ID against config products
  * Returns { id, name } — falls back to basic if no match is found
  */
 function resolveProduct(raw, config) {
-  // Get the price ID from the subscription
-  const priceId = raw.plan?.id
-    || raw.items?.data?.[0]?.price?.id
+  // Get the Stripe product ID from the subscription
+  const stripeProductId = raw.items?.data?.[0]?.price?.product
+    || raw.plan?.product
     || null;
 
-  if (!priceId || !config.payment?.products) {
+  if (!stripeProductId || !config.payment?.products) {
     return { id: 'basic', name: 'Basic' };
   }
 
-  // Search through products for a matching price ID
   for (const product of config.payment.products) {
-    if (!product.prices) {
-      continue;
+    // Match current product ID
+    if (product.stripe?.productId === stripeProductId) {
+      return { id: product.id, name: product.name || product.id };
     }
 
-    for (const frequency of Object.keys(product.prices)) {
-      if (product.prices[frequency]?.stripe === priceId) {
-        return { id: product.id, name: product.name || product.id };
-      }
+    // Match legacy product IDs (pre-migration Stripe products)
+    if (product.stripe?.legacyProductIds?.includes(stripeProductId)) {
+      return { id: product.id, name: product.name || product.id };
     }
   }
 
@@ -426,15 +498,11 @@ function resolveStartDate(raw) {
 function resolvePrice(productId, frequency, config) {
   const product = config.payment?.products?.find(p => p.id === productId);
 
-  if (!product) {
+  if (!product || !product.prices) {
     return 0;
   }
 
-  if (frequency === 'once') {
-    return product.prices?.once?.amount || 0;
-  }
-
-  return product.prices?.[frequency]?.amount || 0;
+  return product.prices[frequency] || 0;
 }
 
 module.exports = Stripe;

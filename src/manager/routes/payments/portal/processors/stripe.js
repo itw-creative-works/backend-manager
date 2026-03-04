@@ -19,7 +19,7 @@ module.exports = {
    * @returns {object} { url }
    */
   async createPortalSession({ uid, email, returnUrl, assistant }) {
-    const StripeLib = require('../../../../libraries/payment-processors/stripe.js');
+    const StripeLib = require('../../../../libraries/payment/processors/stripe.js');
     const stripe = StripeLib.init();
 
     // Resolve the Stripe customer for this user

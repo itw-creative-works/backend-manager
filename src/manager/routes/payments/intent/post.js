@@ -1,6 +1,6 @@
 const path = require('path');
 const powertools = require('node-powertools');
-const OrderId = require('../../../libraries/payment-processors/order-id.js');
+const OrderId = require('../../../libraries/payment/order-id.js');
 
 /**
  * POST /payments/intent
@@ -142,8 +142,8 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
  */
 function buildConfirmationUrl(baseUrl, { product, productId, productType, frequency, processor, trial, orderId }) {
   const amount = productType === 'subscription'
-    ? (product.prices?.[frequency]?.amount || 0)
-    : (product.prices?.once?.amount || 0);
+    ? (product.prices?.[frequency] || 0)
+    : (product.prices?.once || 0);
 
   const url = new URL('/payment/confirmation', baseUrl);
   url.searchParams.set('productId', productId);

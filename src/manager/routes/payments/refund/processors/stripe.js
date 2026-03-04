@@ -24,7 +24,7 @@ module.exports = {
    * @returns {{ amount: number, currency: string, full: boolean }}
    */
   async processRefund({ resourceId, uid, assistant }) {
-    const StripeLib = require('../../../../libraries/payment-processors/stripe.js');
+    const StripeLib = require('../../../../libraries/payment/processors/stripe.js');
     const stripe = StripeLib.init();
 
     // 1. Retrieve subscription to get latest_invoice

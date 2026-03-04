@@ -50,6 +50,13 @@ const Test = {
   },
 
   /**
+   * Extract orderId — delegates to Stripe (test processor uses Stripe-shaped data)
+   */
+  getOrderId(resource) {
+    return Stripe.getOrderId(resource);
+  },
+
+  /**
    * Transform raw subscription into unified shape
    * Delegates to Stripe's toUnifiedSubscription (same data shape), stamps processor as 'test'
    */
@@ -103,11 +110,11 @@ function buildStripeSubscriptionFromUnified(unified, resourceId, eventType, conf
     status = 'past_due';
   }
 
-  // Resolve the Stripe price ID from product + frequency via config
+  // Resolve the Stripe product ID from config
   // This is needed for resolveProduct() in toUnifiedSubscription() to match the correct product
   const frequency = unified.payment?.frequency;
   const productId = unified.product?.id;
-  const priceId = resolvePriceId(productId, frequency, config);
+  const stripeProductId = resolveStripeProductId(productId, config);
 
   return {
     id: resourceId,
@@ -115,7 +122,7 @@ function buildStripeSubscriptionFromUnified(unified, resourceId, eventType, conf
     status: status,
     metadata: { orderId: unified.payment?.orderId || null },
     plan: {
-      id: priceId,
+      product: stripeProductId,
       interval: INTERVAL_MAP[frequency] || 'month',
     },
     current_period_end: unified.expires?.timestampUNIX || 0,
@@ -130,15 +137,15 @@ function buildStripeSubscriptionFromUnified(unified, resourceId, eventType, conf
 }
 
 /**
- * Look up the Stripe price ID from config given a product ID and frequency
- * e.g., ('plus', 'monthly') → 'price_plus_monthly'
+ * Look up the Stripe product ID from config given a product ID
+ * e.g., ('plus') → 'prod_plus'
  */
-function resolvePriceId(productId, frequency, config) {
-  if (!productId || !frequency || !config?.payment?.products) {
+function resolveStripeProductId(productId, config) {
+  if (!productId || !config?.payment?.products) {
     return null;
   }
 
   const product = config.payment.products.find(p => p.id === productId);
 
-  return product?.prices?.[frequency]?.stripe || null;
+  return product?.stripe?.productId || null;
 }

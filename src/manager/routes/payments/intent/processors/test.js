@@ -1,5 +1,4 @@
 const fetch = require('wonderful-fetch');
-const resolvePriceId = require('../../../../libraries/payment-processors/resolve-price-id.js');
 
 /**
  * Test intent processor
@@ -43,9 +42,6 @@ module.exports = {
  * Generates Stripe-shaped subscription + customer.subscription.created event
  */
 async function createSubscriptionIntent({ uid, orderId, product, frequency, trial, confirmationUrl, assistant }) {
-  // Get the price ID for the requested frequency
-  const priceId = resolvePriceId(product, 'subscription', frequency);
-
   // Generate IDs
   const timestamp = Date.now();
   const sessionId = `_test-cs-${timestamp}`;
@@ -62,12 +58,13 @@ async function createSubscriptionIntent({ uid, orderId, product, frequency, tria
     : now + (30 * 86400);
 
   // Build Stripe-shaped subscription object
+  // Uses product's Stripe product ID so resolveProduct() can match it
   const subscription = {
     id: subscriptionId,
     object: 'subscription',
     status: trial && product.trial?.days ? 'trialing' : 'active',
     metadata: { uid, orderId },
-    plan: { id: priceId, interval },
+    plan: { product: product.stripe?.productId || null, interval },
     current_period_end: periodEnd,
     current_period_start: now,
     start_date: now,
@@ -109,8 +106,10 @@ async function createSubscriptionIntent({ uid, orderId, product, frequency, tria
  * Generates Stripe-shaped checkout session + checkout.session.completed event
  */
 async function createOneTimeIntent({ uid, orderId, product, productId, confirmationUrl, assistant }) {
-  // Validate that a price exists (resolvePriceId throws if not found)
-  resolvePriceId(product, 'one-time', null);
+  // Validate that a price exists
+  if (!product.prices?.once) {
+    throw new Error(`No one-time price configured for ${product.id}`);
+  }
 
   // Generate IDs
   const timestamp = Date.now();
@@ -125,7 +124,7 @@ async function createOneTimeIntent({ uid, orderId, product, productId, confirmat
     status: 'complete',
     payment_status: 'paid',
     metadata: { uid, orderId, productId },
-    amount_total: Math.round((product.prices?.once?.amount || 0) * 100),
+    amount_total: Math.round((product.prices.once || 0) * 100),
     currency: 'usd',
   };
 

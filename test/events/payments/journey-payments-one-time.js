@@ -29,7 +29,7 @@ module.exports = {
         state.uid = uid;
         state.productId = oneTimeProduct.id;
         state.productName = oneTimeProduct.name;
-        state.price = oneTimeProduct.prices.once.amount;
+        state.price = oneTimeProduct.prices.once;
 
         // Snapshot subscription before purchase — should remain unchanged after
         state.subscriptionBefore = userDoc.subscription || null;

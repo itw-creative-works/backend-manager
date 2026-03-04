@@ -60,16 +60,14 @@
           days: 14,
         },
         prices: {
-          monthly: {
-            amount: 4.99,
-            stripe: null,
-            paypal: null,
-          },
-          annually: {
-            amount: 49.99,
-            stripe: null,
-            paypal: null,
-          },
+          monthly: 4.99,
+          annually: 49.99,
+        },
+        stripe: {
+          productId: null,
+        },
+        paypal: {
+          productId: null,
         },
       },
       {
@@ -80,16 +78,14 @@
           requests: 10000,
         },
         prices: {
-          monthly: {
-            amount: 19.99,
-            stripe: null,
-            paypal: null,
-          },
-          annually: {
-            amount: 199.99,
-            stripe: null,
-            paypal: null,
-          },
+          monthly: 19.99,
+          annually: 199.99,
+        },
+        stripe: {
+          productId: null,
+        },
+        paypal: {
+          productId: null,
         },
       },
       {
@@ -97,10 +93,10 @@
         name: '100 Credits',
         type: 'one-time',
         prices: {
-          once: {
-            amount: 9.99,
-            stripe: null,
-          },
+          once: 9.99,
+        },
+        stripe: {
+          productId: null,
         },
       },
       // Add more products/tiers here

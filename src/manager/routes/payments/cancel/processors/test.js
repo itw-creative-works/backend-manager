@@ -20,20 +20,18 @@ module.exports = {
     const now = Math.floor(timestamp / 1000);
     const periodEnd = now + (30 * 86400);
 
-    // Look up the price ID from the existing order so toUnifiedSubscription can resolve the product
+    // Look up the Stripe product ID from the existing order so resolveProduct() can match
     const orderId = subscription?.payment?.orderId;
-    let priceId = null;
+    let stripeProductId = null;
 
     if (orderId) {
       const orderDoc = await admin.firestore().doc(`payments-orders/${orderId}`).get();
       if (orderDoc.exists) {
         const orderData = orderDoc.data();
-        // Find the matching price from config using frequency
-        const frequency = orderData.unified?.payment?.frequency;
         const productId = orderData.unified?.product?.id;
         const products = assistant.Manager.config.payment?.products || [];
         const product = products.find(p => p.id === productId);
-        priceId = product?.prices?.[frequency]?.stripe || null;
+        stripeProductId = product?.stripe?.productId || null;
       }
     }
 
@@ -52,7 +50,7 @@ module.exports = {
       start_date: now - (30 * 86400),
       trial_start: null,
       trial_end: null,
-      plan: { id: priceId, interval: 'month' },
+      plan: { product: stripeProductId, interval: 'month' },
     };
 
     const nowTs = powertools.timestamp(new Date(), { output: 'string' });

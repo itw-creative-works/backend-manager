@@ -46,10 +46,10 @@ module.exports = async ({ assistant, user, settings }) => {
     || subscription.payment?.updatedBy?.date?.timestampUNIX;
 
   if (startDateUNIX) {
-    const sixMonthsAgo = Date.now() - (6 * 30 * 24 * 60 * 60 * 1000);
+    const sixMonthsAgoUNIX = Math.floor(Date.now() / 1000) - (6 * 30 * 24 * 60 * 60);
 
-    if (startDateUNIX < sixMonthsAgo) {
-      assistant.log(`Refund rejected: uid=${uid}, payment too old (startDate=${new Date(startDateUNIX).toISOString()})`);
+    if (startDateUNIX < sixMonthsAgoUNIX) {
+      assistant.log(`Refund rejected: uid=${uid}, payment too old (startDate=${new Date(startDateUNIX * 1000).toISOString()})`);
       return assistant.respond('Payments older than 6 months are not eligible for refunds', { code: 400 });
     }
   }

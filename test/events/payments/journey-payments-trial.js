@@ -27,7 +27,7 @@ module.exports = {
 
         state.uid = uid;
         state.paidProductId = paidProduct.id;
-        state.paidPriceId = paidProduct.prices.monthly.stripe;
+        state.paidStripeProductId = paidProduct.stripe?.productId;
       },
     },
 
@@ -103,7 +103,7 @@ module.exports = {
               start_date: Math.floor(Date.now() / 1000) - 86400 * 14,
               trial_start: Math.floor(Date.now() / 1000) - 86400 * 14,
               trial_end: Math.floor(Date.now() / 1000),
-              plan: { id: state.paidPriceId, interval: 'month' },
+              plan: { product: state.paidStripeProductId, interval: 'month' },
             },
           },
         });
