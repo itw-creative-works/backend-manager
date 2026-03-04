@@ -55,7 +55,7 @@ module.exports = async ({ assistant, change, context }) => {
     // Load the shared library for this processor
     let library;
     try {
-      library = require(`../../../libraries/payment-processors/${processor}.js`);
+      library = require(`../../../libraries/payment/processors/${processor}.js`);
     } catch (e) {
       throw new Error(`Unknown processor library: ${processor}`);
     }
@@ -72,8 +72,8 @@ module.exports = async ({ assistant, change, context }) => {
     const nowUNIX = powertools.timestamp(now, { output: 'unix' });
     const webhookReceivedUNIX = dataAfter.metadata?.received?.timestampUNIX || nowUNIX;
 
-    // Extract orderId from resource metadata (set at intent creation)
-    const orderId = resource.metadata?.orderId || null;
+    // Extract orderId from resource (processor-agnostic)
+    const orderId = library.getOrderId(resource);
 
     // Process the payment event (subscription or one-time)
     if (category !== 'subscription' && category !== 'one-time') {
@@ -241,6 +241,20 @@ function extractCustomerName(resource, resourceType) {
   // Invoices have customer_name
   if (resourceType === 'invoice') {
     fullName = resource.customer_name;
+  }
+
+  // PayPal orders have payer.name
+  if (resourceType === 'order') {
+    const givenName = resource.payer?.name?.given_name;
+    const surname = resource.payer?.name?.surname;
+
+    if (givenName) {
+      const { capitalize } = require('../../../libraries/infer-contact.js');
+      return {
+        first: capitalize(givenName) || null,
+        last: capitalize(surname) || null,
+      };
+    }
   }
 
   // Subscriptions only have customer ID, no name

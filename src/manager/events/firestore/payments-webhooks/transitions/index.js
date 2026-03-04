@@ -92,12 +92,18 @@ function detectSubscriptionTransition(before, after) {
  * @returns {string|null} Transition name
  */
 function detectOneTimeTransition(eventType) {
+  // Stripe
   if (eventType === 'checkout.session.completed') {
     return 'purchase-completed';
   }
 
   if (eventType === 'invoice.payment_failed') {
     return 'purchase-failed';
+  }
+
+  // PayPal
+  if (eventType === 'CHECKOUT.ORDER.APPROVED') {
+    return 'purchase-completed';
   }
 
   return null;
