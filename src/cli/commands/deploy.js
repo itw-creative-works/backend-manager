@@ -1,5 +1,4 @@
 const BaseCommand = require('./base-command');
-const chalk = require('chalk');
 const powertools = require('node-powertools');
 
 class DeployCommand extends BaseCommand {
@@ -7,9 +6,8 @@ class DeployCommand extends BaseCommand {
     const self = this.main;
 
     // Quick check that not using local packages
-    let deps = JSON.stringify(self.packageJSON.dependencies);
-    let hasLocal = deps.includes('file:');
-    if (hasLocal) {
+    const allDeps = JSON.stringify(self.packageJSON.dependencies || {}) + JSON.stringify(self.packageJSON.devDependencies || {});
+    if (allDeps.includes('file:')) {
       this.logError(`Please remove local packages before deploying!`);
       return;
     }

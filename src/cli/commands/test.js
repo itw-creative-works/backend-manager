@@ -187,6 +187,7 @@ class TestCommand extends BaseCommand {
     // Set up log file in the project directory
     const logPath = path.join(projectDir, 'test.log');
     const logStream = fs.createWriteStream(logPath, { flags: 'w' });
+    const stripAnsi = (str) => str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
 
     this.log(chalk.gray(`  Logs saving to: ${logPath}\n`));
 
@@ -196,18 +197,19 @@ class TestCommand extends BaseCommand {
         cwd: functionsDir,
         config: {
           stdio: ['inherit', 'pipe', 'pipe'],
+          env: { ...process.env, FORCE_COLOR: '1' },
         },
       }, (child) => {
-        // Tee stdout to both console and log file
+        // Tee stdout to both console and log file (strip ANSI codes for clean log)
         child.stdout.on('data', (data) => {
           process.stdout.write(data);
-          logStream.write(data);
+          logStream.write(stripAnsi(data.toString()));
         });
 
-        // Tee stderr to both console and log file
+        // Tee stderr to both console and log file (strip ANSI codes for clean log)
         child.stderr.on('data', (data) => {
           process.stderr.write(data);
-          logStream.write(data);
+          logStream.write(stripAnsi(data.toString()));
         });
 
         // Clean up log stream when child exits
