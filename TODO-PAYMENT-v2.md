@@ -24,9 +24,12 @@ Note: * for managing and cancelling, they should be under a sinlge button/dropdo
   * we need to make it hard to cancel, buried in some info, and make it more prominent to manage it, since we want to encourage users to manage their subscription rather than cancelling it.
 
 payments/refund
-  * takes a subscription id and requests a refund.
+  * takes a subscription id and requests a refund to the payment processor
   * we can only refund the most recent payment and we can only refund if the subscription is cancelled.
-  * we can only refund if the most recent payment in FULL was made less than 7 days ago, otherwise we can only refund a prorated amount.
+  * we can only refund if the most recent payment in FULL was made less than 7 days ago, otherwise we can only refund a prorated amount based on how much time is left
+  * i want the subscription to be immediately revoked upon refund request
+  * generally, we dont modify the subscription DURING the http endpoint (such as payment intent, or cancel), rather we WAIT FOR THE WEBHOOOK. Can we do that here???
+
 payments/reactivate
   * takes a subscription id and reactivates a cancelled subscription. this can only be done if the subscription is still within its billing period, otherwise the user would have to create a new subscription.
 payments/upgrade
