@@ -118,4 +118,4 @@ function resolveProjectId(projectDir, functionsDir) {
   return process.env.GCLOUD_PROJECT || 'demo-project';
 }
 
-module.exports = { initFirebase };
+module.exports = { initFirebase, resolveProjectId };

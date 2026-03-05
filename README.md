@@ -749,8 +749,12 @@ npx backend-manager <command>
 | `bem auth:list` | List Auth users |
 | `bem auth:delete <uid-or-email>` | Delete an Auth user |
 | `bem auth:set-claims <uid-or-email> '<json>'` | Set custom claims on an Auth user |
+| `bem logs:read` | Fetch Cloud Function logs from Google Cloud Logging |
+| `bem logs:tail` | Stream live Cloud Function logs |
 
 All Firestore and Auth commands support `--emulator` to target the local emulator, `--force` to skip confirmation, and `--raw` for compact JSON output.
+
+Logs commands support `--fn <name>` (function name filter), `--severity <level>`, `--since <duration>` (read only), `--limit <n>` (read only), and `--raw`. Requires `gcloud` CLI installed and authenticated.
 
 ## Environment Variables
 
@@ -795,9 +799,10 @@ npx bm test user/ admin/       # Multiple paths
 
 ### Log Files
 
-Both `npx bm emulator` and `npx bm test` automatically save all output to log files in the project directory:
-- **`emulator.log`** — Full emulator + Cloud Functions output
-- **`test.log`** — Test runner output (when running against an existing emulator)
+BEM CLI commands automatically save output to log files in the project directory:
+- **`emulator.log`** — Full emulator + Cloud Functions output (`npx bm emulator`)
+- **`test.log`** — Test runner output (`npx bm test`, when running against an existing emulator)
+- **`logs.log`** — Cloud Function logs (`npx bm logs:read` or `npx bm logs:tail`)
 
 Logs are overwritten on each run. Use them to debug failing tests or review function output.
 

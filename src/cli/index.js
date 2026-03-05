@@ -28,6 +28,7 @@ const WatchCommand = require('./commands/watch');
 const StripeCommand = require('./commands/stripe');
 const FirestoreCommand = require('./commands/firestore');
 const AuthCommand = require('./commands/auth');
+const LogsCommand = require('./commands/logs');
 
 function Main() {}
 
@@ -143,6 +144,12 @@ Main.prototype.process = async function (args) {
   if (self.options['auth:get'] || self.options['auth:list']
     || self.options['auth:delete'] || self.options['auth:set-claims']) {
     const cmd = new AuthCommand(self);
+    return await cmd.execute();
+  }
+
+  // Logs utility commands
+  if (self.options['logs:read'] || self.options['logs:tail'] || self.options['logs:stream']) {
+    const cmd = new LogsCommand(self);
     return await cmd.execute();
   }
 };

@@ -447,6 +447,8 @@ When `npx bm test` starts its own emulator, logs go to `emulator.log` (since it 
 
 These files are overwritten on each run and are gitignored (`*.log`). Use them to search for errors, debug webhook pipelines, or review full function output after a test run.
 
+- **`logs.log`** — Cloud Function logs from `npx bm logs:read` or `npx bm logs:tail` (raw JSON for `read`, streaming text for `tail`)
+
 ### Filtering Tests
 ```bash
 npx bm test rules/             # Run rules tests (both BEM and project)
@@ -586,6 +588,29 @@ npx bm auth:list [--limit N] [--page-token T]        # List users (default 100)
 npx bm auth:delete <uid-or-email>                    # Delete user (prompts for confirmation)
 npx bm auth:set-claims <uid-or-email> '<json>'       # Set custom claims
 ```
+
+### Logs Commands
+
+Fetch or stream Cloud Function logs from Google Cloud Logging. Requires `gcloud` CLI installed and authenticated. Auto-resolves the project ID from `service-account.json`, `.firebaserc`, or `GCLOUD_PROJECT`.
+
+```bash
+npx bm logs:read                                     # Read last 1h of logs (default: 50 entries)
+npx bm logs:read --fn bm_api                         # Filter by function name
+npx bm logs:read --fn bm_api --severity ERROR        # Filter by severity (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+npx bm logs:read --since 2d --limit 100              # Custom time range and limit
+npx bm logs:tail                                     # Stream live logs
+npx bm logs:tail --fn bm_paymentsWebhookOnWrite      # Stream filtered live logs
+```
+
+Both commands save output to `logs.log` in the project directory (overwritten on each run). `logs:read` saves raw JSON; `logs:tail` streams text.
+
+| Flag | Description | Default | Commands |
+|------|-------------|---------|----------|
+| `--fn <name>` | Filter by Cloud Function name | all | both |
+| `--severity <level>` | Minimum severity level | all | both |
+| `--since <duration>` | Time range (`30m`, `1h`, `2d`, `1w`) | `1h` | read only |
+| `--limit <n>` | Max entries | `50` | read only |
+| `--raw` | Output raw JSON | false | both |
 
 ### Shared Flags
 
@@ -985,6 +1010,7 @@ The `test` processor generates Stripe-shaped data and auto-fires webhooks to the
 | Firebase init helper (CLI) | `src/cli/commands/firebase-init.js` |
 | Firestore CLI commands | `src/cli/commands/firestore.js` |
 | Auth CLI commands | `src/cli/commands/auth.js` |
+| Logs CLI commands | `src/cli/commands/logs.js` |
 | Intent creation | `src/manager/routes/payments/intent/post.js` |
 | Webhook ingestion | `src/manager/routes/payments/webhook/post.js` |
 | Webhook processing (on-write) | `src/manager/events/firestore/payments-webhooks/on-write.js` |
