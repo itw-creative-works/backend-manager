@@ -75,5 +75,20 @@ module.exports = {
         assert.ok(userDoc.subscription.cancellation.date.timestampUNIX > 0, 'Cancellation date should be set');
       },
     },
+
+    {
+      name: 'cancellation-request-stored',
+      async run({ firestore, assert, state }) {
+        const orderDoc = await firestore.get(`payments-orders/${state.orderId}`);
+
+        assert.ok(orderDoc, 'Order doc should exist');
+        assert.ok(orderDoc.requests, 'requests field should exist');
+        assert.ok(orderDoc.requests.cancellation, 'requests.cancellation should be populated');
+        assert.equal(orderDoc.requests.cancellation.reason, 'Too expensive', 'Cancellation reason should match');
+        assert.equal(orderDoc.requests.cancellation.feedback, 'Would return at a lower price', 'Cancellation feedback should match');
+        assert.ok(orderDoc.requests.cancellation.date.timestampUNIX > 0, 'Cancellation date should be set');
+        assert.equal(orderDoc.requests.refund, null, 'requests.refund should still be null');
+      },
+    },
   ],
 };

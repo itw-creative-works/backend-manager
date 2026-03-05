@@ -88,6 +88,9 @@ module.exports = {
         assert.equal(orderDoc.unified.product.id, state.productId, `Product should be ${state.productId}`);
         assert.equal(orderDoc.unified.payment.processor, 'test', 'Unified processor should be test');
         assert.equal(orderDoc.unified.payment.orderId, state.orderId, 'Unified orderId should match');
+        assert.ok(orderDoc.requests !== undefined, 'requests field should exist');
+        assert.equal(orderDoc.requests.cancellation, null, 'requests.cancellation should be null');
+        assert.equal(orderDoc.requests.refund, null, 'requests.refund should be null');
       },
     },
 

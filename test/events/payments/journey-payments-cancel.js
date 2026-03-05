@@ -148,5 +148,31 @@ module.exports = {
         assert.equal(userDoc.subscription.cancellation.pending, false, 'Cancellation should not be pending');
       },
     },
+
+    {
+      name: 'order-doc-verified',
+      async run({ firestore, assert, state }) {
+        const orderDoc = await firestore.get(`payments-orders/${state.orderId}`);
+
+        assert.ok(orderDoc, 'Order doc should exist');
+        assert.equal(orderDoc.type, 'subscription', 'Type should be subscription');
+        assert.equal(orderDoc.owner, state.uid, 'Owner should match');
+        assert.ok(orderDoc.requests !== undefined, 'requests field should exist');
+        assert.equal(orderDoc.requests.cancellation, null, 'requests.cancellation should be null (cancel was via webhook, not endpoint)');
+        assert.equal(orderDoc.requests.refund, null, 'requests.refund should be null');
+      },
+    },
+
+    {
+      name: 'intent-doc-completed',
+      async run({ firestore, assert, state }) {
+        const intentDoc = await firestore.get(`payments-intents/${state.orderId}`);
+
+        assert.ok(intentDoc, 'Intent doc should exist');
+        assert.equal(intentDoc.id, state.orderId, 'ID should match orderId');
+        assert.equal(intentDoc.status, 'completed', 'Intent status should be completed after webhook processing');
+        assert.ok(intentDoc.metadata?.completed?.timestampUNIX > 0, 'Completed timestamp should be set');
+      },
+    },
   ],
 };

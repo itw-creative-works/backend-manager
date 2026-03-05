@@ -92,6 +92,23 @@ module.exports = {
     },
 
     {
+      name: 'order-doc-created',
+      async run({ firestore, assert, state }) {
+        const orderDoc = await firestore.get(`payments-orders/${state.orderId}`);
+
+        assert.ok(orderDoc, 'Order doc should exist');
+        assert.equal(orderDoc.id, state.orderId, 'ID should match orderId');
+        assert.equal(orderDoc.type, 'subscription', 'Type should be subscription');
+        assert.equal(orderDoc.owner, state.uid, 'Owner should match');
+        assert.equal(orderDoc.unified.product.id, state.paidProductId, `Product should be ${state.paidProductId}`);
+        assert.equal(orderDoc.unified.trial.claimed, true, 'Trial should be claimed');
+        assert.ok(orderDoc.requests !== undefined, 'requests field should exist');
+        assert.equal(orderDoc.requests.cancellation, null, 'requests.cancellation should be null');
+        assert.equal(orderDoc.requests.refund, null, 'requests.refund should be null');
+      },
+    },
+
+    {
       name: 'send-trial-to-active-webhook',
       async run({ http, assert, state, config }) {
         const futureDate = new Date();

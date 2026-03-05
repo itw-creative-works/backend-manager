@@ -1,4 +1,5 @@
 const path = require('path');
+const powertools = require('node-powertools');
 
 /**
  * POST /payments/refund
@@ -8,6 +9,7 @@ const path = require('path');
  * Delegates to the processor (e.g., Stripe) to issue the refund and cancel.
  * The resulting webhook triggers the Firestore pipeline which updates subscription state
  * and fires the subscription-cancelled transition handler.
+ * Stores the refund reason/feedback on payments-orders/{orderId}.requests.refund.
  * Requires authentication.
  */
 module.exports = async ({ assistant, user, settings }) => {
@@ -77,6 +79,32 @@ module.exports = async ({ assistant, user, settings }) => {
   } catch (e) {
     assistant.log(`Failed to process refund via ${processor}: ${e.message}`);
     return assistant.respond(`Failed to process refund: ${e.message}`, { code: 500, sentry: true });
+  }
+
+  // Store refund reason/feedback on the order doc
+  const orderId = subscription.payment?.orderId;
+
+  if (orderId) {
+    const admin = assistant.Manager.libraries.admin;
+    const now = powertools.timestamp(new Date(), { output: 'string' });
+    const nowUNIX = powertools.timestamp(now, { output: 'unix' });
+
+    await admin.firestore().doc(`payments-orders/${orderId}`).set({
+      requests: {
+        refund: {
+          reason: settings.reason || null,
+          feedback: settings.feedback || null,
+          amount: refund.amount,
+          full: refund.full,
+          date: {
+            timestamp: now,
+            timestampUNIX: nowUNIX,
+          },
+        },
+      },
+    }, { merge: true });
+
+    assistant.log(`Stored refund request on payments-orders/${orderId}: reason=${settings.reason}, amount=${refund.amount}`);
   }
 
   assistant.log(`Refund processed: uid=${uid}, processor=${processor}, sub=${resourceId}, amount=${refund.amount}, full=${refund.full}, reason=${settings.reason}`);

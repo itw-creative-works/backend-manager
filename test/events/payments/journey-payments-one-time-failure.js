@@ -85,6 +85,9 @@ module.exports = {
         assert.equal(orderDoc.type, 'one-time', 'Type should be one-time');
         assert.equal(orderDoc.owner, state.uid, 'Owner should match');
         assert.equal(orderDoc.processor, 'test', 'Processor should be test');
+        assert.ok(orderDoc.requests !== undefined, 'requests field should exist');
+        assert.equal(orderDoc.requests.cancellation, null, 'requests.cancellation should be null');
+        assert.equal(orderDoc.requests.refund, null, 'requests.refund should be null');
       },
     },
 

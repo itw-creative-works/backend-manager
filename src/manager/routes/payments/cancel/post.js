@@ -1,4 +1,5 @@
 const path = require('path');
+const powertools = require('node-powertools');
 
 /**
  * POST /payments/cancel
@@ -6,6 +7,7 @@ const path = require('path');
  * Delegates to the processor (e.g., Stripe) to set cancel_at_period_end=true.
  * The resulting webhook triggers the Firestore pipeline which updates subscription state
  * and fires the cancellation-requested transition handler.
+ * Stores the cancellation reason/feedback on payments-orders/{orderId}.requests.cancellation.
  * Requires authentication.
  */
 module.exports = async ({ assistant, user, settings }) => {
@@ -60,7 +62,31 @@ module.exports = async ({ assistant, user, settings }) => {
     return assistant.respond(`Failed to cancel subscription: ${e.message}`, { code: 500, sentry: true });
   }
 
-  assistant.log(`Cancel at period end scheduled: uid=${uid}, processor=${processor}, sub=${resourceId}, reason=${settings.reason}`);
+  // Store cancellation reason/feedback on the order doc
+  const orderId = subscription.payment?.orderId;
+
+  if (orderId) {
+    const admin = assistant.Manager.libraries.admin;
+    const now = powertools.timestamp(new Date(), { output: 'string' });
+    const nowUNIX = powertools.timestamp(now, { output: 'unix' });
+
+    await admin.firestore().doc(`payments-orders/${orderId}`).set({
+      requests: {
+        cancellation: {
+          reason: settings.reason || null,
+          feedback: settings.feedback || null,
+          date: {
+            timestamp: now,
+            timestampUNIX: nowUNIX,
+          },
+        },
+      },
+    }, { merge: true });
+
+    assistant.log(`Stored cancellation request on payments-orders/${orderId}: reason=${settings.reason}`);
+  }
+
+  assistant.log(`Cancel scheduled: uid=${uid}, processor=${processor}, sub=${resourceId}, reason=${settings.reason}`);
 
   return assistant.respond({ success: true });
 };

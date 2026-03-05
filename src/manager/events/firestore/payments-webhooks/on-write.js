@@ -236,7 +236,18 @@ async function processPaymentEvent({ category, library, resource, resourceType, 
 
   // Write to payments-orders/{orderId}
   if (orderId) {
-    await admin.firestore().doc(`payments-orders/${orderId}`).set(order, { merge: true });
+    const orderRef = admin.firestore().doc(`payments-orders/${orderId}`);
+    const orderSnap = await orderRef.get();
+
+    // Initialize requests on first creation only (avoid overwriting cancel/refund data set by endpoints)
+    if (!orderSnap.exists) {
+      order.requests = {
+        cancellation: null,
+        refund: null,
+      };
+    }
+
+    await orderRef.set(order, { merge: true });
     assistant.log(`Updated payments-orders/${orderId}: type=${category}, uid=${uid}, eventType=${eventType}`);
   }
 

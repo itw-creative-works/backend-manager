@@ -120,6 +120,21 @@ module.exports = {
         assert.ok(orderDoc, 'Order doc should exist');
         assert.equal(orderDoc.unified.product.id, state.productB.id, `Order product should be ${state.productB.id}`);
         assert.equal(orderDoc.unified.status, 'active', 'Order status should be active');
+        assert.ok(orderDoc.requests !== undefined, 'requests field should exist');
+        assert.equal(orderDoc.requests.cancellation, null, 'requests.cancellation should be null');
+        assert.equal(orderDoc.requests.refund, null, 'requests.refund should be null');
+      },
+    },
+
+    {
+      name: 'intent-doc-completed',
+      async run({ firestore, assert, state }) {
+        const intentDoc = await firestore.get(`payments-intents/${state.orderId}`);
+
+        assert.ok(intentDoc, 'Intent doc should exist');
+        assert.equal(intentDoc.id, state.orderId, 'ID should match orderId');
+        assert.equal(intentDoc.status, 'completed', 'Intent status should be completed after webhook processing');
+        assert.ok(intentDoc.metadata?.completed?.timestampUNIX > 0, 'Completed timestamp should be set');
       },
     },
   ],

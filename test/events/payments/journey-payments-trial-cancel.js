@@ -105,5 +105,20 @@ module.exports = {
         assert.equal(userDoc.subscription.product.id, state.paidProductId, `Product should still be ${state.paidProductId}`);
       },
     },
+
+    {
+      name: 'cancellation-request-stored',
+      async run({ firestore, assert, state }) {
+        const orderDoc = await firestore.get(`payments-orders/${state.orderId}`);
+
+        assert.ok(orderDoc, 'Order doc should exist');
+        assert.ok(orderDoc.requests, 'requests field should exist');
+        assert.ok(orderDoc.requests.cancellation, 'requests.cancellation should be populated');
+        assert.equal(orderDoc.requests.cancellation.reason, 'Changed my mind during trial', 'Cancellation reason should match');
+        assert.equal(orderDoc.requests.cancellation.feedback, 'Testing trial cancellation', 'Cancellation feedback should match');
+        assert.ok(orderDoc.requests.cancellation.date.timestampUNIX > 0, 'Cancellation date should be set');
+        assert.equal(orderDoc.requests.refund, null, 'requests.refund should still be null');
+      },
+    },
   ],
 };
