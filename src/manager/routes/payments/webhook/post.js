@@ -91,11 +91,11 @@ module.exports = async ({ assistant, Manager, libraries }) => {
     },
     error: null,
     metadata: {
-      received: {
+      created: {
         timestamp: now,
         timestampUNIX: nowUNIX,
       },
-      processed: {
+      completed: {
         timestamp: null,
         timestampUNIX: null,
       },

@@ -86,7 +86,7 @@ module.exports = async ({ assistant, change, context }) => {
     // Build timestamps
     const now = powertools.timestamp(new Date(), { output: 'string' });
     const nowUNIX = powertools.timestamp(now, { output: 'unix' });
-    const webhookReceivedUNIX = dataAfter.metadata?.received?.timestampUNIX || nowUNIX;
+    const webhookReceivedUNIX = dataAfter.metadata?.created?.timestampUNIX || nowUNIX;
 
     // Extract orderId from resource (processor-agnostic)
     orderId = library.getOrderId(resource);
@@ -105,7 +105,7 @@ module.exports = async ({ assistant, change, context }) => {
       orderId: orderId,
       transition: transitionName,
       metadata: {
-        processed: {
+        completed: {
           timestamp: now,
           timestampUNIX: nowUNIX,
         },
@@ -199,6 +199,7 @@ async function processPaymentEvent({ category, library, resource, resourceType, 
     id: orderId,
     type: category,
     owner: uid,
+    productId: unified.product.id,
     processor: processor,
     resourceId: resourceId,
     unified: unified,

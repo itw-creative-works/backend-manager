@@ -2,8 +2,8 @@
  * Data requests cron job
  *
  * Processes data request status transitions:
- * - pending → complete: 14 days after creation
- * - complete → expired: 30 days after becoming complete (44 days after creation)
+ * - pending → completed: 14 days after creation
+ * - completed → expired: 30 days after becoming completed (44 days after creation)
  *
  * Scans the entire collection (no index required) since data-requests is small.
  */
@@ -33,7 +33,7 @@ module.exports = async ({ Manager, assistant, context, libraries }) => {
     const age = nowUNIX - createdUNIX;
 
     if (data.status === 'pending' && age >= FOURTEEN_DAYS) {
-      await doc.ref.update({ status: 'complete' })
+      await doc.ref.update({ status: 'completed' })
         .then(() => {
           completed++;
           assistant.log(`Completed request ${doc.id} (age: ${Math.round(age / 86400)}d)`);
@@ -41,7 +41,7 @@ module.exports = async ({ Manager, assistant, context, libraries }) => {
         .catch((e) => {
           assistant.error(`Failed to complete request ${doc.id}: ${e.message}`);
         });
-    } else if (data.status === 'complete' && age >= FORTY_FOUR_DAYS) {
+    } else if (data.status === 'completed' && age >= FORTY_FOUR_DAYS) {
       await doc.ref.update({ status: 'expired' })
         .then(() => {
           expired++;

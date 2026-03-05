@@ -45,7 +45,7 @@ module.exports = {
       name: 'status-completed',
       async run({ assert }) {
         const result = toUnifiedOneTime({ status: 'COMPLETED' });
-        assert.equal(result.status, 'complete', 'PayPal COMPLETED → unified complete');
+        assert.equal(result.status, 'completed', 'PayPal COMPLETED → unified completed');
       },
     },
 
@@ -250,7 +250,7 @@ module.exports = {
         assert.ok(result.payment, 'Should have payment');
 
         assert.equal(result.product.id, 'credits-100', 'Product should be credits-100');
-        assert.equal(result.status, 'complete', 'Status should be complete');
+        assert.equal(result.status, 'completed', 'Status should be completed');
         assert.equal(result.payment.processor, 'paypal', 'Processor should be paypal');
         assert.equal(result.payment.resourceId, 'PAYID-FULL', 'Resource ID should match');
         assert.equal(result.payment.orderId, '1234-5678-9012', 'orderId should match');
@@ -336,7 +336,7 @@ module.exports = {
       async run({ assert }) {
         const result = toUnifiedOneTime(FIXTURE_ORDER_COMPLETED);
 
-        assert.equal(result.status, 'complete', 'COMPLETED fixture → complete');
+        assert.equal(result.status, 'completed', 'COMPLETED fixture → completed');
         assert.equal(result.payment.processor, 'paypal', 'Processor is paypal');
         assert.equal(result.payment.resourceId, '5UX02069M9686893E', 'Resource ID from fixture');
         assert.equal(result.payment.orderId, 'ord-test-456', 'orderId from purchase_units custom_id');

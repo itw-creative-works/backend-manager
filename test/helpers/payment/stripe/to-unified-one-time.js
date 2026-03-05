@@ -44,7 +44,7 @@ module.exports = {
       name: 'status-complete',
       async run({ assert }) {
         const result = toUnifiedOneTime({ status: 'complete' });
-        assert.equal(result.status, 'complete', 'Status passes through as-is');
+        assert.equal(result.status, 'completed', 'Stripe complete → unified completed');
       },
     },
 
@@ -211,7 +211,7 @@ module.exports = {
         assert.ok(result.payment, 'Should have payment');
 
         assert.equal(result.product.id, 'credits-100', 'Product should be credits-100');
-        assert.equal(result.status, 'complete', 'Status should be complete');
+        assert.equal(result.status, 'completed', 'Status should be completed');
         assert.equal(result.payment.processor, 'stripe', 'Processor should be stripe');
         assert.equal(result.payment.resourceId, 'cs_test_full', 'Resource ID should match');
         assert.equal(result.payment.orderId, '1234-5678-9012', 'orderId should match');
@@ -253,7 +253,7 @@ module.exports = {
         const result = toUnifiedOneTime(FIXTURE_SESSION);
 
         assert.ok(result.product, 'Should have product');
-        assert.equal(result.status, 'complete', 'Real session fixture → complete');
+        assert.equal(result.status, 'completed', 'Real session fixture → completed');
         assert.equal(result.payment.processor, 'stripe', 'Processor is stripe');
         assert.equal(result.payment.resourceId, FIXTURE_SESSION.id, 'resourceId matches fixture ID');
       },

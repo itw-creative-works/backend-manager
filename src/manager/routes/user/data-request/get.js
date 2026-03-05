@@ -2,11 +2,11 @@
  * GET /user/data-request - Check data request status or download data
  *
  * action=status (default): Returns the most recent request with its stored status.
- * action=download: Compiles user data live and returns it. Only works when status is 'complete'.
+ * action=download: Compiles user data live and returns it. Only works when status is 'completed'.
  *
  * Statuses:
- *   pending  — request submitted, waiting to be processed (bm_cronDaily sets to 'complete' after 14 days)
- *   complete — data is available for download (downloads counter tracks how many times downloaded)
+ *   pending   — request submitted, waiting to be processed (bm_cronDaily sets to 'completed' after 14 days)
+ *   completed — data is available for download (downloads counter tracks how many times downloaded)
  */
 module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
   const { admin } = libraries;
@@ -43,8 +43,8 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
     });
   }
 
-  // Download action — only allowed when status is 'complete'
-  if (status !== 'complete') {
+  // Download action — only allowed when status is 'completed'
+  if (status !== 'completed') {
     return assistant.respond('Your data request is still being processed. Please check back later.', { code: 400 });
   }
 

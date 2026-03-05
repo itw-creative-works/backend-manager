@@ -116,7 +116,7 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
     owner: uid,
     status: 'pending',
     productId: productId,
-    productType: productType,
+    type: productType,
     frequency: frequency,
     trial: trial,
     raw: result.raw,

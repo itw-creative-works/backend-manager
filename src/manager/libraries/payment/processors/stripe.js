@@ -304,7 +304,7 @@ const Stripe = {
 
     return {
       product: product,
-      status: rawResource.status || 'unknown',
+      status: rawResource.status === 'complete' ? 'completed' : rawResource.status || 'unknown',
       payment: {
         processor: 'stripe',
         orderId: rawResource.metadata?.orderId || null,

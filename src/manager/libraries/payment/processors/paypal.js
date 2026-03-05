@@ -268,7 +268,7 @@ const PayPal = {
 
     return {
       product: product,
-      status: rawResource.status === 'COMPLETED' ? 'complete' : rawResource.status?.toLowerCase() || 'unknown',
+      status: rawResource.status === 'COMPLETED' ? 'completed' : rawResource.status?.toLowerCase() || 'unknown',
       payment: {
         processor: 'paypal',
         orderId: customData.orderId || null,
@@ -314,6 +314,7 @@ const PayPal = {
     }
 
     // Fetch plans with full details (Prefer header includes billing_cycles in list response)
+    // TODO: Paginate — page_size=20 only returns first page. Fine for now (each product has ~2-4 plans in 1:1 model) but will break if a product ever accumulates >20 plans.
     const response = await this.request(`/v1/billing/plans?product_id=${paypalProductId}&page_size=20&total_required=true`, {
       headers: { 'Prefer': 'return=representation' },
     });
