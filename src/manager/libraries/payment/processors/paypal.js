@@ -313,8 +313,10 @@ const PayPal = {
       throw new Error(`No price configured for ${product.id}/${frequency}`);
     }
 
-    // Fetch plans for this PayPal product
-    const response = await this.request(`/v1/billing/plans?product_id=${paypalProductId}&page_size=20&total_required=true`);
+    // Fetch plans with full details (Prefer header includes billing_cycles in list response)
+    const response = await this.request(`/v1/billing/plans?product_id=${paypalProductId}&page_size=20&total_required=true`, {
+      headers: { 'Prefer': 'return=representation' },
+    });
     const plans = response.plans || [];
 
     // Map frequency to PayPal interval unit
