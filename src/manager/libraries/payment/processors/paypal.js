@@ -8,12 +8,41 @@ const EPOCH_ZERO_UNIX = powertools.timestamp(EPOCH_ZERO, { output: 'unix' });
 const INTERVAL_TO_FREQUENCY = { YEAR: 'annually', MONTH: 'monthly', WEEK: 'weekly', DAY: 'daily' };
 const FREQUENCY_TO_INTERVAL = { annually: 'YEAR', monthly: 'MONTH', weekly: 'WEEK', daily: 'DAY' };
 
-// PayPal API base URL
-const PAYPAL_API_BASE = 'https://api-m.paypal.com';
+// PayPal API base URLs
+const LIVE_URL = 'https://api-m.paypal.com';
+const SANDBOX_URL = 'https://api-m.sandbox.paypal.com';
 
-// Cached access token + expiry
+// Cached access token, expiry, and resolved base URL
 let cachedToken = null;
 let tokenExpiresAt = 0;
+let resolvedBaseUrl = null;
+
+/**
+ * Try to authenticate against a specific PayPal endpoint
+ * @param {string} auth - Base64-encoded client_id:secret
+ * @param {string} baseUrl - PayPal API base URL
+ * @returns {Promise<object|null>} Token data or null if auth failed
+ */
+async function tryAuth(auth, baseUrl) {
+  try {
+    const response = await fetch(`${baseUrl}/v1/oauth2/token`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${auth}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: 'grant_type=client_credentials',
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return await response.json();
+  } catch (e) {
+    return null;
+  }
+}
 
 /**
  * PayPal shared library
@@ -22,7 +51,7 @@ let tokenExpiresAt = 0;
 const PayPal = {
   /**
    * Initialize or return a PayPal access token
-   * Uses client credentials grant (client_id + secret)
+   * Tries both live and sandbox endpoints in parallel on first auth
    * @returns {Promise<string>} Access token
    */
   async init() {
@@ -40,22 +69,39 @@ const PayPal = {
 
     const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
-    const response = await fetch(`${PAYPAL_API_BASE}/v1/oauth2/token`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Basic ${auth}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: 'grant_type=client_credentials',
-    });
+    // First auth — try both endpoints in parallel to detect environment
+    if (!resolvedBaseUrl) {
+      const [liveResult, sandboxResult] = await Promise.all([
+        tryAuth(auth, LIVE_URL),
+        tryAuth(auth, SANDBOX_URL),
+      ]);
 
-    if (!response.ok) {
-      throw new Error(`PayPal auth failed: ${response.status} ${response.statusText}`);
+      if (liveResult) {
+        resolvedBaseUrl = LIVE_URL;
+        cachedToken = liveResult.access_token;
+        tokenExpiresAt = Date.now() + (liveResult.expires_in * 1000);
+        return cachedToken;
+      }
+
+      if (sandboxResult) {
+        resolvedBaseUrl = SANDBOX_URL;
+        cachedToken = sandboxResult.access_token;
+        tokenExpiresAt = Date.now() + (sandboxResult.expires_in * 1000);
+        return cachedToken;
+      }
+
+      throw new Error('PayPal auth failed on both live and sandbox — check your client ID and secret');
     }
 
-    const data = await response.json();
-    cachedToken = data.access_token;
-    tokenExpiresAt = Date.now() + (data.expires_in * 1000);
+    // Subsequent auths — use the resolved endpoint
+    const result = await tryAuth(auth, resolvedBaseUrl);
+
+    if (!result) {
+      throw new Error(`PayPal auth failed (${resolvedBaseUrl})`);
+    }
+
+    cachedToken = result.access_token;
+    tokenExpiresAt = Date.now() + (result.expires_in * 1000);
 
     return cachedToken;
   },
@@ -69,7 +115,7 @@ const PayPal = {
   async request(endpoint, options = {}) {
     const token = await this.init();
 
-    const response = await fetch(`${PAYPAL_API_BASE}${endpoint}`, {
+    const response = await fetch(`${resolvedBaseUrl}${endpoint}`, {
       ...options,
       headers: {
         'Authorization': `Bearer ${token}`,

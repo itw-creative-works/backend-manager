@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.111] - 2026-03-05
+### Changed
+- PayPal client ID is now read from `backend-manager-config.json` (`payment.processors.paypal.clientId`) instead of requiring a `PAYPAL_CLIENT_ID` environment variable.
+- PayPal auth now auto-detects sandbox vs live environment by trying both endpoints in parallel on first auth, with live taking priority.
+
 # [5.0.109] - 2026-03-04
 ### Added
 - Immediate trial cancellation: cancelling during a free trial now terminates the subscription instantly instead of scheduling cancel at period end, preventing free premium access for the remainder of the trial.
