@@ -36,7 +36,7 @@ module.exports = async ({ assistant, change, context }) => {
 
   try {
     const processor = dataAfter.processor;
-    const uid = dataAfter.owner;
+    let uid = dataAfter.owner;
     const raw = dataAfter.raw;
     const eventType = dataAfter.event?.type;
     const category = dataAfter.event?.category;
@@ -44,11 +44,6 @@ module.exports = async ({ assistant, change, context }) => {
     const resourceId = dataAfter.event?.resourceId;
 
     assistant.log(`Processing webhook ${eventId}: processor=${processor}, eventType=${eventType}, category=${category}, resourceType=${resourceType}, resourceId=${resourceId}, uid=${uid || 'null'}`);
-
-    // Validate UID
-    if (!uid) {
-      throw new Error('Webhook event has no UID — cannot process');
-    }
 
     // Validate category
     if (!category) {
@@ -70,6 +65,24 @@ module.exports = async ({ assistant, change, context }) => {
 
     assistant.log(`Fetched resource: type=${resourceType}, id=${resourceId}, status=${resource.status || 'unknown'}`);
 
+    // Resolve UID from the fetched resource if not available from webhook parse
+    // This handles events like PAYMENT.SALE where the Sale object doesn't carry custom_id
+    // but the parent subscription (fetched via fetchResource) does
+    if (!uid && library.getUid) {
+      uid = library.getUid(resource);
+      assistant.log(`UID resolved from fetched resource: uid=${uid || 'null'}, processor=${processor}, resourceType=${resourceType}`);
+
+      // Update the webhook doc with the resolved UID so it's persisted for debugging
+      if (uid) {
+        await webhookRef.set({ owner: uid }, { merge: true });
+      }
+    }
+
+    // Validate UID — must have one by now (either from webhook parse or fetched resource)
+    if (!uid) {
+      throw new Error(`Webhook event has no UID — could not extract from webhook parse or fetched ${resourceType} resource`);
+    }
+
     // Build timestamps
     const now = powertools.timestamp(new Date(), { output: 'string' });
     const nowUNIX = powertools.timestamp(now, { output: 'unix' });
@@ -83,7 +96,7 @@ module.exports = async ({ assistant, change, context }) => {
       throw new Error(`Unknown event category: ${category}`);
     }
 
-    const transitionName = await processPaymentEvent({ category, library, resource, resourceType, uid, processor, eventType, eventId, resourceId, orderId, now, nowUNIX, webhookReceivedUNIX, assistant });
+    const transitionName = await processPaymentEvent({ category, library, resource, resourceType, uid, processor, eventType, eventId, resourceId, orderId, now, nowUNIX, webhookReceivedUNIX, assistant, raw });
 
     // Mark webhook as completed (include transition name for auditing/testing)
     await webhookRef.set({
@@ -138,7 +151,7 @@ module.exports = async ({ assistant, change, context }) => {
  * 6. Track analytics (non-blocking)
  * 7. Write to Firestore (user doc for subscriptions + payments-orders)
  */
-async function processPaymentEvent({ category, library, resource, resourceType, uid, processor, eventType, eventId, resourceId, orderId, now, nowUNIX, webhookReceivedUNIX, assistant }) {
+async function processPaymentEvent({ category, library, resource, resourceType, uid, processor, eventType, eventId, resourceId, orderId, now, nowUNIX, webhookReceivedUNIX, assistant, raw }) {
   const Manager = assistant.Manager;
   const admin = Manager.libraries.admin;
   const isSubscription = category === 'subscription';
@@ -215,8 +228,13 @@ async function processPaymentEvent({ category, library, resource, resourceType, 
     assistant.log(`Transition detected: ${category}/${transitionName} (before.status=${before?.status || 'null'}, after.status=${unified.status})`);
 
     if (shouldRunHandlers) {
+      // Extract unified refund details from the processor library (keeps handlers processor-agnostic)
+      const refundDetails = (transitionName === 'payment-refunded' && library.getRefundDetails)
+        ? library.getRefundDetails(raw)
+        : null;
+
       transitions.dispatch(transitionName, category, {
-        before, after: unified, order, uid, userDoc: userData, assistant,
+        before, after: unified, order, uid, userDoc: userData, assistant, refundDetails,
       });
     } else {
       assistant.log(`Transition handler skipped (testing mode): ${category}/${transitionName}`);

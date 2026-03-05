@@ -340,6 +340,36 @@ const JOURNEY_ACCOUNTS = {
       subscription: { product: { id: 'basic' }, status: 'active' },
     },
   },
+  // Journey: refund webhook transition (charge.refunded fires payment-refunded transition)
+  'journey-payments-refund-webhook': {
+    id: 'journey-payments-refund-webhook',
+    uid: '_test-journey-payments-refund-webhook',
+    email: '_test.journey-payments-refund-webhook@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'basic' }, status: 'active' },
+    },
+  },
+  // Journey: UID resolution fallback (webhook without uid in metadata, resolved from fetched resource)
+  'journey-payments-uid-resolution': {
+    id: 'journey-payments-uid-resolution',
+    uid: '_test-journey-payments-uid-resolution',
+    email: '_test.journey-payments-uid-resolution@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'basic' }, status: 'active' },
+    },
+  },
+  // Journey: legacy product ID resolution (webhook with legacy product ID maps to correct product)
+  'journey-payments-legacy-product': {
+    id: 'journey-payments-legacy-product',
+    uid: '_test-journey-payments-legacy-product',
+    email: '_test.journey-payments-legacy-product@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'basic' }, status: 'active' },
+    },
+  },
 };
 
 /**

@@ -83,6 +83,36 @@ const Stripe = {
   },
 
   /**
+   * Extract the UID from a Stripe resource's metadata
+   * Used to resolve UID after fetchResource() for parity with PayPal
+   *
+   * @param {object} resource - Raw Stripe resource (subscription, session, invoice)
+   * @returns {string|null}
+   */
+  getUid(resource) {
+    return resource.metadata?.uid || null;
+  },
+
+  /**
+   * Extract refund details from a Stripe charge.refunded webhook payload
+   * Returns a unified shape so transition handlers stay processor-agnostic
+   *
+   * @param {object} raw - Raw Stripe webhook payload
+   * @returns {{ amount: string|null, currency: string, reason: string|null }}
+   */
+  getRefundDetails(raw) {
+    const charge = raw?.data?.object;
+    const amountCents = charge?.amount_refunded;
+    const latestRefund = charge?.refunds?.data?.[0];
+
+    return {
+      amount: amountCents ? (amountCents / 100).toFixed(2) : null,
+      currency: charge?.currency?.toUpperCase() || 'USD',
+      reason: latestRefund?.reason || null,
+    };
+  },
+
+  /**
    * Transform a raw Stripe subscription object into the unified subscription shape
    * This produces the exact same object stored in users/{uid}.subscription
    *

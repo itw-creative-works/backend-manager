@@ -20,6 +20,9 @@ const SUPPORTED_EVENTS = new Set([
 
   // Checkout completion (could be subscription or one-time)
   'checkout.session.completed',
+
+  // Refunds
+  'charge.refunded',
 ]);
 
 module.exports = {
@@ -101,6 +104,30 @@ module.exports = {
         resourceId = dataObject.id;
         uid = dataObject.metadata?.uid || null;
       }
+
+    } else if (eventType === 'charge.refunded') {
+      // Refund event — the charge object contains an invoice ID which links to a subscription
+      const invoiceId = dataObject.invoice;
+      const subscriptionId = dataObject.subscription
+        || dataObject.metadata?.subscriptionId
+        || null;
+
+      if (subscriptionId) {
+        // Subscription-related refund
+        category = 'subscription';
+        resourceType = 'subscription';
+        resourceId = subscriptionId;
+      } else if (invoiceId) {
+        // Has invoice — likely subscription-related, will resolve via fetchResource
+        category = 'subscription';
+        resourceType = 'invoice';
+        resourceId = invoiceId;
+      } else {
+        // One-time payment refund — skip for now (no subscription to update)
+        category = null;
+      }
+
+      uid = dataObject.metadata?.uid || null;
     }
 
     return {

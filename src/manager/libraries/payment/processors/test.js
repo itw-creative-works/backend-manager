@@ -21,12 +21,17 @@ const Test = {
    * from Firestore instead of returning mismatched data.
    */
   async fetchResource(resourceType, resourceId, rawFallback, context) {
-    // If the fallback matches the requested type, return it directly
-    if (rawFallback?.object === resourceType) {
+    // If the fallback matches the requested type AND has a UID, return it directly
+    // When UID is missing (e.g., PAYMENT.SALE events), fall through to Firestore lookup
+    // so we can reconstruct a resource with the UID from the order's owner field
+    const fallbackHasUid = rawFallback?.metadata?.uid;
+    if (rawFallback?.object === resourceType && fallbackHasUid) {
       return rawFallback;
     }
 
-    // Fallback doesn't match — try to look up the resource from payments-orders
+    // Look up the existing resource from payments-orders in Firestore
+    // This simulates what a real API call (Stripe/PayPal) would return — a resource
+    // with the full metadata including UID
     const admin = context?.admin;
     if (admin && resourceId) {
       const snapshot = await admin.firestore()
@@ -40,7 +45,15 @@ const Test = {
         // payments-orders stores the unified subscription inside .unified
         // Reconstruct a Stripe-shaped object from the unified data for toUnifiedSubscription()
         if (resourceType === 'subscription' && data.unified) {
-          return buildStripeSubscriptionFromUnified(data.unified, resourceId, context?.eventType, context?.config);
+          const reconstructed = buildStripeSubscriptionFromUnified(data.unified, resourceId, context?.eventType, context?.config, data.owner);
+
+          // If the fallback matched the type but lacked UID, overlay the webhook's new state
+          // onto the reconstructed resource, but keep the reconstructed metadata (has uid)
+          if (rawFallback?.object === resourceType) {
+            return { ...rawFallback, metadata: { ...rawFallback.metadata, ...reconstructed.metadata } };
+          }
+
+          return reconstructed;
         }
       }
     }
@@ -54,6 +67,20 @@ const Test = {
    */
   getOrderId(resource) {
     return Stripe.getOrderId(resource);
+  },
+
+  /**
+   * Extract UID — delegates to Stripe (test processor uses Stripe-shaped data)
+   */
+  getUid(resource) {
+    return Stripe.getUid(resource);
+  },
+
+  /**
+   * Extract refund details — delegates to Stripe (test processor uses Stripe-shaped data)
+   */
+  getRefundDetails(raw) {
+    return Stripe.getRefundDetails(raw);
   },
 
   /**
@@ -87,7 +114,7 @@ module.exports = Test;
  * The unified → Stripe mapping must produce data that toUnifiedSubscription() can process correctly.
  * For payment failure events, we override the status to past_due so it maps to 'suspended'.
  */
-function buildStripeSubscriptionFromUnified(unified, resourceId, eventType, config) {
+function buildStripeSubscriptionFromUnified(unified, resourceId, eventType, config, ownerUid) {
   // Map unified status back to a Stripe status
   const STATUS_MAP = {
     active: 'active',
@@ -120,7 +147,7 @@ function buildStripeSubscriptionFromUnified(unified, resourceId, eventType, conf
     id: resourceId,
     object: 'subscription',
     status: status,
-    metadata: { orderId: unified.payment?.orderId || null },
+    metadata: { orderId: unified.payment?.orderId || null, uid: ownerUid || null },
     plan: {
       product: stripeProductId,
       interval: INTERVAL_MAP[frequency] || 'month',

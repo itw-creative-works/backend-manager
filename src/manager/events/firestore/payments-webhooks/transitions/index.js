@@ -18,7 +18,7 @@ const path = require('path');
  */
 function detectTransition(category, before, after, eventType) {
   if (category === 'subscription') {
-    return detectSubscriptionTransition(before, after);
+    return detectSubscriptionTransition(before, after, eventType);
   }
 
   if (category === 'one-time') {
@@ -37,9 +37,16 @@ function detectTransition(category, before, after, eventType) {
  * @param {object} after - New unified subscription
  * @returns {string|null} Transition name
  */
-function detectSubscriptionTransition(before, after) {
+function detectSubscriptionTransition(before, after, eventType) {
   if (!after) {
     return null;
+  }
+
+  // Refund events take priority — detected by webhook event type rather than state diff
+  // because the subscription state may not change meaningfully during a refund
+  const refundEvents = ['PAYMENT.SALE.REFUNDED', 'charge.refunded'];
+  if (refundEvents.includes(eventType)) {
+    return 'payment-refunded';
   }
 
   const beforeStatus = before?.status;

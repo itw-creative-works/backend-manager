@@ -359,6 +359,35 @@ const PayPal = {
   },
 
   /**
+   * Extract the UID from a PayPal resource's custom_id
+   * Used to resolve UID after fetchResource() for events like PAYMENT.SALE
+   * where the initial webhook payload doesn't carry custom_id
+   *
+   * @param {object} resource - Raw PayPal resource (subscription or order)
+   * @returns {string|null}
+   */
+  getUid(resource) {
+    const purchaseCustomId = resource.purchase_units?.[0]?.custom_id;
+    const customData = parseCustomId(purchaseCustomId || resource.custom_id);
+    return customData?.uid || null;
+  },
+
+  /**
+   * Extract refund details from a PayPal PAYMENT.SALE.REFUNDED webhook payload
+   * Returns a unified shape so transition handlers stay processor-agnostic
+   *
+   * @param {object} raw - Raw PayPal webhook payload
+   * @returns {{ amount: string|null, currency: string, reason: string|null }}
+   */
+  getRefundDetails(raw) {
+    return {
+      amount: raw?.resource?.amount?.total || raw?.resource?.total_refunded_amount?.value || null,
+      currency: raw?.resource?.amount?.currency || 'USD',
+      reason: raw?.resource?.reason_code || null,
+    };
+  },
+
+  /**
    * Build the custom_id string for PayPal subscriptions and orders
    * Format: uid:{uid},orderId:{orderId} or uid:{uid},orderId:{orderId},productId:{productId}
    *
@@ -409,13 +438,52 @@ function parseCustomId(customId) {
 }
 
 /**
+ * Calculate when the current billing period ends based on last payment + interval
+ * Used for cancelled subs to determine remaining access time
+ *
+ * @param {object} raw - Raw PayPal subscription (with _plan attached)
+ * @returns {Date|null} Period end date, or null if cannot be calculated
+ */
+function calculatePeriodEnd(raw) {
+  const lastPayment = raw.billing_info?.last_payment?.time;
+
+  if (!lastPayment) {
+    return null;
+  }
+
+  const plan = raw._plan;
+  const regularCycle = plan?.billing_cycles?.find(c => c.tenure_type === 'REGULAR');
+
+  if (!regularCycle) {
+    return null;
+  }
+
+  const unit = regularCycle.frequency.interval_unit;
+  const count = regularCycle.frequency.interval_count || 1;
+  const lastDate = new Date(lastPayment);
+
+  if (unit === 'YEAR') {
+    lastDate.setFullYear(lastDate.getFullYear() + count);
+  } else if (unit === 'MONTH') {
+    lastDate.setMonth(lastDate.getMonth() + count);
+  } else if (unit === 'WEEK') {
+    lastDate.setDate(lastDate.getDate() + (count * 7));
+  } else if (unit === 'DAY') {
+    lastDate.setDate(lastDate.getDate() + count);
+  }
+
+  return lastDate;
+}
+
+/**
  * Map PayPal subscription status to unified status
  *
  * | PayPal Status    | Unified Status |
  * |------------------|----------------|
  * | ACTIVE           | active         |
  * | SUSPENDED        | suspended      |
- * | CANCELLED        | cancelled      |
+ * | CANCELLED (period remaining) | active (with cancellation.pending) |
+ * | CANCELLED (period ended)     | cancelled      |
  * | EXPIRED          | cancelled      |
  * | APPROVAL_PENDING | cancelled      |
  * | APPROVED         | active         |
@@ -431,17 +499,47 @@ function resolveStatus(raw) {
     return 'suspended';
   }
 
-  // CANCELLED, EXPIRED, APPROVAL_PENDING, or anything else
+  // CANCELLED — check if user still has paid time remaining
+  if (status === 'CANCELLED') {
+    const periodEnd = calculatePeriodEnd(raw);
+
+    if (periodEnd && periodEnd > new Date()) {
+      // User still has access until period end — treat as active with pending cancellation
+      return 'active';
+    }
+
+    return 'cancelled';
+  }
+
+  // EXPIRED, APPROVAL_PENDING, or anything else
   return 'cancelled';
 }
 
 /**
  * Resolve cancellation state from PayPal subscription
+ *
+ * PayPal has no cancel_at_period_end like Stripe. When cancelled:
+ * - If billing period hasn't ended: pending=true, date=period end (user keeps access)
+ * - If billing period has ended: pending=false, date=cancellation time (fully cancelled)
  */
 function resolveCancellation(raw) {
   if (raw.status === 'CANCELLED') {
-    // PayPal doesn't give a specific cancellation date on the sub itself
-    // Use status_update_time if available
+    const periodEnd = calculatePeriodEnd(raw);
+
+    // Period still active — pending cancellation (user keeps access until period end)
+    if (periodEnd && periodEnd > new Date()) {
+      const periodEndStr = powertools.timestamp(periodEnd, { output: 'string' });
+
+      return {
+        pending: true,
+        date: {
+          timestamp: periodEndStr,
+          timestampUNIX: powertools.timestamp(periodEndStr, { output: 'unix' }),
+        },
+      };
+    }
+
+    // Period has ended — fully cancelled
     const cancelDate = raw.status_update_time
       ? powertools.timestamp(new Date(raw.status_update_time), { output: 'string' })
       : EPOCH_ZERO;
@@ -542,6 +640,7 @@ function resolveFrequency(raw) {
 /**
  * Resolve product by matching the PayPal product ID against config products
  * Uses: sub._plan.product_id → match config product.paypal.productId
+ * Also checks paypal.legacyProductIds[] for migrated products
  */
 function resolveProduct(raw, config) {
   // Get PayPal product ID from the plan (attached during fetchResource)
@@ -552,7 +651,13 @@ function resolveProduct(raw, config) {
   }
 
   for (const product of config.payment.products) {
+    // Check current product ID
     if (product.paypal?.productId === paypalProductId) {
+      return { id: product.id, name: product.name || product.id };
+    }
+
+    // Check legacy product IDs (for migrated products)
+    if (product.paypal?.legacyProductIds?.includes(paypalProductId)) {
       return { id: product.id, name: product.name || product.id };
     }
   }
@@ -579,9 +684,26 @@ function resolveProductOneTime(productId, config) {
 
 /**
  * Resolve subscription expiration from PayPal data
+ *
+ * For cancelled subs with remaining time, uses calculated period end.
+ * For active subs, uses next_billing_time.
  */
 function resolveExpires(raw) {
-  // PayPal's billing_info.next_billing_time is the closest to "period end"
+  // Cancelled subs with remaining time — use calculated period end
+  if (raw.status === 'CANCELLED') {
+    const periodEnd = calculatePeriodEnd(raw);
+
+    if (periodEnd && periodEnd > new Date()) {
+      const expiresStr = powertools.timestamp(periodEnd, { output: 'string' });
+
+      return {
+        timestamp: expiresStr,
+        timestampUNIX: powertools.timestamp(expiresStr, { output: 'unix' }),
+      };
+    }
+  }
+
+  // Active subs: PayPal's billing_info.next_billing_time is the closest to "period end"
   const nextBilling = raw.billing_info?.next_billing_time;
 
   if (!nextBilling) {
