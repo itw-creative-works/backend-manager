@@ -705,7 +705,7 @@ subscription: {
     processor: null,               // 'stripe' | 'paypal' | etc.
     orderId: null,                 // BEM order ID (e.g., '1234-5678-9012')
     resourceId: null,              // provider subscription ID (e.g., 'sub_xxx')
-    frequency: null,               // 'monthly' | 'annually'
+    frequency: null,               // 'monthly' | 'annually' | 'weekly' | 'daily'
     price: 0,                      // resolved from config (number, e.g., 4.99)
     startDate: { timestamp, timestampUNIX },
     updatedBy: {
@@ -911,7 +911,7 @@ payment: {
       type: 'subscription',
       limits: { requests: 1000 },
       trial: { days: 14 },
-      prices: { monthly: 4.99, annually: 49.99 },       // Flat numbers only
+      prices: { monthly: 4.99, annually: 49.99 },       // Flat numbers; also supports 'weekly' and 'daily'
       stripe: { productId: 'prod_xxx', legacyProductIds: ['prod_OLD'] },
       paypal: { productId: 'PROD-abc123' },
     },

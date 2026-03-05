@@ -922,7 +922,7 @@ payment: {
     {
       id: 'plus', name: 'Plus', type: 'subscription',
       limits: { requests: 100 }, trial: { days: 14 },
-      prices: { monthly: 28, annually: 276 },
+      prices: { monthly: 28, annually: 276 },  // also supports 'weekly' and 'daily'
       stripe: { productId: 'prod_xxx' },
       paypal: { productId: 'PROD-abc123' },
     },
@@ -958,7 +958,7 @@ subscription: {
   payment: {
     processor: null,               // 'stripe' | 'paypal' | etc.
     resourceId: null,              // provider subscription ID (e.g., 'sub_xxx')
-    frequency: null,               // 'monthly' | 'annually'
+    frequency: null,               // 'monthly' | 'annually' | 'weekly' | 'daily'
     startDate: { timestamp, timestampUNIX },
     updatedBy: {
       event: { name: null, id: null },
