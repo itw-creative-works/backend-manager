@@ -56,11 +56,11 @@ class LogsCommand extends BaseCommand {
 
   /**
    * Fetch historical logs.
-   * Usage: npx bm logs:read [--fn bm_api] [--severity ERROR] [--since 1h] [--limit 50]
+   * Usage: npx bm logs:read [--fn bm_api] [--severity ERROR] [--since 1h] [--limit 300]
    */
   async read(projectId, argv) {
     const filter = this.buildFilter(argv);
-    const limit = parseInt(argv.limit, 10) || 50;
+    const limit = parseInt(argv.limit, 10) || 300;
 
     const cmd = [
       'gcloud', 'logging', 'read',
@@ -88,8 +88,8 @@ class LogsCommand extends BaseCommand {
 
       const entries = JSON.parse(output || '[]');
 
-      // Save raw JSON to log file for Claude/tooling to read
-      jetpack.write(logPath, JSON.stringify(entries, null, 2));
+      // Save as newline-delimited JSON (matches tail format)
+      jetpack.write(logPath, entries.map(e => JSON.stringify(e)).join('\n'));
 
       if (entries.length === 0) {
         this.logWarning('No log entries found.');
