@@ -31,6 +31,9 @@ module.exports = async ({ assistant, change, context }) => {
   // Set status to processing
   await webhookRef.set({ status: 'processing' }, { merge: true });
 
+  // Hoisted so orderId is available in catch block for audit trail
+  let orderId = null;
+
   try {
     const processor = dataAfter.processor;
     const uid = dataAfter.owner;
@@ -73,7 +76,7 @@ module.exports = async ({ assistant, change, context }) => {
     const webhookReceivedUNIX = dataAfter.metadata?.received?.timestampUNIX || nowUNIX;
 
     // Extract orderId from resource (processor-agnostic)
-    const orderId = library.getOrderId(resource);
+    orderId = library.getOrderId(resource);
 
     // Process the payment event (subscription or one-time)
     if (category !== 'subscription' && category !== 'one-time') {
@@ -100,11 +103,28 @@ module.exports = async ({ assistant, change, context }) => {
   } catch (e) {
     assistant.error(`Webhook ${eventId} failed: ${e.message}`, e);
 
+    const now = powertools.timestamp(new Date(), { output: 'string' });
+    const nowUNIX = powertools.timestamp(now, { output: 'unix' });
+
     // Mark as failed with error message
     await webhookRef.set({
       status: 'failed',
       error: e.message || String(e),
     }, { merge: true });
+
+    // Mark intent as failed if we resolved the orderId before the error
+    if (orderId) {
+      await admin.firestore().doc(`payments-intents/${orderId}`).set({
+        status: 'failed',
+        error: e.message || String(e),
+        metadata: {
+          completed: {
+            timestamp: now,
+            timestampUNIX: nowUNIX,
+          },
+        },
+      }, { merge: true });
+    }
   }
 };
 
@@ -218,6 +238,20 @@ async function processPaymentEvent({ category, library, resource, resourceType, 
   if (orderId) {
     await admin.firestore().doc(`payments-orders/${orderId}`).set(order, { merge: true });
     assistant.log(`Updated payments-orders/${orderId}: type=${category}, uid=${uid}, eventType=${eventType}`);
+  }
+
+  // Update payments-intents/{orderId} status to match webhook outcome
+  if (orderId) {
+    await admin.firestore().doc(`payments-intents/${orderId}`).set({
+      status: 'completed',
+      metadata: {
+        completed: {
+          timestamp: now,
+          timestampUNIX: nowUNIX,
+        },
+      },
+    }, { merge: true });
+    assistant.log(`Updated payments-intents/${orderId}: status=completed`);
   }
 
   return transitionName;

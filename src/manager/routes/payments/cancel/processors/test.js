@@ -2,9 +2,13 @@ const powertools = require('node-powertools');
 
 /**
  * Test cancel processor
- * Simulates the Stripe webhook that results from cancel_at_period_end=true
+ * Simulates the Stripe webhook that results from cancellation
  * by writing directly to payments-webhooks/{eventId} with status=pending.
  * The on-write trigger picks it up and runs the full pipeline.
+ *
+ * If the user is trialing, simulates immediate cancellation (customer.subscription.deleted).
+ * Otherwise, simulates cancel at period end (customer.subscription.updated with cancel_at_period_end=true).
+ *
  * Only available in non-production environments.
  */
 module.exports = {
@@ -16,7 +20,6 @@ module.exports = {
     const admin = assistant.Manager.libraries.admin;
 
     const timestamp = Date.now();
-    const eventId = `_test-evt-cancel-${timestamp}`;
     const now = Math.floor(timestamp / 1000);
     const periodEnd = now + (30 * 86400);
 
@@ -35,21 +38,31 @@ module.exports = {
       }
     }
 
-    // Build a Stripe-shaped customer.subscription.updated payload
-    // with cancel_at_period_end=true — mirrors what Stripe sends after cancellation
+    // Detect if user is on a trial
+    const isTrialing = subscription?.trial?.claimed
+      && subscription?.status === 'active'
+      && subscription?.trial?.expires?.timestampUNIX === subscription?.expires?.timestampUNIX;
+
+    // Trialing: immediate cancel (customer.subscription.deleted)
+    // Non-trialing: cancel at period end (customer.subscription.updated)
+    const eventType = isTrialing
+      ? 'customer.subscription.deleted'
+      : 'customer.subscription.updated';
+    const eventId = `_test-evt-cancel-${timestamp}`;
+
     const subscriptionObj = {
       id: resourceId,
       object: 'subscription',
-      status: 'active',
+      status: isTrialing ? 'canceled' : 'active',
       metadata: { uid, orderId },
-      cancel_at_period_end: true,
-      cancel_at: periodEnd,
-      canceled_at: null,
-      current_period_end: periodEnd,
+      cancel_at_period_end: !isTrialing,
+      cancel_at: isTrialing ? now : periodEnd,
+      canceled_at: isTrialing ? now : null,
+      current_period_end: isTrialing ? now : periodEnd,
       current_period_start: now - (30 * 86400),
       start_date: now - (30 * 86400),
-      trial_start: null,
-      trial_end: null,
+      trial_start: isTrialing ? (now - 86400) : null,
+      trial_end: isTrialing ? now : null,
       plan: { product: stripeProductId, interval: 'month' },
     };
 
@@ -64,11 +77,11 @@ module.exports = {
       owner: uid,
       raw: {
         id: eventId,
-        type: 'customer.subscription.updated',
+        type: eventType,
         data: { object: subscriptionObj },
       },
       event: {
-        type: 'customer.subscription.updated',
+        type: eventType,
         category: 'subscription',
         resourceType: 'subscription',
         resourceId: resourceId,
@@ -86,6 +99,6 @@ module.exports = {
       },
     });
 
-    assistant.log(`Test cancel processor: wrote payments-webhooks/${eventId} for sub=${resourceId}, uid=${uid}`);
+    assistant.log(`Test cancel processor: wrote payments-webhooks/${eventId} (${eventType}) for sub=${resourceId}, uid=${uid}, trialing=${isTrialing}`);
   },
 };

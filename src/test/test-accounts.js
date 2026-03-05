@@ -166,6 +166,15 @@ const JOURNEY_ACCOUNTS = {
       subscription: { product: { id: 'basic' }, status: 'active' }, // Starts as basic, upgraded via trial webhook
     },
   },
+  'journey-payments-trial-cancel': {
+    id: 'journey-payments-trial-cancel',
+    uid: '_test-journey-payments-trial-cancel',
+    email: '_test.journey-payments-trial-cancel@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'basic' }, status: 'active' }, // Starts as basic, trial then immediate cancel
+    },
+  },
   'journey-payments-failure': {
     id: 'journey-payments-failure',
     uid: '_test-journey-payments-failure',

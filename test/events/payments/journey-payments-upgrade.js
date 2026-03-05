@@ -109,7 +109,7 @@ module.exports = {
     },
 
     {
-      name: 'intent-doc-created',
+      name: 'intent-doc-completed',
       async run({ firestore, assert, state }) {
         const intentDoc = await firestore.get(`payments-intents/${state.orderId}`);
 
@@ -118,8 +118,9 @@ module.exports = {
         assert.equal(intentDoc.intentId, state.intentId, 'Intent ID should match processor session ID');
         assert.equal(intentDoc.owner, state.uid, 'Owner should match');
         assert.equal(intentDoc.processor, 'test', 'Processor should be test');
-        assert.equal(intentDoc.status, 'pending', 'Intent status should be pending');
+        assert.equal(intentDoc.status, 'completed', 'Intent status should be completed after webhook processing');
         assert.equal(intentDoc.productId, state.paidProductId, `Product should be ${state.paidProductId}`);
+        assert.ok(intentDoc.metadata?.completed?.timestampUNIX > 0, 'Completed timestamp should be set');
       },
     },
   ],

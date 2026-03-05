@@ -14,6 +14,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.109] - 2026-03-04
+### Added
+- Immediate trial cancellation: cancelling during a free trial now terminates the subscription instantly instead of scheduling cancel at period end, preventing free premium access for the remainder of the trial.
+- Intent status tracking: `payments-intents/{orderId}` is now updated with `status: completed/failed` and completion timestamp after webhook processing.
+- `journey-payments-trial-cancel` test suite covering the full trial → cancel → immediate cancellation flow.
+
+### Changed
+- Stripe and test cancel processors now detect trialing state and dispatch immediate cancel (`customer.subscription.deleted`) vs period-end cancel (`customer.subscription.updated`).
+
 # [5.0.106] - 2026-03-04
 ### Added
 - `GET /payments/trial-eligibility`: returns whether the authenticated user is eligible for a free trial (checks for any previous subscription orders in `payments-orders`).

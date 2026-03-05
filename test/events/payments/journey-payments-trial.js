@@ -80,6 +80,18 @@ module.exports = {
     },
 
     {
+      name: 'intent-doc-completed',
+      async run({ firestore, assert, state }) {
+        const intentDoc = await firestore.get(`payments-intents/${state.orderId}`);
+
+        assert.ok(intentDoc, 'Intent doc should exist');
+        assert.equal(intentDoc.id, state.orderId, 'ID should match orderId');
+        assert.equal(intentDoc.status, 'completed', 'Intent status should be completed after webhook processing');
+        assert.ok(intentDoc.metadata?.completed?.timestampUNIX > 0, 'Completed timestamp should be set');
+      },
+    },
+
+    {
       name: 'send-trial-to-active-webhook',
       async run({ http, assert, state, config }) {
         const futureDate = new Date();
