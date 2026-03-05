@@ -6,6 +6,7 @@ const EPOCH_ZERO_UNIX = powertools.timestamp(EPOCH_ZERO, { output: 'unix' });
 
 // PayPal interval → unified frequency map
 const INTERVAL_TO_FREQUENCY = { YEAR: 'annually', MONTH: 'monthly', WEEK: 'weekly', DAY: 'daily' };
+const FREQUENCY_TO_INTERVAL = { annually: 'YEAR', monthly: 'MONTH', weekly: 'WEEK', daily: 'DAY' };
 
 // PayPal API base URL
 const PAYPAL_API_BASE = 'https://api-m.paypal.com';
@@ -271,7 +272,7 @@ const PayPal = {
     const plans = response.plans || [];
 
     // Map frequency to PayPal interval unit
-    const intervalUnit = frequency === 'annually' ? 'YEAR' : 'MONTH';
+    const intervalUnit = FREQUENCY_TO_INTERVAL[frequency] || 'MONTH';
 
     // Find matching active plan by interval + amount
     for (const plan of plans) {

@@ -40,11 +40,9 @@ service cloud.firestore {
     }
 
     function getRoles() {
-      // return get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.roles;
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.roles;
     }
     function getVerifications() {
-      // return get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.roles;
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.verifications;
     }
     function isAdmin() {

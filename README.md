@@ -879,7 +879,7 @@ See `CLAUDE.md` for complete test API documentation.
 
 ## Subscription System
 
-BEM includes a built-in payment/subscription system with Stripe integration (extensible to other providers).
+BEM includes a built-in payment/subscription system with Stripe and PayPal integration.
 
 ### Subscription Statuses
 
@@ -901,6 +901,39 @@ BEM includes a built-in payment/subscription system with Stripe integration (ext
 | `incomplete` | `cancelled` | Never completed initial payment |
 | `incomplete_expired` | `cancelled` | Expired before completion |
 | `active` + `cancel_at_period_end` | `active` | `cancellation.pending = true` |
+
+### PayPal Status Mapping
+
+| PayPal Status | `subscription.status` | Notes |
+|---|---|---|
+| `ACTIVE` | `active` | Normal active subscription |
+| `SUSPENDED` | `suspended` | Payment failed or manually suspended |
+| `CANCELLED` | `cancelled` | Subscription terminated |
+| `EXPIRED` | `cancelled` | Billing cycles completed |
+
+### Product Configuration
+
+Products are defined in `config.payment.products` with flat prices and per-processor IDs:
+
+```javascript
+payment: {
+  products: [
+    { id: 'basic', name: 'Basic', type: 'subscription', limits: { requests: 10 } },
+    {
+      id: 'plus', name: 'Plus', type: 'subscription',
+      limits: { requests: 100 }, trial: { days: 14 },
+      prices: { monthly: 28, annually: 276 },
+      stripe: { productId: 'prod_xxx' },
+      paypal: { productId: 'PROD-abc123' },
+    },
+    {
+      id: 'boost', name: 'Boost Pack', type: 'one-time',
+      prices: { once: 9.99 },
+      stripe: { productId: 'prod_yyy' },
+    },
+  ],
+}
+```
 
 ### Unified Subscription Object
 

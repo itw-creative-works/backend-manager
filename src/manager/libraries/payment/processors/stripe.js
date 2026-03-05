@@ -9,6 +9,7 @@ const EPOCH_ZERO_UNIX = powertools.timestamp(EPOCH_ZERO, { output: 'unix' });
 
 // Stripe interval → unified frequency map
 const INTERVAL_TO_FREQUENCY = { year: 'annually', month: 'monthly', week: 'weekly', day: 'daily' };
+const FREQUENCY_TO_INTERVAL = { annually: 'year', monthly: 'month', weekly: 'week', daily: 'day' };
 
 /**
  * Stripe shared library
@@ -228,7 +229,7 @@ const Stripe = {
 
     // Match by interval + amount
     if (productType === 'subscription') {
-      const interval = frequency === 'annually' ? 'year' : 'month';
+      const interval = FREQUENCY_TO_INTERVAL[frequency] || 'month';
       const match = prices.find(p =>
         p.recurring?.interval === interval
         && p.unit_amount === amountCents

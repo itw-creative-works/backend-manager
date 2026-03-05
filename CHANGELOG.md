@@ -14,6 +14,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.106] - 2026-03-04
+### Fixed
+- Payment frequency mapping now supports `daily` and `weekly` in addition to `monthly` and `annually` across Stripe (`resolvePriceId`), PayPal (`resolvePlanId`), and test processor (`createSubscriptionIntent`). Previously, these frequencies silently fell back to `monthly`.
+
 # [5.0.104] - 2026-03-02
 ### Added
 - `POST /payments/cancel`: cancels subscription at period end via processor abstraction (Stripe sets `cancel_at_period_end=true`; test processor writes webhook directly into the Firestore pipeline).

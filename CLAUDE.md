@@ -89,7 +89,7 @@ src/
           post.js                     # Intent creation orchestrator
           processors/                 # Per-processor intent creators
             stripe.js                 # Stripe Checkout Session creation
-            paypal.js                 # PayPal subscription creation
+            paypal.js                 # PayPal subscription + one-time order creation
             test.js                   # Test processor (auto-fires webhooks)
         webhook/                      # POST /payments/webhook
           post.js                     # Webhook ingestion + Firestore write
@@ -804,7 +804,7 @@ The payment system is cleanly separated into three independent layers:
 
 | Layer | Purpose | Tests |
 |-------|---------|-------|
-| **Processor input** (Stripe, PayPal, Test) | Parse raw webhooks + transform to unified shape | Helper tests per processor (`stripe-to-unified.js`, `paypal-to-unified.js`, etc.) |
+| **Processor input** (Stripe, PayPal, Test) | Parse raw webhooks + transform to unified shape | Helper tests per processor (`payment/stripe/to-unified-subscription.js`, `payment/paypal/to-unified-one-time.js`, etc.) |
 | **Unified pipeline** (processor-agnostic) | Transition detection, Firestore writes, analytics | Journey tests (`journey-payments-*.js`) |
 | **Transition handlers** (fire-and-forget) | Emails, notifications, side effects | Skipped during tests unless `TEST_EXTENDED_MODE` |
 
@@ -864,6 +864,7 @@ module.exports = {
 module.exports = {
   init() { /* return SDK instance */ },
   async fetchResource(resourceType, resourceId, rawFallback, context) { /* return resource */ },
+  getOrderId(resource) { /* return orderId string or null */ },
   toUnifiedSubscription(rawSubscription, options) { /* return unified object */ },
   toUnifiedOneTime(rawResource, options) { /* return unified object */ },
 };

@@ -14,7 +14,7 @@ module.exports = {
    * @param {string} options.uid - User's UID
    * @param {object} options.product - Full product object from config
    * @param {string} options.productId - Product ID from config
-   * @param {string} options.frequency - 'monthly' or 'annually' (subscriptions only)
+   * @param {string} options.frequency - 'monthly', 'annually', 'weekly', or 'daily' (subscriptions only)
    * @param {boolean} options.trial - Whether to include a trial period (subscriptions only)
    * @param {string} options.confirmationUrl - Success redirect URL
    * @param {string} options.cancelUrl - Cancel redirect URL
@@ -49,13 +49,13 @@ async function createSubscriptionIntent({ uid, orderId, product, frequency, tria
   const eventId = `_test-evt-${timestamp}`;
 
   // Map frequency to Stripe interval
-  const interval = frequency === 'annually' ? 'year' : 'month';
+  const FREQUENCY_TO_INTERVAL = { annually: 'year', monthly: 'month', weekly: 'week', daily: 'day' };
+  const FREQUENCY_TO_PERIOD = { annually: 365 * 86400, monthly: 30 * 86400, weekly: 7 * 86400, daily: 1 * 86400 };
+  const interval = FREQUENCY_TO_INTERVAL[frequency] || 'month';
 
   // Build timestamps
   const now = Math.floor(timestamp / 1000);
-  const periodEnd = frequency === 'annually'
-    ? now + (365 * 86400)
-    : now + (30 * 86400);
+  const periodEnd = now + (FREQUENCY_TO_PERIOD[frequency] || 30 * 86400);
 
   // Build Stripe-shaped subscription object
   // Uses product's Stripe product ID so resolveProduct() can match it

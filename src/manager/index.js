@@ -1,6 +1,6 @@
 // Libraries
 const path = require('path');
-const { merge } = require('lodash');
+const { mergeWith, isArray } = require('lodash');
 const jetpack = require('fs-jetpack');
 const JSON5 = require('json5');
 const EventEmitter = require('events');
@@ -129,10 +129,13 @@ Manager.prototype.init = function (exporter, options) {
   }
 
   // Load config
-  self.config = merge(
+  // Use mergeWith to replace arrays instead of merging by index
+  // (lodash merge merges arrays positionally, causing template defaults to bleed into project values)
+  self.config = mergeWith(
     {},
     requireJSON5(BEM_CONFIG_TEMPLATE_PATH, true),
     requireJSON5(self.project.backendManagerConfigPath, true),
+    (_objValue, srcValue) => isArray(srcValue) ? srcValue : undefined,
   );
 
   // Resolve legacy paths
