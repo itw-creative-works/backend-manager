@@ -29,6 +29,14 @@ module.exports = async ({ assistant, Manager, libraries }) => {
     return assistant.respond('Invalid key', { code: 401 });
   }
 
+  // Validate brand — quit if a brand is specified and doesn't match ours
+  const brand = query.brand;
+  const ourBrand = Manager.config.brand?.id;
+  if (brand && ourBrand && brand !== ourBrand) {
+    assistant.log(`Ignoring webhook: explicit brand mismatch (received=${brand}, expected=${ourBrand})`);
+    return assistant.respond({ received: true, ignored: true });
+  }
+
   // Load the processor module
   let processorModule;
   try {
