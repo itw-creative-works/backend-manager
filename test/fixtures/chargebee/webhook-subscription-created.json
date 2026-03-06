@@ -1,0 +1,47 @@
+{
+  "id": "ev_cb_sub_created_001",
+  "occurred_at": 1700000000,
+  "source": "hosted_page",
+  "event_type": "subscription_created",
+  "api_version": "v2",
+  "content": {
+    "subscription": {
+      "id": "cb_sub_active_001",
+      "customer_id": "cb_cust_001",
+      "status": "active",
+      "current_term_start": 1700000000,
+      "current_term_end": 1702592000,
+      "created_at": 1700000000,
+      "started_at": 1700000000,
+      "activated_at": 1700000000,
+      "subscription_items": [
+        {
+          "item_price_id": "somiibo-pro-monthly",
+          "item_type": "plan",
+          "quantity": 1,
+          "unit_price": 499,
+          "amount": 499
+        }
+      ],
+      "meta_data": "{\"uid\":\"test-uid-001\",\"orderId\":\"1234-5678-9012\"}",
+      "currency_code": "USD",
+      "object": "subscription"
+    },
+    "customer": {
+      "id": "cb_cust_001",
+      "first_name": "Test",
+      "last_name": "User",
+      "email": "test@example.com",
+      "object": "customer"
+    },
+    "invoice": {
+      "id": "inv_cb_001",
+      "subscription_id": "cb_sub_active_001",
+      "status": "paid",
+      "total": 499,
+      "amount_paid": 499,
+      "currency_code": "USD",
+      "object": "invoice"
+    }
+  }
+}

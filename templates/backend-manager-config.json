@@ -69,6 +69,10 @@
         paypal: {
           productId: null,
         },
+        chargebee: {
+          itemId: null,
+          legacyPlanIds: [],
+        },
       },
       {
         id: 'ultimate',
@@ -87,6 +91,10 @@
         paypal: {
           productId: null,
         },
+        chargebee: {
+          itemId: null,
+          legacyPlanIds: [],
+        },
       },
       {
         id: 'credits-100',
@@ -97,6 +105,9 @@
         },
         stripe: {
           productId: null,
+        },
+        chargebee: {
+          itemId: null,
         },
       },
       // Add more products/tiers here

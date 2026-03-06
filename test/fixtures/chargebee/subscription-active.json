@@ -1,0 +1,44 @@
+{
+  "id": "cb_sub_active_001",
+  "customer_id": "cb_cust_001",
+  "status": "active",
+  "current_term_start": 1700000000,
+  "current_term_end": 1702592000,
+  "next_billing_at": 1702592000,
+  "created_at": 1697321600,
+  "started_at": 1697321600,
+  "activated_at": 1697321600,
+  "updated_at": 1700000000,
+  "has_scheduled_changes": false,
+  "channel": "web",
+  "resource_version": 1700000000000,
+  "deleted": false,
+  "object": "subscription",
+  "currency_code": "USD",
+  "subscription_items": [
+    {
+      "item_price_id": "somiibo-pro-monthly",
+      "item_type": "plan",
+      "quantity": 1,
+      "unit_price": 499,
+      "amount": 499,
+      "object": "subscription_item"
+    }
+  ],
+  "meta_data": "{\"uid\":\"test-uid-001\",\"orderId\":\"1234-5678-9012\"}",
+  "shipping_address": {
+    "first_name": "Test",
+    "last_name": "User",
+    "line1": "123 Main Street",
+    "city": "San Francisco",
+    "state": "CA",
+    "country": "US",
+    "validation_status": "not_validated",
+    "object": "shipping_address"
+  },
+  "due_invoices_count": 0,
+  "mrr": 499,
+  "exchange_rate": 1,
+  "base_currency_code": "USD",
+  "has_scheduled_advance_invoices": false
+}

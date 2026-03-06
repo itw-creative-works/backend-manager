@@ -1,0 +1,51 @@
+{
+  "id": "ev_cb_payment_failed_001",
+  "occurred_at": 1700500000,
+  "source": "system",
+  "event_type": "payment_failed",
+  "api_version": "v2",
+  "content": {
+    "subscription": {
+      "id": "cb_sub_active_001",
+      "customer_id": "cb_cust_001",
+      "status": "active",
+      "current_term_start": 1700000000,
+      "current_term_end": 1702592000,
+      "subscription_items": [
+        {
+          "item_price_id": "somiibo-pro-monthly",
+          "item_type": "plan",
+          "quantity": 1,
+          "unit_price": 499,
+          "amount": 499
+        }
+      ],
+      "meta_data": "{\"uid\":\"test-uid-001\",\"orderId\":\"1234-5678-9012\"}",
+      "currency_code": "USD",
+      "object": "subscription"
+    },
+    "customer": {
+      "id": "cb_cust_001",
+      "first_name": "Test",
+      "last_name": "User",
+      "email": "test@example.com",
+      "object": "customer"
+    },
+    "invoice": {
+      "id": "inv_cb_002",
+      "subscription_id": "cb_sub_active_001",
+      "status": "not_paid",
+      "total": 499,
+      "amount_due": 499,
+      "currency_code": "USD",
+      "object": "invoice"
+    },
+    "transaction": {
+      "id": "txn_cb_002",
+      "status": "failure",
+      "amount": 499,
+      "currency_code": "USD",
+      "object": "transaction"
+    }
+  }
+}

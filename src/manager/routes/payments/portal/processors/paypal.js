@@ -9,11 +9,12 @@ module.exports = {
    *
    * @param {object} options
    * @param {string} options.uid - User's UID
+   * @param {string} options.email - User's email (not used for PayPal)
    * @param {string|null} options.returnUrl - Not used for PayPal
    * @param {object} options.assistant - Assistant instance for logging
    * @returns {object} { url }
    */
-  async createPortalSession({ uid, returnUrl, assistant }) {
+  async createPortalSession({ uid, email, returnUrl, assistant }) {
     // PayPal subscribers manage their subscription directly at PayPal
     const url = 'https://www.paypal.com/myaccount/autopay/';
 

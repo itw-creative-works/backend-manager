@@ -321,7 +321,17 @@ function extractCustomerName(resource, resourceType) {
     }
   }
 
-  // Subscriptions only have customer ID, no name
+  // Chargebee subscriptions carry shipping_address / billing_address with first_name + last_name
+  if (resourceType === 'subscription') {
+    const addr = resource.shipping_address || resource.billing_address;
+    if (addr?.first_name) {
+      const { capitalize } = require('../../../libraries/infer-contact.js');
+      return {
+        first: capitalize(addr.first_name) || null,
+        last: capitalize(addr.last_name) || null,
+      };
+    }
+  }
 
   if (!fullName) {
     return null;

@@ -13,9 +13,10 @@ module.exports = {
    * @param {object} options
    * @param {string} options.resourceId - PayPal subscription ID (e.g., 'I-xxx')
    * @param {string} options.uid - User's UID (for logging)
+   * @param {object} options.subscription - User's current subscription object
    * @param {object} options.assistant - Assistant instance for logging
    */
-  async cancelAtPeriodEnd({ resourceId, uid, assistant }) {
+  async cancelAtPeriodEnd({ resourceId, uid, subscription, assistant }) {
     const PayPalLib = require('../../../../libraries/payment/processors/paypal.js');
 
     await PayPalLib.request(`/v1/billing/subscriptions/${resourceId}/cancel`, {

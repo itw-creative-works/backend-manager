@@ -141,6 +141,9 @@ Manager.prototype.init = function (exporter, options) {
   // Set PAYPAL_CLIENT_ID from config (clientId is public, not a secret — lives in config, not .env)
   process.env.PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID || self.config?.payment?.processors?.paypal?.clientId || '';
 
+  // Set CHARGEBEE_SITE from config (site is public, not a secret — lives in config, not .env)
+  process.env.CHARGEBEE_SITE = process.env.CHARGEBEE_SITE || self.config?.payment?.processors?.chargebee?.site || '';
+
   // Resolve legacy paths
   // TODO: Remove this in future versions (after we migrate to removing app.id from config)
   self.config.app = self.config.app || {};

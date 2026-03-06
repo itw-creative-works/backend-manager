@@ -1,0 +1,27 @@
+{
+  "id": "inv_cb_onetime_001",
+  "customer_id": "cb_cust_006",
+  "status": "paid",
+  "total": 999,
+  "amount_paid": 999,
+  "amount_due": 0,
+  "recurring": false,
+  "date": 1700000000,
+  "paid_at": 1700000001,
+  "currency_code": "USD",
+  "object": "invoice",
+  "meta_data": "{\"uid\":\"test-uid-006\",\"orderId\":\"6789-0123-4567\",\"productId\":\"credits-100\"}",
+  "line_items": [
+    {
+      "id": "li_cb_001",
+      "date_from": 1700000000,
+      "date_to": 1700000000,
+      "unit_amount": 999,
+      "quantity": 1,
+      "amount": 999,
+      "description": "100 Credits",
+      "entity_type": "charge",
+      "object": "line_item"
+    }
+  ]
+}
