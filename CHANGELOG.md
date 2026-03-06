@@ -14,6 +14,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.118] - 2026-03-06
+### Added
+- Chargebee payment processor with full pipeline support (intent, webhook, cancel, refund, portal).
+- Chargebee shared library (`payment/processors/chargebee.js`) with raw HTTP API wrapper, unified subscription/one-time transformers, and both Items model (new) and Plans model (legacy) product resolution.
+- Chargebee webhook processor supporting subscription lifecycle events (`subscription_created`, `subscription_cancelled`, `subscription_renewed`, `payment_failed`, `payment_refunded`, etc.) and one-time invoice events.
+- Chargebee intent processor for hosted page checkout (subscriptions and one-time purchases) with deterministic item price IDs (`{itemId}-{frequency}`).
+- Chargebee cancel processor with immediate cancellation during trials and end-of-term cancellation otherwise.
+- Chargebee refund processor with 7-day full/prorated refund logic (matching Stripe/PayPal behavior).
+- Chargebee portal processor for self-service subscription management via Chargebee Portal Sessions.
+- Backwards compatibility for legacy Chargebee subscriptions: reads `cf_clientorderid`/`cf_uid` custom fields alongside new `meta_data` JSON format.
+- Chargebee test suite: `to-unified-subscription`, `to-unified-one-time`, and `parse-webhook` group tests with fixtures covering all status mappings, product resolution (Items + legacy Plans), and edge cases.
+- Chargebee customer name extraction from `shipping_address`/`billing_address` in webhook on-write pipeline.
+- `chargebee` config keys in product templates (`itemId`, `legacyPlanIds`).
+
+### Changed
+- `CHARGEBEE_SITE` environment variable is now set from config in Manager init (matching PayPal pattern), so the Chargebee library doesn't need a Manager reference.
+
 # [5.0.111] - 2026-03-05
 ### Changed
 - PayPal client ID is now read from `backend-manager-config.json` (`payment.processors.paypal.clientId`) instead of requiring a `PAYPAL_CLIENT_ID` environment variable.
