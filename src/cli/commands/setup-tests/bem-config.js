@@ -20,6 +20,11 @@ class BemConfigTest extends BaseTest {
 
     // Loop through all the keys in the template
     powertools.getKeys(bemConfigTemplate).forEach((key) => {
+      // Skip if an ancestor is explicitly set to a non-object value (e.g. stripe: false)
+      if (this._isAncestorDisabled(key)) {
+        return;
+      }
+
       const userValue = _.get(this.self.bemConfigJSON, key, undefined);
 
       // If the user value is undefined, then we need to set pass to false
@@ -43,6 +48,11 @@ class BemConfigTest extends BaseTest {
 
     // Log what keys are missing
     powertools.getKeys(bemConfigTemplate).forEach((key) => {
+      // Skip if an ancestor is explicitly set to a non-object value (e.g. stripe: false)
+      if (this._isAncestorDisabled(key)) {
+        return;
+      }
+
       const userValue = _.get(this.self.bemConfigJSON, key, undefined);
 
       if (typeof userValue === 'undefined') {
@@ -53,6 +63,24 @@ class BemConfigTest extends BaseTest {
     });
 
     throw new Error('Missing required backend-manager-config.json keys');
+  }
+  /**
+   * Check if any ancestor of a dot-notation key is a non-object value (e.g. false)
+   * This means the key is intentionally disabled, not missing
+   */
+  _isAncestorDisabled(key) {
+    const parts = key.split('.');
+    let current = this.self.bemConfigJSON;
+
+    for (let i = 0; i < parts.length - 1; i++) {
+      current = current?.[parts[i]];
+
+      if (current !== undefined && current !== null && typeof current !== 'object') {
+        return true;
+      }
+    }
+
+    return false;
   }
 }
 
