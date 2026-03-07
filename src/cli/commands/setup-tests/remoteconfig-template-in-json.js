@@ -8,11 +8,11 @@ class RemoteconfigTemplateInJsonTest extends BaseTest {
   }
 
   async run() {
-    return this.self.firebaseJSON?.remoteconfig?.template === 'remoteconfig.template.json';
+    return this.self.firebaseJSON?.remoteconfig?.template === 'functions/remoteconfig.template.json';
   }
 
   async fix() {
-    _.set(this.self.firebaseJSON, 'remoteconfig.template', 'remoteconfig.template.json');
+    _.set(this.self.firebaseJSON, 'remoteconfig.template', 'functions/remoteconfig.template.json');
     jetpack.write(`${this.self.firebaseProjectPath}/firebase.json`, JSON.stringify(this.self.firebaseJSON, null, 2));
   }
 }
