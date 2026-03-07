@@ -14,6 +14,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.119] - 2026-03-07
+### Added
+- `POST /marketing/email-preferences` route for unsubscribe/resubscribe via SendGrid ASM suppression groups
+- HMAC signature verification (`UNSUBSCRIBE_HMAC_KEY`) on unsubscribe links to prevent forged requests
+- HMAC signature generation in email library when building unsubscribe URLs
+- `UNSUBSCRIBE_HMAC_KEY` environment variable in template `.env`
+- Test suite for email-preferences endpoint (10 tests covering sig verification, validation, auth)
+
+### Changed
+- Unsubscribe URL in emails no longer includes `appName` and `appUrl` params (replaced by HMAC sig)
+
 # [5.0.118] - 2026-03-06
 ### Added
 - Chargebee payment processor with full pipeline support (intent, webhook, cancel, refund, portal).

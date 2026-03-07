@@ -161,7 +161,11 @@ Email.prototype.build = async function (settings) {
   const sendAt = normalizeSendAt(settings.sendAt);
 
   // Build unsubscribe URL
-  const unsubscribeUrl = `${Manager.project.websiteUrl}/portal/account/email-preferences?email=${encode(to[0].email)}&asmId=${encode(groupId)}&templateId=${encode(templateId)}&appName=${brandData.name}&appUrl=${brandData.url}`;
+  // Generate HMAC signature for unsubscribe link verification
+  const crypto = require('crypto');
+  const unsubSig = crypto.createHmac('sha256', process.env.UNSUBSCRIBE_HMAC_KEY).update(to[0].email.toLowerCase()).digest('hex');
+
+  const unsubscribeUrl = `${Manager.project.websiteUrl}/portal/email-preferences?email=${encode(to[0].email)}&asmId=${encode(groupId)}&templateId=${encode(templateId)}&sig=${unsubSig}`;
 
   // Build signoff
   const signoff = settings?.data?.signoff || {};
