@@ -10,14 +10,14 @@ class RemoteconfigTemplateFileTest extends BaseTest {
 
   async run() {
     const self = this.self;
-    const exists = jetpack.exists(`${self.firebaseProjectPath}/functions/remoteconfig.template.json`);
+    const exists = jetpack.exists(`${self.firebaseProjectPath}/remoteconfig.template.json`);
     return exists;
   }
 
   async fix() {
     const self = this.self;
     const name = 'remoteconfig.template.json';
-    const filePath = `${self.firebaseProjectPath}/functions/${name}`;
+    const filePath = `${self.firebaseProjectPath}/${name}`;
     const exists = jetpack.exists(filePath);
     let contents = jetpack.read(filePath) || '';
 
