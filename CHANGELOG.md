@@ -14,6 +14,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.120] - 2026-03-09
+### Added
+- reCAPTCHA verification on `POST /payments/intent` route (reads `verification.g-recaptcha-response` from request body)
+- Shared `libraries/recaptcha.js` module for reCAPTCHA token verification (replaces duplicate helpers)
+- `verification` field in `payments/intent` schema to accept the reCAPTCHA token object
+
+### Security
+- reCAPTCHA failure responses now return generic "Request could not be verified" (403) instead of revealing the verification mechanism
+- reCAPTCHA verification runs in all environments except automated tests (`isTesting()`)
+
+### Changed
+- Marketing contact routes (`POST /marketing/contact`, `bm_api add-marketing-contact`) now use shared `recaptcha.verify()` instead of inline helpers
+- Marketing reCAPTCHA checks skip during automated tests (consistent with payment intent)
+
 # [5.0.119] - 2026-03-07
 ### Added
 - `POST /marketing/email-preferences` route for unsubscribe/resubscribe via SendGrid ASM suppression groups

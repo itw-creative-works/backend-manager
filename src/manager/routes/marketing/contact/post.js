@@ -5,6 +5,7 @@
 const fetch = require('wonderful-fetch');
 const path = require('path');
 const dns = require('dns').promises;
+const recaptcha = require('../../../libraries/recaptcha.js');
 
 // Load disposable domains list
 const DISPOSABLE_DOMAINS = require(path.join(__dirname, '..', '..', '..', 'libraries', 'disposable-domains.json'));
@@ -43,15 +44,17 @@ module.exports = async ({ assistant, Manager, settings, analytics }) => {
 
   // Public access protection
   if (!isAdmin) {
-    // Verify reCAPTCHA
-    const recaptchaToken = settings['g-recaptcha-response'];
-    if (!recaptchaToken) {
-      return assistant.respond('reCAPTCHA token required', { code: 400 });
-    }
+    // Verify reCAPTCHA (skip during automated tests)
+    if (!assistant.isTesting()) {
+      const recaptchaToken = settings['g-recaptcha-response'];
+      if (!recaptchaToken) {
+        return assistant.respond('Request could not be verified', { code: 403 });
+      }
 
-    const recaptchaValid = await verifyRecaptcha(recaptchaToken);
-    if (!recaptchaValid) {
-      return assistant.respond('reCAPTCHA verification failed', { code: 400 });
+      const recaptchaValid = await recaptcha.verify(recaptchaToken);
+      if (!recaptchaValid) {
+        return assistant.respond('Request could not be verified', { code: 403 });
+      }
     }
 
     // Check rate limit via Usage API
@@ -159,27 +162,6 @@ module.exports = async ({ assistant, Manager, settings, analytics }) => {
   // Public: generic response
   return assistant.respond({ success: true });
 };
-
-// Helper: Verify Google reCAPTCHA token
-async function verifyRecaptcha(token) {
-  if (!process.env.RECAPTCHA_SECRET_KEY) {
-    return true;
-  }
-
-  try {
-    const data = await fetch('https://www.google.com/recaptcha/api/siteverify', {
-      method: 'post',
-      response: 'json',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `secret=${process.env.RECAPTCHA_SECRET_KEY}&response=${token}`,
-    });
-
-    return data.success && (data.score === undefined || data.score >= 0.5);
-  } catch (e) {
-    console.error('reCAPTCHA verification error:', e);
-    return false;
-  }
-}
 
 // Helper: Validate email with ZeroBounce API
 async function validateWithZeroBounce(email) {

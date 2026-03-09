@@ -19,4 +19,8 @@ module.exports = () => ({
     types: ['boolean'],
     default: false,
   },
+  verification: {
+    types: ['object'],
+    default: {},
+  },
 });

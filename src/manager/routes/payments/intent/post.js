@@ -1,6 +1,7 @@
 const path = require('path');
 const powertools = require('node-powertools');
 const OrderId = require('../../../libraries/payment/order-id.js');
+const recaptcha = require('../../../libraries/recaptcha.js');
 
 /**
  * POST /payments/intent
@@ -13,6 +14,15 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
   // Require authentication
   if (!user.authenticated) {
     return assistant.respond('Authentication required', { code: 401 });
+  }
+
+  // Verify reCAPTCHA (skip during automated tests)
+  if (!assistant.isTesting()) {
+    const recaptchaToken = settings.verification?.['g-recaptcha-response'];
+    const recaptchaValid = await recaptcha.verify(recaptchaToken);
+    if (!recaptchaValid) {
+      return assistant.respond('Request could not be verified', { code: 403 });
+    }
   }
 
   const uid = user.auth.uid;

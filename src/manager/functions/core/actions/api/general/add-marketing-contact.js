@@ -1,6 +1,7 @@
 const fetch = require('wonderful-fetch');
 const path = require('path');
 const dns = require('dns').promises;
+const recaptcha = require(path.join(__dirname, '..', '..', '..', '..', '..', 'libraries', 'recaptcha.js'));
 
 // Load disposable domains list
 const DISPOSABLE_DOMAINS = require(path.join(__dirname, '..', '..', '..', '..', '..', 'libraries', 'disposable-domains.json'));
@@ -49,15 +50,17 @@ Module.prototype.main = function () {
 
     // Public access protection
     if (!isAdmin) {
-      // Verify reCAPTCHA
-      const recaptchaToken = requestPayload['g-recaptcha-response'];
-      if (!recaptchaToken) {
-        return reject(assistant.errorify('reCAPTCHA token required', { code: 400 }));
-      }
+      // Verify reCAPTCHA (skip during automated tests)
+      if (!assistant.isTesting()) {
+        const recaptchaToken = requestPayload['g-recaptcha-response'];
+        if (!recaptchaToken) {
+          return reject(assistant.errorify('Request could not be verified', { code: 403 }));
+        }
 
-      const recaptchaValid = await verifyRecaptcha(recaptchaToken);
-      if (!recaptchaValid) {
-        return reject(assistant.errorify('reCAPTCHA verification failed', { code: 400 }));
+        const recaptchaValid = await recaptcha.verify(recaptchaToken);
+        if (!recaptchaValid) {
+          return reject(assistant.errorify('Request could not be verified', { code: 403 }));
+        }
       }
 
       // Check rate limit via Usage API
@@ -173,32 +176,6 @@ Module.prototype.main = function () {
     });
   });
 };
-
-/**
- * Verify Google reCAPTCHA (invisible) token
- */
-async function verifyRecaptcha(token) {
-  if (!process.env.RECAPTCHA_SECRET_KEY) {
-    // Skip verification if no secret configured
-    return true;
-  }
-
-  try {
-    // reCAPTCHA requires form-urlencoded, not JSON
-    const data = await fetch('https://www.google.com/recaptcha/api/siteverify', {
-      method: 'post',
-      response: 'json',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `secret=${process.env.RECAPTCHA_SECRET_KEY}&response=${token}`,
-    });
-
-    // For v3 invisible reCAPTCHA, check score (0.5+ is typically human)
-    return data.success && (data.score === undefined || data.score >= 0.5);
-  } catch (e) {
-    console.error('reCAPTCHA verification error:', e);
-    return false;
-  }
-}
 
 /**
  * Validate email with ZeroBounce API
