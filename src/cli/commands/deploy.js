@@ -13,7 +13,7 @@ class DeployCommand extends BaseCommand {
     }
 
     // Execute
-    await powertools.execute('firebase deploy', { log: true });
+    await powertools.execute('firebase deploy', { log: true, config: { cwd: self.firebaseProjectPath } });
   }
 }
 
