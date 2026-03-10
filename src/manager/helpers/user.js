@@ -97,7 +97,8 @@ const SCHEMA = {
   usage: {
     $passthrough: true,
     $template: {
-      period: { type: 'number', default: 0 },
+      monthly: { type: 'number', default: 0 },
+      daily: { type: 'number', default: 0 },
       total: { type: 'number', default: 0 },
       last: {
         id: { type: 'string', default: null, nullable: true },

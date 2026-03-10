@@ -473,7 +473,7 @@ const userProps = Manager.User(existingData, { defaults: true }).properties;
   affiliate: { code, referrals, referrer },
   activity: { lastActivity, created, geolocation, client },
   api: { clientId, privateKey },
-  usage: { requests: { period, total, last } },
+  usage: { requests: { monthly, daily, total, last } },
   personal: { birthday, gender, location, name, company, telephone },
   oauth2: {}
 }
@@ -519,13 +519,13 @@ const usage = await Manager.Usage().init(assistant, {
 });
 
 // Check and validate limits
-const currentUsage = usage.getUsage('requests');  // Get current period usage
-const limit = usage.getLimit('requests');         // Get plan limit
-await usage.validate('requests');                 // Throws if over limit
+const currentUsage = usage.getUsage('requests');  // Get current monthly usage
+const limit = usage.getLimit('requests');         // Get plan limit (monthly)
+await usage.validate('requests');                 // Throws if over daily or monthly limit
 
-// Increment usage
+// Increment usage (increments monthly, daily, and total counters)
 usage.increment('requests', 1);
-usage.set('requests', 0);  // Reset to specific value
+usage.set('requests', 0);  // Reset monthly to specific value
 
 // Save to Firestore
 await usage.update();

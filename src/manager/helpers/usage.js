@@ -114,18 +114,18 @@ Usage.prototype.validate = function (name, options) {
     options._forceReject = typeof options._forceReject === 'undefined' ? false : options._forceReject;
 
     // Check for required options
-    const period = self.getUsage(name);
+    const monthly = self.getUsage(name);
     const allowed = self.getLimit(name);
 
     // Log (independent of options.log because this is important)
     if (options.log) {
-      assistant.log(`Usage.validate(): Checking ${period}/${allowed} for ${name} (${self.key})...`);
+      assistant.log(`Usage.validate(): Checking ${monthly}/${allowed} for ${name} (${self.key})...`);
     }
 
     // Reject function
     function _reject() {
       reject(
-        assistant.errorify(`You have exceeded your ${name} usage limit of ${period}/${allowed}.`, {code: 429})
+        assistant.errorify(`You have exceeded your ${name} usage limit of ${monthly}/${allowed}.`, {code: 429})
       );
     }
 
@@ -142,22 +142,38 @@ Usage.prototype.validate = function (name, options) {
       return resolve(true);
     }
 
-    // Check proportional daily allowance (for products with rateLimit: 'daily')
+    // Check daily caps (for products with rateLimit: 'daily', which is the default)
     const dailyAllowance = self.getDailyAllowance(name);
     if (dailyAllowance !== null) {
+      // Flat daily cap: ceil(monthlyLimit / daysInMonth)
+      const now = new Date();
+      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const flatDailyCap = Math.ceil(allowed / daysInMonth);
+
+      // Get today's usage from the daily counter
+      const daily = _.get(self.user, `usage.${name}.daily`, 0);
+
       if (options.log) {
-        assistant.log(`Usage.validate(): Daily allowance check: ${period}/${dailyAllowance} (monthly: ${allowed}) for ${name} (${self.key})`);
+        assistant.log(`Usage.validate(): Daily cap check: ${daily}/${flatDailyCap} today, ${monthly}/${dailyAllowance} proportional (monthly: ${allowed}) for ${name} (${self.key})`);
       }
 
-      if (period >= dailyAllowance) {
+      // Check flat daily cap (can't exceed ceil(limit/daysInMonth) in a single day)
+      if (daily >= flatDailyCap) {
         return reject(
-          assistant.errorify(`You have reached your daily usage limit for ${name} (${period}/${dailyAllowance}). Your monthly limit is ${allowed}.`, {code: 429})
+          assistant.errorify(`You have reached your daily usage limit for ${name} (${daily}/${flatDailyCap}). Your monthly limit is ${allowed}.`, {code: 429})
+        );
+      }
+
+      // Check proportional monthly cap (can't accumulate too fast)
+      if (monthly >= dailyAllowance) {
+        return reject(
+          assistant.errorify(`You have reached your usage limit for ${name} (${monthly}/${dailyAllowance}). Your monthly limit is ${allowed}.`, {code: 429})
         );
       }
     }
 
     // If they are under the monthly limit, resolve
-    if (period < allowed) {
+    if (monthly < allowed) {
       self.log(`Usage.validate(): Valid for ${name}`);
 
       return resolve(true);
@@ -200,8 +216,8 @@ Usage.prototype.increment = function (name, value, options) {
   options = options || {};
   options.id = options.id || null;
 
-  // Update total and period
-  ['total', 'period', 'last'].forEach((key) => {
+  // Update total, monthly, daily, and last
+  ['total', 'monthly', 'daily', 'last'].forEach((key) => {
     const resolved = `usage.${name}.${key}`;
     const existing = _.get(self.user, resolved, 0);
 
@@ -237,8 +253,8 @@ Usage.prototype.set = function (name, value) {
   // Set value
   value = typeof value === 'undefined' ? 0 : value;
 
-  // Update total and period
-  const resolved = `usage.${name}.period`;
+  // Update monthly
+  const resolved = `usage.${name}.monthly`;
 
   // Set the value
   _.set(self.user, resolved, value);
@@ -256,7 +272,7 @@ Usage.prototype.getUsage = function (name) {
 
   // Get usage
   if (name) {
-    return _.get(self.user, `usage.${name}.period`, 0);
+    return _.get(self.user, `usage.${name}.monthly`, 0);
   } else {
     return self.user.usage;
   }
@@ -290,20 +306,27 @@ Usage.prototype.getLimit = function (name) {
 };
 
 /**
- * Get the proportional daily allowance for a metric
- * Based on how far into the month we are: ceil(monthlyLimit * dayOfMonth / daysInMonth)
+ * Get the daily allowance cap for a metric
+ * Prevents users from burning their entire monthly quota in a single day
  *
- * Returns null if the product uses monthly rate limiting (no daily cap)
- * Products can set rateLimit: 'daily' | 'monthly' (default: 'monthly')
+ * Uses two checks:
+ * 1. Flat daily cap: ceil(monthlyLimit / daysInMonth) — max uses per day
+ *    e.g. 100/month in March (31 days) = ceil(100/31) = 4/day
+ *    e.g. 10/month in March (31 days) = ceil(10/31) = 1/day
+ * 2. Proportional monthly cap: ceil(monthlyLimit * dayOfMonth / daysInMonth) — running total
+ *    Ensures users can't accumulate too much too fast even within daily limits
+ *
+ * Returns null if the product opts out with rateLimit: 'monthly'
+ * Products can set rateLimit: 'daily' (default) | 'monthly'
  */
 Usage.prototype.getDailyAllowance = function (name) {
   const self = this;
 
   // Get the product config
   const product = self.getProduct();
-  const rateLimit = product.rateLimit || 'monthly';
+  const rateLimit = product.rateLimit || 'daily';
 
-  // If monthly rate limiting, no daily cap
+  // If explicitly set to monthly, no daily cap
   if (rateLimit !== 'daily') {
     return null;
   }
@@ -314,11 +337,12 @@ Usage.prototype.getDailyAllowance = function (name) {
     return null;
   }
 
-  // Calculate proportional allowance based on day of month
+  // Calculate caps
   const now = new Date();
   const dayOfMonth = now.getDate();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
 
+  // Proportional monthly cap — how much should be used by this day at most
   // ceil ensures at least 1 usage per day even with very low limits
   return Math.ceil(monthlyLimit * (dayOfMonth / daysInMonth));
 };

@@ -19,7 +19,8 @@ module.exports = {
         state.initialUsage = userDoc?.usage || {};
 
         // Store initial values for requests metric (may not exist yet)
-        state.initialPeriod = state.initialUsage?.requests?.period || 0;
+        state.initialMonthly = state.initialUsage?.requests?.monthly || 0;
+        state.initialDaily = state.initialUsage?.requests?.daily || 0;
         state.initialTotal = state.initialUsage?.requests?.total || 0;
 
         assert.ok(true, 'Initial usage state captured');
@@ -42,12 +43,21 @@ module.exports = {
         assert.equal(response.data.metric, 'requests', 'Metric should be requests');
         assert.equal(response.data.amount, 1, 'Default amount should be 1');
 
-        // Verify increment happened
+        // Verify monthly incremented
         assert.equal(
-          response.data.after.period,
-          response.data.before.period + 1,
-          'Period should be incremented by 1'
+          response.data.after.monthly,
+          response.data.before.monthly + 1,
+          'Monthly should be incremented by 1'
         );
+
+        // Verify daily incremented
+        assert.equal(
+          response.data.after.daily,
+          response.data.before.daily + 1,
+          'Daily should be incremented by 1'
+        );
+
+        // Verify total incremented
         assert.equal(
           response.data.after.total,
           response.data.before.total + 1,
@@ -69,15 +79,25 @@ module.exports = {
         assert.ok(userDoc?.usage?.requests, 'User should have requests usage');
 
         assert.equal(
-          userDoc.usage.requests.period,
-          state.afterFirstIncrement.period,
-          'Persisted period should match API response'
+          userDoc.usage.requests.monthly,
+          state.afterFirstIncrement.monthly,
+          'Persisted monthly should match API response'
+        );
+        assert.equal(
+          userDoc.usage.requests.daily,
+          state.afterFirstIncrement.daily,
+          'Persisted daily should match API response'
         );
         assert.equal(
           userDoc.usage.requests.total,
           state.afterFirstIncrement.total,
           'Persisted total should match API response'
         );
+
+        // Verify last timestamp exists
+        assert.ok(userDoc.usage.requests.last, 'Should have last object');
+        assert.ok(userDoc.usage.requests.last.timestamp, 'Should have last.timestamp');
+        assert.ok(userDoc.usage.requests.last.timestampUNIX, 'Should have last.timestampUNIX');
       },
     },
 
@@ -92,11 +112,16 @@ module.exports = {
         assert.isSuccess(response, 'Custom amount increment should succeed');
         assert.equal(response.data.amount, 5, 'Amount should be 5');
 
-        // Verify increment happened with custom amount
+        // Verify all counters incremented by 5
         assert.equal(
-          response.data.after.period,
-          response.data.before.period + 5,
-          'Period should be incremented by 5'
+          response.data.after.monthly,
+          response.data.before.monthly + 5,
+          'Monthly should be incremented by 5'
+        );
+        assert.equal(
+          response.data.after.daily,
+          response.data.before.daily + 5,
+          'Daily should be incremented by 5'
         );
         assert.equal(
           response.data.after.total,
@@ -117,9 +142,14 @@ module.exports = {
         assert.ok(userDoc?.usage?.requests, 'User should have requests usage');
 
         assert.equal(
-          userDoc.usage.requests.period,
-          state.afterCustomAmount.period,
-          'Requests period should be persisted'
+          userDoc.usage.requests.monthly,
+          state.afterCustomAmount.monthly,
+          'Requests monthly should be persisted'
+        );
+        assert.equal(
+          userDoc.usage.requests.daily,
+          state.afterCustomAmount.daily,
+          'Requests daily should be persisted'
         );
         assert.equal(
           userDoc.usage.requests.total,
@@ -151,13 +181,19 @@ module.exports = {
         assert.isSuccess(response3, 'Third increment should succeed');
 
         // Verify accumulation: should be initial + 1 (test 2) + 5 (test 4) + 1 + 1 + 3 = initial + 11
-        const expectedPeriod = state.initialPeriod + 11;
+        const expectedMonthly = state.initialMonthly + 11;
+        const expectedDaily = state.initialDaily + 11;
         const expectedTotal = state.initialTotal + 11;
 
         assert.equal(
-          response3.data.after.period,
-          expectedPeriod,
-          `Period should accumulate to ${expectedPeriod}`
+          response3.data.after.monthly,
+          expectedMonthly,
+          `Monthly should accumulate to ${expectedMonthly}`
+        );
+        assert.equal(
+          response3.data.after.daily,
+          expectedDaily,
+          `Daily should accumulate to ${expectedDaily}`
         );
         assert.equal(
           response3.data.after.total,
@@ -180,9 +216,11 @@ module.exports = {
         assert.equal(response.data.authenticated, false, 'Should report as unauthenticated');
         assert.equal(response.data.key, state.unauthKey, 'Key should be unknown');
 
-        // Verify increment happened (relative check — prior tests may have incremented too)
-        state.unauthPeriod = response.data.after.period;
-        assert.equal(response.data.after.period, response.data.before.period + 1, 'Period should increment by 1');
+        // Verify all counters incremented
+        assert.equal(response.data.after.monthly, response.data.before.monthly + 1, 'Monthly should increment by 1');
+        assert.equal(response.data.after.daily, response.data.before.daily + 1, 'Daily should increment by 1');
+
+        state.unauthMonthly = response.data.after.monthly;
       },
     },
 
@@ -194,22 +232,66 @@ module.exports = {
 
         assert.ok(usageDoc, 'Usage doc should exist in usage collection');
         assert.ok(usageDoc?.requests, 'Usage doc should have the requests metric');
-        assert.equal(usageDoc.requests.period, state.unauthPeriod, 'Persisted period should match');
+        assert.equal(usageDoc.requests.monthly, state.unauthMonthly, 'Persisted monthly should match');
       },
     },
 
-    // Test 9: Cleanup - trigger daily cron via PubSub to delete usage collection
+    // Test 9: Cron resets daily counters for authenticated users
     {
-      name: 'cleanup-reset-usage',
-      async run({ assert, firestore, state, waitFor, pubsub }) {
-        // Verify unauthenticated usage doc exists before cron
-        const beforeUsageDoc = await firestore.get(`usage/${state.unauthKey}`);
-        assert.ok(beforeUsageDoc, 'Usage doc should exist before cron');
+      name: 'cron-resets-daily-counters',
+      async run({ assert, firestore, state, accounts, waitFor, pubsub }) {
+        // Verify daily counter is > 0 before cron
+        const beforeDoc = await firestore.get(`users/${accounts.basic.uid}`);
+        assert.ok(beforeDoc?.usage?.requests?.daily > 0, 'Daily counter should be > 0 before cron');
+
+        // Store monthly and total before cron (should NOT be reset by daily cron)
+        state.monthlyBeforeCron = beforeDoc.usage.requests.monthly;
+        state.totalBeforeCron = beforeDoc.usage.requests.total;
 
         // Trigger cron via PubSub
         await pubsub.trigger('bm_cronDaily');
 
-        // Wait for cron to delete the usage collection doc (max 10 seconds)
+        // Wait for cron to reset daily counter
+        try {
+          await waitFor(
+            async () => {
+              const doc = await firestore.get(`users/${accounts.basic.uid}`);
+              return doc?.usage?.requests?.daily === 0;
+            },
+            10000,
+            500
+          );
+          assert.ok(true, 'Daily counter was reset to 0 by cron');
+        } catch (error) {
+          assert.fail('Daily counter should be reset to 0 within 10s');
+        }
+      },
+    },
+
+    // Test 10: Cron preserves monthly and total counters (non-1st of month)
+    {
+      name: 'cron-preserves-monthly-and-total',
+      async run({ assert, firestore, state, accounts }) {
+        const afterDoc = await firestore.get(`users/${accounts.basic.uid}`);
+
+        assert.equal(
+          afterDoc.usage.requests.monthly,
+          state.monthlyBeforeCron,
+          'Monthly counter should be preserved after daily cron'
+        );
+        assert.equal(
+          afterDoc.usage.requests.total,
+          state.totalBeforeCron,
+          'Total counter should be preserved after daily cron'
+        );
+      },
+    },
+
+    // Test 11: Cron deletes unauthenticated usage collection
+    {
+      name: 'cron-deletes-unauthenticated-usage',
+      async run({ assert, firestore, state, waitFor }) {
+        // The cron was already triggered in test 9, so the usage collection should be deleted
         try {
           await waitFor(
             async () => {
@@ -223,6 +305,28 @@ module.exports = {
         } catch (error) {
           assert.fail('Usage collection doc should be deleted within 10s');
         }
+      },
+    },
+
+    // Test 12: Daily counter accumulates after cron reset
+    {
+      name: 'daily-counter-accumulates-after-reset',
+      async run({ http, assert }) {
+        // After cron reset daily to 0, new increments should start from 0
+        const response = await http.as('basic').post('test/usage', {
+          amount: 3,
+        });
+
+        assert.isSuccess(response, 'Increment after cron reset should succeed');
+        assert.equal(response.data.before.daily, 0, 'Daily should be 0 after cron reset');
+        assert.equal(response.data.after.daily, 3, 'Daily should be 3 after increment');
+
+        // Monthly should have continued accumulating (not reset)
+        assert.equal(
+          response.data.after.monthly,
+          response.data.before.monthly + 3,
+          'Monthly should continue accumulating'
+        );
       },
     },
   ],

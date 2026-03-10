@@ -54,7 +54,8 @@ describe(`${package.name}`, () => {
         return assert.deepStrictEqual({
           requests: {
             total: 0,
-            period: 0,
+            monthly: 0,
+            daily: 0,
             last: {
               id: '',
               timestamp: '1970-01-01T00:00:00.000Z',
@@ -72,7 +73,8 @@ describe(`${package.name}`, () => {
         return assert.deepStrictEqual({
           requests: {
             total: 1,
-            period: 1,
+            monthly: 1,
+            daily: 1,
             last: {
               id: 'increment',
               timestamp: '2024-01-01T01:00:00.000Z',
@@ -90,7 +92,8 @@ describe(`${package.name}`, () => {
         return assert.deepStrictEqual({
           requests: {
             total: -1,
-            period: -1,
+            monthly: -1,
+            daily: -1,
             last: {
               id: 'decrement',
               timestamp: '2024-01-01T01:00:00.000Z',
@@ -132,7 +135,8 @@ describe(`${package.name}`, () => {
         return assert.deepStrictEqual({
           requests: {
             total: 1,
-            period: 1,
+            monthly: 1,
+            daily: 1,
             last: {
               id: 'update',
               timestamp: '2024-01-01T01:00:00.000Z',
@@ -154,7 +158,8 @@ describe(`${package.name}`, () => {
         return assert.deepStrictEqual({
           signups: {
             total: 1,
-            period: 1,
+            monthly: 1,
+            daily: 1,
             last: {
               id: 'singups',
               timestamp: '2024-01-01T01:00:00.000Z',

@@ -8,8 +8,9 @@ module.exports = async ({ assistant, user, settings }) => {
   const amount = settings.amount;
 
   // Get usage before increment
-  const beforePeriod = usage.getUsage('requests');
+  const beforeMonthly = usage.getUsage('requests');
   const beforeTotal = user.usage?.requests?.total || 0;
+  const beforeDaily = user.usage?.requests?.daily || 0;
 
   // Increment usage
   usage.increment('requests', amount);
@@ -18,15 +19,16 @@ module.exports = async ({ assistant, user, settings }) => {
   await usage.update();
 
   // Get usage after increment
-  const afterPeriod = usage.getUsage('requests');
+  const afterMonthly = usage.getUsage('requests');
   const afterTotal = user.usage?.requests?.total || 0;
+  const afterDaily = user.usage?.requests?.daily || 0;
 
   // Log
   assistant.log(`test/usage: Incremented requests by ${amount}`, {
     authenticated: user.authenticated,
     key: usage.key,
-    before: { period: beforePeriod, total: beforeTotal },
-    after: { period: afterPeriod, total: afterTotal },
+    before: { monthly: beforeMonthly, daily: beforeDaily, total: beforeTotal },
+    after: { monthly: afterMonthly, daily: afterDaily, total: afterTotal },
   });
 
   return assistant.respond({
@@ -35,11 +37,13 @@ module.exports = async ({ assistant, user, settings }) => {
     authenticated: user.authenticated,
     key: usage.key,
     before: {
-      period: beforePeriod,
+      monthly: beforeMonthly,
+      daily: beforeDaily,
       total: beforeTotal,
     },
     after: {
-      period: afterPeriod,
+      monthly: afterMonthly,
+      daily: afterDaily,
       total: afterTotal,
     },
     user: {

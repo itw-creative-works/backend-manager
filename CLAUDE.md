@@ -646,34 +646,32 @@ npx bm firestore:delete users/test123 --emulator
 
 ### Overview
 
-Usage is tracked per-metric (e.g., `requests`, `marketing-subscribe`) with two counters:
-- `period`: Current month's count, reset on the 1st of each month
+Usage is tracked per-metric (e.g., `requests`, `sponsorships`) with four fields:
+- `monthly`: Current month's count, reset on the 1st of each month by cron
+- `daily`: Current day's count, reset every day by cron
 - `total`: All-time count, never resets
+- `last`: Object with `id`, `timestamp`, `timestampUNIX` of the last usage event
 
-### Product Rate Limit Modes
+### Limits & Daily Caps
 
-Products can set a `rateLimit` field to control how limits are enforced:
+Limits are always specified as **monthly** values in product config (e.g., `limits.requests = 100` means 100/month).
 
-| Value | Behavior | Default |
-|-------|----------|---------|
-| `'monthly'` | Full monthly limit available at any time | Yes |
-| `'daily'` | Proportional daily cap: `ceil(limit * dayOfMonth / daysInMonth)` | No |
+By default, limits are enforced with **daily caps** to prevent users from burning their entire monthly quota in a single day. Two checks are applied:
 
-Example config (not in the template — add per-product as needed):
+1. **Flat daily cap**: `ceil(monthlyLimit / daysInMonth)` — max uses per day
+   - e.g., 100/month in a 31-day month = `ceil(100/31)` = 4/day
+2. **Proportional monthly cap**: `ceil(monthlyLimit * dayOfMonth / daysInMonth)` — running total
+   - Prevents accumulating too much too fast even within daily limits
+   - e.g., Day 15 of a 30-day month with 100/month limit = max 50 used so far
+
+Products can opt out of daily caps by setting `rateLimit: 'monthly'` (default is `'daily'`):
 ```json
 {
   "id": "basic",
   "limits": { "requests": 100 },
-  "rateLimit": "daily"
+  "rateLimit": "monthly"
 }
 ```
-
-With `rateLimit: 'daily'` and 100 requests/month in a 30-day month:
-- Day 1: max 4 requests used so far
-- Day 15: max 50 requests used so far
-- Day 30: max 100 requests (full allocation)
-
-Unused days roll forward — a user who doesn't use the product for 2 weeks can use a burst later.
 
 ### Reset Schedule
 
@@ -681,9 +679,10 @@ Unused days roll forward — a user who doesn't use the product for 2 weeks can 
 |--------|-----------|-------------|
 | Local storage | Daily | Cleared entirely |
 | `usage` collection (unauthenticated) | Daily | Deleted entirely |
-| User doc `usage.*.period` (authenticated) | Monthly (1st) | Reset to 0 |
+| User doc `usage.*.daily` (authenticated) | Daily | Reset to 0 |
+| User doc `usage.*.monthly` (authenticated) | Monthly (1st) | Reset to 0 |
 
-The daily cron runs at midnight UTC (`0 0 * * *`). Authenticated user period resets only execute on the 1st of the month.
+The daily cron (`reset-usage.js`) runs at midnight UTC. It collects all users with non-zero counters across all metrics, then performs a single write per user to reset daily (and monthly on the 1st).
 
 ## Subscription System
 

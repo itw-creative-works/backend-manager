@@ -72,7 +72,8 @@ module.exports = {
         assert.ok(user.api.privateKey.length > 0, 'api.privateKey should not be empty');
 
         // Usage
-        assert.equal(user.usage.requests.period, 0, 'usage.requests.period should be 0');
+        assert.equal(user.usage.requests.monthly, 0, 'usage.requests.monthly should be 0');
+        assert.equal(user.usage.requests.daily, 0, 'usage.requests.daily should be 0');
         assert.equal(user.usage.requests.total, 0, 'usage.requests.total should be 0');
         assert.equal(user.usage.requests.last.id, null, 'usage.requests.last.id should be null');
 
@@ -204,24 +205,24 @@ module.exports = {
       async run({ assert }) {
         const user = createUser({
           usage: {
-            requests: { period: 10, total: 100, last: { id: 'r1', timestamp: '2025-01-01T00:00:00.000Z', timestampUNIX: 1735689600 } },
-            emails: { period: 5, total: 50, last: { id: 'e1', timestamp: '2025-01-02T00:00:00.000Z', timestampUNIX: 1735776000 } },
-            sends: { period: 3, total: 30 },
+            requests: { monthly: 10, total: 100, last: { id: 'r1', timestamp: '2025-01-01T00:00:00.000Z', timestampUNIX: 1735689600 } },
+            emails: { monthly: 5, total: 50, last: { id: 'e1', timestamp: '2025-01-02T00:00:00.000Z', timestampUNIX: 1735776000 } },
+            sends: { monthly: 3, total: 30 },
           },
         });
 
         // Defined key (requests)
-        assert.equal(user.usage.requests.period, 10, 'requests.period preserved');
+        assert.equal(user.usage.requests.monthly, 10, 'requests.monthly preserved');
         assert.equal(user.usage.requests.total, 100, 'requests.total preserved');
         assert.equal(user.usage.requests.last.id, 'r1', 'requests.last.id preserved');
 
         // Dynamic key (emails) — full data
-        assert.equal(user.usage.emails.period, 5, 'emails.period preserved');
+        assert.equal(user.usage.emails.monthly, 5, 'emails.monthly preserved');
         assert.equal(user.usage.emails.total, 50, 'emails.total preserved');
         assert.equal(user.usage.emails.last.id, 'e1', 'emails.last.id preserved');
 
         // Dynamic key (sends) — partial data, template fills in missing
-        assert.equal(user.usage.sends.period, 3, 'sends.period preserved');
+        assert.equal(user.usage.sends.monthly, 3, 'sends.monthly preserved');
         assert.equal(user.usage.sends.total, 30, 'sends.total preserved');
         assert.equal(user.usage.sends.last.id, null, 'sends.last.id defaulted to null');
         assert.ok(user.usage.sends.last.timestamp, 'sends.last.timestamp defaulted');
@@ -484,8 +485,8 @@ module.exports = {
             },
           },
           usage: {
-            requests: { period: 100, total: 5000, last: { id: 'req-z', timestamp: '2025-12-01T00:00:00.000Z', timestampUNIX: 1764633600 } },
-            emails: { period: 42, total: 2100, last: { id: 'em-z', timestamp: '2025-12-01T00:00:00.000Z', timestampUNIX: 1764633600 } },
+            requests: { monthly: 100, total: 5000, last: { id: 'req-z', timestamp: '2025-12-01T00:00:00.000Z', timestampUNIX: 1764633600 } },
+            emails: { monthly: 42, total: 2100, last: { id: 'em-z', timestamp: '2025-12-01T00:00:00.000Z', timestampUNIX: 1764633600 } },
           },
           personal: {
             name: { first: 'Ian', last: 'Wiedenman' },
@@ -508,7 +509,7 @@ module.exports = {
         assert.equal(user.api.clientId, 'uuid-123', 'api clientId preserved');
         assert.equal(user.oauth2.google.token.access_token, 'ya29.real', 'oauth2 token preserved');
         assert.equal(user.oauth2.google.identity.email, 'ian@gmail.com', 'oauth2 identity preserved');
-        assert.equal(user.usage.emails.period, 42, 'usage emails preserved');
+        assert.equal(user.usage.emails.monthly, 42, 'usage emails preserved');
         assert.equal(user.personal.name.first, 'Ian', 'name preserved');
         assert.equal(user.personal.company.name, 'ITW Creative Works', 'company preserved');
         assert.equal(user.personal.birthday.timestampUNIX, 642988800, 'birthday preserved');

@@ -4,7 +4,8 @@
  * Runs daily at midnight UTC and handles different reset schedules:
  * - Local storage: cleared every day
  * - Unauthenticated usage collection: deleted every day
- * - Authenticated user period counters: reset on the 1st (or 2nd as grace window) of each month
+ * - Authenticated user daily counters: reset every day
+ * - Authenticated user monthly counters: reset on the 1st of each month
  */
 module.exports = async ({ Manager, assistant, context, libraries }) => {
   const storage = Manager.storage({ name: 'usage', temporary: true, clear: false, log: false });
@@ -12,24 +13,18 @@ module.exports = async ({ Manager, assistant, context, libraries }) => {
   assistant.log('Starting...');
 
   // Clear local storage (daily)
-  await clearLocal(assistant, storage);
+  clearLocal(assistant, storage);
 
   // Clear unauthenticated usage collection (daily)
   await clearUnauthenticatedUsage(assistant, libraries);
 
-  // Reset authenticated user periods (monthly - 1st or 2nd of month)
-  await resetAuthenticatedUsage(Manager, assistant, libraries);
+  // Reset authenticated user counters (daily + monthly on 1st)
+  await resetAuthenticated(Manager, assistant);
 };
 
-async function clearLocal(assistant, storage) {
-  assistant.log('[local]: Starting...');
-
-  assistant.log('[local]: storage(apps)', storage.get('apps', {}).value());
-  assistant.log('[local]: storage(users)', storage.get('users', {}).value());
-
-  // Clear storage
+function clearLocal(assistant, storage) {
+  assistant.log('[local]: Clearing...');
   storage.setState({}).write();
-
   assistant.log('[local]: Completed!');
 }
 
@@ -40,96 +35,107 @@ async function clearUnauthenticatedUsage(assistant, libraries) {
 
   await admin.firestore().recursiveDelete(admin.firestore().collection('usage'))
   .then(() => {
-    assistant.log('[unauthenticated]: Deleted usage collection');
+    assistant.log('[unauthenticated]: Completed!');
   })
   .catch((e) => {
     assistant.errorify(`Error deleting usage collection: ${e}`, { code: 500, log: true });
   });
 }
 
-async function resetAuthenticatedUsage(Manager, assistant, libraries) {
-  const { admin } = libraries;
-  const dayOfMonth = new Date().getDate();
-
-  // Only reset on the 1st of the month
-  if (dayOfMonth !== 1) {
-    assistant.log('[authenticated]: Skipping period reset (not the 1st of the month)');
-    return;
-  }
-
-  assistant.log('[authenticated]: Monthly reset starting...');
-
-  // Gather all unique metric names from ALL products
+async function resetAuthenticated(Manager, assistant) {
+  const isFirstOfMonth = new Date().getDate() === 1;
   const products = Manager.config.payment?.products || [];
-  const metrics = {};
 
+  // Gather all metric names from all products
+  const metricSet = { requests: true };
   for (const product of products) {
-    const limits = product.limits || {};
-
-    for (const key of Object.keys(limits)) {
-      metrics[key] = true;
+    for (const key of Object.keys(product.limits || {})) {
+      metricSet[key] = true;
     }
   }
+  const metricNames = Object.keys(metricSet);
 
-  // Ensure requests is always included
-  metrics.requests = true;
+  assistant.log(`[authenticated]: Resetting ${isFirstOfMonth ? 'daily + monthly' : 'daily'} for metrics`, metricNames);
 
-  const metricNames = Object.keys(metrics);
+  // Collect all user IDs that need resetting (deduplicated across metrics)
+  // Each entry maps uid -> { ref, usage } so we only write once per user
+  const usersToReset = {};
 
-  assistant.log('[authenticated]: Resetting metrics', metricNames);
-
-  // Reset each metric for users who have usage > 0
   for (const metric of metricNames) {
-    assistant.log(`[authenticated]: Resetting ${metric} for all users`);
-
-    await Manager.Utilities().iterateCollection((batch, index) => {
-      return new Promise(async (resolve, reject) => {
+    // Query users with daily > 0 for this metric
+    await Manager.Utilities().iterateCollection((batch) => {
+      return new Promise(async (resolve) => {
         for (const doc of batch.docs) {
-          const data = doc.data();
-
-          // Normalize the metric
-          data.usage = data.usage || {};
-          data.usage[metric] = data.usage[metric] || {};
-          data.usage[metric].period = data.usage[metric].period || 0;
-          data.usage[metric].total = data.usage[metric].total || 0;
-          data.usage[metric].last = data.usage[metric].last || {};
-
-          // Skip if already 0
-          if (data.usage[metric].period <= 0) {
-            continue;
+          if (!usersToReset[doc.id]) {
+            usersToReset[doc.id] = { ref: doc.ref, usage: doc.data().usage || {} };
           }
-
-          // Reset the metric
-          const original = data.usage[metric].period;
-          data.usage[metric].period = 0;
-
-          // Update the doc
-          await doc.ref.update({ usage: data.usage })
-          .then(r => {
-            assistant.log(`[authenticated]: Reset ${metric} for ${doc.id} (${original} -> 0)`);
-          })
-          .catch(e => {
-            assistant.errorify(`Error resetting ${metric} for ${doc.id}: ${e}`, { code: 500, log: true });
-          });
         }
-
         return resolve();
       });
     }, {
       collection: 'users',
       where: [
-        { field: `usage.${metric}.period`, operator: '>', value: 0 },
+        { field: `usage.${metric}.daily`, operator: '>', value: 0 },
       ],
       batchSize: 5000,
-      log: true,
-    })
-    .then((r) => {
-      assistant.log(`[authenticated]: Reset ${metric} for all users complete!`);
+      log: false,
     })
     .catch(e => {
-      assistant.errorify(`Error resetting ${metric} for all users: ${e}`, { code: 500, log: true });
+      assistant.errorify(`Error querying ${metric}.daily: ${e}`, { code: 500, log: true });
+    });
+
+    // On the 1st, also query users with monthly > 0
+    if (isFirstOfMonth) {
+      await Manager.Utilities().iterateCollection((batch) => {
+        return new Promise(async (resolve) => {
+          for (const doc of batch.docs) {
+            if (!usersToReset[doc.id]) {
+              usersToReset[doc.id] = { ref: doc.ref, usage: doc.data().usage || {} };
+            }
+          }
+          return resolve();
+        });
+      }, {
+        collection: 'users',
+        where: [
+          { field: `usage.${metric}.monthly`, operator: '>', value: 0 },
+        ],
+        batchSize: 5000,
+        log: false,
+      })
+      .catch(e => {
+        assistant.errorify(`Error querying ${metric}.monthly: ${e}`, { code: 500, log: true });
+      });
+    }
+  }
+
+  const userIds = Object.keys(usersToReset);
+  assistant.log(`[authenticated]: Found ${userIds.length} users to reset`);
+
+  // Single write per user: reset daily (always) + monthly (on 1st) for all metrics
+  for (const uid of userIds) {
+    const { ref, usage } = usersToReset[uid];
+
+    for (const metric of metricNames) {
+      if (!usage[metric]) {
+        continue;
+      }
+
+      usage[metric].daily = 0;
+
+      if (isFirstOfMonth) {
+        usage[metric].monthly = 0;
+      }
+    }
+
+    await ref.update({ usage })
+    .then(() => {
+      assistant.log(`[authenticated]: Reset ${uid}`);
+    })
+    .catch(e => {
+      assistant.errorify(`Error resetting ${uid}: ${e}`, { code: 500, log: true });
     });
   }
 
-  assistant.log('[authenticated]: Monthly reset completed!');
+  assistant.log(`[authenticated]: Completed!`);
 }
