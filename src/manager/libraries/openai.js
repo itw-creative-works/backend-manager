@@ -21,6 +21,7 @@ const MODEL_TABLE = {
     provider: 'openai',
     features: {
       json: true,
+      temperature: false,
     },
   },
   'gpt-5.2': {
@@ -29,6 +30,7 @@ const MODEL_TABLE = {
     provider: 'openai',
     features: {
       json: true,
+      temperature: false,
     },
   },
   'gpt-5.1': {
@@ -37,6 +39,7 @@ const MODEL_TABLE = {
     provider: 'openai',
     features: {
       json: true,
+      temperature: false,
     },
   },
   'gpt-5': {
@@ -45,6 +48,7 @@ const MODEL_TABLE = {
     provider: 'openai',
     features: {
       json: true,
+      temperature: false,
     },
   },
   'gpt-5-mini': {
@@ -53,6 +57,7 @@ const MODEL_TABLE = {
     provider: 'openai',
     features: {
       json: true,
+      temperature: false,
     },
   },
   'gpt-5-nano': {
@@ -61,6 +66,7 @@ const MODEL_TABLE = {
     provider: 'openai',
     features: {
       json: true,
+      temperature: false,
     },
   },
   // GPT-4.5
@@ -793,15 +799,21 @@ function makeRequest(mode, options, self, prompt, message, user, _log) {
       const history = formatHistory(options, prompt, message, _log);
 
       // Set request
+      const modelConfig = getModelConfig(options.model);
+
       request.url = 'https://api.openai.com/v1/responses';
       request.body = {
         model: options.model,
         input: history,
         user: user,
-        temperature: options.temperature,
         max_output_tokens: options.maxTokens,
         text: resolveFormatting(options),
         reasoning: resolveReasoning(options),
+      }
+
+      // Only include temperature if the model supports it
+      if (modelConfig.features?.temperature !== false) {
+        request.body.temperature = options.temperature;
       }
     }
 
