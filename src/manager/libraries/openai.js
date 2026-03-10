@@ -7,13 +7,63 @@ const path = require('path');
 const mimeTypes = require('mime-types');
 
 // Constants
-const DEFAULT_MODEL = 'gpt-4o';
+const DEFAULT_MODEL = 'gpt-5-mini';
 const MODERATION_MODEL = 'omni-moderation-latest';
 
-// OpenAI model pricing table
+// OpenAI model pricing table (per 1M tokens)
 // https://platform.openai.com/docs/pricing
 const MODEL_TABLE = {
-  // Jul 11, 2025
+  // Mar 9, 2026
+  // GPT-5 family
+  'gpt-5.4': {
+    input: 2.50,
+    output: 15.00,
+    provider: 'openai',
+    features: {
+      json: true,
+    },
+  },
+  'gpt-5.2': {
+    input: 1.75,
+    output: 14.00,
+    provider: 'openai',
+    features: {
+      json: true,
+    },
+  },
+  'gpt-5.1': {
+    input: 1.25,
+    output: 10.00,
+    provider: 'openai',
+    features: {
+      json: true,
+    },
+  },
+  'gpt-5': {
+    input: 1.25,
+    output: 10.00,
+    provider: 'openai',
+    features: {
+      json: true,
+    },
+  },
+  'gpt-5-mini': {
+    input: 0.25,
+    output: 2.00,
+    provider: 'openai',
+    features: {
+      json: true,
+    },
+  },
+  'gpt-5-nano': {
+    input: 0.05,
+    output: 0.40,
+    provider: 'openai',
+    features: {
+      json: true,
+    },
+  },
+  // GPT-4.5
   'gpt-4.5-preview': {
     input: 75.00,
     output: 150.00,
@@ -22,6 +72,7 @@ const MODEL_TABLE = {
       json: true,
     },
   },
+  // GPT-4.1 family
   'gpt-4.1': {
     input: 2.00,
     output: 8.00,
@@ -46,6 +97,7 @@ const MODEL_TABLE = {
       json: true,
     },
   },
+  // GPT-4o family
   'gpt-4o': {
     input: 2.50,
     output: 10.00,
@@ -62,9 +114,10 @@ const MODEL_TABLE = {
       json: true,
     },
   },
-  'o1-pro': {
-    input: 150.00,
-    output: 600.00,
+  // Reasoning models
+  'o4-mini': {
+    input: 1.10,
+    output: 4.40,
     provider: 'openai',
     features: {
       json: true,
@@ -86,9 +139,25 @@ const MODEL_TABLE = {
       json: true,
     },
   },
-  'o4-mini': {
+  'o3-mini': {
     input: 1.10,
     output: 4.40,
+    provider: 'openai',
+    features: {
+      json: true,
+    },
+  },
+  'o1-pro': {
+    input: 150.00,
+    output: 600.00,
+    provider: 'openai',
+    features: {
+      json: true,
+    },
+  },
+  'o1': {
+    input: 15.00,
+    output: 60.00,
     provider: 'openai',
     features: {
       json: true,
