@@ -14,6 +14,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.122] - 2026-03-09
+### Added
+- Abandoned cart reminder system: sends escalating emails at 15min, 3h, 24h, 48h, 72h to users who visit checkout but don't complete payment
+- `payments-carts/{uid}` Firestore collection with security rules (client-side write, server-side completion)
+- `bm_cronFrequent` Cloud Function running every 10 minutes for sub-daily cron jobs
+- Shared cron runner (`cron/runner.js`) consolidating daily and frequent cron orchestrators
+- `main/order/refunded` and `main/order/abandoned-cart` email templates
+- Firestore rules test for `payments-carts` (12 test cases)
+
+### Changed
+- Migrated v1 email templates to v2 SendGrid template IDs
+- `cron/daily.js` and `cron/frequent.js` now delegate to shared `cron/runner.js`
+- Payment analytics tracking now fires independently of transitions
+
 # [5.0.120] - 2026-03-09
 ### Added
 - reCAPTCHA verification on `POST /payments/intent` route (reads `verification.g-recaptcha-response` from request body)

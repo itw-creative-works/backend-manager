@@ -24,6 +24,14 @@ service cloud.firestore {
       allow create: if true;
     }
 
+    // Protect abandoned cart data
+    match /payments-carts/{uid} {
+      allow create, update: if belongsTo(uid)
+        && incomingData().owner == uid
+        && incomingData().status == 'pending';
+      allow read: if belongsTo(uid);
+    }
+
     // Auth functions
     function authEmail() {
       return request.auth.token.email;

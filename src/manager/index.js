@@ -951,6 +951,11 @@ Manager.prototype.setupFunctions = function (exporter, options) {
   fn({memory: '256MB', timeoutSeconds: 60 * 5})
   .pubsub.schedule('0 0 * * *')
   .onRun((context) => self.EventMiddleware({ context }).run(`${cron}/daily.js`));
+
+  exporter.bm_cronFrequent =
+  fn({memory: '256MB', timeoutSeconds: 60 * 5})
+  .pubsub.schedule('*/10 * * * *')
+  .onRun((context) => self.EventMiddleware({ context }).run(`${cron}/frequent.js`));
 };
 
 // Setup Custom Server

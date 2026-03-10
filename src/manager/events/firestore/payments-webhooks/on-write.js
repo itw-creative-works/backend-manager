@@ -243,8 +243,9 @@ async function processPaymentEvent({ category, library, resource, resourceType, 
   }
 
   // Track payment analytics (non-blocking)
-  if (transitionName && shouldRunHandlers) {
-    trackPayment({ category, transitionName, unified, uid, processor, assistant });
+  // Fires independently of transitions — renewals have no transition but still need tracking
+  if (shouldRunHandlers) {
+    trackPayment({ category, transitionName, eventType, unified, uid, processor, assistant });
   }
 
   // Write unified subscription to user doc (subscriptions only)
@@ -283,6 +284,25 @@ async function processPaymentEvent({ category, library, resource, resourceType, 
     }, { merge: true });
     assistant.log(`Updated payments-intents/${orderId}: status=completed`);
   }
+
+  // Mark abandoned cart as completed (non-blocking, fire-and-forget)
+  const { COLLECTION } = require('../../../libraries/abandoned-cart-config.js');
+  admin.firestore().doc(`${COLLECTION}/${uid}`).set({
+    status: 'completed',
+    metadata: {
+      updated: {
+        timestamp: now,
+        timestampUNIX: nowUNIX,
+      },
+    },
+  }, { merge: true })
+    .then(() => assistant.log(`Updated ${COLLECTION}/${uid}: status=completed`))
+    .catch((e) => {
+      // Ignore not-found — cart may not exist for this user
+      if (e.code !== 5) {
+        assistant.error(`Failed to update ${COLLECTION}/${uid}: ${e.message}`);
+      }
+    });
 
   return transitionName;
 }
