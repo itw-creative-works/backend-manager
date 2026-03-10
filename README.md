@@ -139,7 +139,7 @@ Create `backend-manager-config.json` in your functions directory:
   sentry: {
     dsn: 'https://xxx@xxx.ingest.sentry.io/xxx',
   },
-  google_analytics: {
+  googleAnalytics: {
     id: 'G-XXXXXXXXXX',
     secret: 'your-ga4-secret',
   },

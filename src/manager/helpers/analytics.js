@@ -161,8 +161,8 @@ function Analytics(Manager, options) {
   };
 
   // Set id and secret
-  self.analyticsId = self?.Manager?.config?.google_analytics?.id;
-  self.analyticsSecret = self?.Manager?.config?.google_analytics?.secret;
+  self.analyticsId = self?.Manager?.config?.googleAnalytics?.id;
+  self.analyticsSecret = self?.Manager?.config?.googleAnalytics?.secret;
 
   // Check if we have the required properties
   if (!self.analyticsId) {

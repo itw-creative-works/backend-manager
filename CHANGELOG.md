@@ -14,6 +14,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.123] - 2026-03-10
+### Added
+- Dispute alert system: `POST /payments/dispute-alert` endpoint with Chargeblast processor for ingesting payment dispute webhooks
+- Firestore trigger (`payments-disputes/{alertId}`) that matches disputes to Stripe invoices by date/amount/card, auto-refunds, and cancels subscriptions
+- Discount code system: `GET /payments/discount` validation endpoint and `discount-codes.js` library (FLASH20, SAVE10, WELCOME15)
+- Discount code integration in payment intent flow — auto-creates/reuses Stripe and Chargebee coupons with deterministic IDs
+- Meta Conversions API and TikTok Events API tracking alongside existing GA4 in payment analytics
+- Subscription renewal tracking as payment events (fires on `invoice.payment_succeeded` / `PAYMENT.SALE.COMPLETED` even without a state transition)
+- `attribution`, `discount`, and `supplemental` fields on payment intent schema for checkout context tracking
+- Intent data (attribution, discount, supplemental) propagated to order objects during webhook on-write
+- `meta.pixelId` and `tiktok.pixelCode` fields in config template
+- Journey test accounts for discount and attribution flows
+- Tests for discount validation and dispute alert endpoints
+
+### Changed
+- Renamed config key `google_analytics` → `googleAnalytics`
+- Payment analytics rewritten with independent per-platform fire functions (`fireGA4`, `fireMeta`, `fireTikTok`)
+- Test runner module resolution now tries normal resolution first before falling back to search paths
+- reCAPTCHA marketing contact test skipped when `TEST_EXTENDED_MODE` is not set
+
 # [5.0.122] - 2026-03-09
 ### Added
 - Abandoned cart reminder system: sends escalating emails at 15min, 3h, 24h, 48h, 72h to users who visit checkout but don't complete payment

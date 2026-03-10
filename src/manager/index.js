@@ -946,6 +946,11 @@ Manager.prototype.setupFunctions = function (exporter, options) {
   .firestore.document('payments-webhooks/{eventId}')
   .onWrite((change, context) => self.EventMiddleware({ change, context }).run(`${events}/firestore/payments-webhooks/on-write.js`));
 
+  exporter.bm_paymentsDisputeOnWrite =
+  fn({memory: '256MB', timeoutSeconds: 60})
+  .firestore.document('payments-disputes/{alertId}')
+  .onWrite((change, context) => self.EventMiddleware({ change, context }).run(`${events}/firestore/payments-disputes/on-write.js`));
+
   // Setup cron jobs
   exporter.bm_cronDaily =
   fn({memory: '256MB', timeoutSeconds: 60 * 5})

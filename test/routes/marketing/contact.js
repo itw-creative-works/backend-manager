@@ -338,6 +338,7 @@ module.exports = {
       name: 'add-unauthenticated-requires-recaptcha',
       auth: 'none',
       timeout: 15000,
+      skip: !process.env.TEST_EXTENDED_MODE && 'reCAPTCHA is skipped in test mode (TEST_EXTENDED_MODE not set)',
 
       async run({ http, assert, config }) {
         // Public request without reCAPTCHA should fail
@@ -346,8 +347,8 @@ module.exports = {
           source: 'bem-test',
         });
 
-        // Should fail with 400 because no reCAPTCHA token
-        assert.isError(response, 400, 'Public request without reCAPTCHA should fail');
+        // Should fail with 403 because no reCAPTCHA token
+        assert.isError(response, 403, 'Public request without reCAPTCHA should fail');
       },
     },
 

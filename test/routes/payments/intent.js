@@ -114,6 +114,66 @@ module.exports = {
     },
 
     {
+      name: 'rejects-invalid-discount-code',
+      async run({ http, assert, config }) {
+        const paidProduct = config.payment.products.find(p => p.id !== 'basic' && p.prices);
+
+        const response = await http.as('basic').post('payments/intent', {
+          processor: 'stripe',
+          productId: paidProduct.id,
+          frequency: 'monthly',
+          discount: 'FAKECODE',
+        });
+
+        assert.isError(response, 400, 'Should reject invalid discount code');
+      },
+    },
+
+    {
+      name: 'saves-discount-to-intent-doc',
+      async run({ http, assert, config, firestore }) {
+        const paidProduct = config.payment.products.find(p => p.id !== 'basic' && p.prices);
+
+        const response = await http.as('journey-payments-intent-discount').post('payments/intent', {
+          processor: 'test',
+          productId: paidProduct.id,
+          frequency: 'monthly',
+          discount: 'FLASH20',
+        });
+
+        assert.isSuccess(response, 'Should succeed with valid discount');
+
+        // Verify discount was resolved and saved to intent doc
+        const intentDoc = await firestore.get(`payments-intents/${response.data.orderId}`);
+        assert.ok(intentDoc.discount, 'Discount should be saved on intent');
+        assert.equal(intentDoc.discount.code, 'FLASH20', 'Discount code should match');
+        assert.equal(intentDoc.discount.percent, 20, 'Discount percent should be 20');
+        assert.equal(intentDoc.discount.duration, 'once', 'Discount duration should be once');
+      },
+    },
+
+    {
+      name: 'saves-attribution-and-supplemental-to-intent-doc',
+      async run({ http, assert, config, firestore }) {
+        const paidProduct = config.payment.products.find(p => p.id !== 'basic' && p.prices);
+
+        const response = await http.as('journey-payments-intent-attribution').post('payments/intent', {
+          processor: 'test',
+          productId: paidProduct.id,
+          frequency: 'monthly',
+          attribution: { utm_source: 'test', utm_medium: 'unit-test' },
+          supplemental: { referral: 'friend' },
+        });
+
+        assert.isSuccess(response, 'Should succeed with attribution and supplemental');
+
+        const intentDoc = await firestore.get(`payments-intents/${response.data.orderId}`);
+        assert.equal(intentDoc.attribution.utm_source, 'test', 'Attribution utm_source should be saved');
+        assert.equal(intentDoc.supplemental.referral, 'friend', 'Supplemental should be saved');
+      },
+    },
+
+    {
       name: 'succeeds-with-test-processor',
       async run({ http, assert, config, firestore, accounts, waitFor }) {
         const uid = accounts['journey-payments-intent'].uid;

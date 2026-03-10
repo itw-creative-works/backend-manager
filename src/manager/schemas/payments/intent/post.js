@@ -23,4 +23,16 @@ module.exports = () => ({
     types: ['object'],
     default: {},
   },
+  attribution: {
+    types: ['object'],
+    default: {},
+  },
+  discount: {
+    types: ['string'],
+    default: null,
+  },
+  supplemental: {
+    types: ['object'],
+    default: {},
+  },
 });

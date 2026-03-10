@@ -20,9 +20,15 @@
   sentry: {
     dsn: 'https://d965557418748jd749d837asf00552f@o777489.ingest.sentry.io/8789941',
   },
-  google_analytics: {
+  googleAnalytics: {
     id: 'UA-123456789-1',
     secret: 'ABCx1234567890ABCDEFGH',
+  },
+  meta: {
+    pixelId: null,
+  },
+  tiktok: {
+    pixelCode: null,
   },
   oauth2: {},
   payment: {

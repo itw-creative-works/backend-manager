@@ -194,6 +194,13 @@ async function processPaymentEvent({ category, library, resource, resourceType, 
 
   assistant.log(`Unified ${category}: product=${unified.product.id}, status=${unified.status}`, unified);
 
+  // Read checkout context from payments-intents (attribution, discount, supplemental)
+  let intentData = {};
+  if (orderId) {
+    const intentDoc = await admin.firestore().doc(`payments-intents/${orderId}`).get();
+    intentData = intentDoc.exists ? intentDoc.data() : {};
+  }
+
   // Build the order object (single source of truth for handlers + Firestore)
   const order = {
     id: orderId,
@@ -203,6 +210,9 @@ async function processPaymentEvent({ category, library, resource, resourceType, 
     processor: processor,
     resourceId: resourceId,
     unified: unified,
+    attribution: intentData.attribution || {},
+    discount: intentData.discount || null,
+    supplemental: intentData.supplemental || {},
     metadata: {
       created: {
         timestamp: now,

@@ -238,6 +238,24 @@ const JOURNEY_ACCOUNTS = {
       subscription: { product: { id: 'basic' }, status: 'active' },
     },
   },
+  'journey-payments-intent-discount': {
+    id: 'journey-payments-intent-discount',
+    uid: '_test-journey-payments-intent-discount',
+    email: '_test.journey-payments-intent-discount@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'basic' }, status: 'active' },
+    },
+  },
+  'journey-payments-intent-attribution': {
+    id: 'journey-payments-intent-attribution',
+    uid: '_test-journey-payments-intent-attribution',
+    email: '_test.journey-payments-intent-attribution@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'basic' }, status: 'active' },
+    },
+  },
   'journey-payments-intent-trial': {
     id: 'journey-payments-intent-trial',
     uid: '_test-journey-payments-intent-trial',

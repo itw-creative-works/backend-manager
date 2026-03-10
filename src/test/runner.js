@@ -372,15 +372,25 @@ class TestRunner {
     try {
       const searchPaths = [
         path.join(this.options.projectDir, 'functions'),
+        path.join(this.options.projectDir, 'functions', 'node_modules'),
         path.resolve(__dirname, '../../'),
       ];
       const origResolve = Module._resolveFilename.bind(Module);
       Module._resolveFilename = function (request, parent, isMain, options) {
-        if (!request.startsWith('.') && !path.isAbsolute(request)) {
-          const extra = (options && options.paths) ? options.paths : [];
-          options = { ...options, paths: [...extra, ...searchPaths] };
+        // Try normal resolution first (preserves nested node_modules traversal)
+        try {
+          return origResolve(request, parent, isMain, options);
+        } catch (err) {
+          // Fallback: try resolving from project's search paths
+          if (!request.startsWith('.') && !path.isAbsolute(request)) {
+            const extra = (options && options.paths) ? options.paths : [];
+            return origResolve(request, parent, isMain, {
+              ...options,
+              paths: [...extra, ...searchPaths],
+            });
+          }
+          throw err;
         }
-        return origResolve(request, parent, isMain, options);
       };
       try {
         testModule = require(testFile);

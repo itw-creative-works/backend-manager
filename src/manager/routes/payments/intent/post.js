@@ -2,6 +2,7 @@ const path = require('path');
 const powertools = require('node-powertools');
 const OrderId = require('../../../libraries/payment/order-id.js');
 const recaptcha = require('../../../libraries/recaptcha.js');
+const discountCodes = require('../../../libraries/payment/discount-codes.js');
 
 /**
  * POST /payments/intent
@@ -29,6 +30,9 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
   const processor = settings.processor;
   const productId = settings.productId;
   const frequency = settings.frequency;
+  const attribution = settings.attribution;
+  const discount = settings.discount;
+  const supplemental = settings.supplemental;
   let trial = settings.trial;
 
   assistant.log(`Intent request: uid=${uid}, processor=${processor}, product=${productId}, frequency=${frequency}, trial=${trial}`);
@@ -76,6 +80,17 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
     trial = false;
   }
 
+  // Validate discount code (if provided)
+  let resolvedDiscount = null;
+  if (discount) {
+    const discountResult = discountCodes.validate(discount);
+    if (!discountResult.valid) {
+      return assistant.respond(`Invalid discount code: ${discount}`, { code: 400 });
+    }
+    resolvedDiscount = discountResult;
+    assistant.log(`Discount validated: code=${resolvedDiscount.code}, percent=${resolvedDiscount.percent}, duration=${resolvedDiscount.duration}`);
+  }
+
   // Generate order ID
   const orderId = OrderId.generate();
 
@@ -103,6 +118,7 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
       productId,
       frequency,
       trial,
+      discount: resolvedDiscount,
       confirmationUrl,
       cancelUrl,
       assistant,
@@ -129,6 +145,9 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
     type: productType,
     frequency: frequency,
     trial: trial,
+    attribution: attribution,
+    discount: resolvedDiscount,
+    supplemental: supplemental,
     raw: result.raw,
     metadata: {
       created: {
