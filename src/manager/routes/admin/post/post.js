@@ -98,6 +98,11 @@ module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
     return assistant.respond(imageResult.message, { code: 400 });
   }
 
+  // Rewrite body to use @post/ prefix for extracted images
+  for (const { originalUrl, localFilename } of imageResult) {
+    settings.body = settings.body.split(originalUrl).join(`@post/${localFilename}`);
+  }
+
   // Set defaults
   const formattedContent = powertools.template(
     POST_TEMPLATE,
@@ -120,6 +125,7 @@ module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
 
 // Helper: Extract and upload images
 async function extractImages(assistant, octokit, settings) {
+  const urlMap = [];
 
   const matches = settings.body.matchAll(IMAGE_REGEX);
   const images = Array.from(matches).map(match => ({
@@ -138,7 +144,7 @@ async function extractImages(assistant, octokit, settings) {
   assistant.log('extractImages(): images', images);
 
   if (!images.length) {
-    return;
+    return urlMap;
   }
 
   for (let index = 0; index < images.length; index++) {
@@ -171,7 +177,14 @@ async function extractImages(assistant, octokit, settings) {
         continue;
       }
     }
+
+    // Track successfully uploaded non-header images for body rewriting
+    if (!image.header) {
+      urlMap.push({ originalUrl: image.src, localFilename: download.filename });
+    }
   }
+
+  return urlMap;
 }
 
 // Helper: Download image

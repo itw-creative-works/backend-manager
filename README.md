@@ -532,6 +532,11 @@ await usage.update();
 
 // Whitelist keys
 usage.addWhitelistKeys(['another-key']);
+
+// Proxy usage: bill a different user and mirror writes to additional docs
+await usage.setUser('owner-uid');          // Switch target user (fetches from Firestore)
+usage.addMirror('agents/agent-id');        // Also write usage to this doc on update()
+usage.setMirrors(['agents/a', 'orgs/b']); // Overwrite mirror list
 ```
 
 ### Middleware

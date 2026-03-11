@@ -14,6 +14,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.129] - 2026-03-11
+### Added
+- Usage proxy system: `setUser()` to bill usage to a different user, `addMirror()`/`setMirrors()` to write usage to additional Firestore docs in parallel
+- Admin post route image rewriting: `extractImages()` now returns a URL map and rewrites markdown body to use `@post/` prefix for uploaded images
+- `metadata` object on user schema with `created` and `updated` timestamps
+- Firestore security rules: added `metadata` to server-only write fields
+- Test for admin post creation route
+- CLAUDE.md and README.md documentation for usage proxy and admin post route
+
+### Changed
+- User schema: moved `activity.lastActivity` to `metadata.updated` and `activity.created` to `metadata.created`
+- `before-signin` event handler writes to `metadata.updated` instead of `activity.lastActivity`
+- Admin user sync route writes to `metadata.created`/`metadata.updated` instead of `activity.created`/`activity.lastActivity`
+- `Usage.update()` refactored to execute primary + mirror writes in parallel via `Promise.all()`
+- Bumped version to 5.0.129
+
 # [5.0.123] - 2026-03-10
 ### Added
 - Dispute alert system: `POST /payments/dispute-alert` endpoint with Chargeblast processor for ingesting payment dispute webhooks

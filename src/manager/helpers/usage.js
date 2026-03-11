@@ -23,6 +23,8 @@ function Usage(m) {
     user: '',
   }
 
+  self._mirrors = [];
+
   self.initialized = false;
 }
 
@@ -98,6 +100,39 @@ Usage.prototype.init = function (assistant, options) {
     // Resolve
     return resolve(self);
   });
+};
+
+Usage.prototype.setUser = async function (uid) {
+  const self = this;
+  const admin = self.Manager.libraries.admin;
+
+  const doc = await admin.firestore().doc(`users/${uid}`).get().catch(() => null);
+  const data = (doc && doc.exists) ? doc.data() : {};
+
+  self.user = {
+    ...data,
+    auth: { uid: uid, ...(data.auth || {}) },
+    usage: data.usage || {},
+    subscription: data.subscription || {},
+  };
+
+  self.useUnauthenticatedStorage = false;
+
+  self.log(`Usage.setUser(): Switched to user ${uid}`);
+
+  return self;
+};
+
+Usage.prototype.setMirrors = function (paths) {
+  const self = this;
+  self._mirrors = Array.isArray(paths) ? paths : [];
+  return self;
+};
+
+Usage.prototype.addMirror = function (path) {
+  const self = this;
+  self._mirrors.push(path);
+  return self;
 };
 
 Usage.prototype.validate = function (name, options) {
@@ -357,40 +392,44 @@ Usage.prototype.update = function () {
   return new Promise(async function(resolve, reject) {
     const { admin } = Manager.libraries;
 
+    // Build the primary write promise
+    let mainWrite;
+
     // Write self.user to firestore or local if no user or if key is set
     if (self.useUnauthenticatedStorage) {
       if (self.options.unauthenticatedMode === 'firestore') {
-        admin.firestore().doc(`usage/${self.key}`)
-          .set(self.user.usage, { merge: true })
-          .then(() => {
-            self.log(`Usage.update(): Updated user.usage in firestore`, self.user.usage);
-
-            return resolve(self.user.usage);
-          })
-          .catch(e => {
-            return reject(assistant.errorify(e, {code: 500, sentry: true}));
-          });
+        mainWrite = admin.firestore().doc(`usage/${self.key}`)
+          .set(self.user.usage, { merge: true });
       } else {
         self.storage.set(`${self.paths.user}.usage`, self.user.usage).write();
 
         self.log(`Usage.update(): Updated user.usage in local storage`, self.user.usage);
 
-        return resolve(self.user.usage);
+        mainWrite = Promise.resolve();
       }
     } else {
-      admin.firestore().doc(`users/${self.user.auth.uid}`)
+      mainWrite = admin.firestore().doc(`users/${self.user.auth.uid}`)
         .set({
           usage: self.user.usage,
-        }, { merge: true })
-        .then(() => {
-          self.log(`Usage.update(): Updated user.usage in firestore`, self.user.usage);
-
-          return resolve(self.user.usage);
-        })
-        .catch(e => {
-          return reject(assistant.errorify(e, {code: 500, sentry: true}));
-        });
+        }, { merge: true });
     }
+
+    // Build mirror write promises
+    const mirrorWrites = (self._mirrors || []).map((path) => {
+      return admin.firestore().doc(path)
+        .set({ usage: self.user.usage }, { merge: true });
+    });
+
+    // Execute all writes in parallel
+    Promise.all([mainWrite, ...mirrorWrites])
+      .then(() => {
+        self.log(`Usage.update(): Updated user.usage in firestore (+ ${mirrorWrites.length} mirrors)`, self.user.usage);
+
+        return resolve(self.user.usage);
+      })
+      .catch(e => {
+        return reject(assistant.errorify(e, {code: 500, sentry: true}));
+      });
   });
 };
 

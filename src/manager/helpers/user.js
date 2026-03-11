@@ -66,9 +66,11 @@ const SCHEMA = {
     code: { type: 'string', default: '$randomId' },
     referrals: { type: 'array', default: [] },
   },
-  activity: {
-    lastActivity: '$timestamp:now',
+  metadata: {
     created: '$timestamp:now',
+    updated: '$timestamp:now',
+  },
+  activity: {
     geolocation: {
       ip: { type: 'string', default: null, nullable: true },
       continent: { type: 'string', default: null, nullable: true },

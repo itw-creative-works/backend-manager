@@ -57,12 +57,12 @@ module.exports = async ({ assistant, Manager, user, settings, analytics, librari
             uid: uid,
             email: email,
           },
-          activity: {
+          metadata: {
             created: {
               timestamp: created.toISOString(),
               timestampUNIX: Math.floor(created.getTime() / 1000),
             },
-            lastActivity: {
+            updated: {
               timestamp: activity.toISOString(),
               timestampUNIX: Math.floor(activity.getTime() / 1000),
             },

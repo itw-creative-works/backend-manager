@@ -84,6 +84,12 @@ src/
         daily.js                      # Daily cron runner
         daily/{job}.js                # Individual cron jobs
     routes/                           # Built-in routes
+      admin/
+        post/                         # POST /admin/post - Create blog posts via GitHub
+          post.js                     # Extracts images, uploads to GitHub, rewrites body to @post/ format
+          put.js                      # PUT /admin/post - Edit existing posts
+          templates/
+            post.html                 # Post frontmatter template
       payments/
         intent/                       # POST /payments/intent
           post.js                     # Intent creation orchestrator
@@ -426,6 +432,28 @@ Manager.handlers.bm_api = function (mod, position) {
 | Auth Events | `events/auth/` | `{event}.js` |
 | Cron Jobs | `cron/daily/` or `hooks/cron/daily/` | `{job}.js` |
 
+## Admin Post Route
+
+The `POST /admin/post` route creates blog posts via GitHub's API. It handles image extraction, upload, and body rewriting.
+
+### Image Processing Flow
+1. Receives markdown body with external image URLs (e.g., `![alt](https://images.unsplash.com/...)`)
+2. Extracts all `![alt](url)` patterns from the body using regex
+3. Downloads each image and uploads it to `src/assets/images/blog/post-{id}/` on GitHub
+4. **Rewrites the body** to replace external URLs with `@post/{filename}` format
+5. The `@post/` prefix is resolved at Jekyll build time by `jekyll-uj-powertools` to the full path
+
+### Key Details
+- Image filenames are derived from `hyphenate(alt_text)` + downloaded extension
+- Header image (`headerImageURL`) is uploaded but NOT rewritten in the body (it's in frontmatter)
+- Failed image downloads are skipped — the original external URL stays in the body
+- The `extractImages()` function returns a URL mapping used for body rewriting
+
+### Files
+- `src/manager/routes/admin/post/post.js` — POST handler (create)
+- `src/manager/routes/admin/post/put.js` — PUT handler (edit)
+- `src/manager/routes/admin/post/templates/post.html` — Post template
+
 ## Testing
 
 ### Running Tests
@@ -672,6 +700,31 @@ Products can opt out of daily caps by setting `rateLimit: 'monthly'` (default is
   "rateLimit": "monthly"
 }
 ```
+
+### Proxy Usage (setUser + Mirrors)
+
+Sometimes usage must be billed to a different user than the one making the request (e.g., anonymous visitors consuming an agent owner's credits). Use `setUser()` to swap the target and `addMirror()` / `setMirrors()` to write usage to additional Firestore docs:
+
+```js
+// Switch usage target to the agent owner (fetches their user doc)
+await usage.setUser(ownerUid);
+
+// Also write usage data to the agent doc
+usage.addMirror(`agents/${agentId}`);
+
+// Now validate, increment, and update all operate on the owner's data
+// update() writes to users/{ownerUid} AND agents/{agentId} in parallel
+await usage.validate('credits');
+usage.increment('credits');
+await usage.update();
+```
+
+**Methods:**
+- `setUser(uid)` — async, fetches `users/{uid}` from Firestore, replaces `self.user`, sets `useUnauthenticatedStorage = false`
+- `setMirrors(paths)` — sync, overwrites the mirror array with the given paths
+- `addMirror(path)` — sync, appends a single path to the mirror array
+
+Mirrors are write-only — `update()` writes `{ usage: self.user.usage }` (merge) to each mirror path. No reads are performed on mirrors.
 
 ### Reset Schedule
 

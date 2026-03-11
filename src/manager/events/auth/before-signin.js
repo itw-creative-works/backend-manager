@@ -15,11 +15,13 @@ module.exports = async ({ Manager, assistant, user, context, libraries }) => {
   // Update last activity and geolocation
   const update = await admin.firestore().doc(`users/${user.uid}`)
     .set({
-      activity: {
-        lastActivity: {
+      metadata: {
+        updated: {
           timestamp: now.toISOString(),
           timestampUNIX: Math.round(now.getTime() / 1000),
         },
+      },
+      activity: {
         geolocation: {
           ip: context.ipAddress,
           language: context.locale,
