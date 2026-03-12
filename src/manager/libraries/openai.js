@@ -590,37 +590,23 @@ function formatHistory(options, prompt, message, _log) {
     attachments: options.message.attachments,
   });
 
-  // Trim all history content
-  history.forEach((m) => {
-    if (typeof m.content === 'string') {
-      m.content = m.content.trim();
-    }
+  // Format history into new objects (avoid mutating originals which may be persisted by the caller)
+  const formatted = history.map((m) => {
+    const role = m.role || 'developer';
+    const content = typeof m.content === 'string' ? m.content.trim() : String(m.content || '');
+
+    const result = {
+      role: role,
+      content: formatMessageContent(content, m.attachments, _log, 'responses', role),
+    };
+
+    // Log
+    _log('Message', result.role, result.content);
+
+    return result;
   });
 
-  // Format history
-  history.map((m) => {
-    const originalContent = m.content;
-    const originalAttachments = m.attachments;
-
-    // Set properties
-    m.role = m.role || 'developer';
-    m.content = formatMessageContent(originalContent, originalAttachments, _log, 'responses', m.role);
-    m.attachments = [];
-
-    // Delete any field except for role, content
-    Object.keys(m).forEach((key) => {
-      if (!['role', 'content'].includes(key)) {
-        delete m[key];
-      }
-    });
-  })
-
-  // Log message
-  history.forEach((m) => {
-    _log('Message', m.role, m.content);
-  });
-
-  return history;
+  return formatted;
 }
 
 function attemptRequest(options, self, prompt, message, user, moderation, attempt, assistant, resolve, reject, _log) {
