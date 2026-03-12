@@ -1,6 +1,7 @@
 /**
  * POST /admin/post - Create blog post
  * Admin/blogger endpoint to create blog posts via GitHub
+ * Uses Git Trees API to commit all files (images + post) in a single commit
  */
 const moment = require('moment');
 const jetpack = require('fs-jetpack');
@@ -15,7 +16,6 @@ const IMAGE_PATH_SRC = `src/assets/images/blog/post-{id}/`;
 const IMAGE_REGEX = /(?:!\[(.*?)\]\((.*?)\))/img;
 
 module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
-  const fetch = Manager.require('wonderful-fetch');
 
   // Require authentication
   if (!user.authenticated) {
@@ -92,30 +92,47 @@ module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
 
   assistant.log('main(): Creating post...', settings);
 
-  // Extract all images
-  const imageResult = await extractImages(assistant, octokit, settings).catch(e => e);
-  if (imageResult instanceof Error) {
-    return assistant.respond(imageResult.message, { code: 400 });
+  // Download all images and collect file data
+  const imageFiles = await downloadImages(assistant, settings).catch(e => e);
+  if (imageFiles instanceof Error) {
+    return assistant.respond(imageFiles.message, { code: 400 });
   }
 
   // Rewrite body to use @post/ prefix for extracted images
-  for (const { originalUrl, localFilename } of imageResult) {
-    settings.body = settings.body.split(originalUrl).join(`@post/${localFilename}`);
+  for (const file of imageFiles) {
+    if (file.originalUrl) {
+      settings.body = settings.body.split(file.originalUrl).join(`@post/${file.filename}`);
+    }
   }
 
-  // Set defaults
+  // Generate post content from template
   const formattedContent = powertools.template(
     POST_TEMPLATE,
     formatClone(settings),
   );
 
-  // Upload post
-  const uploadResult = await uploadPost(assistant, octokit, settings, formattedContent).catch(e => e);
-  if (uploadResult instanceof Error) {
-    return assistant.respond(uploadResult.message, { code: 500 });
+  // Build post file entry
+  const postFilename = `${settings.path}/${settings.date}-${settings.url}.md`;
+  const allFiles = [
+    ...imageFiles.map(img => ({
+      path: img.githubPath,
+      content: img.base64,
+      encoding: 'base64',
+    })),
+    {
+      path: postFilename,
+      content: Buffer.from(formattedContent).toString('base64'),
+      encoding: 'base64',
+    },
+  ];
+
+  // Commit all files in a single commit
+  const commitResult = await commitAll(assistant, octokit, settings, allFiles).catch(e => e);
+  if (commitResult instanceof Error) {
+    return assistant.respond(commitResult.message, { code: 500 });
   }
 
-  assistant.log('main(): uploadPost', uploadResult);
+  assistant.log('main(): commitAll', commitResult);
 
   // Track analytics
   analytics.event('admin/post', { action: 'create' });
@@ -123,9 +140,10 @@ module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
   return assistant.respond(settings);
 };
 
-// Helper: Extract and upload images
-async function extractImages(assistant, octokit, settings) {
-  const urlMap = [];
+// Helper: Download all images and return file data (no GitHub uploads)
+async function downloadImages(assistant, settings) {
+  const files = [];
+  const assetsPath = powertools.template(IMAGE_PATH_SRC, settings);
 
   const matches = settings.body.matchAll(IMAGE_REGEX);
   const images = Array.from(matches).map(match => ({
@@ -141,10 +159,10 @@ async function extractImages(assistant, octokit, settings) {
     header: true,
   });
 
-  assistant.log('extractImages(): images', images);
+  assistant.log('downloadImages(): images', images);
 
   if (!images.length) {
-    return urlMap;
+    return files;
   }
 
   for (let index = 0; index < images.length; index++) {
@@ -153,38 +171,29 @@ async function extractImages(assistant, octokit, settings) {
     // Download image
     const download = await downloadImage(assistant, image.src, image.alt).catch(e => e);
 
-    assistant.log('extractImages(): download', download);
+    assistant.log('downloadImages(): download', download);
 
     if (download instanceof Error) {
       if (image.header) {
         throw download;
       } else {
-        assistant.warn('extractImages(): Skipping NON-HEADER image download due to error', download);
+        assistant.warn('downloadImages(): Skipping NON-HEADER image download due to error', download);
         continue;
       }
     }
 
-    // Upload image
-    const upload = await uploadImage(assistant, octokit, settings, download).catch(e => e);
+    // Read file content as base64
+    const base64 = jetpack.read(download.path, 'buffer').toString('base64');
 
-    assistant.log('extractImages(): upload', upload);
-
-    if (upload instanceof Error) {
-      if (image.header) {
-        throw upload;
-      } else {
-        assistant.warn('extractImages(): Skipping NON-HEADER image upload due to error', upload);
-        continue;
-      }
-    }
-
-    // Track successfully uploaded non-header images for body rewriting
-    if (!image.header) {
-      urlMap.push({ originalUrl: image.src, localFilename: download.filename });
-    }
+    files.push({
+      githubPath: `${assetsPath}${download.filename}`,
+      filename: download.filename,
+      base64: base64,
+      originalUrl: image.header ? null : image.src,
+    });
   }
 
-  return urlMap;
+  return files;
 }
 
 // Helper: Download image
@@ -211,79 +220,95 @@ async function downloadImage(assistant, src, alt) {
   return result;
 }
 
-// Helper: Upload image to GitHub
-async function uploadImage(assistant, octokit, settings, image) {
-  const filepath = image.path;
-  const filename = image.filename;
-  const assetsPath = powertools.template(IMAGE_PATH_SRC, settings);
+// Helper: Commit all files (images + post) in a single commit using Git Trees API
+async function commitAll(assistant, octokit, settings, files) {
   const owner = settings.githubUser;
   const repo = settings.githubRepo;
 
-  assistant.log('uploadImage(): image', image);
-  assistant.log('uploadImage(): path', `${assetsPath}${filename}`);
+  assistant.log('commitAll(): Committing', files.length, 'files');
 
-  // Get existing image
-  const existing = await octokit.rest.repos.getContent({
+  // Get the latest commit SHA on the default branch
+  const refResult = await octokit.rest.git.getRef({
     owner: owner,
     repo: repo,
-    path: `${assetsPath}${filename}`,
-  }).catch(e => e);
-
-  assistant.log('uploadImage(): Existing', existing);
-
-  if (existing instanceof Error && existing?.status !== 404) {
-    throw existing;
-  }
-
-  // Upload image
-  const result = await octokit.rest.repos.createOrUpdateFileContents({
-    owner: owner,
-    repo: repo,
-    path: `${assetsPath}${filename}`,
-    sha: existing?.data?.sha || undefined,
-    message: `📦 admin/post:upload-image ${filename}`,
-    content: jetpack.read(filepath, 'buffer').toString('base64'),
+    ref: 'heads/master',
+  }).catch(() => {
+    // Try 'main' if 'master' fails
+    return octokit.rest.git.getRef({
+      owner: owner,
+      repo: repo,
+      ref: 'heads/main',
+    });
   });
 
-  assistant.log('uploadImage(): Result', result);
+  const latestCommitSha = refResult.data.object.sha;
+  const branch = refResult.data.ref;
 
-  return result;
-}
+  assistant.log('commitAll(): Latest commit', latestCommitSha, 'on', branch);
 
-// Helper: Upload post to GitHub
-async function uploadPost(assistant, octokit, settings, content) {
-  const filename = `${settings.path}/${settings.date}-${settings.url}.md`;
-  const owner = settings.githubUser;
-  const repo = settings.githubRepo;
-
-  assistant.log('uploadPost(): filename', filename);
-
-  // Get existing post
-  const existing = await octokit.rest.repos.getContent({
+  // Get the tree SHA of the latest commit
+  const commitResult = await octokit.rest.git.getCommit({
     owner: owner,
     repo: repo,
-    path: filename,
-  }).catch(e => e);
-
-  assistant.log('uploadPost(): Existing', existing);
-
-  if (existing instanceof Error && existing?.status !== 404) {
-    throw existing;
-  }
-
-  // Upload post
-  const result = await octokit.rest.repos.createOrUpdateFileContents({
-    owner: owner,
-    repo: repo,
-    path: filename,
-    sha: existing?.data?.sha || undefined,
-    message: `📦 admin/post:upload-post ${filename}`,
-    content: Buffer.from(content).toString('base64'),
+    commit_sha: latestCommitSha,
   });
 
-  assistant.log('uploadPost(): Result', result);
+  const baseTreeSha = commitResult.data.tree.sha;
 
-  return result;
+  // Create blobs for each file
+  const treeItems = [];
+
+  for (const file of files) {
+    const blob = await octokit.rest.git.createBlob({
+      owner: owner,
+      repo: repo,
+      content: file.content,
+      encoding: file.encoding,
+    });
+
+    assistant.log('commitAll(): Created blob for', file.path, blob.data.sha);
+
+    treeItems.push({
+      path: file.path,
+      mode: '100644',
+      type: 'blob',
+      sha: blob.data.sha,
+    });
+  }
+
+  // Create a new tree with all files
+  const newTree = await octokit.rest.git.createTree({
+    owner: owner,
+    repo: repo,
+    base_tree: baseTreeSha,
+    tree: treeItems,
+  });
+
+  assistant.log('commitAll(): Created tree', newTree.data.sha);
+
+  // Create the commit
+  const postPath = files[files.length - 1].path;
+  const newCommit = await octokit.rest.git.createCommit({
+    owner: owner,
+    repo: repo,
+    message: `📦 admin/post:create ${postPath}`,
+    tree: newTree.data.sha,
+    parents: [latestCommitSha],
+  });
+
+  assistant.log('commitAll(): Created commit', newCommit.data.sha);
+
+  // Update the branch ref to point to the new commit
+  const updateResult = await octokit.rest.git.updateRef({
+    owner: owner,
+    repo: repo,
+    ref: branch.replace('refs/', ''),
+    sha: newCommit.data.sha,
+  });
+
+  assistant.log('commitAll(): Updated ref', updateResult.data.object.sha);
+
+  return updateResult;
 }
 
 // Helper: Format clone for templating
