@@ -14,6 +14,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.131] - 2026-03-11
+### Changed
+- Analytics config restructured: consolidated `googleAnalytics`, `meta`, and `tiktok` under unified `analytics.providers` namespace with `google`, `meta`, and `tiktok` keys
+- Google Analytics secret moved from config (`googleAnalytics.secret`) to env var (`GOOGLE_ANALYTICS_SECRET`)
+- Meta pixel ID read from `analytics.providers.meta.id` instead of `meta.pixelId`
+- TikTok pixel code read from `analytics.providers.tiktok.id` instead of `tiktok.pixelCode`
+- Flattened `owner` field from `{ uid: string }` to plain UID string in feedback docs, notifications, and `getDocumentWithOwnerUser()` default path
+- Moved `created` timestamp inside `metadata` object in feedback documents
+- Added `GOOGLE_ANALYTICS_SECRET`, `META_ACCESS_TOKEN`, `TIKTOK_ACCESS_TOKEN` to `.env` template
+- Bumped version to 5.0.131
+
 # [5.0.129] - 2026-03-11
 ### Added
 - Usage proxy system: `setUser()` to bill usage to a different user, `addMirror()`/`setMirrors()` to write usage to additional Firestore docs in parallel

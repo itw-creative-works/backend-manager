@@ -46,7 +46,6 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
   // Save feedback to Firestore
   await admin.firestore().doc(`feedback/${docId}`)
     .set({
-      created: assistant.meta.startTime,
       feedback: {
         rating: settings.rating,
         like: settings.like,
@@ -54,10 +53,11 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
         comments: settings.comments,
       },
       decision: decision,
-      owner: {
-        uid: user?.auth?.uid ?? null,
+      owner: user?.auth?.uid ?? null,
+      metadata: {
+        ...Manager.Metadata().set({ tag: 'user/feedback' }),
+        created: assistant.meta.startTime,
       },
-      metadata: Manager.Metadata().set({ tag: 'user/feedback' }),
     }, { merge: true })
     .catch((e) => {
       return assistant.respond(`Failed to save feedback: ${e.message}`, { code: 500, sentry: true });

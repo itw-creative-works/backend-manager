@@ -272,7 +272,7 @@ Utilities.prototype.getDocumentWithOwnerUser = function (path, options) {
 
     // Set defaults
     options = options || {};
-    options.owner = options.owner || 'owner.uid';
+    options.owner = options.owner || 'owner';
     options.log = typeof options.log === 'undefined' ? false : options.log;
 
     // Set resolve/schema options

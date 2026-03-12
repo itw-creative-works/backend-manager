@@ -161,8 +161,8 @@ function Analytics(Manager, options) {
   };
 
   // Set id and secret
-  self.analyticsId = self?.Manager?.config?.googleAnalytics?.id;
-  self.analyticsSecret = self?.Manager?.config?.googleAnalytics?.secret;
+  self.analyticsId = self?.Manager?.config?.analytics?.providers?.google?.id;
+  self.analyticsSecret = process.env.GOOGLE_ANALYTICS_SECRET;
 
   // Check if we have the required properties
   if (!self.analyticsId) {

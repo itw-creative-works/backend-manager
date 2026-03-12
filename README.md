@@ -630,7 +630,7 @@ await utilities.iterateUsers(
 
 // Get document with owner user
 const { document, user } = await utilities.getDocumentWithOwnerUser('posts/abc123', {
-  owner: 'owner.uid',
+  owner: 'owner',
   resolve: {
     schema: 'posts',
     assistant: assistant,

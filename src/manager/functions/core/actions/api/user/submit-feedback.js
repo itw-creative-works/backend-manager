@@ -50,13 +50,13 @@ Module.prototype.main = function () {
       // Save feedback to firestore
       self.libraries.admin.firestore().doc(`feedback/${docId}`)
       .set({
-        created: assistant.meta.startTime,
         feedback: request,
         decision: decision,
-        owner: {
-          uid: user?.auth?.uid ?? null,
+        owner: user?.auth?.uid ?? null,
+        metadata: {
+          ...Manager.Metadata().set({tag: 'user:submit-feedback'}),
+          created: assistant.meta.startTime,
         },
-        metadata: Manager.Metadata().set({tag: 'user:submit-feedback'}),
       }, {merge: true})
       .then(r => {
         return resolve({

@@ -168,7 +168,7 @@ const META_EVENTS = {
  */
 function fireMeta({ resolved, currency, uid, processor, assistant, config }) {
   try {
-    const pixelId = config.meta?.pixelId;
+    const pixelId = config.analytics?.providers?.meta?.id;
     const accessToken = process.env.META_ACCESS_TOKEN;
 
     if (!pixelId || !accessToken) {
@@ -238,7 +238,7 @@ const TIKTOK_EVENTS = {
  */
 function fireTikTok({ resolved, currency, uid, processor, assistant, config }) {
   try {
-    const pixelCode = config.tiktok?.pixelCode;
+    const pixelCode = config.analytics?.providers?.tiktok?.id;
     const accessToken = process.env.TIKTOK_ACCESS_TOKEN;
 
     if (!pixelCode || !accessToken) {
