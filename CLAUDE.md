@@ -467,15 +467,15 @@ npx bm test
 ```
 
 ### Log Files
-Both `npx bm emulator` and `npx bm test` automatically save all output to log files in the project directory while still streaming to the console:
-- **`emulator.log`** — Full emulator output (Firebase emulator + Cloud Functions logs)
-- **`test.log`** — Test runner output (when running against an existing emulator)
+BEM CLI commands automatically save all output to log files in `functions/` while still streaming to the console:
+- **`functions/serve.log`** — Output from `npx bm serve` (Firebase serve)
+- **`functions/emulator.log`** — Full emulator output (Firebase emulator + Cloud Functions logs)
+- **`functions/test.log`** — Test runner output (when running against an existing emulator)
+- **`functions/logs.log`** — Cloud Function logs from `npx bm logs:read` or `npx bm logs:tail` (raw JSON for `read`, streaming text for `tail`)
 
 When `npx bm test` starts its own emulator, logs go to `emulator.log` (since it delegates to the emulator command). When running against an already-running emulator, logs go to `test.log`.
 
 These files are overwritten on each run and are gitignored (`*.log`). Use them to search for errors, debug webhook pipelines, or review full function output after a test run.
-
-- **`logs.log`** — Cloud Function logs from `npx bm logs:read` or `npx bm logs:tail` (raw JSON for `read`, streaming text for `tail`)
 
 ### Filtering Tests
 ```bash
@@ -630,7 +630,7 @@ npx bm logs:tail                                     # Stream live logs
 npx bm logs:tail --fn bm_paymentsWebhookOnWrite      # Stream filtered live logs
 ```
 
-Both commands save output to `logs.log` in the project directory (overwritten on each run). `logs:read` saves raw JSON; `logs:tail` streams text.
+Both commands save output to `functions/logs.log` (overwritten on each run). `logs:read` saves raw JSON; `logs:tail` streams text.
 
 | Flag | Description | Default | Commands |
 |------|-------------|---------|----------|

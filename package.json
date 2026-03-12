@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "5.0.133",
+  "version": "5.0.134",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -18,11 +18,11 @@
     "node": "22"
   },
   "projectScripts": {
-    "start": "npx bm setup && npx bm serve",
-    "deploy": "npx bm setup && npx bm deploy",
-    "emulator": "npx bm setup && npx bm emulator",
-    "test": "npx bm setup && npx bm test",
-    "setup": "npx bm setup"
+    "start": "npx mgr setup && npx mgr serve",
+    "deploy": "npx mgr setup && npx mgr deploy",
+    "emulator": "npx mgr setup && npx mgr emulator",
+    "test": "npx mgr setup && npx mgr test",
+    "setup": "npx mgr setup"
   },
   "repository": {
     "type": "git",

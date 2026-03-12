@@ -62,7 +62,7 @@ class EmulatorCommand extends BaseCommand {
     const emulatorCommand = `BEM_TESTING=true firebase emulators:exec --only functions,firestore,auth,database,hosting,pubsub --ui "${command}"`;
 
     // Set up log file in the project directory
-    const logPath = path.join(projectDir, 'emulator.log');
+    const logPath = path.join(projectDir, 'functions', 'emulator.log');
     const logStream = fs.createWriteStream(logPath, { flags: 'w' });
     const stripAnsi = (str) => str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
 

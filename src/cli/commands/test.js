@@ -185,7 +185,7 @@ class TestCommand extends BaseCommand {
     this.log(chalk.gray(`  UI: http://127.0.0.1:${emulatorPorts.ui}`));
 
     // Set up log file in the project directory
-    const logPath = path.join(projectDir, 'test.log');
+    const logPath = path.join(projectDir, 'functions', 'test.log');
     const logStream = fs.createWriteStream(logPath, { flags: 'w' });
     const stripAnsi = (str) => str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
 

@@ -271,9 +271,6 @@ async function uploadPost(assistant, octokit, settings, content) {
     throw existing;
   }
 
-  // Wait for GitHub to process images
-  await powertools.wait(30000);
-
   // Upload post
   const result = await octokit.rest.repos.createOrUpdateFileContents({
     owner: owner,
