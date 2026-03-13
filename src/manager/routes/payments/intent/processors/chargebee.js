@@ -62,13 +62,13 @@ async function createSubscriptionCheckout({ ChargebeeLib, uid, orderId, product,
   // Deterministic item price ID: {itemId}-{frequency}
   const itemPriceId = `${chargebeeItemId}-${frequency}`;
 
+  // NOTE: subscription[meta_data] is NOT supported by Chargebee's hosted page checkout.
+  // We use pass_thru_content to carry our UID/orderId through the checkout flow,
+  // then backfill meta_data on the subscription after the webhook resolves the UID.
   const params = {
     subscription_items: {
       item_price_id: [itemPriceId],
       quantity: [1],
-    },
-    subscription: {
-      meta_data: metaData,
     },
     redirect_url: confirmationUrl,
     cancel_url: cancelUrl,
@@ -79,7 +79,7 @@ async function createSubscriptionCheckout({ ChargebeeLib, uid, orderId, product,
   // set trial_end explicitly. Otherwise let the item price's trial config handle it.
   if (trial === false && product.trial?.days) {
     // Explicitly skip trial by setting trial_end to 0
-    params.subscription.trial_end = 0;
+    params.subscription = { trial_end: 0 };
   }
 
   // Apply discount coupon (first payment only)

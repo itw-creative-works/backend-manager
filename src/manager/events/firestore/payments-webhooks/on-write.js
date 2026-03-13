@@ -78,9 +78,32 @@ module.exports = async ({ assistant, change, context }) => {
       }
     }
 
-    // Validate UID — must have one by now (either from webhook parse or fetched resource)
+    // Fallback: resolve UID from the hosted page's pass_thru_content
+    // Chargebee hosted page checkouts don't forward subscription[meta_data] to the subscription,
+    // but pass_thru_content is stored on the hosted page and contains our UID + orderId
+    let resolvedFromPassThru = false;
+    if (!uid && library.resolveUidFromHostedPage) {
+      const passThruResult = await library.resolveUidFromHostedPage(resourceId, assistant);
+      if (passThruResult) {
+        uid = passThruResult.uid;
+        resolvedFromPassThru = true;
+        assistant.log(`UID resolved from hosted page pass_thru_content: uid=${uid}, resourceId=${resourceId}`);
+
+        await webhookRef.set({ owner: uid }, { merge: true });
+      }
+    }
+
+    // Validate UID — must have one by now
     if (!uid) {
-      throw new Error(`Webhook event has no UID — could not extract from webhook parse or fetched ${resourceType} resource`);
+      throw new Error(`Webhook event has no UID — could not extract from webhook parse, fetched ${resourceType} resource, or hosted page pass_thru_content`);
+    }
+
+    // Backfill: if UID was resolved from pass_thru_content, set meta_data on the subscription
+    // so future webhooks (renewals, cancellations) can resolve the UID directly
+    if (resolvedFromPassThru && resourceType === 'subscription' && library.setMetaData) {
+      library.setMetaData(resourceId, uid, assistant, resource)
+        .then(() => assistant.log(`Backfilled meta_data on subscription ${resourceId} + customer: uid=${uid}`))
+        .catch((e) => assistant.error(`Failed to backfill meta_data on ${resourceType} ${resourceId}: ${e.message}`));
     }
 
     // Build timestamps

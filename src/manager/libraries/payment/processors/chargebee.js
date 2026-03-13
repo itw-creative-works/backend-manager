@@ -131,6 +131,82 @@ const Chargebee = {
   },
 
   /**
+   * Resolve UID from a Chargebee hosted page's pass_thru_content
+   * Searches recent hosted pages for one whose subscription matches the given resourceId
+   *
+   * @param {string} resourceId - Chargebee subscription ID to match
+   * @param {object} assistant - Assistant instance for logging
+   * @returns {Promise<{ uid: string, orderId: string }|null>}
+   */
+  async resolveUidFromHostedPage(resourceId, assistant) {
+    try {
+      this.init();
+      const result = await this.request('/hosted_pages?limit=25&sort_by[desc]=created_at');
+      const pages = result?.list || [];
+
+      for (const entry of pages) {
+        const hp = entry.hosted_page;
+
+        // Match by subscription ID in the hosted page content
+        if (hp.content?.subscription?.id !== resourceId) {
+          continue;
+        }
+
+        if (!hp.pass_thru_content) {
+          continue;
+        }
+
+        try {
+          const parsed = typeof hp.pass_thru_content === 'string'
+            ? JSON.parse(hp.pass_thru_content)
+            : hp.pass_thru_content;
+
+          if (parsed.uid) {
+            return { uid: parsed.uid, orderId: parsed.orderId || null };
+          }
+        } catch (e) {
+          // Invalid JSON in pass_thru_content — skip
+        }
+      }
+
+      return null;
+    } catch (e) {
+      assistant.log(`resolveUidFromHostedPage failed: ${e.message}`);
+      return null;
+    }
+  },
+
+  /**
+   * Set meta_data on a Chargebee subscription and its customer via direct API calls
+   * Used to backfill meta_data after resolving UID from pass_thru_content,
+   * so future webhooks (renewals, cancellations) can resolve UID directly
+   *
+   * @param {string} subscriptionId - Chargebee subscription ID
+   * @param {string} uid - User's Firebase UID
+   * @param {object} assistant - Assistant instance for logging
+   * @param {object} [resource] - Fetched subscription resource (to get customer_id)
+   */
+  async setMetaData(subscriptionId, uid, assistant, resource) {
+    this.init();
+    const metaBody = { meta_data: { uid } };
+
+    // Backfill subscription
+    await this.request(`/subscriptions/${subscriptionId}`, {
+      method: 'POST',
+      body: metaBody,
+    });
+
+    // Backfill customer
+    const customerId = resource?.customer_id;
+    if (customerId) {
+      await this.request(`/customers/${customerId}`, {
+        method: 'POST',
+        body: metaBody,
+      });
+    }
+  },
+
+  /**
    * Extract the internal orderId from a Chargebee resource
    * Checks meta_data JSON first (new), then cf_clientorderid (legacy)
    *

@@ -14,6 +14,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.139] - 2026-03-12
+### Fixed
+- Chargebee hosted page checkout failing to resolve UID from webhooks because `subscription[meta_data]` is not supported by Chargebee's hosted page API
+- Webhook pipeline now falls back to resolving UID from hosted page `pass_thru_content` when meta_data is missing
+
+### Added
+- `resolveUidFromHostedPage()` in Chargebee library to search recent hosted pages by subscription ID and extract UID from `pass_thru_content`
+- `setMetaData()` in Chargebee library to backfill meta_data on subscriptions and customers after first UID resolution
+- Automatic meta_data backfill on subscription + customer after resolving UID from pass_thru_content, so future webhooks resolve directly
+
+### Changed
+- Chargebee intent now uses `pass_thru_content` instead of `subscription.meta_data` to carry UID/orderId through checkout
+
 # [5.0.132] - 2026-03-13
 ### Fixed
 - Abandoned cart cron crashing with `FAILED_PRECONDITION` due to missing `payments-carts` composite index (status + nextReminderAt)
