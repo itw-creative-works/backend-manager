@@ -14,6 +14,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.144] - 2026-03-13
+### Added
+- `User.resolveSubscription()` static method that derives calculated subscription fields (plan, active, trialing, cancelling) from raw user data
+
 # [5.0.143] - 2026-03-13
 ### Changed
 - `sendOrderEmail()` now accepts a `copy` parameter to control whether admin receives a copy (defaults to `true` for backward compat)
