@@ -1044,6 +1044,8 @@ The `test` processor generates Stripe-shaped data and auto-fires webhooks to the
 
 8. **Increment usage before update** - Call `usage.increment()` then `usage.update()`
 
+9. **Add Firestore composite indexes for new compound queries** - Any new Firestore query using multiple `.where()` clauses or `.where()` + `.orderBy()` requires a composite index. Add it to `src/cli/commands/setup-tests/required-indexes.js` (the SSOT). Consumer projects pick these up via `npx bm setup`, which syncs them into `firestore.indexes.json`. Without the index, the query will crash with `FAILED_PRECONDITION` in production.
+
 ## Key Files Reference
 
 | Purpose | File |
@@ -1072,6 +1074,7 @@ The `test` processor generates Stripe-shaped data and auto-fires webhooks to the
 | Stripe library | `src/manager/libraries/payment/processors/stripe.js` |
 | PayPal library | `src/manager/libraries/payment/processors/paypal.js` |
 | Order ID generator | `src/manager/libraries/payment/order-id.js` |
+| Required Firestore indexes (SSOT) | `src/cli/commands/setup-tests/required-indexes.js` |
 | Test accounts | `src/test/test-accounts.js` |
 
 ## Environment Detection

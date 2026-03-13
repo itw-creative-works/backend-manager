@@ -35,4 +35,15 @@ module.exports = [
       { fieldPath: 'owner', order: 'ASCENDING' },
     ],
   },
+
+  // Abandoned cart cron — find pending carts due for reminders
+  // Query: .where('status', '==', 'pending').where('nextReminderAt', '<=', nowUNIX)
+  {
+    collectionGroup: 'payments-carts',
+    queryScope: 'COLLECTION',
+    fields: [
+      { fieldPath: 'status', order: 'ASCENDING' },
+      { fieldPath: 'nextReminderAt', order: 'ASCENDING' },
+    ],
+  },
 ];

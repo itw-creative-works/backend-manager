@@ -14,6 +14,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.132] - 2026-03-13
+### Fixed
+- Abandoned cart cron crashing with `FAILED_PRECONDITION` due to missing `payments-carts` composite index (status + nextReminderAt)
+- Abandoned cart email subject and template using raw `productId` instead of resolved `productName` and `brandName`
+
+### Changed
+- Index sync (`npx bm setup`) now auto-merges local and live indexes instead of prompting to choose one direction
+- Added `payments-carts` composite index to `required-indexes.js`
+
 # [5.0.131] - 2026-03-11
 ### Changed
 - Analytics config restructured: consolidated `googleAnalytics`, `meta`, and `tiktok` under unified `analytics.providers` namespace with `google`, `meta`, and `tiktok` keys

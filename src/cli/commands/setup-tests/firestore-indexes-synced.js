@@ -2,7 +2,6 @@ const BaseTest = require('./base-test');
 const jetpack = require('fs-jetpack');
 const chalk = require('chalk');
 const _ = require('lodash');
-const inquirer = require('inquirer');
 const powertools = require('node-powertools');
 
 class FirestoreIndexesSyncedTest extends BaseTest {
@@ -87,45 +86,101 @@ class FirestoreIndexesSyncedTest extends BaseTest {
 
   async fix() {
     const self = this.self;
+    const filePath = `${self.firebaseProjectPath}/firestore.indexes.json`;
 
-    const answer = await inquirer.prompt([
-      {
-        type: 'list',
-        name: 'direction',
-        message: 'Firestore indexes are out of sync. Which direction?',
-        choices: [
-          {
-            name: `Local → Live   (replace ${chalk.bold('live')} indexes with ${chalk.bold('local')})`,
-            value: 'local-to-live',
-          },
-          {
-            name: `Live → Local   (replace ${chalk.bold('local')} indexes with ${chalk.bold('live')})`,
-            value: 'live-to-local',
-          },
-          {
-            name: 'Skip',
-            value: 'skip',
-          },
-        ],
-      },
-    ]);
+    // Fetch live indexes
+    const commands = require('../index');
+    const IndexesCommand = commands.IndexesCommand;
+    const indexesCmd = new IndexesCommand(self);
+    const tempPath = '_firestore.indexes.json';
+    const liveIndexes = await indexesCmd.get(tempPath, false);
+    jetpack.remove(`${self.firebaseProjectPath}/${tempPath}`);
 
-    if (answer.direction === 'live-to-local') {
-      const commands = require('../index');
-      const IndexesCommand = commands.IndexesCommand;
-      const indexesCmd = new IndexesCommand(self);
-
-      await indexesCmd.get(undefined, true);
-    } else if (answer.direction === 'local-to-live') {
-      console.log(chalk.yellow(`  Deploying local indexes to live...`));
-
-      await powertools.execute('firebase deploy --only firestore:indexes', {
-        log: true,
-        cwd: self.firebaseProjectPath,
-      });
-
-      console.log(chalk.green(`  ✓ Live indexes updated from local`));
+    // Read local indexes
+    let localIndexes = { indexes: [], fieldOverrides: [] };
+    if (jetpack.exists(filePath)) {
+      localIndexes = JSON.parse(jetpack.read(filePath));
     }
+
+    // Merge: start with local, add any live indexes that don't already exist locally
+    const merged = [...(localIndexes.indexes || [])];
+    const liveList = (liveIndexes?.indexes || []);
+
+    for (const liveIdx of liveList) {
+      const alreadyExists = merged.some(localIdx => this._normalizedMatch(localIdx, liveIdx));
+
+      if (!alreadyExists) {
+        merged.push(this._stripImplicitFields(liveIdx));
+      }
+    }
+
+    // Merge fieldOverrides the same way
+    const mergedOverrides = [...(localIndexes.fieldOverrides || [])];
+    for (const liveOverride of (liveIndexes?.fieldOverrides || [])) {
+      const alreadyExists = mergedOverrides.some(lo => _.isEqual(lo, liveOverride));
+
+      if (!alreadyExists) {
+        mergedOverrides.push(liveOverride);
+      }
+    }
+
+    // Write merged result locally
+    const result = { indexes: merged, fieldOverrides: mergedOverrides };
+    jetpack.write(filePath, JSON.stringify(result, null, 2));
+
+    const addedCount = merged.length - (localIndexes.indexes || []).length;
+    console.log(chalk.green(`  ✓ Merged indexes (${merged.length} total, ${addedCount} added from live)`));
+
+    // Deploy merged indexes to live
+    console.log(chalk.yellow(`  Deploying merged indexes to live...`));
+    await powertools.execute('firebase deploy --only firestore:indexes', {
+      log: true,
+      cwd: self.firebaseProjectPath,
+    });
+
+    console.log(chalk.green(`  ✓ Live indexes synced`));
+  }
+
+  /**
+   * Check if two indexes match (ignoring implicit __name__ fields and density)
+   */
+  _normalizedMatch(a, b) {
+    if (!a || !b) {
+      return false;
+    }
+
+    if (a.collectionGroup !== b.collectionGroup) {
+      return false;
+    }
+
+    if ((a.queryScope || 'COLLECTION') !== (b.queryScope || 'COLLECTION')) {
+      return false;
+    }
+
+    const aFields = (a.fields || []).filter(f => f.fieldPath !== '__name__');
+    const bFields = (b.fields || []).filter(f => f.fieldPath !== '__name__');
+
+    if (aFields.length !== bFields.length) {
+      return false;
+    }
+
+    return aFields.every((af, i) => {
+      const bf = bFields[i];
+      return af.fieldPath === bf.fieldPath
+        && (af.order || null) === (bf.order || null)
+        && (af.arrayConfig || null) === (bf.arrayConfig || null);
+    });
+  }
+
+  /**
+   * Strip implicit fields Firebase adds to live indexes (density, __name__)
+   */
+  _stripImplicitFields(idx) {
+    const { density, ...rest } = idx;
+    return {
+      ...rest,
+      fields: (rest.fields || []).filter(f => f.fieldPath !== '__name__'),
+    };
   }
 }
 

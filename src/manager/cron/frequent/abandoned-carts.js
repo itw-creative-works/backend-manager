@@ -60,18 +60,25 @@ module.exports = async ({ Manager, assistant, context, libraries }) => {
       // Build checkout URL from cart data
       const checkoutUrl = buildCheckoutUrl(Manager.project.websiteUrl, data);
 
+      // Resolve product name from config
+      const product = (Manager.config.payment?.products || []).find(p => p.id === data.productId);
+      const productName = product?.name || data.productId;
+      const brandName = Manager.config.brand?.name || '';
+
       // Send reminder email
       assistant.log(`Sending abandoned cart reminder #${reminderIndex + 1} to uid=${uid}, product=${data.productId}`);
 
       sendOrderEmail({
         template: 'main/order/abandoned-cart',
-        subject: `Complete your ${data.productId} checkout`,
+        subject: `Complete your ${brandName} ${productName} checkout`,
         categories: ['order/abandoned-cart', `order/abandoned-cart/reminder-${reminderIndex + 1}`],
         userDoc,
         assistant,
         data: {
           abandonedCart: {
             productId: data.productId,
+            productName: productName,
+            brandName: brandName,
             type: data.type,
             frequency: data.frequency,
             reminderNumber: reminderIndex + 1,
