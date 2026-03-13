@@ -809,6 +809,38 @@ user.subscription.cancellation.pending === true
 user.subscription.status === 'suspended'
 ```
 
+### resolveSubscription(account)
+
+`User.resolveSubscription(account)` is a static method on the User helper that derives calculated subscription fields from raw account data. It returns only fields that require derivation logic — raw data (product.id, status, trial, cancellation) lives on the account object directly.
+
+```javascript
+const User = require('backend-manager/src/manager/helpers/user');
+
+const resolved = User.resolveSubscription(account);
+// Returns: { plan, active, trialing, cancelling }
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `plan` | `string` | Effective plan ID the user has access to RIGHT NOW (`'basic'` if cancelled/suspended) |
+| `active` | `boolean` | User has active access (active, trialing, or cancelling) |
+| `trialing` | `boolean` | In an active trial (status `'active'` + `trial.claimed` + unexpired `trial.expires`) |
+| `cancelling` | `boolean` | Cancellation pending (status `'active'` + `cancellation.pending` + NOT trialing) |
+
+Accepts either a raw Firestore account object or a resolved `User` instance (checks both `account.subscription` and `account.properties.subscription`).
+
+**Unified with web-manager**: The same function exists as `auth.resolveSubscription(account)` in web-manager (`modules/auth.js`) with identical logic and return shape.
+
+**Use this instead of manual access checks** — it centralizes all the derivation logic in one place:
+```javascript
+// ✅ PREFERRED — use resolveSubscription
+const resolved = User.resolveSubscription(user);
+if (resolved.active) { /* has access */ }
+
+// ❌ AVOID — manual checks that duplicate logic
+if (user.subscription.status === 'active' && user.subscription.product.id !== 'basic') { /* ... */ }
+```
+
 ## Payment Transition Handlers
 
 ### Overview

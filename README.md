@@ -994,6 +994,26 @@ user.subscription.cancellation.pending === true
 user.subscription.status === 'suspended'
 ```
 
+### resolveSubscription(account)
+
+Static method on the `User` helper that derives calculated subscription fields. Returns only fields that require derivation logic — raw data lives on the account object directly.
+
+```javascript
+const User = require('backend-manager/src/manager/helpers/user');
+
+const resolved = User.resolveSubscription(account);
+// Returns: { plan, active, trialing, cancelling }
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `plan` | `string` | Effective plan ID right now (`'basic'` if cancelled/suspended) |
+| `active` | `boolean` | Has active access (active, trialing, or cancelling) |
+| `trialing` | `boolean` | In active trial (status `'active'` + claimed + unexpired) |
+| `cancelling` | `boolean` | Cancellation pending (status `'active'` + `cancellation.pending`) |
+
+The same function exists as `auth.resolveSubscription(account)` in [web-manager](https://github.com/itw-creative-works/web-manager) with identical logic and return shape.
+
 ## Final Words
 
 If you are still having difficulty, we would love for you to post a question to [the Backend Manager issues page](https://github.com/itw-creative-works/backend-manager/issues). It is much easier to answer questions that include your code and relevant files! So if you can provide them, we'd be extremely grateful (and more likely to help you find the answer!)
