@@ -174,25 +174,41 @@ Manager.prototype.init = function (exporter, options) {
     Manager: self,
   }, options.assistant);
 
+  // Helper functions for URLs based on environment
+  self.getFunctionsUrl = function(env) {
+    const isDev = env === 'development' || (!env && self.assistant.isDevelopment());
+    return isDev
+      ? `http://localhost:5001/${self.project.projectId}/${self.project.resourceZone}`
+      : `https://${self.project.resourceZone}-${self.project.projectId}.cloudfunctions.net`;
+  };
+
+  self.getApiUrl = function(env) {
+    const isDev = env === 'development' || (!env && self.assistant.isDevelopment());
+    return isDev
+      ? 'http://localhost:5002'
+      : `https://api.${(self.config.brand?.url || '').replace(/^https?:\/\//, '')}`;
+  };
+
+  self.getWebsiteUrl = function(env) {
+    const isDev = env === 'development' || (!env && self.assistant.isDevelopment());
+    return isDev
+      ? 'https://localhost:4000'
+      : self.config.brand?.url || '';
+  };
+
   // Set more properties (need to wait for assistant to determine if DEV)
-  self.project.functionsUrl = self.assistant.isDevelopment()
-    ? `http://localhost:5001/${self.project.projectId}/${self.project.resourceZone}`
-    : `https://${self.project.resourceZone}-${self.project.projectId}.cloudfunctions.net`;
+  self.project.functionsUrl = self.getFunctionsUrl();
 
   // Set API URL (like web-manager's getApiUrl)
   // Testing: http://localhost:5002 (hosting emulator with rewrites)
   // Development: http://localhost:5002 (local hosting)
   // Production: https://api.{domain}
-  self.project.apiUrl = self.assistant.isDevelopment()
-    ? 'http://localhost:5002'
-    : `https://api.${(self.config.brand?.url || '').replace(/^https?:\/\//, '')}`;
+  self.project.apiUrl = self.getApiUrl();
 
   // Set website URL
   // Development: https://localhost:4000 (local hosting)
   // Production: https://{domain} (from brand.url)
-  self.project.websiteUrl = self.assistant.isDevelopment()
-    ? 'https://localhost:4000'
-    : self.config.brand?.url || '';
+  self.project.websiteUrl = self.getWebsiteUrl();
 
   // Set environment
   process.env.ENVIRONMENT = process.env.ENVIRONMENT || self.assistant.meta.environment;
