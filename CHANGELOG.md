@@ -14,6 +14,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.140] - 2026-03-12
+### Fixed
+- Chargebee meta_data backfill not including `orderId`, causing `getOrderId()` to fail on future webhooks
+- `orderId` resolution now falls back to `pass_thru_content` orderId when `getOrderId()` returns null
+
+### Changed
+- `setMetaData()` API simplified to accept `(resource, meta)` instead of individual params, writing the full meta object to both subscription and customer
+
 # [5.0.139] - 2026-03-12
 ### Fixed
 - Chargebee hosted page checkout failing to resolve UID from webhooks because `subscription[meta_data]` is not supported by Chargebee's hosted page API

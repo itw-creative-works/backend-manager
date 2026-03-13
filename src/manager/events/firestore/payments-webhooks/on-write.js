@@ -82,12 +82,14 @@ module.exports = async ({ assistant, change, context }) => {
     // Chargebee hosted page checkouts don't forward subscription[meta_data] to the subscription,
     // but pass_thru_content is stored on the hosted page and contains our UID + orderId
     let resolvedFromPassThru = false;
+    let passThruOrderId = null;
     if (!uid && library.resolveUidFromHostedPage) {
       const passThruResult = await library.resolveUidFromHostedPage(resourceId, assistant);
       if (passThruResult) {
         uid = passThruResult.uid;
+        passThruOrderId = passThruResult.orderId || null;
         resolvedFromPassThru = true;
-        assistant.log(`UID resolved from hosted page pass_thru_content: uid=${uid}, resourceId=${resourceId}`);
+        assistant.log(`UID resolved from hosted page pass_thru_content: uid=${uid}, orderId=${passThruOrderId}, resourceId=${resourceId}`);
 
         await webhookRef.set({ owner: uid }, { merge: true });
       }
@@ -101,8 +103,8 @@ module.exports = async ({ assistant, change, context }) => {
     // Backfill: if UID was resolved from pass_thru_content, set meta_data on the subscription
     // so future webhooks (renewals, cancellations) can resolve the UID directly
     if (resolvedFromPassThru && resourceType === 'subscription' && library.setMetaData) {
-      library.setMetaData(resourceId, uid, assistant, resource)
-        .then(() => assistant.log(`Backfilled meta_data on subscription ${resourceId} + customer: uid=${uid}`))
+      library.setMetaData(resource, { uid, orderId: passThruOrderId })
+        .then(() => assistant.log(`Backfilled meta_data on subscription ${resourceId} + customer: uid=${uid}, orderId=${passThruOrderId}`))
         .catch((e) => assistant.error(`Failed to backfill meta_data on ${resourceType} ${resourceId}: ${e.message}`));
     }
 
@@ -112,7 +114,8 @@ module.exports = async ({ assistant, change, context }) => {
     const webhookReceivedUNIX = dataAfter.metadata?.created?.timestampUNIX || nowUNIX;
 
     // Extract orderId from resource (processor-agnostic)
-    orderId = library.getOrderId(resource);
+    // Falls back to pass_thru_content orderId when meta_data wasn't available on the resource
+    orderId = library.getOrderId(resource) || passThruOrderId;
 
     // Process the payment event (subscription or one-time)
     if (category !== 'subscription' && category !== 'one-time') {

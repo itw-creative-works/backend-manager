@@ -181,25 +181,22 @@ const Chargebee = {
    * Used to backfill meta_data after resolving UID from pass_thru_content,
    * so future webhooks (renewals, cancellations) can resolve UID directly
    *
-   * @param {string} subscriptionId - Chargebee subscription ID
-   * @param {string} uid - User's Firebase UID
-   * @param {object} assistant - Assistant instance for logging
-   * @param {object} [resource] - Fetched subscription resource (to get customer_id)
+   * @param {object} resource - Fetched subscription resource (has .id and .customer_id)
+   * @param {object} meta - { uid, orderId } to backfill on the subscription + customer
    */
-  async setMetaData(subscriptionId, uid, assistant, resource) {
+  async setMetaData(resource, meta = {}) {
     this.init();
-    const metaBody = { meta_data: { uid } };
+    const metaBody = { meta_data: JSON.stringify(meta) };
 
     // Backfill subscription
-    await this.request(`/subscriptions/${subscriptionId}`, {
+    await this.request(`/subscriptions/${resource.id}`, {
       method: 'POST',
       body: metaBody,
     });
 
     // Backfill customer
-    const customerId = resource?.customer_id;
-    if (customerId) {
-      await this.request(`/customers/${customerId}`, {
+    if (resource.customer_id) {
+      await this.request(`/customers/${resource.customer_id}`, {
         method: 'POST',
         body: metaBody,
       });
