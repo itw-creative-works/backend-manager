@@ -74,6 +74,7 @@ module.exports = async ({ Manager, assistant, context, libraries }) => {
         categories: ['order/abandoned-cart', `order/abandoned-cart/reminder-${reminderIndex + 1}`],
         userDoc,
         assistant,
+        copy: false,
         data: {
           abandonedCart: {
             productId: data.productId,

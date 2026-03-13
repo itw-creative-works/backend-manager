@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.143] - 2026-03-13
+### Changed
+- `sendOrderEmail()` now accepts a `copy` parameter to control whether admin receives a copy (defaults to `true` for backward compat)
+- Abandoned cart reminder emails no longer send admin copies (`copy: false`) to reduce inbox noise
+
 # [5.0.140] - 2026-03-12
 ### Fixed
 - Chargebee meta_data backfill not including `orderId`, causing `getOrderId()` to fail on future webhooks
