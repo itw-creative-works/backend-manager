@@ -97,10 +97,10 @@ function sendConfirmationEmail(assistant, user, requestId, reason) {
 
   mailer.send({
     to: user.auth.email,
+    sender: 'account',
     categories: ['account/data-request'],
     subject: `Your data request has been received #${requestId}`,
     template: 'default',
-    group: 'account',
     copy: true,
     data: {
       email: {

@@ -390,6 +390,119 @@ module.exports = {
       },
     },
 
+    // --- Sender Resolution ---
+
+    {
+      name: 'sender-orders-resolves-from-and-asm',
+      auth: 'admin',
+      timeout: 30000,
+
+      async run({ http, assert, config }) {
+        const response = await http.post('admin/email', {
+          subject: 'BEM Test Email - Sender Orders',
+          to: `_test-receiver@${config.domain}`,
+          sender: 'orders',
+          copy: false,
+          data: {
+            email: {
+              subject: 'BEM Test Email - Sender Orders',
+              body: 'Testing sender resolution for orders.',
+            },
+          },
+        });
+
+        assert.isSuccess(response, 'Should send email with orders sender');
+        assert.equal(response.data.status, 'sent', 'Status should be sent');
+        assert.ok(response.data.options.from.email.startsWith('orders@'), 'From email should start with orders@');
+        assert.ok(response.data.options.from.name.includes('Orders'), 'From name should include Orders');
+        assert.ok(response.data.options.asm, 'Should have ASM group');
+        assert.ok(response.data.options.replyTo.startsWith('orders@'), 'replyTo should match from address');
+      },
+    },
+
+    {
+      name: 'sender-security-resolves-from-asm-and-unsubscribe',
+      auth: 'admin',
+      timeout: 30000,
+
+      async run({ http, assert, config }) {
+        const response = await http.post('admin/email', {
+          subject: 'BEM Test Email - Sender Security',
+          to: `_test-receiver@${config.domain}`,
+          sender: 'security',
+          copy: false,
+          data: {
+            email: {
+              subject: 'BEM Test Email - Sender Security',
+              body: 'Testing that security sender resolves correctly.',
+            },
+          },
+        });
+
+        assert.isSuccess(response, 'Should send email with security sender');
+        assert.equal(response.data.status, 'sent', 'Status should be sent');
+        assert.ok(response.data.options.from.email.startsWith('security@'), 'From email should start with security@');
+        assert.ok(response.data.options.asm, 'Should have ASM group');
+        assert.ok(response.data.options.headers['List-Unsubscribe'], 'Should have List-Unsubscribe header');
+        assert.ok(response.data.options.dynamicTemplateData.email.unsubscribeUrl, 'Should have unsubscribeUrl');
+      },
+    },
+
+    {
+      name: 'sender-explicit-from-overrides-sender',
+      auth: 'admin',
+      timeout: 30000,
+
+      async run({ http, assert, config }) {
+        const customFrom = { email: `custom@${config.domain}`, name: 'Custom Sender' };
+
+        const response = await http.post('admin/email', {
+          subject: 'BEM Test Email - From Override',
+          to: `_test-receiver@${config.domain}`,
+          sender: 'orders',
+          from: customFrom,
+          copy: false,
+          data: {
+            email: {
+              subject: 'BEM Test Email - From Override',
+              body: 'Testing that explicit from overrides sender.',
+            },
+          },
+        });
+
+        assert.isSuccess(response, 'Should send email with explicit from');
+        assert.equal(response.data.status, 'sent', 'Status should be sent');
+        assert.equal(response.data.options.from.email, customFrom.email, 'Explicit from should override sender');
+        assert.equal(response.data.options.from.name, customFrom.name, 'Explicit from name should override sender');
+      },
+    },
+
+    {
+      name: 'sender-unknown-falls-back-to-defaults',
+      auth: 'admin',
+      timeout: 30000,
+
+      async run({ http, assert, config }) {
+        const response = await http.post('admin/email', {
+          subject: 'BEM Test Email - Unknown Sender',
+          to: `_test-receiver@${config.domain}`,
+          sender: 'nonexistent',
+          copy: false,
+          data: {
+            email: {
+              subject: 'BEM Test Email - Unknown Sender',
+              body: 'Testing that unknown sender falls back to brand defaults.',
+            },
+          },
+        });
+
+        assert.isSuccess(response, 'Should send email with default from');
+        assert.equal(response.data.status, 'sent', 'Status should be sent');
+        assert.ok(response.data.options.from.email, 'Should have a from email (brand default)');
+        assert.ok(response.data.options.asm, 'Should have default ASM group');
+      },
+    },
+
     {
       name: 'sendat-iso-string-accepted',
       auth: 'admin',

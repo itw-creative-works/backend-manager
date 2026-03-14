@@ -51,10 +51,10 @@ function sendCancellationEmail(assistant, user, requestId) {
 
   mailer.send({
     to: user.auth.email,
+    sender: 'account',
     categories: ['account/data-request-cancelled'],
     subject: `Your data request has been cancelled #${requestId}`,
     template: 'default',
-    group: 'account',
     copy: true,
     data: {
       email: {

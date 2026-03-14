@@ -15,7 +15,7 @@ const moment = require('moment');
  * @param {object} options.userDoc - User document data (already fetched by on-write.js)
  * @param {object} options.assistant - Assistant instance
  */
-function sendOrderEmail({ template, subject, categories, data, userDoc, assistant, copy }) {
+function sendOrderEmail({ template, subject, categories, data, userDoc, assistant, copy, sender = 'orders' }) {
   const email = assistant.Manager.Email(assistant);
 
   const userEmail = userDoc?.auth?.email;
@@ -37,6 +37,7 @@ function sendOrderEmail({ template, subject, categories, data, userDoc, assistan
   delete safeUser.flags;
 
   const settings = {
+    sender,
     to: { email: userEmail, ...(userName && { name: userName }) },
     subject,
     template,

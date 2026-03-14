@@ -100,10 +100,10 @@ function sendConfirmationEmail(assistant, email, reason) {
 
   mailer.send({
     to: email,
+    sender: 'account',
     categories: ['account/delete'],
     subject: `Your ${brandName} account has been deleted`,
     template: 'default',
-    group: 'account',
     copy: true,
     data: {
       email: {

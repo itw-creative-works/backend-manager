@@ -194,10 +194,10 @@ function sendDownloadEmail(assistant, user, requestId, downloads) {
 
   mailer.send({
     to: user.auth.email,
+    sender: 'account',
     categories: ['account/data-request-download'],
     subject: `Your data has been downloaded #${requestId}`,
     template: 'default',
-    group: 'account',
     copy: true,
     data: {
       email: {

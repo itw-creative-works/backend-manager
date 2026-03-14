@@ -69,6 +69,7 @@ module.exports = async ({ Manager, assistant, context, libraries }) => {
       assistant.log(`Sending abandoned cart reminder #${reminderIndex + 1} to uid=${uid}, product=${data.productId}`);
 
       sendOrderEmail({
+        sender: 'marketing',
         template: 'main/order/abandoned-cart',
         subject: `Complete your ${brandName} ${productName} checkout`,
         categories: ['order/abandoned-cart', `order/abandoned-cart/reminder-${reminderIndex + 1}`],

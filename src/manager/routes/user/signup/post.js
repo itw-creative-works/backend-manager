@@ -275,10 +275,10 @@ function sendWelcomeEmail(assistant, email) {
 
   return mailer.send({
     to: email,
+    sender: 'hello',
     categories: ['account/welcome'],
     subject: `Welcome to ${Manager.config.brand.name}!`,
     template: 'default',
-    group: 'account',
     copy: false,
     data: {
       email: {
@@ -317,10 +317,10 @@ function sendCheckupEmail(assistant, email) {
 
   return mailer.send({
     to: email,
+    sender: 'hello',
     categories: ['account/checkup'],
     subject: `How's your experience with ${Manager.config.brand.name}?`,
     template: 'default',
-    group: 'account',
     copy: false,
     sendAt: moment().add(7, 'days').unix(),
     data: {
@@ -362,10 +362,10 @@ function sendFeedbackEmail(assistant, email) {
 
   return mailer.send({
     to: email,
+    sender: 'hello',
     categories: ['engagement/feedback'],
     subject: `Want to share your feedback about ${Manager.config.brand.name}?`,
     template: 'main/engagement/feedback',
-    group: 'account',
     copy: false,
     sendAt: moment().add(14, 'days').unix(),
   })

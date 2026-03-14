@@ -14,6 +14,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.148] - 2026-03-14
+### Added
+- Semantic email sender system — pass `sender: 'orders'` to `Email.send()` to auto-resolve from address, display name, and SendGrid ASM group
+- 7 sender categories: `orders`, `hello`, `account`, `marketing`, `security`, `newsletter`, `internal`
+- 7 dedicated SendGrid ASM groups for granular unsubscribe control
+- 4 new email tests for sender resolution, override precedence, and fallback behavior
+
+### Changed
+- Migrated all email call sites from `group:` to `sender:` parameter
+- `sendOrderEmail()` now accepts optional `sender` parameter (defaults to `'orders'`)
+- `replyTo` now defaults to the resolved from address instead of brand default
+
 # [5.0.147] - 2026-03-14
 ### Added
 - 24-hour cancellation guard on `POST /payments/cancel` — blocks cancellations for subscriptions younger than 24 hours

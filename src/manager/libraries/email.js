@@ -45,10 +45,63 @@ const TEMPLATES = {
 TEMPLATES['default'] = TEMPLATES['main/basic/card'];
 
 // Group shortcut map — SendGrid ASM group IDs
+// Rename these in SendGrid dashboard to match the comments
 const GROUPS = {
-  'default': 24077,
-  'marketing': 25927,
-  'account': 25928,
+  'orders': 16223,         // BEM - Order Updates
+  'hello': 35092,          // BEM - Onboarding
+  'account': 25927,        // BEM - Account
+  'marketing': 25928,      // BEM - Marketing & Promotions
+  'newsletter': 28096,     // BEM - Newsletter
+  'security': 35093,       // BEM - Security
+  'internal': 35094,       // BEM - Internal Alerts
+};
+
+// Semantic sender categories — pass `sender: 'orders'` to auto-resolve from address, display name, and ASM group
+// Used by: send-email.js (payment transitions), abandoned-carts.js, signup/post.js, delete.js, data-request/,
+//          disputes/on-write.js, download-app-link.js, POST /admin/email, POST /general/email
+const SENDERS = {
+  // Payment receipts, failed/recovered, cancellation, plan changes, refunds, trial ending
+  orders: {
+    localPart: 'orders',
+    displayName: '{brand} Orders',
+    group: GROUPS['orders'],
+  },
+  // Warm onboarding: welcome, 7-day checkup, feedback request
+  hello: {
+    localPart: 'hello',
+    displayName: '{brand}',
+    group: GROUPS['hello'],
+  },
+  // Transactional account actions: deletion, data requests
+  account: {
+    localPart: 'account',
+    displayName: '{brand} Account',
+    group: GROUPS['account'],
+  },
+  // Promotions, discounts, win-back, abandoned cart, app download link
+  marketing: {
+    localPart: 'offers',
+    displayName: '{brand}',
+    group: GROUPS['marketing'],
+  },
+  // Forgot password, 2FA, password reset
+  security: {
+    localPart: 'security',
+    displayName: '{brand} Security',
+    group: GROUPS['security'],
+  },
+  // Monthly newsletters, feature announcements, industry news
+  newsletter: {
+    localPart: 'newsletter',
+    displayName: '{brand}',
+    group: GROUPS['newsletter'],
+  },
+  // Dispute alerts, system notifications sent to brand contact
+  internal: {
+    localPart: 'alerts',
+    displayName: '{brand} Alerts',
+    group: GROUPS['internal'],
+  },
 };
 
 function Email(assistant) {
@@ -148,7 +201,23 @@ Email.prototype.build = async function (settings) {
   }
 
   const templateId = TEMPLATES[settings.template] || settings.template || TEMPLATES['default'];
-  const groupId = GROUPS[settings.group] || settings.group || GROUPS['default'];
+
+  // Resolve sender category
+  const sender = SENDERS[settings.sender] || null;
+  const brandDomain = brandData.contact.email.split('@')[1];
+
+  // From: explicit from > sender-derived > brand default
+  const from = settings.from
+    || (sender && {
+      email: `${sender.localPart}@${brandDomain}`,
+      name: sender.displayName.replace('{brand}', brandData.name),
+    })
+    || { email: brandData.contact.email, name: brandData.name };
+
+  // ASM group: explicit group > sender-derived > default
+  const groupId = settings.group != null
+    ? (GROUPS[settings.group] || settings.group)
+    : (sender ? sender.group : GROUPS['account']);
 
   // Build categories
   const categories = _.uniq([
@@ -161,10 +230,8 @@ Email.prototype.build = async function (settings) {
   const sendAt = normalizeSendAt(settings.sendAt);
 
   // Build unsubscribe URL
-  // Generate HMAC signature for unsubscribe link verification
   const crypto = require('crypto');
   const unsubSig = crypto.createHmac('sha256', process.env.UNSUBSCRIBE_HMAC_KEY).update(to[0].email.toLowerCase()).digest('hex');
-
   const unsubscribeUrl = `${Manager.project.websiteUrl}/portal/email-preferences?email=${encode(to[0].email)}&asmId=${encode(groupId)}&templateId=${encode(templateId)}&sig=${unsubSig}`;
 
   // Build signoff
@@ -217,18 +284,18 @@ Email.prototype.build = async function (settings) {
     to,
     cc,
     bcc,
-    from: settings.from || { email: brandData.contact.email, name: brandData.name },
-    replyTo: settings.replyTo || brandData.contact.email,
+    from,
+    replyTo: settings.replyTo || from.email,
     subject,
     templateId,
-    asm: { groupId },
     categories,
     dynamicTemplateData,
     substitutionWrappers: ['{{', '}}'],
-    headers: {
-      'List-Unsubscribe': `<${unsubscribeUrl}>`,
-    },
   };
+
+  // ASM group + unsubscribe header (always present on every email)
+  email.asm = { groupId };
+  email.headers = { 'List-Unsubscribe': `<${unsubscribeUrl}>` };
 
   // Set sendAt
   if (sendAt) {
