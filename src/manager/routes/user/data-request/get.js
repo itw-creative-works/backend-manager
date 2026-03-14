@@ -193,7 +193,7 @@ function sendDownloadEmail(assistant, user, requestId, downloads) {
   const downloadDate = assistant.meta.startTime.timestamp;
 
   mailer.send({
-    to: user.auth.email,
+    to: user,
     sender: 'account',
     categories: ['account/data-request-download'],
     subject: `Your data has been downloaded #${requestId}`,

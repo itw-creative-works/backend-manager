@@ -335,7 +335,7 @@ function sendDisputeEmail({ alert, match, result, alertId, assistant }) {
 
   email.send({
     sender: 'internal',
-    to: { email: brandEmail },
+    to: brandEmail,
     subject: subject,
     template: 'main/basic/card',
     categories: ['order/dispute-alert'],

@@ -260,21 +260,22 @@ function sendEmailsAndMarketing(assistant, uid, email, inferred) {
     },
   }).catch(e => assistant.error('signup(): marketing-contact failed:', e));
 
-  // Send welcome emails (non-blocking, don't fail on error)
-  sendWelcomeEmail(assistant, email).catch(e => assistant.error('signup(): sendWelcomeEmail failed:', e));
-  sendCheckupEmail(assistant, email).catch(e => assistant.error('signup(): sendCheckupEmail failed:', e));
-  sendFeedbackEmail(assistant, email).catch(e => assistant.error('signup(): sendFeedbackEmail failed:', e));
+  // Send welcome emails (non-blocking, fire-and-forget)
+  // Pass UID so email.js fetches user doc → name + template data
+  sendWelcomeEmail(assistant, uid).catch(e => assistant.error('signup(): sendWelcomeEmail failed:', e));
+  sendCheckupEmail(assistant, uid).catch(e => assistant.error('signup(): sendCheckupEmail failed:', e));
+  sendFeedbackEmail(assistant, uid).catch(e => assistant.error('signup(): sendFeedbackEmail failed:', e));
 }
 
 /**
  * Send welcome email (immediate)
  */
-function sendWelcomeEmail(assistant, email) {
+function sendWelcomeEmail(assistant, uid) {
   const Manager = assistant.Manager;
   const mailer = Manager.Email(assistant);
 
   return mailer.send({
-    to: email,
+    to: uid,
     sender: 'hello',
     categories: ['account/welcome'],
     subject: `Welcome to ${Manager.config.brand.name}!`,
@@ -311,12 +312,12 @@ Thank you for choosing **${Manager.config.brand.name}**. Here's to new beginning
 /**
  * Send checkup email (7 days after signup)
  */
-function sendCheckupEmail(assistant, email) {
+function sendCheckupEmail(assistant, uid) {
   const Manager = assistant.Manager;
   const mailer = Manager.Email(assistant);
 
   return mailer.send({
-    to: email,
+    to: uid,
     sender: 'hello',
     categories: ['account/checkup'],
     subject: `How's your experience with ${Manager.config.brand.name}?`,
@@ -356,12 +357,12 @@ Thank you for choosing **${Manager.config.brand.name}**. Here's to new beginning
 /**
  * Send feedback email (14 days after signup)
  */
-function sendFeedbackEmail(assistant, email) {
+function sendFeedbackEmail(assistant, uid) {
   const Manager = assistant.Manager;
   const mailer = Manager.Email(assistant);
 
   return mailer.send({
-    to: email,
+    to: uid,
     sender: 'hello',
     categories: ['engagement/feedback'],
     subject: `Want to share your feedback about ${Manager.config.brand.name}?`,

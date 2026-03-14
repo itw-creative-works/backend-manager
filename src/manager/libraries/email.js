@@ -133,15 +133,29 @@ Email.prototype.build = async function (settings) {
   let cc = normalizeRecipients(settings.cc);
   let bcc = normalizeRecipients(settings.bcc);
 
-  // Resolve any uid: prefixed recipients from Firestore
+  // Resolve any UID recipients from Firestore
   [to, cc, bcc] = await Promise.all([
     resolveRecipients(to, admin, assistant),
     resolveRecipients(cc, admin, assistant),
     resolveRecipients(bcc, admin, assistant),
   ]);
 
-  // Build user template data from settings.user (for legacy callers that pass user object)
-  const userProperties = Manager.User(settings.user || {}).properties;
+  // Resolve user template data from the primary recipient's user doc (if available)
+  const rawUserDoc = to[0]?._userDoc || {};
+  const userProperties = Manager.User(rawUserDoc).properties;
+  delete userProperties.api;
+  delete userProperties.oauth2;
+  delete userProperties.activity;
+  delete userProperties.affiliate;
+  delete userProperties.attribution;
+  delete userProperties.flags;
+
+  // Clean internal markers from recipients
+  for (const list of [to, cc, bcc]) {
+    for (const entry of list) {
+      delete entry._userDoc;
+    }
+  }
 
   // Get brand config
   const brand = Manager.config?.brand;
@@ -382,8 +396,13 @@ Email.prototype.send = async function (settings) {
 // --- Private helpers ---
 
 /**
- * Normalize recipient input into a consistent array of { email, name? } objects.
- * Entries with a `uid:` prefix are marked with `_uid` for later Firestore resolution.
+ * Normalize recipient input into a consistent array of { email, name?, _userDoc? } objects.
+ *
+ * Accepts:
+ *   - Email string: 'user@example.com'
+ *   - UID string (no @): 'abc123' — fetched from Firestore in resolveRecipients
+ *   - Email object: { email: 'user@example.com', name: 'John' }
+ *   - User doc object: { auth: { email: '...' }, personal: { name: { first: '...' } }, ... }
  */
 function normalizeRecipients(input) {
   if (!input) {
@@ -399,11 +418,18 @@ function normalizeRecipients(input) {
     }
 
     if (typeof item === 'string') {
-      if (item.startsWith('uid:')) {
-        result.push({ _uid: item.slice(4) });
-      } else {
+      if (item.includes('@')) {
         result.push({ email: item });
+      } else {
+        result.push({ _uid: item });
       }
+    } else if (typeof item === 'object' && item.auth?.email) {
+      // Full user doc — extract email/name and stash doc for template data
+      result.push({
+        email: item.auth.email,
+        ...(item.personal?.name?.first && { name: item.personal.name.first }),
+        _userDoc: item,
+      });
     } else if (typeof item === 'object' && item.email) {
       result.push({ email: item.email, ...(item.name && { name: item.name }) });
     }
@@ -413,7 +439,8 @@ function normalizeRecipients(input) {
 }
 
 /**
- * Resolve any uid-prefixed recipients by fetching user docs from Firestore.
+ * Resolve any UID recipients by fetching user docs from Firestore.
+ * Stashes the full user doc as `_userDoc` for template data resolution in build().
  */
 async function resolveRecipients(recipients, admin, assistant) {
   const uidEntries = recipients.filter(r => r._uid);
@@ -455,6 +482,7 @@ async function resolveRecipients(recipients, admin, assistant) {
     resolved.push({
       email,
       ...(data?.personal?.name?.first && { name: data.personal.name.first }),
+      _userDoc: data,
     });
   }
 

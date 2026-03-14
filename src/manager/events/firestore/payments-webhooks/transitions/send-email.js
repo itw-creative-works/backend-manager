@@ -12,42 +12,27 @@ const moment = require('moment');
  * @param {string} options.subject - Email subject line
  * @param {string[]} options.categories - SendGrid categories for filtering
  * @param {object} options.data - Template data (passed as-is to the email)
- * @param {object} options.userDoc - User document data (already fetched by on-write.js)
+ * @param {object} options.userDoc - User document data (passed as `to` — email.js extracts email/name and user template data)
  * @param {object} options.assistant - Assistant instance
  */
 function sendOrderEmail({ template, subject, categories, data, userDoc, assistant, copy, sender = 'orders' }) {
   const email = assistant.Manager.Email(assistant);
-
-  const userEmail = userDoc?.auth?.email;
-  const userName = userDoc?.personal?.name?.first;
   const uid = userDoc?.auth?.uid;
 
-  if (!userEmail) {
+  if (!userDoc?.auth?.email) {
     assistant.error(`sendOrderEmail(): No email found for uid=${uid}, skipping`);
     return;
   }
 
-  // Strip sensitive fields before passing to email template
-  const safeUser = { ...userDoc };
-  delete safeUser.api;
-  delete safeUser.oauth2;
-  delete safeUser.activity;
-  delete safeUser.affiliate;
-  delete safeUser.attribution;
-  delete safeUser.flags;
-
-  const settings = {
+  email.send({
     sender,
-    to: { email: userEmail, ...(userName && { name: userName }) },
+    to: userDoc,
     subject,
     template,
     categories,
     copy: copy !== false,
-    user: safeUser,
     data,
-  };
-
-  email.send(settings)
+  })
     .then((result) => {
       assistant.log(`sendOrderEmail(): Success template=${template}, uid=${uid}, status=${result.status}`);
     })

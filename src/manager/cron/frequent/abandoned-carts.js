@@ -1,6 +1,5 @@
 const powertools = require('node-powertools');
 const { REMINDER_DELAYS, COLLECTION } = require('../../libraries/abandoned-cart-config.js');
-const { sendOrderEmail } = require('../../events/firestore/payments-webhooks/transitions/send-email.js');
 
 /**
  * Abandoned cart reminder cron job
@@ -26,6 +25,7 @@ module.exports = async ({ Manager, assistant, context, libraries }) => {
 
   assistant.log(`Processing ${snapshot.size} abandoned cart reminder(s)...`);
 
+  const email = Manager.Email(assistant);
   let sent = 0;
   let completed = 0;
   let skipped = 0;
@@ -68,13 +68,12 @@ module.exports = async ({ Manager, assistant, context, libraries }) => {
       // Send reminder email
       assistant.log(`Sending abandoned cart reminder #${reminderIndex + 1} to uid=${uid}, product=${data.productId}`);
 
-      sendOrderEmail({
+      email.send({
         sender: 'marketing',
+        to: userDoc,
         template: 'main/order/abandoned-cart',
         subject: `Complete your ${brandName} ${productName} checkout`,
         categories: ['order/abandoned-cart', `order/abandoned-cart/reminder-${reminderIndex + 1}`],
-        userDoc,
-        assistant,
         copy: false,
         data: {
           abandonedCart: {
@@ -88,7 +87,9 @@ module.exports = async ({ Manager, assistant, context, libraries }) => {
             checkoutUrl: checkoutUrl,
           },
         },
-      });
+      })
+        .then(() => assistant.log(`Abandoned cart email sent for uid=${uid}`))
+        .catch((e) => assistant.error(`Abandoned cart email failed for uid=${uid}: ${e.message}`));
 
       sent++;
 

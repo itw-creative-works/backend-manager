@@ -76,7 +76,7 @@ module.exports = {
       async run({ http, assert }) {
         const response = await http.post('admin/email', {
           subject: 'BEM Test Email - Bad UID',
-          to: 'uid:nonexistent_uid_12345',
+          to: 'nonexistent_uid_12345',
           copy: false,
         });
 
@@ -141,7 +141,7 @@ module.exports = {
       async run({ http, assert, accounts }) {
         const response = await http.post('admin/email', {
           subject: 'BEM Test Email - UID Recipient',
-          to: `uid:${accounts.admin.uid}`,
+          to: accounts.admin.uid,
           copy: false,
           data: {
             email: {
@@ -167,7 +167,7 @@ module.exports = {
           to: [
             `_test-receiver@${config.domain}`,
             { email: `_test-receiver-2@${config.domain}`, name: 'Receiver 2' },
-            `uid:${accounts.admin.uid}`,
+            accounts.admin.uid,
           ],
           copy: false,
           data: {

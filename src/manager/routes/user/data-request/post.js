@@ -96,7 +96,7 @@ function sendConfirmationEmail(assistant, user, requestId, reason) {
     : '';
 
   mailer.send({
-    to: user.auth.email,
+    to: user,
     sender: 'account',
     categories: ['account/data-request'],
     subject: `Your data request has been received #${requestId}`,
