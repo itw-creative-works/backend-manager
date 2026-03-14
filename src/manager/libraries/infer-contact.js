@@ -29,7 +29,7 @@ const GENERIC_DOMAINS = new Set([
  * @returns {{ firstName: string, lastName: string, company: string, confidence: number, method: string }}
  */
 async function inferContact(email, assistant) {
-  if (process.env.OPENAI_API_KEY) {
+  if (process.env.BACKEND_MANAGER_OPENAI_API_KEY) {
     const aiResult = await inferContactWithAI(email, assistant);
     if (aiResult && (aiResult.firstName || aiResult.lastName)) {
       return aiResult;
