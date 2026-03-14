@@ -293,6 +293,15 @@ const JOURNEY_ACCOUNTS = {
       subscription: { product: { id: 'premium', name: 'Premium' }, status: 'active', expires: getFutureExpires(), cancellation: { pending: false }, payment: { processor: 'unknown-processor', resourceId: 'sub_test_fake' } },
     },
   },
+  'cancel-too-young': {
+    id: 'cancel-too-young',
+    uid: '_test-cancel-too-young',
+    email: '_test.cancel-too-young@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'premium', name: 'Premium' }, status: 'active', expires: getFutureExpires(), cancellation: { pending: false }, payment: { processor: 'test', resourceId: 'sub_test_fake', startDate: { timestamp: new Date().toISOString(), timestampUNIX: Date.now() } } },
+    },
+  },
   // Dedicated accounts for portal validation tests
   'portal-no-processor': {
     id: 'portal-no-processor',

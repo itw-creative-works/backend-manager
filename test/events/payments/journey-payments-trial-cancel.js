@@ -74,6 +74,17 @@ module.exports = {
     },
 
     {
+      name: 'backdate-start-date',
+      async run({ firestore, state }) {
+        // Backdate startDate so the 24-hour guard doesn't block cancellation
+        const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+        await firestore.set(`users/${state.uid}`, {
+          subscription: { payment: { startDate: { timestamp: twoDaysAgo.toISOString(), timestampUNIX: twoDaysAgo.getTime() } } },
+        }, { merge: true });
+      },
+    },
+
+    {
       name: 'cancel-during-trial',
       async run({ http, assert }) {
         // Cancel via endpoint — test processor should detect trial and simulate immediate cancel

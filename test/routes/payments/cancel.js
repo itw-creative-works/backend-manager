@@ -67,6 +67,18 @@ module.exports = {
     },
 
     {
+      name: 'rejects-subscription-younger-than-24-hours',
+      async run({ http, assert }) {
+        // cancel-too-young starts with startDate set to now (< 24 hours old)
+        const response = await http.as('cancel-too-young').post('payments/cancel', {
+          confirmed: true,
+        });
+
+        assert.isError(response, 400, 'Should reject subscription younger than 24 hours');
+      },
+    },
+
+    {
       name: 'rejects-unknown-processor',
       async run({ http, assert }) {
         // cancel-unknown-processor starts with processor='unknown-processor'
@@ -100,6 +112,12 @@ module.exports = {
             && userDoc?.subscription?.payment?.resourceId
             && userDoc?.subscription?.status === 'active';
         }, 15000, 500);
+
+        // Backdate startDate so the 24-hour guard doesn't block cancellation
+        const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+        await firestore.set(`users/${uid}`, {
+          subscription: { payment: { startDate: { timestamp: twoDaysAgo.toISOString(), timestampUNIX: twoDaysAgo.getTime() } } },
+        }, { merge: true });
 
         // Step 2: Call the cancel endpoint
         const cancelResponse = await http.as('route-cancel-success').post('payments/cancel', {

@@ -32,6 +32,17 @@ module.exports = async ({ assistant, user, settings }) => {
     return assistant.respond('No active paid subscription found', { code: 400 });
   }
 
+  // Guard: subscription younger than 24 hours
+  const startDateUNIX = subscription.payment?.startDate?.timestampUNIX;
+  if (startDateUNIX) {
+    const ageMs = Date.now() - startDateUNIX;
+    const twentyFourHoursMs = 24 * 60 * 60 * 1000;
+    if (ageMs < twentyFourHoursMs) {
+      assistant.log(`Cancel rejected: uid=${uid}, subscription is only ${Math.round(ageMs / 1000 / 60)} minutes old`);
+      return assistant.respond('Your subscription is still being set up. Please try again after 24-48 hours.', { code: 400 });
+    }
+  }
+
   // Guard: already pending cancellation
   if (subscription.cancellation?.pending === true) {
     assistant.log(`Cancel rejected: uid=${uid}, cancellation already pending`);
