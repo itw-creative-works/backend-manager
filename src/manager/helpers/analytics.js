@@ -117,8 +117,8 @@ function Analytics(Manager, options) {
       value: authUser?.subscription?.trial?.claimed || false,
     },
     activity_created: {
-      value: moment(authUser?.activity?.created?.timestampUNIX
-        ? authUser?.activity?.created?.timestamp
+      value: moment(authUser?.metadata?.created?.timestampUNIX
+        ? authUser?.metadata?.created?.timestamp
         : self.assistant.meta.startTime.timestamp).format('YYYY-MM-DD'),
     },
 

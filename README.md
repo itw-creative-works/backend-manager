@@ -471,7 +471,8 @@ const userProps = Manager.User(existingData, { defaults: true }).properties;
   },
   roles: { admin, betaTester, developer },
   affiliate: { code, referrals, referrer },
-  activity: { lastActivity, created, geolocation, client },
+  metadata: { created, updated },
+  activity: { geolocation, client },
   api: { clientId, privateKey },
   usage: { requests: { monthly, daily, total, last } },
   personal: { birthday, gender, location, name, company, telephone },
@@ -608,7 +609,7 @@ const results = await utilities.iterateCollection(
     batchSize: 1000,
     maxBatches: 10,
     where: [{ field: 'subscription.product.id', operator: '==', value: 'premium' }],
-    orderBy: { field: 'activity.created.timestamp', direction: 'desc' },
+    orderBy: { field: 'metadata.created.timestamp', direction: 'desc' },
     startAfter: 'lastDocId',
     log: true,
   }
@@ -1008,7 +1009,7 @@ const resolved = User.resolveSubscription(account);
 | Field | Type | Description |
 |-------|------|-------------|
 | `plan` | `string` | Effective plan ID right now (`'basic'` if cancelled/suspended) |
-| `active` | `boolean` | Has active access (active, trialing, or cancelling) |
+| `active` | `boolean` | Has paid access (product is not `'basic'` and status is `'active'`) |
 | `trialing` | `boolean` | In active trial (status `'active'` + claimed + unexpired) |
 | `cancelling` | `boolean` | Cancellation pending (status `'active'` + `cancellation.pending`) |
 

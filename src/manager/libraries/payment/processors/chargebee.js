@@ -91,7 +91,9 @@ const Chargebee = {
 
     if (!response.ok) {
       const msg = data.message || data.error_description || JSON.stringify(data);
-      throw new Error(`Chargebee API ${response.status}: ${msg}`);
+      const err = new Error(`Chargebee API ${response.status}: ${msg}`);
+      err.statusCode = response.status;
+      throw err;
     }
 
     return data;

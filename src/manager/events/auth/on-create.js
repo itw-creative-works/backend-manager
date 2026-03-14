@@ -50,8 +50,9 @@ module.exports = async ({ Manager, assistant, user, context, libraries }) => {
     },
   }).properties;
 
-  // Add metadata
-  userRecord.metadata = Manager.Metadata().set({ tag: 'auth:on-create' });
+  // Add metadata tag (merge into existing metadata to preserve metadata.created from User schema)
+  const meta = Manager.Metadata().set({ tag: 'auth:on-create' });
+  userRecord.metadata = { ...userRecord.metadata, ...meta };
 
   assistant.log(`onCreate: Creating user doc for ${user.uid}`, userRecord);
 

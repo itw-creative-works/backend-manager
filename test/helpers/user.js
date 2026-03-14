@@ -58,9 +58,9 @@ module.exports = {
         assert.ok(user.affiliate.code.length > 0, 'affiliate.code should not be empty');
         assert.ok(Array.isArray(user.affiliate.referrals), 'affiliate.referrals should be array');
 
-        // Activity
-        assert.ok(user.activity.lastActivity.timestamp, 'activity.lastActivity.timestamp should exist');
-        assert.ok(user.activity.created.timestamp, 'activity.created.timestamp should exist');
+        // Metadata
+        assert.ok(user.metadata.updated.timestamp, 'metadata.updated.timestamp should exist');
+        assert.ok(user.metadata.created.timestamp, 'metadata.created.timestamp should exist');
         assert.equal(user.activity.geolocation.latitude, 0, 'geolocation.latitude should be 0');
         assert.equal(user.activity.geolocation.longitude, 0, 'geolocation.longitude should be 0');
         assert.equal(user.activity.client.mobile, false, 'client.mobile should be false');
@@ -379,8 +379,8 @@ module.exports = {
         assert.equal(user.activity.geolocation.country, 'US', 'provided country preserved');
         assert.equal(user.activity.geolocation.ip, null, 'missing ip defaults to null');
         assert.equal(user.activity.geolocation.latitude, 0, 'missing latitude defaults to 0');
-        assert.ok(user.activity.lastActivity.timestamp, 'missing lastActivity gets default');
-        assert.ok(user.activity.created.timestamp, 'missing created gets default');
+        assert.ok(user.metadata.updated.timestamp, 'missing updated gets default');
+        assert.ok(user.metadata.created.timestamp, 'missing created gets default');
       },
     },
 
