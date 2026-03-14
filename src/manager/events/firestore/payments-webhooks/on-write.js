@@ -281,7 +281,7 @@ async function processPaymentEvent({ category, library, resource, resourceType, 
   // Track payment analytics (non-blocking)
   // Fires independently of transitions — renewals have no transition but still need tracking
   if (shouldRunHandlers) {
-    trackPayment({ category, transitionName, eventType, unified, uid, processor, assistant });
+    trackPayment({ category, transitionName, eventType, unified, order, uid, processor, assistant });
   }
 
   // Write unified subscription to user doc (subscriptions only)

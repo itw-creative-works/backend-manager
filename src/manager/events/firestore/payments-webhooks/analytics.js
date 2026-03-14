@@ -19,13 +19,13 @@ const fetch = require('wonderful-fetch');
  * Track payment events across analytics platforms (non-blocking)
  * Fires GA4, Meta, and TikTok independently with per-platform payloads
  */
-function trackPayment({ category, transitionName, eventType, unified, uid, processor, assistant }) {
+function trackPayment({ category, transitionName, eventType, unified, order, uid, processor, assistant }) {
   const Manager = assistant.Manager;
   const config = Manager.config;
 
   try {
     // Resolve what kind of payment event this is
-    const resolved = resolvePaymentEvent(category, transitionName, eventType, unified);
+    const resolved = resolvePaymentEvent(category, transitionName, eventType, unified, order);
 
     if (!resolved) {
       assistant.log(`trackPayment: skipped — no trackable event (category=${category}, transition=${transitionName || 'null'}, eventType=${eventType})`);
@@ -53,13 +53,16 @@ function trackPayment({ category, transitionName, eventType, unified, uid, proce
  * Determine what kind of payment event occurred and extract common fields
  * Returns null if nothing should be tracked
  */
-function resolvePaymentEvent(category, transitionName, eventType, unified) {
+function resolvePaymentEvent(category, transitionName, eventType, unified, order) {
   const productId = unified.product?.id;
   const productName = unified.product?.name;
   const frequency = unified.payment?.frequency || null;
   const isTrial = unified.trial?.claimed === true;
   const resourceId = unified.payment?.resourceId;
-  const price = unified.payment?.price || 0;
+  const price = parseFloat(unified.payment?.price || 0);
+
+  // Compute actual amount paid (accounting for trial and discount)
+  const value = resolveActualValue(price, isTrial, order?.discount);
 
   const base = { productId, productName, frequency, resourceId, isTrial };
 
@@ -70,7 +73,7 @@ function resolvePaymentEvent(category, transitionName, eventType, unified) {
     }
 
     if (transitionName === 'new-subscription') {
-      return { ...base, reason: 'first-purchase', value: price, isRecurring: false };
+      return { ...base, reason: 'first-purchase', value, isRecurring: false };
     }
 
     if (transitionName === 'payment-recovered') {
@@ -78,6 +81,7 @@ function resolvePaymentEvent(category, transitionName, eventType, unified) {
     }
 
     // No transition but a payment event fired (renewal)
+    // Renewals always use full price (discount is one-time only)
     if (!transitionName && isPaymentEvent(eventType) && price > 0) {
       return { ...base, reason: 'renewal', value: price, isRecurring: true };
     }
@@ -88,13 +92,29 @@ function resolvePaymentEvent(category, transitionName, eventType, unified) {
   // --- One-time transitions ---
   if (category === 'one-time') {
     if (transitionName === 'purchase-completed') {
-      return { ...base, reason: 'one-time-purchase', value: price, isRecurring: false, productId: productId || 'unknown', productName: productName || 'Unknown' };
+      return { ...base, reason: 'one-time-purchase', value, isRecurring: false, productId: productId || 'unknown', productName: productName || 'Unknown' };
     }
 
     return null;
   }
 
   return null;
+}
+
+/**
+ * Compute the actual amount paid, accounting for trial and promo discount
+ * Trial = $0, discount = price - savings, otherwise full price
+ */
+function resolveActualValue(price, isTrial, discount) {
+  if (isTrial) {
+    return 0;
+  }
+
+  if (discount?.valid === true && discount?.percent > 0) {
+    return parseFloat((price - (price * discount.percent / 100)).toFixed(2));
+  }
+
+  return price;
 }
 
 /**
