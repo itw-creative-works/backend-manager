@@ -298,7 +298,7 @@ Thank you for choosing **${Manager.config.brand.name}**. Here's to new beginning
       signoff: {
         type: 'personal',
         name: 'Ian Wiedenman, CEO',
-        url: `https://ianwiedenman.com?utm_source=welcome-email&utm_medium=email&utm_campaign=${Manager.config.app.id}`,
+        url: `https://ianwiedenman.com?utm_source=welcome-email&utm_medium=email&utm_campaign=${Manager.config.brand.id}`,
         urlText: '@ianwieds',
       },
     },
@@ -323,7 +323,7 @@ function sendCheckupEmail(assistant, uid) {
     subject: `How's your experience with ${Manager.config.brand.name}?`,
     template: 'default',
     copy: false,
-    sendAt: moment().add(7, 'days').unix(),
+    sendAt: moment().add(5, 'days').unix(),
     data: {
       email: {
         preview: `Checking in from ${Manager.config.brand.name} to see how things are going. Let us know if you have any questions or feedback!`,
@@ -343,7 +343,7 @@ Thank you for choosing **${Manager.config.brand.name}**. Here's to new beginning
       signoff: {
         type: 'personal',
         name: 'Ian Wiedenman, CEO',
-        url: `https://ianwiedenman.com?utm_source=checkup-email&utm_medium=email&utm_campaign=${Manager.config.app.id}`,
+        url: `https://ianwiedenman.com?utm_source=checkup-email&utm_medium=email&utm_campaign=${Manager.config.brand.id}`,
         urlText: '@ianwieds',
       },
     },
@@ -355,7 +355,7 @@ Thank you for choosing **${Manager.config.brand.name}**. Here's to new beginning
 }
 
 /**
- * Send feedback email (14 days after signup)
+ * Send feedback email (10 days after signup)
  */
 function sendFeedbackEmail(assistant, uid) {
   const Manager = assistant.Manager;
@@ -368,7 +368,7 @@ function sendFeedbackEmail(assistant, uid) {
     subject: `Want to share your feedback about ${Manager.config.brand.name}?`,
     template: 'main/engagement/feedback',
     copy: false,
-    sendAt: moment().add(14, 'days').unix(),
+    sendAt: moment().add(10, 'days').unix(),
   })
     .then((result) => {
       assistant.log('sendFeedbackEmail(): Success', result.status);

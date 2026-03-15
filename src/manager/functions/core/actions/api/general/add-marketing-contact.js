@@ -131,7 +131,7 @@ Module.prototype.main = function () {
           firstName,
           lastName,
           source,
-          appId: Manager.config.app.id,
+          appId: Manager.config.brand.id,
           brandName: Manager.config.brand?.name,
         });
       }

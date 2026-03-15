@@ -121,7 +121,7 @@ module.exports = async ({ assistant, Manager, settings, analytics }) => {
         firstName,
         lastName,
         source,
-        appId: Manager.config.app.id,
+        appId: Manager.config.brand.id,
         brandName: Manager.config.brand?.name,
       });
     }
