@@ -378,13 +378,13 @@ module.exports = {
         assert.isSuccess(response, 'Should send email');
         assert.equal(response.data.status, 'sent', 'Status should be sent');
 
-        const appImages = response.data.options.dynamicTemplateData.app.images;
+        const brandImages = response.data.options.dynamicTemplateData.brand.images;
 
         // Any image that was an SVG should now be a PNG (-x.svg → -1024.png)
-        for (const [key, value] of Object.entries(appImages)) {
+        for (const [key, value] of Object.entries(brandImages)) {
           assert.ok(
             !String(value || '').endsWith('.svg'),
-            `app.images.${key} should not be an SVG (got: ${value})`,
+            `brand.images.${key} should not be an SVG (got: ${value})`,
           );
         }
       },

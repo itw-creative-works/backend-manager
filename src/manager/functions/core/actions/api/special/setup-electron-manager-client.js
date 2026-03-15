@@ -1,5 +1,5 @@
 const path = require('path');
-const { buildPublicConfig } = require(path.join(__dirname, '..', '..', '..', '..', '..', 'routes', 'app', 'get.js'));
+const { buildPublicConfig } = require(path.join(__dirname, '..', '..', '..', '..', '..', 'routes', 'brand', 'get.js'));
 
 function Module() {
 
@@ -75,7 +75,7 @@ Module.prototype.main = function () {
         timestamp: new Date().toISOString(),
         ip: assistant.request.geolocation.ip,
         country: assistant.request.geolocation.country,
-        app: buildPublicConfig(Manager.config),
+        brand: buildPublicConfig(Manager.config),
         config: config,
       }
     });

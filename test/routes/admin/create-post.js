@@ -113,13 +113,13 @@ module.exports = {
           return;
         }
 
-        if (!config.githubRepoWebsite) {
+        if (!config.github?.repo_website) {
           assert.fail('githubRepoWebsite not configured');
           return;
         }
 
         // Parse owner/repo for cleanup later
-        const repoMatch = config.githubRepoWebsite.match(/github\.com\/([^/]+)\/([^/]+)/);
+        const repoMatch = config.github?.repo_website.match(/github\.com\/([^/]+)\/([^/]+)/);
         if (!repoMatch) {
           assert.fail('Could not parse githubRepoWebsite');
           return;

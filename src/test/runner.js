@@ -158,9 +158,9 @@ class TestRunner {
       return false;
     }
 
-    if (!this.options.appId) {
-      console.log(chalk.red('  ✗ Missing appId'));
-      console.log(chalk.gray('    Could not determine app ID from configuration'));
+    if (!this.options.brand?.id) {
+      console.log(chalk.red('  ✗ Missing brand.id'));
+      console.log(chalk.gray('    Could not determine brand ID from configuration'));
       return false;
     }
 
@@ -234,7 +234,7 @@ class TestRunner {
     process.stdout.write(chalk.gray('  Initializing rules testing context... '));
     try {
       this.rulesContext = await rulesClient.createRulesContext({
-        projectId: this.options.projectId,
+        projectId: this.options.firebaseConfig?.projectId,
         rulesPath: this.options.rulesPath,
         accounts: this.accounts,
       });
@@ -263,7 +263,7 @@ class TestRunner {
     // Create initial stats document
     await statsRef.set({
       users: { total: 0 },
-      app: this.options.appId,
+      brand: this.options.brand?.id,
     });
   }
 
@@ -813,7 +813,7 @@ class TestRunner {
       async trigger(functionName) {
         const { PubSub } = require('@google-cloud/pubsub');
         const pubsub = new PubSub({
-          projectId: config.projectId,
+          projectId: config.firebaseConfig?.projectId,
           apiEndpoint: 'localhost:8085',
         });
 

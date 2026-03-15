@@ -26,7 +26,7 @@ function ApiManager(m) {
   const self = this;
   self.Manager = m;
   self.options = {
-    appId: '',
+    brandId: '',
     plans: {},
     maxUsersStored: 10000,
     refetchInterval: 60,
@@ -41,7 +41,7 @@ ApiManager.prototype.init = function (options) {
   const self = this;
   return new Promise(async function(resolve, reject) {
     options = options || {};
-    options.app = options.app || '';
+    options.brand = options.brand || '';
     options.plans = options.plans || {};
 
     // await self.Manager.libraries.admin.firestore

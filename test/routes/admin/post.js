@@ -115,7 +115,7 @@ module.exports = {
       skip: !process.env.GITHUB_TOKEN ? 'GITHUB_TOKEN env var not set' : false,
 
       async run({ assert, state, config }) {
-        if (!config.githubRepoWebsite) {
+        if (!config.github?.repo_website) {
           assert.fail('githubRepoWebsite not configured');
           return;
         }
@@ -123,7 +123,7 @@ module.exports = {
         const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
 
         // Parse owner/repo from githubRepoWebsite
-        const repoMatch = config.githubRepoWebsite.match(/github\.com\/([^/]+)\/([^/]+)/);
+        const repoMatch = config.github?.repo_website.match(/github\.com\/([^/]+)\/([^/]+)/);
         if (!repoMatch) {
           assert.fail('Could not parse githubRepoWebsite');
           return;

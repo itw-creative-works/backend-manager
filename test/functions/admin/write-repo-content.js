@@ -155,14 +155,14 @@ module.exports = {
       timeout: 60000,
 
       async run({ state, config }) {
-        if (!process.env.GITHUB_TOKEN || !config.githubRepoWebsite) {
+        if (!process.env.GITHUB_TOKEN || !config.github?.repo_website) {
           return;
         }
 
         const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
 
         // Parse owner/repo from githubRepoWebsite (e.g., 'https://github.com/owner/repo')
-        const repoMatch = config.githubRepoWebsite.match(/github\.com\/([^/]+)\/([^/]+)/);
+        const repoMatch = config.github?.repo_website.match(/github\.com\/([^/]+)\/([^/]+)/);
         if (!repoMatch) {
           return;
         }

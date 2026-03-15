@@ -3,7 +3,7 @@
  */
 module.exports = () => ({
   uid: { types: ['string'], default: undefined },
-  appId: { types: ['string'], default: undefined },
-  app: { types: ['string'], default: undefined },
+  brandId: { types: ['string'], default: undefined },
+  brand: { types: ['string'], default: undefined },
   config: { types: ['object'], default: {} },
 });

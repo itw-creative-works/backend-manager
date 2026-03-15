@@ -131,7 +131,7 @@ Module.prototype.defaultize = function () {
         email: {},
         personalization: {},
         signoff: {},
-        app: {},
+        brand: {},
         user: {},
         data: {},
       },
@@ -181,14 +181,14 @@ Module.prototype.defaultize = function () {
 
     email.dynamicTemplateData.user = Manager.User(options.user).properties;
 
-    // Get app configuration from Manager.config.brand (backend-manager-config.json)
+    // Get brand configuration from Manager.config.brand (backend-manager-config.json)
     const brand = Manager.config?.brand;
     if (!brand) {
       return reject(new Error('Missing brand configuration in backend-manager-config.json'));
     }
 
-    // Build app object from brand config
-    const app = {
+    // Build brand object for email template data
+    const brandData = {
       id: brand.id,
       name: brand.name,
       url: brand.url,
@@ -196,11 +196,11 @@ Module.prototype.defaultize = function () {
       images: brand.images || {},
     };
 
-    if (!app.email) {
+    if (!brandData.email) {
       return reject(new Error('Missing brand.contact.email in backend-manager-config.json'));
     }
 
-    email.dynamicTemplateData.app = app;
+    email.dynamicTemplateData.brand = brandData;
 
     // Add user to recipients
     email.to.push({
@@ -211,8 +211,8 @@ Module.prototype.defaultize = function () {
     // Add carbon copy recipients
     if (options.copy) {
       email.cc.push({
-        email: email.dynamicTemplateData.app.email,
-        name: email.dynamicTemplateData.app.name,
+        email: email.dynamicTemplateData.brand.email,
+        name: email.dynamicTemplateData.brand.name,
       });
       email.bcc.push(
         {
@@ -227,17 +227,17 @@ Module.prototype.defaultize = function () {
     }
 
     // Set email properties
-    email.replyTo = email.replyTo || email.dynamicTemplateData.app.email;
+    email.replyTo = email.replyTo || email.dynamicTemplateData.brand.email;
     email.subject = email.subject || email.dynamicTemplateData.email.subject;
     email.dynamicTemplateData.email.subject = email.dynamicTemplateData.email.subject || email.subject;
     email.from = options.from || {
-      email: email.dynamicTemplateData.app.email,
-      name: email.dynamicTemplateData.app.name,
+      email: email.dynamicTemplateData.brand.email,
+      name: email.dynamicTemplateData.brand.name,
     };
     email.sendAt = options.sendAt;
 
     // Set categories
-    email.categories = ['transactional', email.dynamicTemplateData.app.id, ...options.categories];
+    email.categories = ['transactional', email.dynamicTemplateData.brand.id, ...options.categories];
 
     // Remove duplicates from email lists
     email.to = filter(email.to);
@@ -283,7 +283,7 @@ Module.prototype.defaultize = function () {
     };
 
     // Build unsubscribe URL
-    email.dynamicTemplateData.email.unsubscribeUrl = `https://itwcreativeworks.com/portal/account/email-preferences?email=${encode(email.to[0].email)}&asmId=${encode(email.asm.groupId)}&templateId=${encode(email.templateId)}&appName=${email.dynamicTemplateData.app.name}&appUrl=${email.dynamicTemplateData.app.url}`;
+    email.dynamicTemplateData.email.unsubscribeUrl = `https://itwcreativeworks.com/portal/account/email-preferences?email=${encode(email.to[0].email)}&asmId=${encode(email.asm.groupId)}&templateId=${encode(email.templateId)}&appName=${email.dynamicTemplateData.brand.name}&appUrl=${email.dynamicTemplateData.brand.url}`;
     email.dynamicTemplateData.email.categories = email.categories;
     email.dynamicTemplateData.email.carbonCopy = options.copy;
 
@@ -306,7 +306,7 @@ Module.prototype.defaultize = function () {
 
     // Clone and clean data for stringified version
     const emailClonedData = _.cloneDeep(email.dynamicTemplateData);
-    emailClonedData.app.sponsorships = {};
+    emailClonedData.brand.sponsorships = {};
     email.dynamicTemplateData._stringified = JSON.stringify(emailClonedData, null, 2);
 
     return resolve(email);

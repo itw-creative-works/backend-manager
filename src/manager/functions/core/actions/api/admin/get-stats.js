@@ -38,7 +38,7 @@ Module.prototype.main = function () {
         if (!doc.exists) {
           await stats.set({
             users: { total: 0 },
-            app: Manager.config?.app?.id || null,
+            brand: Manager.config?.brand?.id || null,
           });
           data = { users: { total: 0 } };
         }
@@ -102,7 +102,7 @@ Module.prototype.updateStats = function (existingData, update) {
     // Set defaults
     let error = null;
     let newData = {
-      app: self.Manager.config?.app?.id || null,
+      brand: self.Manager.config?.brand?.id || null,
     };
 
     // Log

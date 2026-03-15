@@ -4,7 +4,7 @@ const moment = require('moment');
 const JSON5 = require('json5');
 
 const PROMPT = `
-  Company: {app.brand.name}: {app.brand.description}
+  Company: {brand.brand.name}: {brand.brand.description}
   Date: {date}
   Instructions: {prompt}
 
@@ -29,11 +29,11 @@ module.exports = async ({ Manager, assistant, context, libraries }) => {
   // Set post ID
   postId = moment().unix();
 
-  // Build app object from local config
-  const appObject = buildAppObject(Manager.config);
+  // Build brand config from local config
+  const brandConfig = buildBrandConfig(Manager.config);
 
   // Log
-  assistant.log('App object', appObject);
+  assistant.log('Brand config', brandConfig);
 
   // Get settings
   const settingsArray = powertools.arrayify(Manager.config.ghostii);
@@ -48,22 +48,22 @@ module.exports = async ({ Manager, assistant, context, libraries }) => {
     settings.chance = settings.chance || 1.0;
     settings.author = settings.author || undefined;
 
-    // Resolve app data for this ghostii item
-    if (settings.app && settings.appUrl) {
-      // Cross-app: fetch from the other project's /app endpoint
-      settings.app = await fetchRemoteApp(settings.appUrl).catch((e) => e);
+    // Resolve brand data for this ghostii item
+    if (settings.brand && settings.brandUrl) {
+      // Cross-brand: fetch from the other project's /brand endpoint
+      settings.brand = await fetchRemoteBrand(settings.brandUrl).catch((e) => e);
 
-      if (settings.app instanceof Error) {
-        assistant.error('Error fetching remote app data', settings.app);
+      if (settings.brand instanceof Error) {
+        assistant.error('Error fetching remote brand data', settings.brand);
         continue;
       }
     } else {
-      // Same-app: use local config
-      settings.app = appObject;
+      // Same-brand: use local config
+      settings.brand = brandConfig;
     }
 
     // Log
-    assistant.log(`Settings (app=${settings.app.brand.id})`, settings);
+    assistant.log(`Settings (brand=${settings.brand.brand.id})`, settings);
 
     // Quit if articles are disabled
     if (!settings.articles || !settings.sources.length) {
@@ -90,19 +90,19 @@ module.exports = async ({ Manager, assistant, context, libraries }) => {
 };
 
 /**
- * Build app object from Manager.config (same shape as /app endpoint response)
+ * Build brand config from Manager.config (same shape as /brand endpoint response)
  */
-function buildAppObject(config) {
-  const { buildPublicConfig } = require(require('path').join(__dirname, '..', '..', 'routes', 'app', 'get.js'));
+function buildBrandConfig(config) {
+  const { buildPublicConfig } = require(require('path').join(__dirname, '..', '..', 'routes', 'brand', 'get.js'));
 
   return buildPublicConfig(config);
 }
 
 /**
- * Fetch app data from a remote BEM project's /app endpoint
+ * Fetch brand data from a remote BEM project's /brand endpoint
  */
-function fetchRemoteApp(appUrl) {
-  return fetch(`${appUrl}/backend-manager/app`, {
+function fetchRemoteBrand(brandUrl) {
+  return fetch(`${brandUrl}/backend-manager/brand`, {
     timeout: 30000,
     tries: 3,
     response: 'json',
@@ -113,7 +113,7 @@ async function harvest(assistant, settings) {
   const date = moment().format('MMMM YYYY');
 
   // Log
-  assistant.log(`harvest(): Starting ${settings.app.brand.id}...`);
+  assistant.log(`harvest(): Starting ${settings.brand.brand.id}...`);
 
   // Process the number of sources in the settings
   for (let index = 0; index < settings.articles; index++) {
@@ -209,16 +209,16 @@ function requestGhostii(settings, content) {
       description: content,
       insertLinks: true,
       headerImageUrl: 'unsplash',
-      url: settings.app.brand.url,
+      url: settings.brand.brand.url,
       sectionQuantity: powertools.random(3, 6, { mode: 'gaussian' }),
-      feedUrl: `${settings.app.brand.url}/feeds/posts.json`,
+      feedUrl: `${settings.brand.brand.url}/feeds/posts.json`,
       links: settings.links,
     },
   });
 }
 
 function uploadPost(assistant, settings, article) {
-  const apiUrl = `https://api.${(settings.app.brand.url || '').replace(/^https?:\/\//, '')}`;
+  const apiUrl = `https://api.${(settings.brand.brand.url || '').replace(/^https?:\/\//, '')}`;
   return fetch(`${apiUrl}/backend-manager/admin/post`, {
     method: 'POST',
     timeout: 90000,
@@ -236,8 +236,8 @@ function uploadPost(assistant, settings, article) {
       categories: article.categories,
       tags: article.keywords,
       path: 'ghostii',
-      githubUser: settings.app.github.user,
-      githubRepo: settings.app.github.repo,
+      githubUser: settings.brand.github.user,
+      githubRepo: settings.brand.github.repo,
     },
   });
 }

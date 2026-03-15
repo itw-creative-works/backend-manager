@@ -26,7 +26,7 @@ Module.prototype.main = function () {
       delay: 1,
       payload: {
         backendManagerKey: process.env.BACKEND_MANAGER_KEY,
-        app: Manager.config.brand.id,
+        brand: Manager.config.brand.id,
       },
     }
 

@@ -3,12 +3,12 @@
  * Returns client configuration with optional auth
  */
 const path = require('path');
-const { buildPublicConfig } = require(path.join(__dirname, '..', '..', 'app', 'get.js'));
+const { buildPublicConfig } = require(path.join(__dirname, '..', '..', 'brand', 'get.js'));
 
 module.exports = async ({ assistant, Manager, settings, analytics, libraries }) => {
   const { admin } = libraries;
 
-  // appId/app fallback to Manager.config
+  // brandId/brand fallback to Manager.config
   let uid = settings.uid;
   let config = settings.config;
 
@@ -52,7 +52,7 @@ module.exports = async ({ assistant, Manager, settings, analytics, libraries }) 
     timestamp: new Date().toISOString(),
     ip: assistant.request.geolocation.ip,
     country: assistant.request.geolocation.country,
-    app: buildPublicConfig(Manager.config),
+    brand: buildPublicConfig(Manager.config),
     config: config,
   });
 };

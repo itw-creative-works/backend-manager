@@ -103,15 +103,13 @@ class TestCommand extends BaseCommand {
       return null;
     }
 
-    // Derive convenience values
-    const projectId = config.firebaseConfig?.projectId;
+    // Derive computed values (not in config file)
     const backendManagerKey = argv.key || process.env.BACKEND_MANAGER_KEY;
-    const appId = config.brand?.id;
     const contactEmail = config.brand?.contact?.email || '';
     const domain = contactEmail.includes('@') ? contactEmail.split('@')[1] : '';
 
     // Validate required configuration
-    if (!projectId) {
+    if (!config.firebaseConfig?.projectId) {
       this.logError('Error: Missing firebaseConfig.projectId in backend-manager-config.json');
       return null;
     }
@@ -122,7 +120,7 @@ class TestCommand extends BaseCommand {
       return null;
     }
 
-    if (!appId) {
+    if (!config.brand?.id) {
       this.logError('Error: Missing brand.id in backend-manager-config.json');
       return null;
     }
@@ -132,15 +130,11 @@ class TestCommand extends BaseCommand {
       return null;
     }
 
-    // Pass entire config + convenience aliases used by runner/helpers
+    // Pass entire config + computed values not in config file
     return {
       ...config,
-      appId,
-      projectId,
       backendManagerKey,
       domain,
-      brandName: config.brand?.name,
-      githubRepoWebsite: config.github?.repo_website,
     };
   }
 
