@@ -410,7 +410,7 @@ module.exports = {
         const user = createUser({});
         const expectedKeys = [
           'auth', 'subscription', 'roles', 'flags', 'affiliate',
-          'activity', 'api', 'usage', 'personal', 'oauth2', 'attribution',
+          'activity', 'api', 'usage', 'personal', 'oauth2', 'attribution', 'metadata',
         ];
 
         for (const key of expectedKeys) {
@@ -425,7 +425,7 @@ module.exports = {
         const user = createUser({});
         const expectedKeys = [
           'auth', 'subscription', 'roles', 'flags', 'affiliate',
-          'activity', 'api', 'usage', 'personal', 'oauth2', 'attribution',
+          'activity', 'api', 'usage', 'personal', 'oauth2', 'attribution', 'metadata',
         ];
 
         for (const key of Object.keys(user)) {
