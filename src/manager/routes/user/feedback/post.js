@@ -21,10 +21,11 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
     reviewURL: null,
   };
 
-  // If rating is like or love and like feedback is more than dislike feedback
+  // Prompt for review if user gave positive rating (like/love) and wrote meaningful positive feedback (50+ chars)
+  const totalPositiveLength = (settings.positive?.length || 0) + (settings.comments?.length || 0);
   if (
     ['like', 'love'].includes(settings.rating)
-    && (settings.like?.length || 0) >= (settings.dislike?.length || 0) + 10
+    && totalPositiveLength >= 50
   ) {
     decision.promptReview = true;
   }
@@ -34,9 +35,12 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
   reviews.enabled = typeof reviews.enabled === 'undefined' ? true : reviews.enabled;
   reviews.sites = reviews.sites || [];
 
-  // If reviews are enabled and there are review sites, prompt review
+  // If reviews are enabled and there are review sites, build the full review URL
   if (decision.promptReview && reviews.enabled && reviews.sites.length > 0) {
-    decision.reviewURL = powertools.random(reviews.sites);
+    const site = powertools.random(reviews.sites);
+    const brandDomain = new URL(Manager.config.brand.url).hostname;
+
+    decision.reviewURL = `https://www.${site}/review/${brandDomain}`;
   } else {
     decision.promptReview = false;
   }
@@ -48,8 +52,8 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
     .set({
       feedback: {
         rating: settings.rating,
-        like: settings.like,
-        dislike: settings.dislike,
+        positive: settings.positive,
+        negative: settings.negative,
         comments: settings.comments,
       },
       decision: decision,
@@ -67,8 +71,8 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
     review: decision,
     originalRequest: {
       rating: settings.rating,
-      like: settings.like,
-      dislike: settings.dislike,
+      positive: settings.positive,
+      negative: settings.negative,
       comments: settings.comments,
     },
   });

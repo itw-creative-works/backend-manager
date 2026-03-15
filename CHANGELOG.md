@@ -14,6 +14,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.149] - 2026-03-14
+### Added
+- Email queue cron processor (`cron/frequent/email-queue.js`) — processes deferred emails every 10 minutes via the full `email.send()` pipeline
+- Feedback route review URL builder with full site URLs
+
+### Changed
+- `saveToEmailQueue` now stores raw settings instead of pre-built SendGrid email, so queued emails re-enter the full build pipeline
+- Renamed `email-queue` collection to `emails-queue`
+- Feedback schema: renamed `like`/`dislike` fields to `positive`/`negative`
+- Feedback review prompt logic now checks total positive feedback length (50+ chars)
+
 # [5.0.148] - 2026-03-14
 ### Added
 - Semantic email sender system — pass `sender: 'orders'` to `Email.send()` to auto-resolve from address, display name, and SendGrid ASM group

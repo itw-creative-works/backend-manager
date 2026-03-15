@@ -353,9 +353,9 @@ Email.prototype.send = async function (settings) {
   const sendgrid = Manager.require('@sendgrid/mail');
   sendgrid.setApiKey(process.env.SENDGRID_API_KEY);
 
-  // If scheduled beyond the limit, queue it
+  // If scheduled beyond the limit, queue it for later
   if (email.sendAt && email.sendAt >= moment().add(SEND_AT_LIMIT, 'hours').unix()) {
-    await saveToEmailQueue(email, admin, assistant);
+    await saveToEmailQueue(settings, email.sendAt, admin, assistant);
 
     return {
       status: 'queued',
@@ -551,23 +551,28 @@ function normalizeSendAt(sendAt) {
 }
 
 /**
- * Save email to queue for deferred sending (beyond 71h limit)
+ * Save original settings to queue for deferred sending (beyond 71h limit).
+ * Stores the raw settings so the email can be re-sent through the full
+ * build pipeline when the cron picks it up.
  */
-async function saveToEmailQueue(email, admin, assistant) {
-  const emailId = email.dynamicTemplateData.email.id;
+async function saveToEmailQueue(settings, sendAt, admin, assistant) {
+  const powertools = require('node-powertools');
+  const emailId = powertools.random(32, { type: 'alphanumeric' });
 
-  // Clone and clean before storage
-  const emailCloned = _.cloneDeepWith(email, (value) => {
+  // Clone and clean undefined values for Firestore
+  const settingsCloned = _.cloneDeepWith(settings, (value) => {
     if (typeof value === 'undefined') {
       return null;
     }
   });
-  delete emailCloned.dynamicTemplateData._stringified;
 
-  assistant.log(`saveToEmailQueue(): Saving email ${emailId}`);
+  assistant.log(`saveToEmailQueue(): Saving ${emailId}, sendAt=${sendAt}`);
 
-  await admin.firestore().doc(`email-queue/${emailId}`)
-    .set(emailCloned)
+  await admin.firestore().doc(`emails-queue/${emailId}`)
+    .set({
+      settings: settingsCloned,
+      sendAt,
+    })
     .then(() => assistant.log(`saveToEmailQueue(): Success ${emailId}`))
     .catch(e => assistant.error(`saveToEmailQueue(): Failed ${emailId}`, e));
 }

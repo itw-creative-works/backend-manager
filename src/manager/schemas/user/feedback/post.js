@@ -4,12 +4,12 @@ module.exports = () => ({
     default: undefined,
     required: true,
   },
-  like: {
+  positive: {
     types: ['string'],
     default: '',
     required: false,
   },
-  dislike: {
+  negative: {
     types: ['string'],
     default: '',
     required: false,
