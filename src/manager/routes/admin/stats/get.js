@@ -32,7 +32,7 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
   if (!doc.exists) {
     await stats.set({
       users: { total: 0 },
-      app: Manager.config?.app?.id || null,
+      app: Manager.config?.brand?.id || null,
     });
     data = { users: { total: 0 } };
   }
@@ -63,7 +63,7 @@ async function updateStats(assistant, existingData, update) {
   const { admin } = Manager.libraries;
   const stats = admin.firestore().doc('meta/stats');
   const newData = {
-    app: Manager.config?.app?.id || null,
+    app: Manager.config?.brand?.id || null,
   };
 
   assistant.log('updateStats(): Starting...');

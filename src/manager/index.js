@@ -147,10 +147,10 @@ Manager.prototype.init = function (exporter, options) {
   // Resolve legacy paths
   // TODO: Remove this in future versions (after we migrate to removing app.id from config)
   self.config.app = self.config.app || {};
-  self.config.app.id = self.config.brand.id || self.config.app.id || null;
+  self.config.brand.id = self.config.brand.id || self.config.app.id || null;
 
   // Get app ID
-  const appId = self.config?.app?.id;
+  const brandId = self.config?.brand?.id;
 
   // Set log
   if (options.logSavePath) {
@@ -267,13 +267,13 @@ Manager.prototype.init = function (exporter, options) {
     self.assistant.log('Resolved backendManagerConfigPath', self.project.backendManagerConfigPath);
   }
 
-  if (!appId) {
-    self.assistant.warn('⚠️ Missing config.app.id');
+  if (!brandId) {
+    self.assistant.warn('⚠️ Missing config.brand.id');
   }
 
   // Setup sentry
   if (self.options.sentry) {
-    const sentryRelease = `${appId || self.project.projectId}@${self.package.version}`;
+    const sentryRelease = `${brandId || self.project.projectId}@${self.package.version}`;
     const sentryDSN = self.config?.sentry?.dsn || '';
     // self.assistant.log('Sentry', sentryRelease, sentryDSN);
 
@@ -310,8 +310,8 @@ Manager.prototype.init = function (exporter, options) {
       // self.app = self.libraries.initializedAdmin;
 
       const loadedProjectId = serviceAccount.project_id;
-      if (!loadedProjectId || !loadedProjectId.includes(appId)) {
-        self.assistant.error(`Loaded app may have wrong service account: ${loadedProjectId} =/= ${appId}`);
+      if (!loadedProjectId || !loadedProjectId.includes(brandId)) {
+        self.assistant.error(`Loaded app may have wrong service account: ${loadedProjectId} =/= ${brandId}`);
       }
     }
   }
