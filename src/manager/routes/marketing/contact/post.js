@@ -5,7 +5,6 @@
 const recaptcha = require('../../../libraries/recaptcha.js');
 const { validate: validateEmail, ALL_CHECKS } = require('../../../libraries/email/validation.js');
 const { inferContact } = require('../../../libraries/infer-contact.js');
-const { DEFAULT_PROVIDERS } = require('../../../libraries/email/constants.js');
 
 module.exports = async ({ assistant, Manager, settings, analytics }) => {
 
@@ -23,7 +22,6 @@ module.exports = async ({ assistant, Manager, settings, analytics }) => {
 
   // Admin-only options
   const tags = isAdmin ? settings.tags : [];
-  const providers = isAdmin ? settings.providers : DEFAULT_PROVIDERS;
   const skipValidation = isAdmin ? settings.skipValidation : false;
 
   // Email validation — run free checks before reCAPTCHA/rate limit
@@ -105,7 +103,6 @@ module.exports = async ({ assistant, Manager, settings, analytics }) => {
       firstName,
       lastName,
       source,
-      providers,
     });
   }
 

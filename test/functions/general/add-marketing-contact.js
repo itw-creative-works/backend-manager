@@ -206,46 +206,7 @@ module.exports = {
       },
     },
 
-    // Test 7: Admin can specify providers
-    {
-      name: 'admin-specify-providers',
-      auth: 'admin',
-      timeout: 30000,
-
-      async run({ http, assert, config, state }) {
-        const testEmail = TEST_EMAILS.valid(config.domain);
-        state.testEmail = testEmail;
-
-        const response = await http.command('general:add-marketing-contact', {
-          email: testEmail,
-          source: 'bem-test',
-          providers: ['sendgrid'], // Only SendGrid, not Beehiiv
-          // No firstName/lastName - should be inferred as "Rachel Greene"
-        });
-
-        assert.isSuccess(response, 'Add marketing contact with specific providers should succeed');
-
-        // Only check providers if TEST_EXTENDED_MODE is set (external APIs are called)
-        if (process.env.TEST_EXTENDED_MODE) {
-          // Should only have sendgrid result
-          if (response.data?.providers) {
-            assert.hasProperty(response.data.providers, 'sendgrid', 'Should have SendGrid result');
-          }
-          state.sendgridAdded = response.data?.providers?.sendgrid?.success;
-          // Beehiiv not called since we only specified sendgrid
-        }
-      },
-
-      async cleanup({ state, http }) {
-        if (!process.env.TEST_EXTENDED_MODE || !state.testEmail) {
-          return;
-        }
-
-        await http.command('general:remove-marketing-contact', { email: state.testEmail });
-      },
-    },
-
-    // Test 8: Mailbox verification (only runs if TEST_EXTENDED_MODE and ZEROBOUNCE_API_KEY are set)
+    // Test 7: Mailbox verification (only runs if TEST_EXTENDED_MODE and ZEROBOUNCE_API_KEY are set)
     {
       name: 'mailbox-validation',
       auth: 'admin',

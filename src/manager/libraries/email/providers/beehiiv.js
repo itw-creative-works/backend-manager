@@ -136,7 +136,22 @@ async function removeSubscriber(email, publicationId) {
  * @param {string} brandName
  * @returns {string|null} Publication ID or null
  */
+let _publicationIdCache = null;
+
 async function getPublicationId() {
+  if (_publicationIdCache) {
+    return _publicationIdCache;
+  }
+
+  // Use publicationId from config if set (skips API call)
+  const configPubId = Manager.config?.marketing?.beehiiv?.publicationId;
+
+  if (configPubId) {
+    _publicationIdCache = configPubId;
+    return configPubId;
+  }
+
+  // Fuzzy-match by brand name
   const brandName = Manager.config.brand?.name;
 
   if (!brandName) {
@@ -168,6 +183,7 @@ async function getPublicationId() {
       );
 
       if (matchedPub) {
+        _publicationIdCache = matchedPub.id;
         return matchedPub.id;
       }
 

@@ -14,6 +14,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.150] - 2026-03-16
+### Added
+- `marketing` config section in `backend-manager-config.json` — per-brand control over SendGrid and Beehiiv provider availability
+- Beehiiv provider reads `publicationId` from config (skips fuzzy-match API call) with in-memory cache
+
+### Changed
+- Provider availability resolved once in Marketing constructor from `config.marketing` + env vars instead of per-request
+- Removed `providers` parameter from `add()`, `sync()`, `remove()` and all route/schema callers
+
+### Removed
+- `DEFAULT_PROVIDERS` constant — no longer needed with config-driven provider resolution
+- Provider-selection tests — no longer applicable
+
 # [5.0.149] - 2026-03-14
 ### Added
 - Modular email library (`libraries/email/`) — replaces monolithic `libraries/email.js` with provider-based architecture

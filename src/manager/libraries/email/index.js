@@ -74,16 +74,9 @@ Email.prototype.build = function (settings) {
 };
 
 /**
- * Sync a user's data to marketing providers (SendGrid + Beehiiv).
+ * Add a new contact to enabled marketing providers (lightweight, no full user doc needed).
  *
- * @param {object} userDoc - Full user document from Firestore
- * @param {object} [options] - { providers: array of provider names (default: DEFAULT_PROVIDERS) }
- * @returns {{ sendgrid?: object, beehiiv?: object }}
- */
-/**
- * Add a new contact to marketing providers (lightweight, no full user doc needed).
- *
- * @param {object} options - { email, firstName, lastName, source, customFields, providers }
+ * @param {object} options - { email, firstName, lastName, source, customFields }
  * @returns {{ sendgrid?: object, beehiiv?: object }}
  */
 Email.prototype.add = function (options) {
@@ -91,25 +84,23 @@ Email.prototype.add = function (options) {
 };
 
 /**
- * Sync a user's full data to marketing providers (SendGrid + Beehiiv).
+ * Sync a user's full data to enabled marketing providers.
  *
- * @param {object} userDoc - Full user document from Firestore
- * @param {object} [options] - { providers: array of provider names (default: DEFAULT_PROVIDERS) }
+ * @param {string|object} userDocOrUid - UID string or full user document from Firestore
  * @returns {{ sendgrid?: object, beehiiv?: object }}
  */
-Email.prototype.sync = function (userDoc, options) {
-  return this._marketing.sync(userDoc, options);
+Email.prototype.sync = function (userDocOrUid) {
+  return this._marketing.sync(userDocOrUid);
 };
 
 /**
- * Remove a contact from all marketing providers.
+ * Remove a contact from all enabled marketing providers.
  *
  * @param {string} email - Email address to remove
- * @param {object} [options] - { providers: array of provider names (default: DEFAULT_PROVIDERS) }
  * @returns {{ sendgrid?: object, beehiiv?: object }}
  */
-Email.prototype.remove = function (email, options) {
-  return this._marketing.remove(email, options);
+Email.prototype.remove = function (email) {
+  return this._marketing.remove(email);
 };
 
 /**

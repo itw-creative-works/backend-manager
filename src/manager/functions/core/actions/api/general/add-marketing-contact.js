@@ -29,7 +29,6 @@ Module.prototype.main = function () {
 
     // Admin-only options
     const tags = isAdmin ? (requestPayload.tags || []) : [];
-    const providers = isAdmin ? (requestPayload.providers || ['sendgrid', 'beehiiv']) : ['sendgrid', 'beehiiv'];
     const skipValidation = isAdmin ? (requestPayload.skipValidation || false) : false;
 
     // Validate email is provided
@@ -114,7 +113,6 @@ Module.prototype.main = function () {
         firstName,
         lastName,
         source,
-        providers,
       });
     }
 

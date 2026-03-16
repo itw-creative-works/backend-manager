@@ -18,7 +18,6 @@ module.exports = async ({ assistant, Manager, settings, analytics }) => {
 
   // Extract parameters
   const email = (settings.email || '').trim().toLowerCase();
-  const providers = settings.providers;
 
   // Validate email is provided
   if (!email) {
@@ -27,7 +26,7 @@ module.exports = async ({ assistant, Manager, settings, analytics }) => {
 
   // Remove from providers
   const mailer = Manager.Email(assistant);
-  const providerResults = await mailer.remove(email, { providers });
+  const providerResults = await mailer.remove(email);
 
   // Log result
   assistant.log('marketing/contact delete result:', {

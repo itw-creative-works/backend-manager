@@ -84,8 +84,6 @@ const SENDERS = {
   },
 };
 
-// Default marketing providers — SSOT for all provider loops
-const DEFAULT_PROVIDERS = ['sendgrid', 'beehiiv'];
 
 // SendGrid limit for scheduled emails (72 hours, but use 71 for buffer)
 const SEND_AT_LIMIT = 71;
@@ -234,7 +232,6 @@ module.exports = {
   GROUPS,
   SENDERS,
   FIELDS,
-  DEFAULT_PROVIDERS,
   SEND_AT_LIMIT,
   sanitizeImagesForEmail,
   encode,

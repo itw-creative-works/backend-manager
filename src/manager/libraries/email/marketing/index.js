@@ -25,7 +25,7 @@
  */
 const _ = require('lodash');
 
-const { TEMPLATES, GROUPS, SENDERS, DEFAULT_PROVIDERS } = require('../constants.js');
+const { TEMPLATES, GROUPS, SENDERS } = require('../constants.js');
 const sendgridProvider = require('../providers/sendgrid.js');
 const beehiivProvider = require('../providers/beehiiv.js');
 
@@ -36,11 +36,19 @@ function Marketing(assistant) {
   self.Manager = assistant.Manager;
   self.admin = self.Manager.libraries.admin;
 
+  // Resolve provider availability from config + env
+  const marketing = self.Manager.config?.marketing || {};
+
+  self.providers = {
+    sendgrid: marketing.sendgrid?.enabled !== false && !!process.env.SENDGRID_API_KEY,
+    beehiiv: marketing.beehiiv?.enabled !== false && !!process.env.BEEHIIV_API_KEY,
+  };
+
   return self;
 }
 
 /**
- * Add a new contact to all providers (lightweight — no full user doc needed).
+ * Add a new contact to enabled providers (lightweight — no full user doc needed).
  * Used by newsletter subscribe and admin bulk import.
  *
  * @param {object} options
@@ -49,33 +57,29 @@ function Marketing(assistant) {
  * @param {string} [options.lastName]
  * @param {string} [options.source] - UTM source
  * @param {object} [options.customFields] - Extra SendGrid custom fields (keyed by field ID)
- * @param {Array<string>} [options.providers] - Which providers (default: all available)
  * @returns {{ sendgrid?: object, beehiiv?: object }}
  */
 Marketing.prototype.add = async function (options) {
   const self = this;
   const assistant = self.assistant;
-  const { email, firstName, lastName, source, customFields, providers } = options;
+  const { email, firstName, lastName, source, customFields } = options;
 
   if (!email) {
     assistant.warn('Marketing.add(): No email provided, skipping');
     return {};
   }
 
-  const shouldAdd = !assistant.isTesting() || process.env.TEST_EXTENDED_MODE;
-  const addProviders = providers || DEFAULT_PROVIDERS;
-  const results = {};
-
-  if (!shouldAdd) {
+  if (assistant.isTesting() && !process.env.TEST_EXTENDED_MODE) {
     assistant.log('Marketing.add(): Skipping providers (testing mode)');
-    return results;
+    return {};
   }
 
   assistant.log('Marketing.add():', { email });
 
+  const results = {};
   const promises = [];
 
-  if (addProviders.includes('sendgrid') && process.env.SENDGRID_API_KEY) {
+  if (self.providers.sendgrid) {
     promises.push(
       sendgridProvider.addContact({
         email,
@@ -86,7 +90,7 @@ Marketing.prototype.add = async function (options) {
     );
   }
 
-  if (addProviders.includes('beehiiv') && process.env.BEEHIIV_API_KEY) {
+  if (self.providers.beehiiv) {
     promises.push(
       beehiivProvider.addContact({
         email,
@@ -109,14 +113,11 @@ Marketing.prototype.add = async function (options) {
  * Upserts the contact with all custom fields derived from the user doc.
  *
  * @param {string|object} userDocOrUid - UID string (fetches from Firestore) or full user document object
- * @param {object} [options]
- * @param {Array<string>} [options.providers] - Which providers to sync to (default: all available)
  * @returns {{ sendgrid?: object, beehiiv?: object }}
  */
-Marketing.prototype.sync = async function (userDocOrUid, options) {
+Marketing.prototype.sync = async function (userDocOrUid) {
   const self = this;
   const assistant = self.assistant;
-  const { providers } = options || {};
 
   // Resolve UID to user doc if string
   let userDoc;
@@ -145,13 +146,9 @@ Marketing.prototype.sync = async function (userDocOrUid, options) {
     return {};
   }
 
-  const shouldSync = !assistant.isTesting() || process.env.TEST_EXTENDED_MODE;
-  const syncProviders = providers || DEFAULT_PROVIDERS;
-  const results = {};
-
-  if (!shouldSync) {
+  if (assistant.isTesting() && !process.env.TEST_EXTENDED_MODE) {
     assistant.log('Marketing.sync(): Skipping providers (testing mode)');
-    return results;
+    return {};
   }
 
   assistant.log('Marketing.sync():', { email });
@@ -159,9 +156,10 @@ Marketing.prototype.sync = async function (userDocOrUid, options) {
   const firstName = _.get(userDoc, 'personal.name.first');
   const lastName = _.get(userDoc, 'personal.name.last');
   const source = _.get(userDoc, 'attribution.utm.tags.utm_source');
+  const results = {};
   const promises = [];
 
-  if (syncProviders.includes('sendgrid') && process.env.SENDGRID_API_KEY) {
+  if (self.providers.sendgrid) {
     promises.push(
       sendgridProvider.buildFields(userDoc).then((customFields) =>
         sendgridProvider.addContact({
@@ -174,7 +172,7 @@ Marketing.prototype.sync = async function (userDocOrUid, options) {
     );
   }
 
-  if (syncProviders.includes('beehiiv') && process.env.BEEHIIV_API_KEY) {
+  if (self.providers.beehiiv) {
     promises.push(
       beehiivProvider.addContact({
         email,
@@ -194,38 +192,33 @@ Marketing.prototype.sync = async function (userDocOrUid, options) {
 };
 
 /**
- * Remove a contact from all providers.
+ * Remove a contact from all enabled providers.
  *
  * @param {string} email - Email address to remove
- * @param {object} [options]
- * @param {Array<string>} [options.providers] - Which providers to remove from (default: all available)
  * @returns {{ sendgrid?: object, beehiiv?: object }}
  */
-Marketing.prototype.remove = async function (email, options) {
+Marketing.prototype.remove = async function (email) {
   const self = this;
   const assistant = self.assistant;
-  const { providers } = options || {};
 
   if (!email) {
     assistant.warn('Marketing.remove(): No email provided, skipping');
     return {};
   }
 
-  const removeProviders = providers || DEFAULT_PROVIDERS;
-  const results = {};
-
   assistant.log('Marketing.remove():', { email });
 
+  const results = {};
   const promises = [];
 
-  if (removeProviders.includes('sendgrid') && process.env.SENDGRID_API_KEY) {
+  if (self.providers.sendgrid) {
     promises.push(
       sendgridProvider.removeContact(email)
         .then((r) => { results.sendgrid = r; })
     );
   }
 
-  if (removeProviders.includes('beehiiv') && process.env.BEEHIIV_API_KEY) {
+  if (self.providers.beehiiv) {
     promises.push(
       beehiivProvider.removeContact(email)
         .then((r) => { results.beehiiv = r; })
@@ -259,8 +252,8 @@ Marketing.prototype.sendCampaign = async function (settings) {
   const Manager = self.Manager;
   const assistant = self.assistant;
 
-  if (!process.env.SENDGRID_API_KEY) {
-    return { success: false, error: 'SENDGRID_API_KEY not set' };
+  if (!self.providers.sendgrid) {
+    return { success: false, error: 'SendGrid not enabled' };
   }
 
   const templateId = TEMPLATES[settings.template] || settings.template || TEMPLATES['default'];

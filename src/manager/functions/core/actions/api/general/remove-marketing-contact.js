@@ -22,7 +22,6 @@ Module.prototype.main = function () {
 
     // Extract parameters
     const email = (requestPayload.email || '').trim().toLowerCase();
-    const providers = requestPayload.providers || ['sendgrid', 'beehiiv'];
 
     // Validate email is provided
     if (!email) {
@@ -31,7 +30,7 @@ Module.prototype.main = function () {
 
     // Remove from providers
     const mailer = Manager.Email(assistant);
-    const providerResults = await mailer.remove(email, { providers });
+    const providerResults = await mailer.remove(email);
 
     // Log result
     assistant.log('remove-marketing-contact result:', {
