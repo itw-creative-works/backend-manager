@@ -245,9 +245,9 @@ module.exports = {
       },
     },
 
-    // Test 8: ZeroBounce validation (only runs if TEST_EXTENDED_MODE and ZEROBOUNCE_API_KEY are set)
+    // Test 8: Mailbox verification (only runs if TEST_EXTENDED_MODE and ZEROBOUNCE_API_KEY are set)
     {
-      name: 'zerobounce-validation',
+      name: 'mailbox-validation',
       auth: 'admin',
       timeout: 30000,
       skip: !process.env.TEST_EXTENDED_MODE || !process.env.ZEROBOUNCE_API_KEY
@@ -261,7 +261,6 @@ module.exports = {
         const response = await http.command('general:add-marketing-contact', {
           email: testEmail,
           source: 'bem-test',
-          // No firstName/lastName - should be inferred as "Rachel Greene"
         });
 
         assert.isSuccess(response, 'Add marketing contact should succeed');
@@ -270,17 +269,17 @@ module.exports = {
         assert.hasProperty(response, 'data.validation', 'Response should contain validation');
         assert.hasProperty(response, 'data.validation.checks', 'Validation should contain checks');
 
-        // ZeroBounce should be in checks when key is set
-        assert.hasProperty(response, 'data.validation.checks.zerobounce', 'Should have ZeroBounce check');
+        // Mailbox check should be in checks when key is set
+        assert.hasProperty(response, 'data.validation.checks.mailbox', 'Should have mailbox check');
 
-        const zbResult = response.data.validation.checks.zerobounce;
+        const mbResult = response.data.validation.checks.mailbox;
 
-        // If ZeroBounce is out of credits, skip test - not a failure
-        if (zbResult.error?.includes('out of credits')) {
-          skip('ZeroBounce out of credits');
+        // If out of credits, skip test - not a failure
+        if (mbResult.error?.includes('out of credits')) {
+          skip('Mailbox verification out of credits');
         }
 
-        assert.hasProperty(zbResult, 'status', 'ZeroBounce should return status');
+        assert.hasProperty(mbResult, 'status', 'Mailbox check should return status');
 
         state.sendgridAdded = response.data?.providers?.sendgrid?.success;
         state.beehiivAdded = response.data?.providers?.beehiiv?.success;
@@ -295,9 +294,9 @@ module.exports = {
       },
     },
 
-    // Test 9: ZeroBounce rejects invalid email (only runs if TEST_EXTENDED_MODE and ZEROBOUNCE_API_KEY are set)
+    // Test 9: Mailbox verification rejects invalid email (only runs if TEST_EXTENDED_MODE and ZEROBOUNCE_API_KEY are set)
     {
-      name: 'zerobounce-rejects-invalid',
+      name: 'mailbox-rejects-invalid',
       auth: 'admin',
       timeout: 30000,
       skip: !process.env.TEST_EXTENDED_MODE || !process.env.ZEROBOUNCE_API_KEY
@@ -305,30 +304,29 @@ module.exports = {
         : false,
 
       async run({ http, assert, skip }) {
-        // Use fake email that ZeroBounce should flag as invalid
+        // Use fake email that mailbox verification should flag as invalid
         const testEmail = TEST_EMAILS.invalid();
 
         const response = await http.command('general:add-marketing-contact', {
           email: testEmail,
           source: 'bem-test',
-          // No firstName/lastName - AI will try to infer from "test"
         });
 
-        // Should still succeed (we fail open) but ZeroBounce should report invalid
+        // Should still succeed (we fail open) but mailbox should report invalid
         assert.isSuccess(response, 'Request should succeed even with invalid email');
 
-        const zbResult = response.data?.validation?.checks?.zerobounce;
+        const mbResult = response.data?.validation?.checks?.mailbox;
 
-        // If ZeroBounce is out of credits, skip test - not a failure
-        if (zbResult?.error?.includes('out of credits')) {
-          skip('ZeroBounce out of credits');
+        // If out of credits, skip test - not a failure
+        if (mbResult?.error?.includes('out of credits')) {
+          skip('Mailbox verification out of credits');
         }
 
-        // ZeroBounce should return a status indicating the email is not valid
-        if (zbResult) {
-          assert.hasProperty(zbResult, 'status', 'Should have status');
+        // Mailbox should return a status indicating the email is not valid
+        if (mbResult) {
+          assert.hasProperty(mbResult, 'status', 'Should have status');
           // Status should NOT be 'valid' for this fake email
-          assert.notEqual(zbResult.status, 'valid', 'Fake email should not be marked valid');
+          assert.notEqual(mbResult.status, 'valid', 'Fake email should not be marked valid');
         }
       },
     },

@@ -4,7 +4,7 @@
  * Admin-only endpoint to send transactional emails.
  * Supports flexible recipient formats (string, object, UID, or arrays of mixed).
  *
- * See: src/manager/libraries/email.js for the shared email builder and sender.
+ * See: src/manager/libraries/email/ for the shared email builder and sender.
  */
 module.exports = async ({ assistant, user, settings }) => {
   // Require authentication

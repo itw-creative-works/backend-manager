@@ -138,6 +138,11 @@ Manager.prototype.init = function (exporter, options) {
     (_objValue, srcValue) => isArray(srcValue) ? srcValue : undefined,
   );
 
+  // Expose config on the constructor for static access by internal libraries.
+  // Since Node.js caches require(), any `require('./index.js')` returns this same
+  // Manager function with .config already set — no need for setConfig() patterns.
+  Manager.config = self.config;
+
   // Set PAYPAL_CLIENT_ID from config (clientId is public, not a secret — lives in config, not .env)
   process.env.PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID || self.config?.payment?.processors?.paypal?.clientId || '';
 
@@ -145,11 +150,11 @@ Manager.prototype.init = function (exporter, options) {
   process.env.CHARGEBEE_SITE = process.env.CHARGEBEE_SITE || self.config?.payment?.processors?.chargebee?.site || '';
 
   // Resolve legacy paths
-  // TODO: Remove this in future versions (after we migrate to removing app.id from config)
+  // TODO: Remove this in future versions (after all consumers migrate to brand.id)
   self.config.app = self.config.app || {};
   self.config.brand.id = self.config.brand.id || self.config.app.id || null;
 
-  // Get app ID
+  // Get brand ID
   const brandId = self.config?.brand?.id;
 
   // Set log
@@ -534,7 +539,7 @@ Manager.prototype.Metadata = function () {
 
 Manager.prototype.Email = function (assistant) {
   const self = this;
-  self.libraries.Email = self.libraries.Email || require('./libraries/email.js');
+  self.libraries.Email = self.libraries.Email || require('./libraries/email/index.js');
   return new self.libraries.Email(assistant);
 };
 

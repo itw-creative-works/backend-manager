@@ -1,6 +1,6 @@
-const fetch = require('wonderful-fetch');
 const moment = require('moment');
 const { inferContact } = require('../../../libraries/infer-contact.js');
+const { validate: validateEmail } = require('../../../libraries/email/validation.js');
 
 const MAX_POLL_TIME_MS = 30000;
 const POLL_INTERVAL_MS = 500;
@@ -76,7 +76,8 @@ module.exports = async ({ assistant, user, settings, libraries }) => {
   await processAffiliate(assistant, uid, settings);
 
   // 6. Send emails + marketing (non-blocking, fire-and-forget)
-  sendEmailsAndMarketing(assistant, uid, email, inferred);
+  syncMarketingContact(assistant, uid, email);
+  sendWelcomeEmails(assistant, uid);
 
   return assistant.respond({ signedUp: true });
 };
@@ -234,34 +235,43 @@ async function processAffiliate(assistant, uid, settings) {
 }
 
 /**
- * Send welcome emails and add to marketing lists (non-blocking, fire-and-forget)
+ * Sync marketing contact (non-blocking, fire-and-forget)
+ * Validates email first — skips sync for disposable domains
  */
-function sendEmailsAndMarketing(assistant, uid, email, inferred) {
+async function syncMarketingContact(assistant, uid, email) {
   const Manager = assistant.Manager;
   const shouldSend = !assistant.isTesting() || process.env.TEST_EXTENDED_MODE;
 
   if (!shouldSend) {
-    assistant.log(`signup(): Skipping emails/marketing (BEM_TESTING=true, TEST_EXTENDED_MODE not set)`);
+    assistant.log(`signup(): Skipping marketing sync (BEM_TESTING=true, TEST_EXTENDED_MODE not set)`);
     return;
   }
 
-  assistant.log(`signup(): Sending emails/adding to marketing for ${uid}`);
+  // Validate email before adding to marketing lists (disposable check only, no ZeroBounce cost)
+  const validation = await validateEmail(email);
 
-  // Add to marketing lists (SendGrid + Beehiiv) via centralized endpoint
-  fetch(`${Manager.project.apiUrl}/backend-manager/marketing/contact`, {
-    method: 'POST',
-    response: 'json',
-    body: {
-      backendManagerKey: process.env.BACKEND_MANAGER_KEY,
-      email: email,
-      firstName: inferred?.firstName || '',
-      lastName: inferred?.lastName || '',
-      source: 'user:signup',
-    },
-  }).catch(e => assistant.error('signup(): marketing-contact failed:', e));
+  if (!validation.valid) {
+    assistant.log(`signup(): Skipping marketing sync — email validation failed:`, validation.checks);
+    return;
+  }
 
-  // Send welcome emails (non-blocking, fire-and-forget)
-  // Pass UID so email.js fetches user doc → name + template data
+  const mailer = Manager.Email(assistant);
+  mailer.sync(uid)
+    .then((r) => assistant.log('signup(): Marketing sync:', r))
+    .catch((e) => assistant.error('signup(): Marketing sync failed:', e));
+}
+
+/**
+ * Send welcome, checkup, and feedback emails (non-blocking, fire-and-forget)
+ */
+function sendWelcomeEmails(assistant, uid) {
+  const shouldSend = !assistant.isTesting() || process.env.TEST_EXTENDED_MODE;
+
+  if (!shouldSend) {
+    assistant.log(`signup(): Skipping welcome emails (BEM_TESTING=true, TEST_EXTENDED_MODE not set)`);
+    return;
+  }
+
   sendWelcomeEmail(assistant, uid).catch(e => assistant.error('signup(): sendWelcomeEmail failed:', e));
   sendCheckupEmail(assistant, uid).catch(e => assistant.error('signup(): sendCheckupEmail failed:', e));
   sendFeedbackEmail(assistant, uid).catch(e => assistant.error('signup(): sendFeedbackEmail failed:', e));

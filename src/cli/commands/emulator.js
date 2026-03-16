@@ -7,6 +7,7 @@ const JSON5 = require('json5');
 const powertools = require('node-powertools');
 const WatchCommand = require('./watch');
 const { DEFAULT_EMULATOR_PORTS } = require('./setup-tests/emulator-config');
+const { EXTENDED_MODE_WARNING } = require('../../test/utils/extended-mode-warning');
 
 class EmulatorCommand extends BaseCommand {
   async execute() {
@@ -15,9 +16,9 @@ class EmulatorCommand extends BaseCommand {
 
     // Warn if TEST_EXTENDED_MODE is enabled
     if (process.env.TEST_EXTENDED_MODE) {
-      this.log(chalk.yellow.bold('\n  ⚠️⚠️⚠️  WARNING: TEST_EXTENDED_MODE IS TRUE  ⚠️⚠️⚠️'));
-      this.log(chalk.yellow('  External API calls (emails, SendGrid, etc.) are ENABLED!'));
-      this.log(chalk.yellow('  This will send real emails and make real API calls.\n'));
+      this.log(chalk.yellow.bold(`\n  ${EXTENDED_MODE_WARNING[0]}`));
+      EXTENDED_MODE_WARNING.slice(1).forEach((line) => this.log(chalk.yellow(`  ${line}`)));
+      this.log('');
     }
 
     // Start BEM watcher in background
@@ -59,12 +60,21 @@ class EmulatorCommand extends BaseCommand {
     // hosting is included so localhost:5002 rewrites work (e.g., /backend-manager -> bm_api)
     // pubsub is included so scheduled functions (bm_cronDaily) can be triggered in tests
     // Use double quotes for command wrapper since the command may contain single quotes (JSON strings)
-    const emulatorCommand = `BEM_TESTING=true firebase emulators:exec --only functions,firestore,auth,database,hosting,pubsub --ui "${command}"`;
+    const envPrefix = process.env.TEST_EXTENDED_MODE
+      ? 'BEM_TESTING=true TEST_EXTENDED_MODE=true'
+      : 'BEM_TESTING=true';
+    const emulatorCommand = `${envPrefix} firebase emulators:exec --only functions,firestore,auth,database,hosting,pubsub --ui "${command}"`;
 
     // Set up log file in the project directory
     const logPath = path.join(projectDir, 'functions', 'emulator.log');
     const logStream = fs.createWriteStream(logPath, { flags: 'w' });
     const stripAnsi = (str) => str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
+
+    // Write pre-emulator info to log file
+    if (process.env.TEST_EXTENDED_MODE) {
+      EXTENDED_MODE_WARNING.forEach((line) => logStream.write(`${line}\n`));
+      logStream.write('\n');
+    }
 
     this.log(chalk.gray(`  Logs saving to: ${logPath}\n`));
 

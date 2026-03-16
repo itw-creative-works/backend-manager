@@ -3,6 +3,9 @@
  *
  * This function fires on every sign-in (including right after account creation).
  * It updates last activity and sends sign-in analytics.
+ *
+ * TODO: Add mailer.sync(uid) here with 1x/day rate limit to keep marketing
+ * contact data (name, country, subscription fields) fresh between sessions.
  */
 module.exports = async ({ Manager, assistant, user, context, libraries }) => {
   const startTime = Date.now();

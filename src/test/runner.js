@@ -8,6 +8,7 @@ const HttpClient = require('./utils/http-client.js');
 const assertions = require('./utils/assertions.js');
 const testAccounts = require('./test-accounts.js');
 const rulesClient = require('./utils/firestore-rules-client.js');
+const { EXTENDED_MODE_WARNING } = require('./utils/extended-mode-warning.js');
 
 /**
  * Error class for runtime test skipping
@@ -73,9 +74,9 @@ class TestRunner {
 
     // Warn if TEST_EXTENDED_MODE is enabled
     if (process.env.TEST_EXTENDED_MODE) {
-      console.log(chalk.yellow.bold('  ⚠️⚠️⚠️  WARNING: TEST_EXTENDED_MODE IS TRUE  ⚠️⚠️⚠️'));
-      console.log(chalk.yellow('  External API calls (emails, SendGrid, etc.) are ENABLED!'));
-      console.log(chalk.yellow('  This will send real emails and make real API calls.\n'));
+      console.log(chalk.yellow.bold(`  ${EXTENDED_MODE_WARNING[0]}`));
+      EXTENDED_MODE_WARNING.slice(1).forEach((line) => console.log(chalk.yellow(`  ${line}`)));
+      console.log('');
     }
 
     // Validate configuration
@@ -180,10 +181,21 @@ class TestRunner {
     process.stdout.write(chalk.gray('  Checking server health... '));
 
     try {
-      const response = await http.command('test:health', {});
+      const response = await http.get('test/health');
 
       if (response.success) {
         console.log(chalk.green('✓'));
+
+        // Warn if TEST_EXTENDED_MODE mismatch between test runner and emulator
+        const runnerExtended = !!process.env.TEST_EXTENDED_MODE;
+        const emulatorExtended = !!response.data?.testExtendedMode;
+
+        if (runnerExtended !== emulatorExtended) {
+          console.log(chalk.red.bold(`\n  ⚠️⚠️⚠️  TEST_EXTENDED_MODE mismatch (runner=${runnerExtended}, emulator=${emulatorExtended})  ⚠️⚠️⚠️`));
+          console.log(chalk.red('  Both must match or tests will behave unexpectedly.'));
+          console.log(chalk.red(`  Restart with: ${runnerExtended ? '' : 'TEST_EXTENDED_MODE=true '}npx bm emulator\n`));
+        }
+
         return true;
       }
 

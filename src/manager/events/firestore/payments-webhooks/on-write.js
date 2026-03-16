@@ -288,6 +288,15 @@ async function processPaymentEvent({ category, library, resource, resourceType, 
   if (isSubscription) {
     await admin.firestore().doc(`users/${uid}`).set({ subscription: unified }, { merge: true });
     assistant.log(`Updated users/${uid}.subscription: status=${unified.status}, product=${unified.product.id}`);
+
+    // Sync marketing contact with updated subscription data (non-blocking)
+    if (shouldRunHandlers) {
+      const email = Manager.Email(assistant);
+      const updatedUserDoc = { ...userData, subscription: unified };
+      email.sync(updatedUserDoc)
+        .then((r) => assistant.log('Marketing sync after payment:', r))
+        .catch((e) => assistant.error('Marketing sync after payment failed:', e));
+    }
   }
 
   // Write to payments-orders/{orderId}

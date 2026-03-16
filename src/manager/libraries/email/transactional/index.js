@@ -1,5 +1,5 @@
 /**
- * Shared email library for building and sending emails via SendGrid
+ * Transactional email library — build and send individual emails via SendGrid
  *
  * Usage:
  *   const email = Manager.Email(assistant);
@@ -20,91 +20,17 @@ const md = new MarkdownIt({
   linkify: true,
 });
 
-// SendGrid limit for scheduled emails (72 hours, but use 71 for buffer)
-const SEND_AT_LIMIT = 71;
+const {
+  TEMPLATES,
+  GROUPS,
+  SENDERS,
+  SEND_AT_LIMIT,
+  sanitizeImagesForEmail,
+  encode,
+  errorWithCode,
+} = require('../constants.js');
 
-// Template shortcut map — callers use readable paths instead of SendGrid IDs
-// Paths mirror the email website structure: {category}/{subcategory}/{name}
-const TEMPLATES = {
-  // v2 templates
-  'main/basic/card': 'd-1cd2eee44b6340268c964cd7971d49b9',
-  'main/engagement/feedback': 'd-319ab5c9d5074b21926a93562d6f41f6',
-  'main/misc/app-download-link': 'd-fc8b4834d7e1472896fe7e46152029f4',
-  'main/order/confirmation': 'd-5371ac2b4e3b490bbce51bfc2922ece8',
-  'main/order/payment-failed': 'd-e56af0ac62364bfb9e50af02854e2cd3',
-  'main/order/payment-recovered': 'd-d6dbd17a260a4755b34a852ba09c2454',
-  'main/order/cancellation-requested': 'd-78074f3e8c844146bf263b86fc8d5ecf',
-  'main/order/cancelled': 'd-39041132e6b24e5ebf0e95bce2d94dba',
-  'main/order/plan-changed': 'd-399086311bbb48b4b77bc90b20fb9d0a',
-  'main/order/trial-ending': 'd-af8ab499cbfb4d56918b4118f44343b0',
-  'main/order/refunded': 'd-aa47fdbffa2b4ca9b73b6256e963e49f',
-  'main/order/abandoned-cart': 'd-d8b3fa67e2b44b398dc280d0576bf1b7',
-};
-
-// "default" resolves to the basic card template
-TEMPLATES['default'] = TEMPLATES['main/basic/card'];
-
-// Group shortcut map — SendGrid ASM group IDs
-// Rename these in SendGrid dashboard to match the comments
-const GROUPS = {
-  'orders': 16223,         // BEM - Order Updates
-  'hello': 35092,          // BEM - Onboarding
-  'account': 25927,        // BEM - Account
-  'marketing': 25928,      // BEM - Marketing & Promotions
-  'newsletter': 28096,     // BEM - Newsletter
-  'security': 35093,       // BEM - Security
-  'internal': 35094,       // BEM - Internal Alerts
-};
-
-// Semantic sender categories — pass `sender: 'orders'` to auto-resolve from address, display name, and ASM group
-// Used by: send-email.js (payment transitions), abandoned-carts.js, signup/post.js, delete.js, data-request/,
-//          disputes/on-write.js, download-app-link.js, POST /admin/email, POST /general/email
-const SENDERS = {
-  // Payment receipts, failed/recovered, cancellation, plan changes, refunds, trial ending
-  orders: {
-    localPart: 'orders',
-    displayName: '{brand} Orders',
-    group: GROUPS['orders'],
-  },
-  // Warm onboarding: welcome, 7-day checkup, feedback request
-  hello: {
-    localPart: 'hello',
-    displayName: '{brand}',
-    group: GROUPS['hello'],
-  },
-  // Transactional account actions: deletion, data requests
-  account: {
-    localPart: 'account',
-    displayName: '{brand} Account',
-    group: GROUPS['account'],
-  },
-  // Promotions, discounts, win-back, abandoned cart, app download link
-  marketing: {
-    localPart: 'offers',
-    displayName: '{brand}',
-    group: GROUPS['marketing'],
-  },
-  // Forgot password, 2FA, password reset
-  security: {
-    localPart: 'security',
-    displayName: '{brand} Security',
-    group: GROUPS['security'],
-  },
-  // Monthly newsletters, feature announcements, industry news
-  newsletter: {
-    localPart: 'newsletter',
-    displayName: '{brand}',
-    group: GROUPS['newsletter'],
-  },
-  // Dispute alerts, system notifications sent to brand contact
-  internal: {
-    localPart: 'alerts',
-    displayName: '{brand} Alerts',
-    group: GROUPS['internal'],
-  },
-};
-
-function Email(assistant) {
+function Transactional(assistant) {
   const self = this;
 
   self.assistant = assistant;
@@ -121,7 +47,7 @@ function Email(assistant) {
  * @returns {object} SendGrid-ready email object
  * @throws {Error} On validation failure
  */
-Email.prototype.build = async function (settings) {
+Transactional.prototype.build = async function (settings) {
   const self = this;
   const Manager = self.Manager;
   const admin = self.admin;
@@ -338,7 +264,7 @@ Email.prototype.build = async function (settings) {
  * @returns {{ status: string, options?: object, response?: object }}
  * @throws {Error} With code 400 for validation errors, code 500 for send failures
  */
-Email.prototype.send = async function (settings) {
+Transactional.prototype.send = async function (settings) {
   const self = this;
   const Manager = self.Manager;
   const admin = self.admin;
@@ -600,38 +526,4 @@ function saveAuditTrail(email, messageId, admin, assistant) {
     .catch(e => assistant.error(`Audit trail failed: ${messageId}`, e));
 }
 
-/**
- * Create an Error with a code property for distinguishing build (400) vs send (500) failures.
- */
-function errorWithCode(message, code) {
-  const err = new Error(message);
-  err.code = code;
-  return err;
-}
-
-/**
- * Convert SVG image URLs to PNG equivalents — email clients don't render SVGs.
- * CDN naming convention: `-x.svg` → `-1024.png`
- */
-function sanitizeImagesForEmail(images) {
-  const result = {};
-
-  for (const [key, value] of Object.entries(images)) {
-    if (typeof value === 'string' && value.endsWith('.svg')) {
-      result[key] = value.replace(/-x\.svg$/, '-1024.png');
-    } else {
-      result[key] = value;
-    }
-  }
-
-  return result;
-}
-
-/**
- * URL-encode a value as base64
- */
-function encode(s) {
-  return encodeURIComponent(Buffer.from(String(s)).toString('base64'));
-}
-
-module.exports = Email;
+module.exports = Transactional;

@@ -58,6 +58,14 @@ module.exports = async ({ Manager, assistant, user, context, libraries }) => {
     return;
   }
 
+  // Remove marketing contact from all providers (non-blocking)
+  if (user.email) {
+    const email = Manager.Email(assistant);
+    email.remove(user.email)
+      .then((r) => assistant.log('onDelete: Marketing remove:', r))
+      .catch((e) => assistant.error('onDelete: Marketing remove failed:', e));
+  }
+
   // Send delete analytics (server-side only event)
   Manager.Analytics({
     assistant: assistant,
