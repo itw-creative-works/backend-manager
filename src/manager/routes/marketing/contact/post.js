@@ -83,12 +83,14 @@ module.exports = async ({ assistant, Manager, settings, analytics }) => {
     }
   }
 
-  // Infer name if not provided
+  // Infer contact info if name not provided
   let nameInferred = null;
+  let company = '';
   if (!firstName && !lastName) {
     nameInferred = await inferContact(email, assistant);
     firstName = nameInferred.firstName;
     lastName = nameInferred.lastName;
+    company = nameInferred.company;
   }
 
   // Add to providers
@@ -102,6 +104,7 @@ module.exports = async ({ assistant, Manager, settings, analytics }) => {
       email,
       firstName,
       lastName,
+      company,
       source,
     });
   }

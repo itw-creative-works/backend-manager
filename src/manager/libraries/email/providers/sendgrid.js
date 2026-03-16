@@ -370,13 +370,22 @@ async function listSingleSends(options) {
  * @param {object} [options.customFields] - Pre-built custom_fields object (keyed by SendGrid field IDs)
  * @returns {{ success: boolean, jobId?: string, listId?: string, error?: string }}
  */
-async function addContact({ email, firstName, lastName, customFields }) {
+async function addContact({ email, firstName, lastName, company, customFields }) {
   const contact = {
     email: email.toLowerCase(),
     first_name: firstName || undefined,
     last_name: lastName || undefined,
     custom_fields: customFields || {},
   };
+
+  // Add company to custom fields if provided (requires field provisioned via OMEGA)
+  if (company) {
+    const idMap = await resolveFieldIds();
+    const companyFieldId = idMap['user_personal_company'];
+    if (companyFieldId) {
+      contact.custom_fields[companyFieldId] = company;
+    }
+  }
 
   const listId = await getListId();
   const result = await upsertContacts({

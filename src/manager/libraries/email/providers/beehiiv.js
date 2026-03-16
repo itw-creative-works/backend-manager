@@ -215,11 +215,16 @@ async function getPublicationId() {
  * @param {Array<{name: string, value: string}>} [options.customFields] - Pre-built custom fields
  * @returns {{ success: boolean, id?: string, error?: string }}
  */
-async function addContact({ email, firstName, lastName, source, customFields }) {
+async function addContact({ email, firstName, lastName, company, source, customFields }) {
   const publicationId = await getPublicationId();
 
   if (!publicationId) {
     return { success: false, error: 'Publication not found' };
+  }
+
+  const fields = [...(customFields || [])];
+  if (company) {
+    fields.push({ name: 'company', value: company });
   }
 
   return addSubscriber({
@@ -228,7 +233,7 @@ async function addContact({ email, firstName, lastName, source, customFields }) 
     lastName,
     source,
     publicationId,
-    customFields: customFields || [],
+    customFields: fields,
   });
 }
 

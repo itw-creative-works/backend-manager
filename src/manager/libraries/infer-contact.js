@@ -31,12 +31,14 @@ const GENERIC_DOMAINS = new Set([
 async function inferContact(email, assistant) {
   if (process.env.BACKEND_MANAGER_OPENAI_API_KEY) {
     const aiResult = await inferContactWithAI(email, assistant);
-    if (aiResult && (aiResult.firstName || aiResult.lastName)) {
+    if (aiResult) {
       return aiResult;
     }
   }
 
-  return inferContactFromEmail(email);
+  // TODO: Re-enable regex fallback if needed
+  // return inferContactFromEmail(email);
+  return { firstName: '', lastName: '', company: '', confidence: 0, method: 'none' };
 }
 
 /**
@@ -48,7 +50,7 @@ async function inferContact(email, assistant) {
  */
 async function inferContactWithAI(email, assistant) {
   try {
-    const ai = assistant.Manager.AI(assistant);
+    const ai = assistant.Manager.AI(assistant, process.env.BACKEND_MANAGER_OPENAI_API_KEY);
     const result = await ai.request({
       model: 'gpt-5-mini',
       timeout: 30000,
@@ -63,12 +65,13 @@ async function inferContactWithAI(email, assistant) {
       },
     });
 
-    if (result?.firstName !== undefined) {
+    const parsed = result?.content;
+    if (parsed?.firstName !== undefined) {
       return {
-        firstName: capitalize(result.firstName || ''),
-        lastName: capitalize(result.lastName || ''),
-        company: capitalize(result.company || ''),
-        confidence: typeof result.confidence === 'number' ? result.confidence : 0.5,
+        firstName: capitalize(parsed.firstName || ''),
+        lastName: capitalize(parsed.lastName || ''),
+        company: capitalize(parsed.company || ''),
+        confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0.5,
         method: 'ai',
       };
     }

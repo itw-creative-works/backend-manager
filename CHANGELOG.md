@@ -14,6 +14,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.151] - 2026-03-16
+### Fixed
+- AI contact inference was silently broken — `ai.request()` returns `{content, tokens, ...}` but code read `result.firstName` instead of `result.content.firstName`, so AI was never used
+- OpenAI API key not passed to AI library — now explicitly passes `BACKEND_MANAGER_OPENAI_API_KEY`
+
+### Added
+- `POST /admin/infer-contact` route for testing/debugging contact inference (admin-only, supports batch)
+- `user_personal_company` custom field in FIELDS constant for marketing provider sync
+- Company passthrough in `Marketing.add()` → SendGrid and Beehiiv providers
+- Test suite for admin/infer-contact route
+- Standalone test script (`scripts/test-infer-contact.js`)
+
+### Changed
+- Improved AI prompt: rejects placeholders/gibberish, always infers company from domain, preserves hyphenated name capitalization
+- Disabled regex fallback — returns empty when AI can't infer a real name
+- All 3 inferContact callsites (marketing/contact, user/signup, legacy add-marketing-contact) now extract and pass company
+
 # [5.0.150] - 2026-03-16
 ### Added
 - `marketing` config section in `backend-manager-config.json` — per-brand control over SendGrid and Beehiiv provider availability

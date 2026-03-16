@@ -95,10 +95,12 @@ Module.prototype.main = function () {
 
     // Infer name if not provided
     let nameInferred = null;
+    let company = '';
     if (!firstName && !lastName) {
       nameInferred = await inferContact(email, assistant);
       firstName = nameInferred.firstName;
       lastName = nameInferred.lastName;
+      company = nameInferred.company;
     }
 
     // Add to providers
@@ -112,6 +114,7 @@ Module.prototype.main = function () {
         email,
         firstName,
         lastName,
+        company,
         source,
       });
     }

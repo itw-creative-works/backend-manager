@@ -144,6 +144,7 @@ const FIELDS = {
 
   // User identity
   user_auth_uid:                         { source: 'user', path: 'auth.uid', type: 'text' },
+  user_personal_company:                 { source: 'user', path: 'personal.company.name', type: 'text' },
   user_personal_country:                 { source: 'user', path: 'personal.location.country', type: 'text' },
   user_metadata_signup_date:             { source: 'user', path: 'metadata.created.timestamp', type: 'date' },
   user_metadata_last_activity:           { source: 'user', path: 'metadata.updated.timestamp', type: 'date' },

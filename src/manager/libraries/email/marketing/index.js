@@ -62,7 +62,7 @@ function Marketing(assistant) {
 Marketing.prototype.add = async function (options) {
   const self = this;
   const assistant = self.assistant;
-  const { email, firstName, lastName, source, customFields } = options;
+  const { email, firstName, lastName, company, source, customFields } = options;
 
   if (!email) {
     assistant.warn('Marketing.add(): No email provided, skipping');
@@ -85,6 +85,7 @@ Marketing.prototype.add = async function (options) {
         email,
         firstName,
         lastName,
+        company,
         customFields,
       }).then((r) => { results.sendgrid = r; })
     );
@@ -96,6 +97,7 @@ Marketing.prototype.add = async function (options) {
         email,
         firstName,
         lastName,
+        company,
         source,
       }).then((r) => { results.beehiiv = r; })
     );
