@@ -16,14 +16,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 # [5.0.149] - 2026-03-14
 ### Added
+- Modular email library (`libraries/email/`) — replaces monolithic `libraries/email.js` with provider-based architecture
+- Marketing contact providers: SendGrid (`providers/sendgrid.js`) and Beehiiv (`providers/beehiiv.js`) with add/remove/sync operations
+- Email validation library (`libraries/email/validation.js`) — format, local-part, and disposable domain checks with configurable check selection
+- Runtime SendGrid custom field ID resolution — fetches field definitions from API and caches name→ID mapping (no hardcoded IDs)
+- 15 marketing custom fields synced to SendGrid/Beehiiv: brand, auth, subscription, payment, and attribution data
+- `PUT /marketing/contact` admin route for triggering contact sync by UID
+- `POST /marketing/contact` now syncs full custom field data on signup
+- Marketing contact sync in payment webhook pipeline — subscription changes automatically update SendGrid/Beehiiv custom fields
+- `mailer.sync(uid)` method for full contact re-sync from Firestore user doc
+- `resolveFieldValues()` in `constants.js` — SSOT for building custom field payloads from user docs
+- `User.resolveSubscription()` now includes `everPaid` field for marketing segmentation
+- `TEST_EXTENDED_MODE` propagation from emulator to Firebase function workers
+- `TEST_EXTENDED_MODE` mismatch detection between test runner and emulator via health check
 - Email queue cron processor (`cron/frequent/email-queue.js`) — processes deferred emails every 10 minutes via the full `email.send()` pipeline
 - Feedback route review URL builder with full site URLs
+- 28 email validation unit tests, 7 marketing contact route tests, 5 marketing lifecycle integration tests
 
 ### Changed
+- Refactored `libraries/email.js` into modular `libraries/email/` directory (index, constants, validation, providers)
+- `POST /marketing/contact` validation now uses configurable check selection instead of boolean `skipValidation`
+- `DELETE /marketing/contact` uses new provider-based removal
+- Marketing contact schemas updated to match new validation options
+- `on-delete` auth event now uses new email library for contact removal
 - `saveToEmailQueue` now stores raw settings instead of pre-built SendGrid email, so queued emails re-enter the full build pipeline
 - Renamed `email-queue` collection to `emails-queue`
 - Feedback schema: renamed `like`/`dislike` fields to `positive`/`negative`
 - Feedback review prompt logic now checks total positive feedback length (50+ chars)
+- Renamed `GET /app` route to `GET /brand` (completes app→brand migration)
+
+### Removed
+- Monolithic `libraries/email.js` — replaced by modular `libraries/email/` directory
 
 # [5.0.148] - 2026-03-14
 ### Added

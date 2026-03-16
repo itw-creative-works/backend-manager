@@ -1,5 +1,5 @@
 /**
- * GET /app - Public app configuration
+ * GET /brand - Public brand configuration
  * Returns a safe subset of the project's config (no secrets)
  */
 module.exports = async ({ assistant, Manager }) => {
