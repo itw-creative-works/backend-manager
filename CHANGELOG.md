@@ -14,6 +14,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.152] - 2026-03-16
+### Fixed
+- Email queue documents all stored at `emails-queue/NaN` — `powertools.random()` doesn't support string generation, replaced with `pushid()`
+
 # [5.0.151] - 2026-03-16
 ### Fixed
 - AI contact inference was silently broken — `ai.request()` returns `{content, tokens, ...}` but code read `result.firstName` instead of `result.content.firstName`, so AI was never used

@@ -13,6 +13,7 @@
  */
 const _ = require('lodash');
 const moment = require('moment');
+const pushid = require('pushid');
 const MarkdownIt = require('markdown-it');
 const md = new MarkdownIt({
   html: true,
@@ -482,8 +483,7 @@ function normalizeSendAt(sendAt) {
  * build pipeline when the cron picks it up.
  */
 async function saveToEmailQueue(settings, sendAt, admin, assistant) {
-  const powertools = require('node-powertools');
-  const emailId = powertools.random(32, { type: 'alphanumeric' });
+  const emailId = pushid();
 
   // Clone and clean undefined values for Firestore
   const settingsCloned = _.cloneDeepWith(settings, (value) => {
