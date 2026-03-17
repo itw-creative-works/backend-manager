@@ -151,7 +151,7 @@ const FIELDS = {
   user_personal_name_first:              { display: 'First Name', source: 'user', path: 'personal.name.first', type: 'text', skip: ['sendgrid'] },
   user_personal_name_last:               { display: 'Last Name', source: 'user', path: 'personal.name.last', type: 'text', skip: ['sendgrid'] },
   user_personal_company:                 { display: 'Company', source: 'user', path: 'personal.company.name', type: 'text' },
-  user_personal_country:                 { display: 'Country', source: 'user', path: 'personal.location.country', type: 'text' },
+  user_personal_country:                 { display: 'Country', source: 'user', path: 'personal.location.country', type: 'text', skip: ['beehiiv'] },
   user_metadata_signup_date:             { display: 'Signup Date', source: 'user', path: 'metadata.created.timestamp', type: 'date' },
   user_metadata_last_activity:           { display: 'Last Activity', source: 'user', path: 'metadata.updated.timestamp', type: 'date' },
 
@@ -167,9 +167,52 @@ const FIELDS = {
   user_subscription_payment_last_date:   { display: 'Last Payment Date', source: 'user', path: 'subscription.payment.updatedBy.date.timestamp', type: 'date' },
 
   // Attribution
-  user_attribution_utm_source:           { display: 'UTM Source', source: 'user', path: 'attribution.utm.tags.utm_source', type: 'text' },
+  user_attribution_utm_source:           { display: 'UTM Source', source: 'user', path: 'attribution.utm.tags.utm_source', type: 'text', skip: ['beehiiv'] },
 };
 
+// Master segment dictionary — SSOT for all marketing segments.
+//
+// Segments are created in each provider by OMEGA (like custom fields).
+// BEM references them by key. Provider-specific IDs are resolved at runtime.
+//
+// Condition types:
+//   'field'      — custom field condition (uses FIELDS above)
+//   'engagement' — provider built-in engagement tracking (opens, clicks)
+//
+// To add a new segment:
+//   1. Add an entry here
+//   2. Add matching entry in OMEGA's src/lib/bem-segments.js
+//   3. Run OMEGA: npm start -- --service=sendgrid,beehiiv --brand=X
+//
+// Providers:
+//   skip — Array of provider names to skip segment creation for
+//          (e.g., engagement segments may not be supported on all providers)
+const SEGMENTS = {
+  // Subscription
+  subscription_free:          { display: 'Free Users', conditions: [{ field: 'user_subscription_plan', op: '==', value: 'basic' }] },
+  subscription_paid:          { display: 'Paid Users', conditions: [{ field: 'user_subscription_plan', op: '!=', value: 'basic' }, { field: 'user_subscription_status', op: '==', value: 'active' }] },
+  subscription_trialing:      { display: 'Trialing', conditions: [{ field: 'user_subscription_trialing', op: '==', value: 'true' }] },
+  subscription_cancelling:    { display: 'Cancelling', conditions: [{ field: 'user_subscription_cancelling', op: '==', value: 'true' }] },
+  subscription_suspended:     { display: 'Suspended', conditions: [{ field: 'user_subscription_status', op: '==', value: 'suspended' }] },
+  subscription_cancelled:     { display: 'Cancelled', conditions: [{ field: 'user_subscription_status', op: '==', value: 'cancelled' }] },
+  subscription_churned:       { display: 'Churned (Paid → Cancelled)', conditions: [{ field: 'user_subscription_ever_paid', op: '==', value: 'true' }, { field: 'user_subscription_status', op: '==', value: 'cancelled' }] },
+  subscription_ever_paid:     { display: 'Ever Paid', conditions: [{ field: 'user_subscription_ever_paid', op: '==', value: 'true' }] },
+  subscription_never_paid:    { display: 'Never Paid', conditions: [{ field: 'user_subscription_ever_paid', op: '!=', value: 'true' }] },
+
+  // Lifecycle (time since signup)
+  lifecycle_7d:               { display: 'Signed Up Last 7 Days', conditions: [{ field: 'user_metadata_signup_date', op: 'within', value: '7d' }] },
+  lifecycle_30d:              { display: 'Signed Up Last 30 Days', conditions: [{ field: 'user_metadata_signup_date', op: 'within', value: '30d' }] },
+  lifecycle_90d:              { display: 'Signed Up Last 90 Days', conditions: [{ field: 'user_metadata_signup_date', op: 'within', value: '90d' }] },
+  lifecycle_6m:               { display: 'Signed Up Last 6 Months', conditions: [{ field: 'user_metadata_signup_date', op: 'within', value: '180d' }] },
+  lifecycle_1y:               { display: 'Signed Up Last 1 Year', conditions: [{ field: 'user_metadata_signup_date', op: 'within', value: '365d' }] },
+
+  // Engagement (provider built-in open/click tracking)
+  engagement_active_30d:      { display: 'Engaged Last 30 Days', conditions: [{ type: 'engagement', op: 'opened_or_clicked', value: '30d' }] },
+  engagement_active_90d:      { display: 'Engaged Last 90 Days', conditions: [{ type: 'engagement', op: 'opened_or_clicked', value: '90d' }] },
+  engagement_inactive_90d:    { display: 'Inactive 90+ Days', conditions: [{ type: 'engagement', op: 'not_opened', value: '90d' }] },
+  engagement_inactive_5m:     { display: 'Inactive 5+ Months', conditions: [{ type: 'engagement', op: 'not_opened', value: '150d' }] },
+  engagement_inactive_6m:     { display: 'Inactive 6+ Months', conditions: [{ type: 'engagement', op: 'not_opened', value: '180d' }] },
+};
 
 /**
  * Resolve all field values from a user doc + config.
@@ -239,6 +282,7 @@ module.exports = {
   GROUPS,
   SENDERS,
   FIELDS,
+  SEGMENTS,
   SEND_AT_LIMIT,
   sanitizeImagesForEmail,
   encode,

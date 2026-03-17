@@ -274,9 +274,99 @@ function buildFields(userDoc) {
   return fields;
 }
 
+// --- Campaigns (Posts) ---
+
+/**
+ * Create a Beehiiv post (their equivalent of a campaign/newsletter).
+ *
+ * @param {object} options
+ * @param {string} options.title - Post title (required)
+ * @param {string} [options.subject] - Email subject line (defaults to title)
+ * @param {string} [options.preheader] - Email preview text
+ * @param {string} [options.content] - HTML content body
+ * @param {string} [options.status] - 'draft' or 'confirmed' (default: confirmed = send)
+ * @param {string} [options.sendAt] - ISO datetime to schedule, or null for immediate
+ * @param {Array<string>} [options.segments] - Segment IDs to include
+ * @param {Array<string>} [options.excludeSegments] - Segment IDs to exclude
+ * @returns {{ success: boolean, id?: string, scheduled?: boolean, error?: string }}
+ */
+async function createPost(options) {
+  const publicationId = await getPublicationId();
+
+  if (!publicationId) {
+    return { success: false, error: 'Publication not found' };
+  }
+
+  const { title, subject, preheader, content, status, sendAt, segments, excludeSegments } = options;
+
+  try {
+    const body = {
+      title,
+      status: sendAt ? 'confirmed' : (status || 'confirmed'),
+    };
+
+    // Content
+    if (content) {
+      body.body_content = content;
+    }
+
+    // Scheduling
+    if (sendAt && sendAt !== 'now') {
+      body.scheduled_at = new Date(sendAt).toISOString();
+    }
+
+    // Email settings
+    const emailSettings = {};
+
+    if (subject) {
+      emailSettings.subject_line = subject;
+    }
+    if (preheader) {
+      emailSettings.preview_text = preheader;
+    }
+
+    if (Object.keys(emailSettings).length) {
+      body.email_settings = emailSettings;
+    }
+
+    // Audience targeting (segments)
+    if ((segments && segments.length) || (excludeSegments && excludeSegments.length)) {
+      body.recipients = {};
+
+      if (segments && segments.length) {
+        body.recipients.segment_ids = segments;
+      }
+      if (excludeSegments && excludeSegments.length) {
+        body.recipients.exclude_segment_ids = excludeSegments;
+      }
+    }
+
+    const data = await fetch(`${BASE_URL}/publications/${publicationId}/posts`, {
+      method: 'post',
+      response: 'json',
+      headers: headers(),
+      timeout: 15000,
+      body,
+    });
+
+    if (data.data?.id) {
+      const scheduled = !!sendAt;
+      return { success: true, id: data.data.id, scheduled };
+    }
+
+    return { success: false, error: data.message || 'Unknown error' };
+  } catch (e) {
+    console.error('Beehiiv createPost error:', e);
+    return { success: false, error: e.message };
+  }
+}
+
 module.exports = {
   // Contacts
   addContact,
   removeContact,
   buildFields,
+
+  // Campaigns
+  createPost,
 };

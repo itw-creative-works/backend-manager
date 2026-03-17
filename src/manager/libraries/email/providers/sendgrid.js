@@ -211,7 +211,7 @@ async function getListId() {
  * @param {object} [options.dynamicTemplateData] - Template variables
  * @returns {{ success: boolean, id?: string, error?: string }}
  */
-async function createSingleSend({ name, subject, templateId, from, sendTo, asmGroupId, categories, dynamicTemplateData }) {
+async function createSingleSend({ name, subject, preheader, templateId, from, sendTo, excludeSegments, asmGroupId, categories, dynamicTemplateData }) {
   try {
     const body = {
       name,
@@ -223,6 +223,10 @@ async function createSingleSend({ name, subject, templateId, from, sendTo, asmGr
         generate_plain_content: true,
       },
     };
+
+    if (preheader) {
+      body.email_config.html_content = `<span style="display:none">${preheader}</span>`;
+    }
 
     // Use design_editor with template
     if (templateId) {
@@ -243,6 +247,17 @@ async function createSingleSend({ name, subject, templateId, from, sendTo, asmGr
 
     if (categories && categories.length) {
       body.email_config.categories = categories;
+    }
+
+    // Exclude segments from targeting
+    if (excludeSegments && excludeSegments.length) {
+      body.send_to = body.send_to || {};
+      body.send_to.exclude_segment_ids = excludeSegments;
+    }
+
+    // Dynamic template variables
+    if (dynamicTemplateData && Object.keys(dynamicTemplateData).length) {
+      body.email_config.dynamic_template_data = dynamicTemplateData;
     }
 
     const data = await fetch(`${BASE_URL}/marketing/singlesends`, {

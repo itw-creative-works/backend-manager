@@ -104,7 +104,17 @@ Email.prototype.remove = function (email) {
 };
 
 /**
- * Cancel a scheduled marketing campaign.
+ * Create and optionally schedule a marketing campaign across enabled providers.
+ *
+ * @param {object} settings - See Marketing.sendCampaign() for full options
+ * @returns {{ sendgrid?: object, beehiiv?: object }}
+ */
+Email.prototype.sendCampaign = function (settings) {
+  return this._marketing.sendCampaign(settings);
+};
+
+/**
+ * Cancel a scheduled marketing campaign (SendGrid only).
  *
  * @param {string} campaignId - Single Send ID
  * @returns {{ success: boolean, error?: string }}
@@ -114,7 +124,7 @@ Email.prototype.cancelCampaign = function (campaignId) {
 };
 
 /**
- * Get a marketing campaign by ID.
+ * Get a marketing campaign by ID (SendGrid only).
  *
  * @param {string} campaignId - Single Send ID
  * @returns {object|null}
@@ -124,7 +134,7 @@ Email.prototype.getCampaign = function (campaignId) {
 };
 
 /**
- * List marketing campaigns.
+ * List marketing campaigns (SendGrid only).
  *
  * @param {object} [options] - { status: 'draft' | 'scheduled' | 'triggered' }
  * @returns {Array<object>}

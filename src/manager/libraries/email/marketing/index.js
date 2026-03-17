@@ -24,8 +24,11 @@
  * - Campaign cron jobs (send campaigns)
  */
 const _ = require('lodash');
+const MarkdownIt = require('markdown-it');
+const md = new MarkdownIt({ html: true, breaks: true, linkify: true });
 
 const { TEMPLATES, GROUPS, SENDERS } = require('../constants.js');
+const { tagLinks } = require('../utm.js');
 const sendgridProvider = require('../providers/sendgrid.js');
 const beehiivProvider = require('../providers/beehiiv.js');
 
@@ -235,28 +238,99 @@ Marketing.prototype.remove = async function (email) {
 };
 
 /**
- * Create and optionally schedule a marketing campaign (SendGrid Single Send).
+ * Create and optionally schedule a marketing campaign across enabled providers.
+ *
+ * Unified interface — each provider handles what it supports:
+ *   SendGrid: Single Send with lists, segments, excludes, templates
+ *   Beehiiv:  Post with segments, HTML content, scheduling
  *
  * @param {object} settings
- * @param {string} settings.name - Campaign name
- * @param {string} settings.subject - Email subject
+ * @param {string} settings.name - Campaign name (internal, used as title for Beehiiv)
+ * @param {string} settings.subject - Email subject line
+ * @param {string} [settings.preheader] - Email preview text
  * @param {string} [settings.template] - Template shortcut or SendGrid template ID
+ * @param {string} [settings.content] - Markdown content (converted to HTML per provider)
+ * @param {object} [settings.data] - Dynamic template variables (SendGrid only)
  * @param {string} [settings.sender] - Sender category ('marketing', 'newsletter', etc.)
- * @param {Array<string>} [settings.segments] - Segment IDs to target
- * @param {Array<string>} [settings.lists] - List IDs to target
- * @param {boolean} [settings.all] - Target all contacts
- * @param {string|number} [settings.sendAt] - ISO datetime or 'now' to schedule immediately
- * @param {Array<string>} [settings.categories] - Email categories
- * @returns {{ success: boolean, id?: string, scheduled?: boolean, error?: string }}
+ * @param {Array<string>} [settings.lists] - SendGrid list IDs (defaults to brand list)
+ * @param {Array<string>} [settings.segments] - Segment IDs to target (both providers)
+ * @param {Array<string>} [settings.excludeSegments] - Segment IDs to exclude (both providers)
+ * @param {boolean} [settings.all] - Target all contacts (SendGrid only)
+ * @param {string} [settings.sendAt] - ISO datetime, 'now', or omit for draft
+ * @param {string} [settings.group] - ASM unsubscribe group (SendGrid only)
+ * @param {Array<string>} [settings.categories] - Analytics categories (SendGrid only)
+ * @param {Array<string>} [settings.providers] - Override which providers to use
+ * @returns {{ sendgrid?: object, beehiiv?: object }}
  */
 Marketing.prototype.sendCampaign = async function (settings) {
   const self = this;
   const Manager = self.Manager;
   const assistant = self.assistant;
 
-  if (!self.providers.sendgrid) {
-    return { success: false, error: 'SendGrid not enabled' };
+  const useProviders = settings.providers || Object.keys(self.providers).filter(p => self.providers[p]);
+  const results = {};
+  const promises = [];
+
+  // Convert markdown content to HTML, then tag links with UTM params
+  const brand = Manager.config?.brand;
+  let contentHtml = settings.content ? md.render(settings.content) : '';
+
+  if (contentHtml) {
+    contentHtml = tagLinks(contentHtml, {
+      brandUrl: brand?.url,
+      brandId: brand?.id,
+      campaign: settings.name,
+      type: 'marketing',
+      utm: settings.utm,
+    });
   }
+
+  assistant.log('Marketing.sendCampaign():', {
+    name: settings.name,
+    providers: useProviders,
+    sendAt: settings.sendAt || 'draft',
+  });
+
+  // --- SendGrid ---
+  if (useProviders.includes('sendgrid') && self.providers.sendgrid) {
+    promises.push(
+      self._sendCampaignSendGrid(settings, contentHtml)
+        .then((r) => { results.sendgrid = r; })
+        .catch((e) => { results.sendgrid = { success: false, error: e.message }; })
+    );
+  }
+
+  // --- Beehiiv ---
+  if (useProviders.includes('beehiiv') && self.providers.beehiiv) {
+    promises.push(
+      beehiivProvider.createPost({
+        title: settings.name,
+        subject: settings.subject,
+        preheader: settings.preheader,
+        content: contentHtml,
+        sendAt: settings.sendAt,
+        segments: settings.segments,
+        excludeSegments: settings.excludeSegments,
+      })
+        .then((r) => { results.beehiiv = r; })
+        .catch((e) => { results.beehiiv = { success: false, error: e.message }; })
+    );
+  }
+
+  await Promise.all(promises);
+
+  assistant.log('Marketing.sendCampaign() results:', results);
+
+  return results;
+};
+
+/**
+ * SendGrid-specific campaign creation (Single Send + optional schedule).
+ * @private
+ */
+Marketing.prototype._sendCampaignSendGrid = async function (settings, contentHtml) {
+  const self = this;
+  const Manager = self.Manager;
 
   const templateId = TEMPLATES[settings.template] || settings.template || TEMPLATES['default'];
 
@@ -295,61 +369,57 @@ Marketing.prototype.sendCampaign = async function (settings) {
     ...require('node-powertools').arrayify(settings.categories),
   ].filter(Boolean));
 
-  assistant.log('Marketing.sendCampaign():', { name: settings.name, sendTo, templateId });
-
   // Create the Single Send
   const createResult = await sendgridProvider.createSingleSend({
     name: settings.name,
     subject: settings.subject,
+    preheader: settings.preheader,
     templateId,
     from,
     sendTo,
+    excludeSegments: settings.excludeSegments,
     asmGroupId,
     categories,
+    dynamicTemplateData: {
+      ...settings.data,
+      ...(contentHtml ? { content: contentHtml } : {}),
+    },
   });
 
   if (!createResult.success) {
-    assistant.error('Marketing.sendCampaign() create failed:', createResult.error);
     return createResult;
   }
 
   // Schedule if sendAt is provided
-  if (settings.sendAt) {
-    const sendAt = settings.sendAt === 'now' ? 'now' : new Date(settings.sendAt).toISOString();
-
-    const scheduleResult = await sendgridProvider.scheduleSingleSend(createResult.id, sendAt);
-
-    if (!scheduleResult.success) {
-      assistant.error('Marketing.sendCampaign() schedule failed:', scheduleResult.error);
-      return { success: false, id: createResult.id, error: scheduleResult.error };
-    }
-
-    assistant.log('Marketing.sendCampaign() scheduled:', createResult.id);
-
-    return { success: true, id: createResult.id, scheduled: true };
+  if (!settings.sendAt) {
+    return { success: true, id: createResult.id, scheduled: false };
   }
 
-  // Created but not scheduled (draft)
-  return { success: true, id: createResult.id, scheduled: false };
+  const sendAt = settings.sendAt === 'now' ? 'now' : new Date(settings.sendAt).toISOString();
+  const scheduleResult = await sendgridProvider.scheduleSingleSend(createResult.id, sendAt);
+
+  if (!scheduleResult.success) {
+    return { success: false, id: createResult.id, error: scheduleResult.error };
+  }
+
+  return { success: true, id: createResult.id, scheduled: true };
 };
 
 /**
- * Cancel a scheduled campaign.
+ * Cancel a scheduled campaign (SendGrid only).
  *
  * @param {string} campaignId - Single Send ID
  * @returns {{ success: boolean, error?: string }}
  */
 Marketing.prototype.cancelCampaign = async function (campaignId) {
   const self = this;
-  const assistant = self.assistant;
-
-  assistant.log('Marketing.cancelCampaign():', campaignId);
+  self.assistant.log('Marketing.cancelCampaign():', campaignId);
 
   return sendgridProvider.cancelSingleSend(campaignId);
 };
 
 /**
- * Get a campaign by ID.
+ * Get a campaign by ID (SendGrid only).
  *
  * @param {string} campaignId - Single Send ID
  * @returns {object|null}
@@ -359,7 +429,7 @@ Marketing.prototype.getCampaign = async function (campaignId) {
 };
 
 /**
- * List campaigns with optional status filter.
+ * List campaigns with optional status filter (SendGrid only).
  *
  * @param {object} [options]
  * @param {string} [options.status] - Filter: draft, scheduled, triggered

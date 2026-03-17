@@ -30,6 +30,7 @@ const {
   encode,
   errorWithCode,
 } = require('../constants.js');
+const { tagLinks } = require('../utm.js');
 
 function Transactional(assistant) {
   const self = this;
@@ -193,6 +194,22 @@ Transactional.prototype.build = async function (settings) {
   }
   if (settings?.data?.email?.body) {
     settings.data.email.body = md.render(settings.data.email.body);
+  }
+
+  // Tag links with UTM params for attribution
+  const utmOptions = {
+    brandUrl: brand?.url,
+    brandId: brand?.id,
+    campaign: settings.sender || templateId,
+    type: 'transactional',
+    utm: settings.utm,
+  };
+
+  if (settings?.data?.body?.message) {
+    settings.data.body.message = tagLinks(settings.data.body.message, utmOptions);
+  }
+  if (settings?.data?.email?.body) {
+    settings.data.email.body = tagLinks(settings.data.email.body, utmOptions);
   }
 
   // Build dynamic template data
