@@ -361,7 +361,7 @@ OpenAI.prototype.request = function (options) {
       .catch((e) => e);
 
       // Check for moderation flag
-      if (moderation.flagged) {
+      if (moderation?.flagged) {
         return reject(assistant.errorify(`This request is inappropriate`, {code: 451}));
       }
     }
