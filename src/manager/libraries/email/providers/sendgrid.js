@@ -51,6 +51,41 @@ async function resolveFieldIds() {
   }
 }
 
+// Cached segment name → SendGrid segment ID map
+let _segmentIdCache = null;
+
+/**
+ * Fetch segment definitions from SendGrid and build a name → id map.
+ * Segments are created by OMEGA with names matching the SSOT keys in constants.js.
+ * Cached in memory for the lifetime of the process.
+ *
+ * @returns {object} Map of segment name → SendGrid segment ID
+ */
+async function resolveSegmentIds() {
+  if (_segmentIdCache) {
+    return _segmentIdCache;
+  }
+
+  try {
+    const data = await fetch(`${BASE_URL}/marketing/segments/2.0`, {
+      response: 'json',
+      headers: headers(),
+      timeout: 10000,
+    });
+
+    _segmentIdCache = {};
+
+    for (const segment of (data.results || [])) {
+      _segmentIdCache[segment.name] = segment.id;
+    }
+
+    return _segmentIdCache;
+  } catch (e) {
+    console.error('SendGrid resolveSegmentIds error:', e);
+    return {};
+  }
+}
+
 // --- Contact Management ---
 
 /**
@@ -438,10 +473,127 @@ async function buildFields(userDoc) {
   return fields;
 }
 
+/**
+ * Get all contact emails in a segment (handles async export + download).
+ *
+ * @param {string} segmentId - SendGrid segment ID
+ * @param {number} [maxWaitMs=60000] - Max time to wait for export
+ * @returns {{ success: boolean, contacts?: Array<{email: string, id: string}>, error?: string }}
+ */
+async function getSegmentContacts(segmentId, maxWaitMs = 60000) {
+  try {
+    // Start export job
+    const exportData = await fetch(`${BASE_URL}/marketing/contacts/exports`, {
+      method: 'post',
+      response: 'json',
+      headers: headers(),
+      timeout: 15000,
+      body: { segment_ids: [segmentId] },
+    });
+
+    if (!exportData.id) {
+      return { success: false, error: 'Failed to start export' };
+    }
+
+    // Poll for completion
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < maxWaitMs) {
+      await new Promise(r => setTimeout(r, 3000));
+
+      const statusData = await fetch(`${BASE_URL}/marketing/contacts/exports/${exportData.id}`, {
+        response: 'json',
+        headers: headers(),
+        timeout: 10000,
+      });
+
+      if (statusData.status === 'ready' && statusData.urls?.length) {
+        // Download CSV
+        const csvText = await fetch(statusData.urls[0], {
+          response: 'text',
+          timeout: 30000,
+        });
+
+        // Parse CSV — first line is headers, find email and id columns
+        const lines = csvText.trim().split('\n');
+
+        if (lines.length < 2) {
+          return { success: true, contacts: [] };
+        }
+
+        const headerCols = lines[0].split(',');
+        const emailIdx = headerCols.indexOf('email');
+        const idIdx = headerCols.indexOf('contact_id');
+
+        const contacts = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          const cols = lines[i].split(',');
+          const email = cols[emailIdx]?.replace(/"/g, '').trim();
+          const id = cols[idIdx]?.replace(/"/g, '').trim();
+
+          if (email) {
+            contacts.push({ email, id });
+          }
+        }
+
+        return { success: true, contacts };
+      }
+
+      if (statusData.status === 'failure') {
+        return { success: false, error: 'Export failed' };
+      }
+    }
+
+    return { success: false, error: 'Export timed out' };
+  } catch (e) {
+    console.error('SendGrid getSegmentContacts error:', e);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Bulk delete contacts by ID.
+ *
+ * @param {Array<string>} contactIds - SendGrid contact IDs
+ * @returns {{ success: boolean, jobId?: string, error?: string }}
+ */
+async function bulkDeleteContacts(contactIds) {
+  if (!contactIds.length) {
+    return { success: true, jobId: null };
+  }
+
+  try {
+    // SendGrid accepts up to 100 IDs per request
+    const ids = contactIds.slice(0, 100).join(',');
+    const data = await fetch(`${BASE_URL}/marketing/contacts?ids=${ids}`, {
+      method: 'delete',
+      response: 'json',
+      headers: headers(),
+      timeout: 15000,
+    });
+
+    if (data.job_id) {
+      return { success: true, jobId: data.job_id };
+    }
+
+    return { success: false, error: data.errors?.[0]?.message || 'Delete failed' };
+  } catch (e) {
+    console.error('SendGrid bulkDeleteContacts error:', e);
+    return { success: false, error: e.message };
+  }
+}
+
 module.exports = {
+  // Resolution
+  resolveFieldIds,
+  resolveSegmentIds,
+
   // Contacts
   addContact,
   removeContact,
+  getSegmentContacts,
+  bulkDeleteContacts,
   buildFields,
 
   // Campaigns (Single Sends)

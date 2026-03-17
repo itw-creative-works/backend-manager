@@ -130,6 +130,9 @@
       enabled: false,
       // publicationId: 'pub_xxxxx',  // Set to skip fuzzy-match API call
     },
+    prune: {
+      enabled: true,
+    },
   },
   firebaseConfig: {
     apiKey: '123-456',

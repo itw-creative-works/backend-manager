@@ -14,6 +14,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.156] - 2026-03-17
+### Added
+- Marketing campaign system with full CRUD routes (`POST/GET/PUT/DELETE /marketing/campaign`)
+- Calendar-backed scheduling: campaigns stored in `marketing-campaigns` Firestore collection, picked up by `bm_cronFrequent`
+- Multi-provider campaign dispatch: SendGrid (Single Send) + Beehiiv (Post) + Push (FCM)
+- Recurring campaigns with `recurrence` field — cron creates history docs and advances `sendAt`
+- Markdown → HTML conversion at send time for campaign content
+- UTM auto-tagging on brand domain links for both marketing and transactional emails (`libraries/email/utm.js`)
+- Shared notification library (`libraries/notification.js`) extracted from admin route
+- SEGMENTS SSOT dictionary in `constants.js` — 22 segments (subscription, lifecycle, engagement)
+- Runtime segment ID resolution: `resolveSegmentIds()` maps SSOT keys to SendGrid segment IDs
+- Contact pruning cron (`cron/daily/marketing-prune.js`) — monthly re-engagement + deletion of inactive contacts
+- SendGrid `getSegmentContacts()` and `bulkDeleteContacts()` for segment export + batch deletion
+- Seed campaigns via `npx bm setup`: `_recurring-quarterly-sale` (SendGrid) and `_recurring-weekly-newsletter` (Beehiiv) with enforced fields
+- `marketing.prune.enabled` config option (default: true)
+- Provider name extraction from OAuth on signup (Google, Facebook, etc.)
+- Personalized greetings in welcome, checkup, deletion, and data request emails
+
+### Changed
+- `sendCampaign()` refactored for multi-provider dispatch with automatic SSOT segment key → provider ID translation
+- `POST /admin/notification` slimmed down to use shared notification library
+- Setup test data files (`required-indexes.js`, `seed-campaigns.js`) moved to `helpers/` directory
+
 # [5.0.155] - 2026-03-16
 ### Added
 - Setup test now ensures consuming project `functions/package.json` has `"private": true` to prevent accidental npm publish

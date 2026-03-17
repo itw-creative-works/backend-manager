@@ -285,6 +285,20 @@ Marketing.prototype.sendCampaign = async function (settings) {
     });
   }
 
+  // Resolve SSOT segment keys → provider segment IDs
+  const resolvedSegments = {};
+
+  if (useProviders.includes('sendgrid') && self.providers.sendgrid) {
+    const segmentIdMap = await sendgridProvider.resolveSegmentIds();
+
+    resolvedSegments.sendgrid = {
+      segments: (settings.segments || []).map(key => segmentIdMap[key] || key).filter(Boolean),
+      excludeSegments: (settings.excludeSegments || []).map(key => segmentIdMap[key] || key).filter(Boolean),
+    };
+  }
+
+  // Beehiiv: segment resolution will go here when Beehiiv segments are supported
+
   assistant.log('Marketing.sendCampaign():', {
     name: settings.name,
     providers: useProviders,
@@ -293,8 +307,14 @@ Marketing.prototype.sendCampaign = async function (settings) {
 
   // --- SendGrid ---
   if (useProviders.includes('sendgrid') && self.providers.sendgrid) {
+    const sgSettings = {
+      ...settings,
+      segments: resolvedSegments.sendgrid?.segments || [],
+      excludeSegments: resolvedSegments.sendgrid?.excludeSegments || [],
+    };
+
     promises.push(
-      self._sendCampaignSendGrid(settings, contentHtml)
+      self._sendCampaignSendGrid(sgSettings, contentHtml)
         .then((r) => { results.sendgrid = r; })
         .catch((e) => { results.sendgrid = { success: false, error: e.message }; })
     );
