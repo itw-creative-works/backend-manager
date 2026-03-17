@@ -122,10 +122,10 @@ function errorWithCode(message, code) {
   return err;
 }
 
-// Master field dictionary — the key IS the field name used in both providers.
+// Master field dictionary — SSOT for all marketing custom fields.
 //
-// SendGrid: key is matched against custom field names at runtime (fetched + cached).
-// Beehiiv: key is used directly as the custom field name.
+// SendGrid: `display` is the custom field name (created by OMEGA, resolved by ID at runtime).
+// Beehiiv: `display` is the custom field name (matched by display name).
 //
 // Source types:
 //   'user'     — read from user doc via _.get(userDoc, path)
@@ -133,35 +133,41 @@ function errorWithCode(message, code) {
 //   'config'   — read from Manager.config via _.get(config, path)
 //
 // To add a new tracked marketing field:
-//   1. Add an entry here — the key becomes the field name in both providers
-//   2. Add matching entry in OMEGA's src/lib/bem-fields.js (name, display, type)
-//   3. Run OMEGA: npm start -- --service=sendgrid,beehiiv --brand=X
-//   4. BEM resolves field IDs at runtime — no provider code changes needed
-//   5. If 'resolved' source, ensure resolveFieldValues() computes it
+//   1. Add an entry here (key, display, source, path, type)
+//   2. Run OMEGA: npm start -- --service=sendgrid,beehiiv --brand=X
+//   3. BEM resolves field IDs at runtime — no provider code changes needed
+//   4. If 'resolved' source, ensure resolveFieldValues() computes it
+//
+// Flags:
+//   skip — Array of provider names to skip field creation for (e.g., ['sendgrid'])
+//          SendGrid has first_name/last_name as built-in contact fields
+//          Beehiiv needs them created as custom fields (preset templates)
 const FIELDS = {
   // Brand
-  brand_id:                              { source: 'config', path: 'brand.id', type: 'text' },
+  brand_id:                              { display: 'Brand ID', source: 'config', path: 'brand.id', type: 'text' },
 
   // User identity
-  user_auth_uid:                         { source: 'user', path: 'auth.uid', type: 'text' },
-  user_personal_company:                 { source: 'user', path: 'personal.company.name', type: 'text' },
-  user_personal_country:                 { source: 'user', path: 'personal.location.country', type: 'text' },
-  user_metadata_signup_date:             { source: 'user', path: 'metadata.created.timestamp', type: 'date' },
-  user_metadata_last_activity:           { source: 'user', path: 'metadata.updated.timestamp', type: 'date' },
+  user_auth_uid:                         { display: 'User UID', source: 'user', path: 'auth.uid', type: 'text' },
+  user_personal_name_first:              { display: 'First Name', source: 'user', path: 'personal.name.first', type: 'text', skip: ['sendgrid'] },
+  user_personal_name_last:               { display: 'Last Name', source: 'user', path: 'personal.name.last', type: 'text', skip: ['sendgrid'] },
+  user_personal_company:                 { display: 'Company', source: 'user', path: 'personal.company.name', type: 'text' },
+  user_personal_country:                 { display: 'Country', source: 'user', path: 'personal.location.country', type: 'text' },
+  user_metadata_signup_date:             { display: 'Signup Date', source: 'user', path: 'metadata.created.timestamp', type: 'date' },
+  user_metadata_last_activity:           { display: 'Last Activity', source: 'user', path: 'metadata.updated.timestamp', type: 'date' },
 
   // Subscription
-  user_subscription_plan:                { source: 'resolved', path: 'plan', type: 'text' },
-  user_subscription_status:              { source: 'resolved', path: 'status', type: 'text' },
-  user_subscription_trialing:            { source: 'resolved', path: 'trialing', type: 'text' },
-  user_subscription_cancelling:          { source: 'resolved', path: 'cancelling', type: 'text' },
-  user_subscription_ever_paid:           { source: 'resolved', path: 'everPaid', type: 'text' },
-  user_subscription_payment_processor:   { source: 'user', path: 'subscription.payment.processor', type: 'text' },
-  user_subscription_payment_frequency:   { source: 'user', path: 'subscription.payment.frequency', type: 'text' },
-  user_subscription_payment_price:       { source: 'user', path: 'subscription.payment.price', type: 'number' },
-  user_subscription_payment_last_date:   { source: 'user', path: 'subscription.payment.updatedBy.date.timestamp', type: 'date' },
+  user_subscription_plan:                { display: 'Plan', source: 'resolved', path: 'plan', type: 'text' },
+  user_subscription_status:              { display: 'Status', source: 'resolved', path: 'status', type: 'text' },
+  user_subscription_trialing:            { display: 'Trialing', source: 'resolved', path: 'trialing', type: 'text' },
+  user_subscription_cancelling:          { display: 'Cancelling', source: 'resolved', path: 'cancelling', type: 'text' },
+  user_subscription_ever_paid:           { display: 'Ever Paid', source: 'resolved', path: 'everPaid', type: 'text' },
+  user_subscription_payment_processor:   { display: 'Payment Processor', source: 'user', path: 'subscription.payment.processor', type: 'text' },
+  user_subscription_payment_frequency:   { display: 'Payment Frequency', source: 'user', path: 'subscription.payment.frequency', type: 'text' },
+  user_subscription_payment_price:       { display: 'Payment Price', source: 'user', path: 'subscription.payment.price', type: 'number' },
+  user_subscription_payment_last_date:   { display: 'Last Payment Date', source: 'user', path: 'subscription.payment.updatedBy.date.timestamp', type: 'date' },
 
   // Attribution
-  user_attribution_utm_source:           { source: 'user', path: 'attribution.utm.tags.utm_source', type: 'text' },
+  user_attribution_utm_source:           { display: 'UTM Source', source: 'user', path: 'attribution.utm.tags.utm_source', type: 'text' },
 };
 
 

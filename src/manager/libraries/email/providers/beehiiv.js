@@ -5,7 +5,7 @@
  */
 const fetch = require('wonderful-fetch');
 const Manager = require('../../../index.js');
-const { resolveFieldValues } = require('../constants.js');
+const { FIELDS, resolveFieldValues } = require('../constants.js');
 
 const BASE_URL = 'https://api.beehiiv.com/v2';
 
@@ -255,7 +255,8 @@ async function removeContact(email) {
 
 /**
  * Build Beehiiv custom_fields array from a user doc.
- * Resolves all field values — the key IS the field name in Beehiiv.
+ * Resolves all field values, then maps to display names for Beehiiv.
+ * Beehiiv matches custom fields by their display name.
  *
  * @param {object} userDoc - User document from Firestore
  * @returns {Array<{name: string, value: string}>} Custom fields in Beehiiv format
@@ -265,7 +266,9 @@ function buildFields(userDoc) {
   const fields = [];
 
   for (const [name, value] of Object.entries(values)) {
-    fields.push({ name, value: String(value) });
+    const fieldConfig = FIELDS[name];
+    const displayName = fieldConfig?.display || name;
+    fields.push({ name: displayName, value: String(value) });
   }
 
   return fields;

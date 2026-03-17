@@ -14,6 +14,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.154] - 2026-03-16
+### Changed
+- Add `display` property to all marketing FIELDS entries so display names are defined in the SSOT
+- Beehiiv provider now maps fields to display names instead of raw keys
+- Add `skip` flag for per-provider field creation control (e.g., SendGrid has first/last name built-in)
+
+### Added
+- `user_personal_name_first` and `user_personal_name_last` fields to FIELDS dictionary (skipped for SendGrid which has them built-in)
+
 # [5.0.152] - 2026-03-16
 ### Fixed
 - Email queue documents all stored at `emails-queue/NaN` — `powertools.random()` doesn't support string generation, replaced with `pushid()`

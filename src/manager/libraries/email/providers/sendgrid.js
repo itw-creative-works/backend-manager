@@ -402,7 +402,7 @@ async function addContact({ email, firstName, lastName, company, customFields })
 
 /**
  * Build SendGrid custom_fields object from a user doc.
- * Resolves all field values, then maps field names to SendGrid IDs via runtime lookup.
+ * Resolves all field values, maps to display names, then resolves SendGrid IDs.
  *
  * @param {object} userDoc - User document from Firestore
  * @returns {object} Custom fields keyed by SendGrid field ID (e.g., { e1_T: 'basic' })
