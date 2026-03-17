@@ -37,6 +37,7 @@ const HostingFolderTest = require('./hosting-folder');
 const PublicHtmlFilesTest = require('./public-html-files');
 const FirestoreIndexesRequiredTest = require('./firestore-indexes-required');
 const LegacyTestsCleanupTest = require('./legacy-tests-cleanup');
+const MarketingCampaignsSeededTest = require('./marketing-campaigns-seeded');
 
 /**
  * Get all tests in the order they should run
@@ -78,6 +79,7 @@ function getTests(context) {
     new HostingFolderTest(context),
     new PublicHtmlFilesTest(context),
     new LegacyTestsCleanupTest(context),
+    new MarketingCampaignsSeededTest(context),
   ];
 }
 

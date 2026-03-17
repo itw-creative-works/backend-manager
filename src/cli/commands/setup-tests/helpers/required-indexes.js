@@ -46,4 +46,26 @@ module.exports = [
       { fieldPath: 'nextReminderAt', order: 'ASCENDING' },
     ],
   },
+
+  // Marketing campaigns cron — find pending campaigns ready to send
+  // Query: .where('status', '==', 'pending').where('sendAt', '<=', now)
+  {
+    collectionGroup: 'marketing-campaigns',
+    queryScope: 'COLLECTION',
+    fields: [
+      { fieldPath: 'status', order: 'ASCENDING' },
+      { fieldPath: 'sendAt', order: 'ASCENDING' },
+    ],
+  },
+
+  // GET /marketing/campaign — list by type + sendAt range
+  // Query: .where('type', '==', type).where('sendAt', '>=', start).where('sendAt', '<=', end)
+  {
+    collectionGroup: 'marketing-campaigns',
+    queryScope: 'COLLECTION',
+    fields: [
+      { fieldPath: 'type', order: 'ASCENDING' },
+      { fieldPath: 'sendAt', order: 'ASCENDING' },
+    ],
+  },
 ];

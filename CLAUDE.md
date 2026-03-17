@@ -1102,7 +1102,7 @@ BEM syncs user data to marketing providers (SendGrid, Beehiiv) as custom fields.
 
 8. **Increment usage before update** - Call `usage.increment()` then `usage.update()`
 
-9. **Add Firestore composite indexes for new compound queries** - Any new Firestore query using multiple `.where()` clauses or `.where()` + `.orderBy()` requires a composite index. Add it to `src/cli/commands/setup-tests/required-indexes.js` (the SSOT). Consumer projects pick these up via `npx bm setup`, which syncs them into `firestore.indexes.json`. Without the index, the query will crash with `FAILED_PRECONDITION` in production.
+9. **Add Firestore composite indexes for new compound queries** - Any new Firestore query using multiple `.where()` clauses or `.where()` + `.orderBy()` requires a composite index. Add it to `src/cli/commands/setup-tests/helpers/required-indexes.js` (the SSOT). Consumer projects pick these up via `npx bm setup`, which syncs them into `firestore.indexes.json`. Without the index, the query will crash with `FAILED_PRECONDITION` in production.
 
 ## Key Files Reference
 
@@ -1132,7 +1132,7 @@ BEM syncs user data to marketing providers (SendGrid, Beehiiv) as custom fields.
 | Stripe library | `src/manager/libraries/payment/processors/stripe.js` |
 | PayPal library | `src/manager/libraries/payment/processors/paypal.js` |
 | Order ID generator | `src/manager/libraries/payment/order-id.js` |
-| Required Firestore indexes (SSOT) | `src/cli/commands/setup-tests/required-indexes.js` |
+| Required Firestore indexes (SSOT) | `src/cli/commands/setup-tests/helpers/required-indexes.js` |
 | Test accounts | `src/test/test-accounts.js` |
 
 ## Environment Detection

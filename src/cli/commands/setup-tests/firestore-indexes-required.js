@@ -2,7 +2,7 @@ const BaseTest = require('./base-test');
 const jetpack = require('fs-jetpack');
 const _ = require('lodash');
 const chalk = require('chalk');
-const requiredIndexes = require('./required-indexes');
+const requiredIndexes = require('./helpers/required-indexes');
 
 class FirestoreIndexesRequiredTest extends BaseTest {
   getName() {
