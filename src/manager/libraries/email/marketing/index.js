@@ -271,9 +271,22 @@ Marketing.prototype.sendCampaign = async function (settings) {
   const results = {};
   const promises = [];
 
-  // Convert markdown content to HTML, then tag links with UTM params
+  // Resolve campaign-level variables: {brand.name}, {season}, {year}, etc.
+  // Uses single braces via powertools.template() — distinct from {{template}} vars handled by SendGrid
   const brand = Manager.config?.brand;
-  let contentHtml = settings.content ? md.render(settings.content) : '';
+  const templateContext = buildTemplateContext(brand);
+  const template = require('node-powertools').template;
+
+  const resolvedSettings = {
+    ...settings,
+    name: template(settings.name || '', templateContext),
+    subject: template(settings.subject || '', templateContext),
+    preheader: template(settings.preheader || '', templateContext),
+    content: template(settings.content || '', templateContext),
+  };
+
+  // Convert markdown content to HTML, then tag links with UTM params
+  let contentHtml = resolvedSettings.content ? md.render(resolvedSettings.content) : '';
 
   if (contentHtml) {
     contentHtml = tagLinks(contentHtml, {
@@ -300,7 +313,7 @@ Marketing.prototype.sendCampaign = async function (settings) {
   // Beehiiv: segment resolution will go here when Beehiiv segments are supported
 
   assistant.log('Marketing.sendCampaign():', {
-    name: settings.name,
+    name: resolvedSettings.name,
     providers: useProviders,
     sendAt: settings.sendAt || 'draft',
   });
@@ -308,7 +321,7 @@ Marketing.prototype.sendCampaign = async function (settings) {
   // --- SendGrid ---
   if (useProviders.includes('sendgrid') && self.providers.sendgrid) {
     const sgSettings = {
-      ...settings,
+      ...resolvedSettings,
       segments: resolvedSegments.sendgrid?.segments || [],
       excludeSegments: resolvedSegments.sendgrid?.excludeSegments || [],
     };
@@ -324,9 +337,9 @@ Marketing.prototype.sendCampaign = async function (settings) {
   if (useProviders.includes('beehiiv') && self.providers.beehiiv) {
     promises.push(
       beehiivProvider.createPost({
-        title: settings.name,
-        subject: settings.subject,
-        preheader: settings.preheader,
+        title: resolvedSettings.name,
+        subject: resolvedSettings.subject,
+        preheader: resolvedSettings.preheader,
         content: contentHtml,
         sendAt: settings.sendAt,
         segments: settings.segments,
@@ -458,5 +471,74 @@ Marketing.prototype.getCampaign = async function (campaignId) {
 Marketing.prototype.listCampaigns = async function (options) {
   return sendgridProvider.listSingleSends(options);
 };
+
+// --- Campaign variable resolution ---
+
+const SEASONS = {
+  0: 'Winter',   // Jan
+  1: 'Winter',   // Feb
+  2: 'Spring',   // Mar
+  3: 'Spring',   // Apr
+  4: 'Spring',   // May
+  5: 'Summer',   // Jun
+  6: 'Summer',   // Jul
+  7: 'Summer',   // Aug
+  8: 'Fall',     // Sep
+  9: 'Fall',     // Oct
+  10: 'Fall',    // Nov
+  11: 'Winter',  // Dec
+};
+
+const HOLIDAYS = {
+  0: 'New Year',          // Jan
+  1: 'Valentine\'s Day',  // Feb
+  2: 'Spring',            // Mar
+  3: 'Spring',            // Apr
+  4: 'Memorial Day',      // May
+  5: 'Summer',            // Jun
+  6: 'Independence Day',  // Jul
+  7: 'Back to School',    // Aug
+  8: 'Labor Day',         // Sep
+  9: 'Halloween',         // Oct
+  10: 'Black Friday',     // Nov
+  11: 'Christmas',        // Dec
+};
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+/**
+ * Build template context for campaign variable resolution.
+ * Used with powertools.template() — supports nested paths like {brand.name}.
+ *
+ * Available variables:
+ *   {brand.name}, {brand.id}, {brand.url}
+ *   {season.name}    — Winter, Spring, Summer, Fall
+ *   {holiday.name}   — New Year, Valentine's Day, Black Friday, Christmas, etc.
+ *   {date.month}     — January, February, etc.
+ *   {date.year}      — 2026
+ *   {date.full}      — March 17, 2026
+ */
+function buildTemplateContext(brand) {
+  const now = new Date();
+  const month = now.getMonth();
+
+  return {
+    brand: brand || {},
+    season: {
+      name: SEASONS[month],
+    },
+    holiday: {
+      name: HOLIDAYS[month],
+    },
+    date: {
+      month: MONTH_NAMES[month],
+      year: String(now.getFullYear()),
+      full: now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+    },
+  };
+}
 
 module.exports = Marketing;

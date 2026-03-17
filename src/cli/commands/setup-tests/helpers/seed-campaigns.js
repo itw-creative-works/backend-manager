@@ -13,25 +13,19 @@ const moment = require('moment');
  */
 
 /**
- * Get the next occurrence of a quarterly date from now.
- * Quarters: Jan 1, Apr 1, Jul 1, Oct 1.
+ * Get the next occurrence of a specific day of month.
+ * @param {number} dayOfMonth - Day (1-31)
+ * @param {number} hour - Hour (UTC)
  */
-function nextQuarter(hour) {
-  const now = moment.utc();
-  const quarters = [
-    moment.utc({ month: 0, day: 1, hour }),
-    moment.utc({ month: 3, day: 1, hour }),
-    moment.utc({ month: 6, day: 1, hour }),
-    moment.utc({ month: 9, day: 1, hour }),
-  ];
+function nextMonthDay(dayOfMonth, hour) {
+  const next = moment.utc().startOf('month').date(dayOfMonth).hour(hour);
 
-  for (const q of quarters) {
-    if (q.year(now.year()).isAfter(now)) {
-      return q.year(now.year()).unix();
-    }
+  // If this month's date has passed, go to next month
+  if (next.isBefore(moment.utc())) {
+    next.add(1, 'month');
   }
 
-  return quarters[0].year(now.year() + 1).unix();
+  return next.unix();
 }
 
 /**
@@ -56,30 +50,31 @@ function buildSeedCampaigns() {
 
   return [
     {
-      id: '_recurring-quarterly-sale',
+      id: '_recurring-monthly-sale',
       doc: {
         settings: {
-          name: 'Quarterly Sale',
-          subject: 'Limited Time — Upgrade & Save!',
-          preheader: 'Our biggest discount this quarter',
+          name: '{holiday.name} Sale',
+          subject: '{holiday.name} Sale — Upgrade & Save!',
+          preheader: 'Limited time offer from {brand.name}',
           content: [
-            '# Quarterly Sale',
+            '# {holiday.name} Sale',
             '',
-            'For a limited time, upgrade your plan and save big.',
+            'For a limited time, upgrade your **{brand.name}** plan and save big.',
             '',
             'Don\'t miss out — this offer ends soon!',
           ].join('\n'),
           template: 'default',
           sender: 'marketing',
           providers: ['sendgrid'],
-          segments: ['subscription_free'],
-          excludeSegments: [],
+          segments: ['subscription_free', 'subscription_cancelled', 'subscription_churned'],
+          excludeSegments: ['subscription_paid'],
         },
-        sendAt: nextQuarter(14),
+        sendAt: nextMonthDay(15, 14),
         status: 'pending',
         type: 'email',
         recurrence: {
-          pattern: 'quarterly',
+          pattern: 'monthly',
+          day: 15,
           hour: 14,
         },
         metadata: {
@@ -87,14 +82,15 @@ function buildSeedCampaigns() {
           updated: { timestamp: nowISO, timestampUNIX: nowUNIX },
         },
       },
-      // Fields enforced on every setup run (deep path → value)
       enforced: {
         'type': 'email',
-        'recurrence.pattern': 'quarterly',
+        'recurrence.pattern': 'monthly',
+        'recurrence.day': 15,
         'recurrence.hour': 14,
         'settings.providers': ['sendgrid'],
         'settings.sender': 'marketing',
-        'settings.segments': ['subscription_free'],
+        'settings.segments': ['subscription_free', 'subscription_cancelled', 'subscription_churned'],
+        'settings.excludeSegments': ['subscription_paid'],
       },
     },
     {

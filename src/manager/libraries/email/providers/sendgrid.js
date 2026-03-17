@@ -495,11 +495,15 @@ async function getSegmentContacts(segmentId, maxWaitMs = 60000) {
       return { success: false, error: 'Failed to start export' };
     }
 
+    console.log(`SendGrid getSegmentContacts: Export started (job: ${exportData.id})`);
+
     // Poll for completion
     const startTime = Date.now();
+    let pollCount = 0;
 
     while (Date.now() - startTime < maxWaitMs) {
       await new Promise(r => setTimeout(r, 3000));
+      pollCount++;
 
       const statusData = await fetch(`${BASE_URL}/marketing/contacts/exports/${exportData.id}`, {
         response: 'json',
@@ -507,11 +511,14 @@ async function getSegmentContacts(segmentId, maxWaitMs = 60000) {
         timeout: 10000,
       });
 
+      console.log(`SendGrid getSegmentContacts: Poll #${pollCount} — ${statusData.status} (${Date.now() - startTime}ms)`);
+
       if (statusData.status === 'ready' && statusData.urls?.length) {
-        // Download CSV
+        // Download CSV — disable cacheBreaker to preserve presigned S3 URL signature
         const csvText = await fetch(statusData.urls[0], {
           response: 'text',
           timeout: 30000,
+          cacheBreaker: false,
         });
 
         // Parse CSV — first line is headers, find email and id columns
@@ -521,7 +528,7 @@ async function getSegmentContacts(segmentId, maxWaitMs = 60000) {
           return { success: true, contacts: [] };
         }
 
-        const headerCols = lines[0].split(',');
+        const headerCols = lines[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase());
         const emailIdx = headerCols.indexOf('email');
         const idIdx = headerCols.indexOf('contact_id');
 
@@ -537,14 +544,18 @@ async function getSegmentContacts(segmentId, maxWaitMs = 60000) {
           }
         }
 
+        console.log(`SendGrid getSegmentContacts: Downloaded ${contacts.length} contacts (${Date.now() - startTime}ms)`);
+
         return { success: true, contacts };
       }
 
       if (statusData.status === 'failure') {
+        console.error('SendGrid getSegmentContacts: Export failed');
         return { success: false, error: 'Export failed' };
       }
     }
 
+    console.error(`SendGrid getSegmentContacts: Timed out after ${maxWaitMs}ms (${pollCount} polls)`);
     return { success: false, error: 'Export timed out' };
   } catch (e) {
     console.error('SendGrid getSegmentContacts error:', e);

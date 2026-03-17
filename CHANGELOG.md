@@ -14,6 +14,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.157] - 2026-03-17
+### Added
+- Campaign template variables via `powertools.template()` — `{brand.name}`, `{season.name}`, `{holiday.name}`, `{date.month}`, `{date.year}`, `{date.full}`
+- Separate SEASONS (Winter/Spring/Summer/Fall) and HOLIDAYS (New Year, Valentine's Day, Black Friday, Christmas, etc.) maps
+- Audit logging in `getSegmentContacts()` — logs export start, poll status, download count, timeout
+
+### Changed
+- Seed sale campaign: quarterly → monthly on 15th, uses `{holiday.name}` template vars, targets free + cancelled + churned users, excludes paid
+- Prune cron calls segment export with 3-minute timeout for large segments
+
+### Fixed
+- S3 presigned URL download broken by wonderful-fetch cache buster — set `cacheBreaker: false`
+- CSV header parsing: normalize to lowercase for case-insensitive column matching
+
 # [5.0.156] - 2026-03-17
 ### Added
 - Marketing campaign system with full CRUD routes (`POST/GET/PUT/DELETE /marketing/campaign`)

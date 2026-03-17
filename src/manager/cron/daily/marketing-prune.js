@@ -95,7 +95,7 @@ async function stagePrune(Manager, assistant) {
       return;
     }
 
-    const exportResult = await sendgridProvider.getSegmentContacts(pruneSegmentId);
+    const exportResult = await sendgridProvider.getSegmentContacts(pruneSegmentId, 180000);
 
     if (!exportResult.success) {
       assistant.error('Marketing prune: Failed to export segment:', exportResult.error);
