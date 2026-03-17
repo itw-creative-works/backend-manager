@@ -14,6 +14,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.155] - 2026-03-16
+### Added
+- Setup test now ensures consuming project `functions/package.json` has `"private": true` to prevent accidental npm publish
+
 # [5.0.154] - 2026-03-16
 ### Changed
 - Add `display` property to all marketing FIELDS entries so display names are defined in the SSOT

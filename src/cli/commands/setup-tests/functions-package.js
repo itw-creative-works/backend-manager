@@ -10,13 +10,15 @@ class FunctionsPackageTest extends BaseTest {
     return !!this.context.package
       && !!this.context.package.dependencies
       && !!this.context.package.devDependencies
-      && !!this.context.package.version;
+      && !!this.context.package.version
+      && this.context.package.private === true;
   }
 
   async fix() {
     this.context.package.dependencies = this.context.package.dependencies || {};
     this.context.package.devDependencies = this.context.package.devDependencies || {};
     this.context.package.version = this.context.package.version || '0.0.1';
+    this.context.package.private = true;
 
     jetpack.write(`${this.self.firebaseProjectPath}/functions/package.json`, JSON.stringify(this.context.package, null, 2));
   }
