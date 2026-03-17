@@ -48,6 +48,8 @@ function sendCancellationEmail(assistant, user, requestId) {
   const Manager = assistant.Manager;
   const mailer = Manager.Email(assistant);
   const uid = user.auth.uid;
+  const firstName = user.personal?.name?.first;
+  const greeting = firstName ? `Hey ${firstName}, your` : 'Your';
 
   mailer.send({
     to: user,
@@ -62,7 +64,7 @@ function sendCancellationEmail(assistant, user, requestId) {
       },
       body: {
         title: 'Data Request Cancelled',
-        message: `Your data export request has been cancelled as requested.
+        message: `${greeting} data export request has been cancelled as requested.
 
 - **Request reference:** #${requestId}
 - **Account UID:** ${uid}

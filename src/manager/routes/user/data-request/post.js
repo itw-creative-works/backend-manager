@@ -91,6 +91,8 @@ function sendConfirmationEmail(assistant, user, requestId, reason) {
   const Manager = assistant.Manager;
   const mailer = Manager.Email(assistant);
   const uid = user.auth.uid;
+  const firstName = user.personal?.name?.first;
+  const greeting = firstName ? `Hey ${firstName}, we've` : `We've`;
   const reasonLine = reason
     ? `\n\n**Reason provided:** ${reason}`
     : '';
@@ -108,7 +110,7 @@ function sendConfirmationEmail(assistant, user, requestId, reason) {
       },
       body: {
         title: 'Data Request Received',
-        message: `We've received your request for a copy of your personal data.${reasonLine}
+        message: `${greeting} received your request for a copy of your personal data.${reasonLine}
 
 **What happens next:**
 

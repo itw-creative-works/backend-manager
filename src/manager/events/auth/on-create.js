@@ -14,7 +14,10 @@ const RETRY_DELAY_MS = 1000;
  * - Batch writes user doc + increment count atomically
  * - Retries up to 3 times with exponential backoff on failure
  *
- * Non-critical work (name inference, welcome emails, marketing contact) is handled
+ * If the user signed up via a provider (Google, Facebook, etc.), their display name
+ * is extracted and stored as personal.name.first/last on the user doc.
+ *
+ * Non-critical work (welcome emails, marketing contact) is handled
  * by the user/signup endpoint, which the frontend calls after account creation.
  */
 module.exports = async ({ Manager, assistant, user, context, libraries }) => {
@@ -42,12 +45,20 @@ module.exports = async ({ Manager, assistant, user, context, libraries }) => {
     return;
   }
 
+  // Extract name from provider data (e.g., Google, Facebook, GitHub)
+  const providerName = extractProviderName(user);
+
+  assistant.log(`onCreate: Inferred name from provider:`, providerName);
+
   // Create user record using Manager.User() helper
   const userRecord = Manager.User({
     auth: {
       uid: user.uid,
       email: user.email,
     },
+    personal: providerName ? {
+      name: providerName,
+    } : undefined,
   }).properties;
 
   // Add metadata tag (merge into existing metadata to preserve metadata.created from User schema)
@@ -80,6 +91,30 @@ module.exports = async ({ Manager, assistant, user, context, libraries }) => {
     // The user/signup endpoint will handle creating the doc if it's missing
   }
 };
+
+/**
+ * Extract first/last name from provider data (Google, Facebook, GitHub, etc.)
+ * Returns { first, last } or null if no name found
+ */
+function extractProviderName(user) {
+  // Try provider-specific displayName first, then top-level displayName
+  const displayName = user.providerData?.find(p =>
+    p.providerId !== 'password'
+    && p.providerId !== 'anonymous'
+    && p.displayName
+  )?.displayName || user.displayName;
+
+  if (!displayName) {
+    return null;
+  }
+
+  const parts = displayName.trim().split(/\s+/);
+
+  return {
+    first: parts[0] || null,
+    last: parts.slice(1).join(' ') || null,
+  };
+}
 
 /**
  * Retry a function up to maxRetries times with exponential backoff

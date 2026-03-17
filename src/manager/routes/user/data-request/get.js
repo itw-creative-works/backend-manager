@@ -190,6 +190,8 @@ function sendDownloadEmail(assistant, user, requestId, downloads) {
   const Manager = assistant.Manager;
   const mailer = Manager.Email(assistant);
   const uid = user.auth.uid;
+  const firstName = user.personal?.name?.first;
+  const greeting = firstName ? `Hey ${firstName}, your` : 'Your';
   const downloadDate = assistant.meta.startTime.timestamp;
 
   mailer.send({
@@ -205,7 +207,7 @@ function sendDownloadEmail(assistant, user, requestId, downloads) {
       },
       body: {
         title: 'Data Download Confirmation',
-        message: `Your personal data export has been successfully downloaded.
+        message: `${greeting} personal data export has been successfully downloaded.
 
 **Download details:**
 

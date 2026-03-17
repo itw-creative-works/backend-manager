@@ -77,7 +77,7 @@ module.exports = async ({ assistant, user, settings, libraries }) => {
 
   // 6. Send emails + marketing (non-blocking, fire-and-forget)
   syncMarketingContact(assistant, uid, email);
-  sendWelcomeEmails(assistant, uid);
+  sendWelcomeEmails(assistant, uid, inferred?.firstName);
 
   return assistant.respond({ signedUp: true });
 };
@@ -264,7 +264,7 @@ async function syncMarketingContact(assistant, uid, email) {
 /**
  * Send welcome, checkup, and feedback emails (non-blocking, fire-and-forget)
  */
-function sendWelcomeEmails(assistant, uid) {
+function sendWelcomeEmails(assistant, uid, firstName) {
   const shouldSend = !assistant.isTesting() || process.env.TEST_EXTENDED_MODE;
 
   if (!shouldSend) {
@@ -272,17 +272,18 @@ function sendWelcomeEmails(assistant, uid) {
     return;
   }
 
-  sendWelcomeEmail(assistant, uid).catch(e => assistant.error('signup(): sendWelcomeEmail failed:', e));
-  sendCheckupEmail(assistant, uid).catch(e => assistant.error('signup(): sendCheckupEmail failed:', e));
+  sendWelcomeEmail(assistant, uid, firstName).catch(e => assistant.error('signup(): sendWelcomeEmail failed:', e));
+  sendCheckupEmail(assistant, uid, firstName).catch(e => assistant.error('signup(): sendCheckupEmail failed:', e));
   sendFeedbackEmail(assistant, uid).catch(e => assistant.error('signup(): sendFeedbackEmail failed:', e));
 }
 
 /**
  * Send welcome email (immediate)
  */
-function sendWelcomeEmail(assistant, uid) {
+function sendWelcomeEmail(assistant, uid, firstName) {
   const Manager = assistant.Manager;
   const mailer = Manager.Email(assistant);
+  const greeting = firstName ? `Hey ${firstName}, welcome` : 'Welcome';
 
   return mailer.send({
     to: uid,
@@ -297,7 +298,7 @@ function sendWelcomeEmail(assistant, uid) {
       },
       body: {
         title: `Welcome to ${Manager.config.brand.name}!`,
-        message: `Welcome aboard!
+        message: `${greeting} aboard!
 
 I'm Ian, the founder and CEO of **${Manager.config.brand.name}**, and I'm thrilled to have you with us. Your journey begins today, and we are committed to supporting you every step of the way.
 
@@ -322,9 +323,10 @@ Thank you for choosing **${Manager.config.brand.name}**. Here's to new beginning
 /**
  * Send checkup email (7 days after signup)
  */
-function sendCheckupEmail(assistant, uid) {
+function sendCheckupEmail(assistant, uid, firstName) {
   const Manager = assistant.Manager;
   const mailer = Manager.Email(assistant);
+  const greeting = firstName ? `Hey ${firstName}` : 'Hi there';
 
   return mailer.send({
     to: uid,
@@ -340,7 +342,7 @@ function sendCheckupEmail(assistant, uid) {
       },
       body: {
         title: `How's everything going?`,
-        message: `Hi there,
+        message: `${greeting},
 
 It's Ian again from **${Manager.config.brand.name}**. Just checking in to see how things are going for you.
 
