@@ -24,7 +24,7 @@ module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
   // Run the cron job
   const cronPath = require('path').resolve(__dirname, `../../../cron/${settings.id}.js`);
   const cronHandler = require(cronPath);
-  const result = await cronHandler({ Manager, assistant, context: {} }).catch(e => e);
+  const result = await cronHandler({ Manager, assistant, context: {}, libraries: Manager.libraries }).catch(e => e);
 
   if (result instanceof Error) {
     return assistant.respond(result.message, { code: 500 });

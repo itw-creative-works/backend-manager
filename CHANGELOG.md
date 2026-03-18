@@ -14,6 +14,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.158] - 2026-03-17
+### Added
+- Newsletter generator system (`libraries/email/generators/newsletter.js`) — fetches sources from parent server, AI assembles branded content with subject/preheader
+- Daily pre-generation cron (`cron/daily/marketing-newsletter-generate.js`) — generates newsletter content 24 hours before sendAt for calendar review
+- `marketing.newsletter.enabled` and `marketing.newsletter.categories` config options
+- `generator` field on campaign docs — tells cron to run content generation instead of sending directly
+
+### Changed
+- Seed campaign IDs are now timing-agnostic: `_recurring-sale`, `_recurring-newsletter`
+- Recurrence timing removed from enforced fields — consuming projects can freely change schedule
+- Newsletter subject/preheader are now AI-generated (empty in seed template)
+- Frequent cron skips generator campaigns (handled by daily pre-generation cron)
+- Admin cron route now passes `libraries` to cron handlers
+
 # [5.0.157] - 2026-03-17
 ### Added
 - Campaign template variables via `powertools.template()` — `{brand.name}`, `{season.name}`, `{holiday.name}`, `{date.month}`, `{date.year}`, `{date.full}`

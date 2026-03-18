@@ -40,10 +40,16 @@ module.exports = async ({ Manager, assistant, libraries }) => {
 
   const results = await Promise.allSettled(snapshot.docs.map(async (doc) => {
     const data = doc.data();
-    const { settings, type, recurrence } = data;
+    let { settings, type, recurrence, generator } = data;
     const campaignId = doc.id;
 
     assistant.log(`Processing campaign ${campaignId} (${type}): ${settings.name}`);
+
+    // --- Generator campaigns are handled by the daily pre-generation cron, not here ---
+    if (generator) {
+      assistant.log(`Skipping generator campaign ${campaignId} — handled by daily pre-generation cron`);
+      return;
+    }
 
     // --- Dispatch by type ---
     let campaignResults;

@@ -133,6 +133,10 @@
     prune: {
       enabled: true,
     },
+    newsletter: {
+      enabled: false,
+      categories: [],  // e.g., ['social-media', 'marketing'] — content categories to pull from parent server
+    },
   },
   firebaseConfig: {
     apiKey: '123-456',
