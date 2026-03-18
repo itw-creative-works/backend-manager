@@ -159,6 +159,7 @@ const FIELDS = {
   user_subscription_plan:                { display: 'Plan', source: 'resolved', path: 'plan', type: 'text' },
   user_subscription_status:              { display: 'Status', source: 'resolved', path: 'status', type: 'text' },
   user_subscription_trialing:            { display: 'Trialing', source: 'resolved', path: 'trialing', type: 'text' },
+  user_subscription_trial_claimed:       { display: 'Trial Claimed', source: 'user', path: 'subscription.trial.claimed', type: 'text' },
   user_subscription_cancelling:          { display: 'Cancelling', source: 'resolved', path: 'cancelling', type: 'text' },
   user_subscription_ever_paid:           { display: 'Ever Paid', source: 'resolved', path: 'everPaid', type: 'text' },
   user_subscription_payment_processor:   { display: 'Payment Processor', source: 'user', path: 'subscription.payment.processor', type: 'text' },
@@ -195,7 +196,8 @@ const SEGMENTS = {
   subscription_cancelling:    { display: 'Cancelling', conditions: [{ field: 'user_subscription_cancelling', op: '==', value: 'true' }] },
   subscription_suspended:     { display: 'Suspended', conditions: [{ field: 'user_subscription_status', op: '==', value: 'suspended' }] },
   subscription_cancelled:     { display: 'Cancelled', conditions: [{ field: 'user_subscription_status', op: '==', value: 'cancelled' }] },
-  subscription_churned:       { display: 'Churned (Paid → Cancelled)', conditions: [{ field: 'user_subscription_ever_paid', op: '==', value: 'true' }, { field: 'user_subscription_status', op: '==', value: 'cancelled' }] },
+  subscription_churned_paid:  { display: 'Churned Paid (Paid → Cancelled)', conditions: [{ field: 'user_subscription_ever_paid', op: '==', value: 'true' }, { field: 'user_subscription_status', op: '==', value: 'cancelled' }] },
+  subscription_churned_trial: { display: 'Churned Trial (Trial → Never Paid)', conditions: [{ field: 'user_subscription_trial_claimed', op: '==', value: 'true' }, { field: 'user_subscription_ever_paid', op: '!=', value: 'true' }] },
   subscription_ever_paid:     { display: 'Ever Paid', conditions: [{ field: 'user_subscription_ever_paid', op: '==', value: 'true' }] },
   subscription_never_paid:    { display: 'Never Paid', conditions: [{ field: 'user_subscription_ever_paid', op: '!=', value: 'true' }] },
 
@@ -212,6 +214,9 @@ const SEGMENTS = {
   engagement_inactive_90d:    { display: 'Inactive 90+ Days', conditions: [{ type: 'engagement', op: 'not_opened', value: '90d' }] },
   engagement_inactive_5m:     { display: 'Inactive 5+ Months', conditions: [{ type: 'engagement', op: 'not_opened', value: '150d' }] },
   engagement_inactive_6m:     { display: 'Inactive 6+ Months', conditions: [{ type: 'engagement', op: 'not_opened', value: '180d' }] },
+
+  // Test
+  test_admin:                 { display: 'Test Admin', conditions: [{ type: 'contact', op: 'email_is', value: 'hello@itwcreativeworks.com' }] },
 };
 
 /**

@@ -83,7 +83,7 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
   // Validate discount code (if provided)
   let resolvedDiscount = null;
   if (discount) {
-    const discountResult = discountCodes.validate(discount);
+    const discountResult = discountCodes.validate(discount, user);
     if (!discountResult.valid) {
       return assistant.respond(`Invalid discount code: ${discount}`, { code: 400 });
     }

@@ -404,6 +404,21 @@ Job.prototype.main = function () {
 module.exports = Job;
 ```
 
+## Marketing & Campaigns
+
+Built-in marketing system with multi-provider support (SendGrid + Beehiiv + FCM push).
+
+- **Contact management** — add, sync, remove contacts across providers with custom field syncing
+- **Campaign CRUD** — `POST/GET/PUT/DELETE /marketing/campaign` with calendar-backed scheduling
+- **Recurring campaigns** — seasonal sales, newsletters with automatic sendAt advancement
+- **Newsletter generator** — AI-assembled newsletters from parent server content sources
+- **Segment SSOT** — 22 segment definitions resolved to provider IDs at runtime
+- **UTM auto-tagging** — brand domain links tagged automatically in marketing + transactional emails
+- **Contact pruning** — monthly 2-stage re-engagement + deletion of inactive contacts
+- **Template variables** — `{brand.name}`, `{holiday.name}`, `{season.name}`, `{date.*}` resolved at send time
+
+Configure via `marketing` section in `backend-manager-config.json`. See CLAUDE.md for full documentation.
+
 ## Helper Classes
 
 ### Assistant

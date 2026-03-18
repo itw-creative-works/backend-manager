@@ -14,6 +14,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.159] - 2026-03-18
+### Added
+- Audience-specific email discount codes: `UPGRADE15`, `COMEBACK20`, `MISSYOU25`, `TRYAGAIN10` with eligibility validation per user
+- `{discount.code}` and `{discount.percent}` campaign template variables
+- `test: true` flag on campaign route — sends real Single Send to `test_admin` segment only
+- `test_admin` segment in SSOT (targets `hello@itwcreativeworks.com`)
+- `trial_claimed` custom field (`user_subscription_trial_claimed`) for marketing sync
+- `subscription_churned_paid` and `subscription_churned_trial` segments (replaces `subscription_churned`)
+- 4 audience-specific recurring sale seed campaigns with tailored messaging + discount codes
+- Full marketing campaign system documentation in CLAUDE.md, README.md, and BEM:patterns skill
+
+### Changed
+- Template variable resolution now recursive — walks all string values in settings (future-proof)
+- UTM values resolved through template vars (`{holiday.name}_sale` → `black_friday_sale`)
+- UTM sanitizer strips apostrophes before underscore conversion
+- Payment intent + discount routes now pass user object for discount eligibility checking
+- Discount code `validate()` accepts optional user param for eligibility checks (backwards compatible)
+
 # [5.0.158] - 2026-03-17
 ### Added
 - Newsletter generator system (`libraries/email/generators/newsletter.js`) — fetches sources from parent server, AI assembles branded content with subject/preheader

@@ -46,12 +46,12 @@ function tagLinks(html, options) {
     ...options.utm,
   };
 
-  // Remove null/undefined values
+  // Remove null/undefined values and sanitize: lowercase, non-alphanumeric → underscore
   const utmParams = {};
 
   for (const [key, value] of Object.entries(utm)) {
     if (value != null && value !== '') {
-      utmParams[key] = String(value);
+      utmParams[key] = String(value).toLowerCase().replace(/[''`]/g, '').replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
     }
   }
 

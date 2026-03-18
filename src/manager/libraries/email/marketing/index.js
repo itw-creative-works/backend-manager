@@ -271,19 +271,26 @@ Marketing.prototype.sendCampaign = async function (settings) {
   const results = {};
   const promises = [];
 
-  // Resolve campaign-level variables: {brand.name}, {season}, {year}, etc.
-  // Uses single braces via powertools.template() — distinct from {{template}} vars handled by SendGrid
+  // Resolve campaign-level variables: {brand.name}, {season.name}, {holiday.name}, {date.*}, {discount.*}
+  // Walks all string values in settings and resolves single-brace vars via powertools.template()
+  // Double braces {{var}} are left untouched for SendGrid template-level resolution
   const brand = Manager.config?.brand;
-  const templateContext = buildTemplateContext(brand);
-  const template = require('node-powertools').template;
+  const templateContext = buildTemplateContext(brand, settings);
+  let resolvedSettings = resolveTemplateVars(settings, templateContext);
 
-  const resolvedSettings = {
-    ...settings,
-    name: template(settings.name || '', templateContext),
-    subject: template(settings.subject || '', templateContext),
-    preheader: template(settings.preheader || '', templateContext),
-    content: template(settings.content || '', templateContext),
-  };
+  // Test mode: real Single Send / Beehiiv Post, but targeted only to test_admin segment
+  if (settings.test) {
+    assistant.log('Marketing.sendCampaign(): TEST MODE — targeting test_admin segment only');
+
+    resolvedSettings = {
+      ...resolvedSettings,
+      name: `[TEST] ${resolvedSettings.name}`,
+      segments: ['test_admin'],
+      excludeSegments: [],
+      lists: [],
+      all: false,
+    };
+  }
 
   // Convert markdown content to HTML, then tag links with UTM params
   let contentHtml = resolvedSettings.content ? md.render(resolvedSettings.content) : '';
@@ -292,9 +299,9 @@ Marketing.prototype.sendCampaign = async function (settings) {
     contentHtml = tagLinks(contentHtml, {
       brandUrl: brand?.url,
       brandId: brand?.id,
-      campaign: settings.name,
+      campaign: resolvedSettings.name,
       type: 'marketing',
-      utm: settings.utm,
+      utm: resolvedSettings.utm,
     });
   }
 
@@ -521,9 +528,16 @@ const MONTH_NAMES = [
  *   {date.year}      — 2026
  *   {date.full}      — March 17, 2026
  */
-function buildTemplateContext(brand) {
+function buildTemplateContext(brand, settings) {
   const now = new Date();
   const month = now.getMonth();
+
+  // Resolve discount code if provided in settings
+  const discountCodes = require('../../payment/discount-codes.js');
+  const discountCode = settings?.discountCode;
+  const discount = discountCode
+    ? discountCodes.validate(discountCode)
+    : { code: '', percent: '' };
 
   return {
     brand: brand || {},
@@ -538,7 +552,45 @@ function buildTemplateContext(brand) {
       year: String(now.getFullYear()),
       full: now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
     },
+    discount: {
+      code: discount.code || '',
+      percent: discount.percent || '',
+    },
   };
+}
+
+/**
+ * Recursively walk an object and resolve {template} variables in all string values.
+ * Arrays and nested objects are walked. Non-string values are passed through.
+ */
+function resolveTemplateVars(obj, context) {
+  const template = require('node-powertools').template;
+
+  if (typeof obj === 'string') {
+    if (!obj.includes('{')) {
+      return obj;
+    }
+
+    // Resolve, then replace any "null" or "undefined" leftovers with empty string
+    const resolved = template(obj, context);
+    return resolved.replace(/\bnull\b|\bundefined\b/g, '').replace(/\s{2,}/g, ' ').trim();
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(item => resolveTemplateVars(item, context));
+  }
+
+  if (obj && typeof obj === 'object') {
+    const result = {};
+
+    for (const [key, value] of Object.entries(obj)) {
+      result[key] = resolveTemplateVars(value, context);
+    }
+
+    return result;
+  }
+
+  return obj;
 }
 
 module.exports = Marketing;

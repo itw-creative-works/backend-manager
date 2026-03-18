@@ -28,6 +28,8 @@ module.exports = () => ({
   utm: { types: ['object'], default: {} },
 
   // Config
+  test: { types: ['boolean'], default: false },
+  discountCode: { types: ['string'], default: '' },
   sender: { types: ['string'], default: 'marketing' },
   providers: { types: ['array'], default: [] },
   group: { types: ['string'], default: '' },

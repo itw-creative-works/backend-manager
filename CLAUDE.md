@@ -1084,6 +1084,141 @@ BEM syncs user data to marketing providers (SendGrid, Beehiiv) as custom fields.
 | SendGrid provisioning | `omega-manager/src/services/sendgrid/ensure/custom-fields.js` |
 | Beehiiv provisioning | `omega-manager/src/services/beehiiv/ensure/custom-fields.js` |
 
+## Marketing Campaign System
+
+### Campaign CRUD Routes (admin-only)
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | `/marketing/campaign` | Create campaign (immediate or scheduled) |
+| GET | `/marketing/campaign` | List/filter campaigns by date range, status, type |
+| PUT | `/marketing/campaign` | Update pending campaigns (reschedule, edit) |
+| DELETE | `/marketing/campaign` | Delete pending campaigns |
+
+### Firestore Collection: `marketing-campaigns/{id}`
+
+```javascript
+{
+  settings: { name, subject, preheader, content, template, sender, segments, excludeSegments, ... },
+  sendAt: 1743465600,        // Unix timestamp (any format accepted, normalized on create)
+  status: 'pending',         // pending | sent | failed
+  type: 'email',             // email | push
+  recurrence: { pattern, hour, day },  // Optional — makes it recurring
+  generator: 'newsletter',   // Optional — runs content generator before sending
+  recurringId: '_recurring-sale',      // Present on history docs (links to parent template)
+  generatedFrom: '_recurring-newsletter', // Present on generated docs
+  results: { sendgrid: {...}, beehiiv: {...} },
+  metadata: { created: {...}, updated: {...} },
+}
+```
+
+### Campaign Types
+
+- **Email**: dispatches to SendGrid (Single Send) + Beehiiv (Post) via `mailer.sendCampaign()`
+- **Push**: dispatches to FCM via `notification.send()` (shared library)
+- Content is **markdown** — converted to HTML at send time. Template variables resolved before conversion.
+
+### Recurring Campaigns
+
+Campaigns with a `recurrence` field repeat automatically:
+- Cron fires → creates a **history doc** (same collection, `recurringId` set) → advances `sendAt` to next occurrence
+- Status stays `pending` on the recurring template, history docs are `sent`/`failed`
+- `_` prefix on IDs groups them at top of Firestore console
+
+Recurrence patterns: `daily`, `weekly`, `monthly`, `quarterly`, `yearly`
+
+### Generator Campaigns
+
+Campaigns with a `generator` field don't send directly. A daily cron pre-generates content 24 hours before `sendAt`:
+1. Daily cron finds generator campaigns due within 24 hours
+2. Runs the generator module (e.g., `generators/newsletter.js`)
+3. Creates a NEW standalone `pending` campaign with generated content
+4. Advances the recurring template's `sendAt`
+5. Generated campaign appears on calendar for review, sent by frequent cron when due
+
+### Template Variables
+
+Resolved at send time via `powertools.template()`. Single braces `{var}` for campaign-level, double `{{var}}` for SendGrid template-level.
+
+| Variable | Example Output |
+|----------|---------------|
+| `{brand.name}` | Somiibo |
+| `{brand.id}` | somiibo |
+| `{brand.url}` | https://somiibo.com |
+| `{season.name}` | Winter, Spring, Summer, Fall |
+| `{holiday.name}` | Black Friday, Christmas, Valentine's Day, etc. |
+| `{date.month}` | November |
+| `{date.year}` | 2026 |
+| `{date.full}` | March 17, 2026 |
+
+### UTM Auto-Tagging
+
+`libraries/email/utm.js` scans HTML for `<a href>` matching the brand's domain and appends UTM params. Applied to both marketing campaigns and transactional emails.
+
+Defaults: `utm_source=brand.id`, `utm_medium=email`, `utm_campaign=name`, `utm_content=type`. Override via `settings.utm` object.
+
+### Segments SSOT
+
+`SEGMENTS` dictionary in `constants.js` — 22 segment definitions. OMEGA creates them in SendGrid, BEM resolves keys to provider IDs at runtime via `resolveSegmentIds()` (cached).
+
+| Category | Segments |
+|----------|----------|
+| Subscription (9) | `subscription_free`, `subscription_paid`, `subscription_trialing`, `subscription_cancelling`, `subscription_suspended`, `subscription_cancelled`, `subscription_churned`, `subscription_ever_paid`, `subscription_never_paid` |
+| Lifecycle (5) | `lifecycle_7d`, `lifecycle_30d`, `lifecycle_90d`, `lifecycle_6m`, `lifecycle_1y` |
+| Engagement (5) | `engagement_active_30d`, `engagement_active_90d`, `engagement_inactive_90d`, `engagement_inactive_5m`, `engagement_inactive_6m` |
+
+Campaigns reference segments by SSOT key: `segments: ['subscription_free']`. Auto-translated to provider IDs.
+
+### Contact Pruning
+
+`cron/daily/marketing-prune.js` — runs 1st of each month. Two stages:
+1. **Re-engagement**: send email to `engagement_inactive_5m` (excluding `engagement_inactive_6m`)
+2. **Prune**: export `engagement_inactive_6m` contacts, bulk delete from SendGrid + Beehiiv. Never prunes paying customers.
+
+### Newsletter Generator
+
+`generators/newsletter.js` — pulls content from parent server, AI assembles branded newsletter.
+1. Fetch sources: `GET {parentUrl}/newsletter/sources?category=X&claimFor=brandId` (atomic claim)
+2. AI assembly: GPT-4o-mini generates subject, preheader, and markdown content
+3. Mark used: `PUT {parentUrl}/newsletter/sources` per source
+
+### Seed Campaigns
+
+Created by `npx bm setup` (idempotent, enforced fields checked every run):
+
+| ID | Type | Description |
+|----|------|-------------|
+| `_recurring-sale` | email (sendgrid) | Seasonal sale targeting free + cancelled + churned users |
+| `_recurring-newsletter` | email (beehiiv) | AI-generated newsletter from parent server sources |
+
+### Marketing Config
+
+```javascript
+marketing: {
+  sendgrid: { enabled: true },
+  beehiiv: { enabled: false, publicationId: 'pub_xxxxx' },
+  prune: { enabled: true },
+  newsletter: { enabled: false, categories: ['social-media', 'marketing'] },
+}
+```
+
+### Key Marketing Files
+
+| Purpose | File |
+|---------|------|
+| Marketing library | `src/manager/libraries/email/marketing/index.js` |
+| Field + segment SSOT | `src/manager/libraries/email/constants.js` |
+| UTM tagging | `src/manager/libraries/email/utm.js` |
+| Newsletter generator | `src/manager/libraries/email/generators/newsletter.js` |
+| Notification library | `src/manager/libraries/notification.js` |
+| SendGrid provider | `src/manager/libraries/email/providers/sendgrid.js` |
+| Beehiiv provider | `src/manager/libraries/email/providers/beehiiv.js` |
+| Campaign routes | `src/manager/routes/marketing/campaign/{get,post,put,delete}.js` |
+| Campaign cron | `src/manager/cron/frequent/marketing-campaigns.js` |
+| Newsletter pre-gen cron | `src/manager/cron/daily/marketing-newsletter-generate.js` |
+| Pruning cron | `src/manager/cron/daily/marketing-prune.js` |
+| Seed campaigns | `src/cli/commands/setup-tests/helpers/seed-campaigns.js` |
+
 ## Common Mistakes to Avoid
 
 1. **Don't modify Manager internals directly** - Use factory methods and public APIs
