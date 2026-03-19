@@ -5,8 +5,7 @@
  * Accepts any field from the POST schema. Only provided fields are updated.
  * Changing sendAt reschedules the campaign (if still pending).
  */
-const _ = require('lodash');
-const moment = require('moment');
+const { buildCampaignDoc } = require('./utils');
 
 module.exports = async ({ assistant, user, Manager, settings, analytics }) => {
 
@@ -39,8 +38,11 @@ module.exports = async ({ assistant, user, Manager, settings, analytics }) => {
     return assistant.respond(`Cannot edit campaign with status "${existing.status}"`, { code: 400 });
   }
 
-  // Build update — merge provided fields into existing settings
+  // Build update from provided fields using shared utility
+  const { docFields, campaignSettings } = buildCampaignDoc(settings);
+
   const update = {
+    ...docFields,
     metadata: {
       updated: {
         timestamp: new Date().toISOString(),
@@ -49,44 +51,9 @@ module.exports = async ({ assistant, user, Manager, settings, analytics }) => {
     },
   };
 
-  // Update sendAt if provided
-  if (settings.sendAt !== undefined && settings.sendAt !== '') {
-    update.sendAt = normalizeSendAt(settings.sendAt);
-  }
-
-  // Update type if provided
-  if (settings.type) {
-    update.type = settings.type;
-  }
-
-  // Update recurrence if provided
-  if (settings.recurrence !== undefined) {
-    update.recurrence = settings.recurrence;
-  }
-
-  // Update settings fields — only merge what's provided
-  const settingsUpdate = {};
-  const settingsFields = [
-    'name', 'subject', 'preheader', 'template', 'content', 'data',
-    'lists', 'segments', 'excludeSegments', 'all',
-    'utm', 'sender', 'providers', 'group', 'categories',
-  ];
-
-  for (const field of settingsFields) {
-    if (settings[field] !== undefined && settings[field] !== '') {
-      settingsUpdate[field] = settings[field];
-    }
-  }
-
-  if (Object.keys(settingsUpdate).length) {
-    // Clean undefined values for Firestore
-    const cleaned = _.cloneDeepWith(settingsUpdate, (value) => {
-      if (typeof value === 'undefined') {
-        return null;
-      }
-    });
-
-    update.settings = { ...existing.settings, ...cleaned };
+  // Merge provided settings into existing
+  if (Object.keys(campaignSettings).length) {
+    update.settings = { ...existing.settings, ...campaignSettings };
   }
 
   await docRef.set(update, { merge: true });
@@ -103,20 +70,3 @@ module.exports = async ({ assistant, user, Manager, settings, analytics }) => {
     campaign: { id: campaignId, ...updated.data() },
   });
 };
-
-function normalizeSendAt(sendAt) {
-  if (!sendAt || sendAt === 'now') {
-    return Math.round(Date.now() / 1000);
-  }
-
-  if (typeof sendAt === 'number') {
-    return sendAt;
-  }
-
-  if (/^\d+$/.test(sendAt)) {
-    return parseInt(sendAt, 10);
-  }
-
-  const parsed = moment(sendAt);
-  return parsed.isValid() ? parsed.unix() : Math.round(Date.now() / 1000);
-}
