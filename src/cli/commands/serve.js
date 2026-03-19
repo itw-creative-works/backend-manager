@@ -11,6 +11,12 @@ class ServeCommand extends BaseCommand {
     const port = self.argv.port || self.argv?._?.[1] || '5000';
     const projectDir = self.firebaseProjectPath;
 
+    // Check for port conflicts before starting server
+    const canProceed = await this.checkAndKillBlockingProcesses({ serving: parseInt(port, 10) });
+    if (!canProceed) {
+      throw new Error('Port conflicts could not be resolved');
+    }
+
     // Start BEM watcher in background
     const watcher = new WatchCommand(self);
     watcher.startBackground();

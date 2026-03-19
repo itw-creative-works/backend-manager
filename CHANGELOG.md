@@ -14,6 +14,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.161] - 2026-03-18
+### Added
+- Port conflict detection in `serve` command — checks and kills blocking processes before starting Firebase server
+
+### Changed
+- Unblocked common team/role email local parts (`user`, `email`, `mail`, `hello`, `info`, `admin`, `support`, `contact`) from validation blocklist, as these are legitimate addresses
+
 # [5.0.160] - 2026-03-18
 ### Added
 - Beehiiv `resolveSegmentIds()` — fetches segments from API, builds name→ID cache (same pattern as SendGrid)

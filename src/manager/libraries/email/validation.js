@@ -37,10 +37,12 @@ const BLOCKED_LOCAL_PARTS = new Set([
   'asdf', 'qwerty', 'zxcv', 'asd', 'qwe',
   'aaa', 'bbb', 'xxx', 'zzz',
   'abc', 'abc123', 'abcdef',
+  // Team
+  // 'user', 'email', 'mail', 'hello', 'info',
+  // 'admin', 'administrator', 'support',
+  // 'contact',
   // Placeholder
-  'user', 'email', 'mail', 'hello', 'info',
-  'admin', 'administrator', 'support',
-  'contact', 'name', 'firstname', 'lastname',
+  'name', 'firstname', 'lastname',
   'foo', 'bar', 'baz', 'foobar',
   'null', 'undefined', 'none', 'anonymous',
 ]);
