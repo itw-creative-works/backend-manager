@@ -25,7 +25,7 @@ class MarketingCampaignsSeededTest extends BaseTest {
         return false;
       }
 
-      // Check enforced fields
+      // Check enforced fields + missing defaults
       const data = doc.data();
 
       for (const [path, expected] of Object.entries(seed.enforced)) {
@@ -34,6 +34,11 @@ class MarketingCampaignsSeededTest extends BaseTest {
         if (!_.isEqual(actual, expected)) {
           return false;
         }
+      }
+
+      // Check for missing fields that should exist from seed
+      if (hasMissingFields(data, seed.doc)) {
+        return false;
       }
     }
 
@@ -62,10 +67,14 @@ class MarketingCampaignsSeededTest extends BaseTest {
         continue;
       }
 
-      // Doc exists → check and fix enforced fields
+      // Doc exists → fill missing defaults + enforce required fields
       const data = doc.data();
       const updates = {};
 
+      // Fill missing fields from seed defaults (never overwrite existing values)
+      fillMissing(data, seed.doc, updates, '');
+
+      // Enforce required fields (always overwrite to match seed)
       for (const [path, expected] of Object.entries(seed.enforced)) {
         const actual = _.get(data, path);
 
@@ -102,6 +111,60 @@ class MarketingCampaignsSeededTest extends BaseTest {
     } catch (e) {
       console.log(chalk.dim(`  (firebase-init failed: ${e.message})`));
       return null;
+    }
+  }
+}
+
+/**
+ * Check if the live doc is missing any fields defined in the seed.
+ */
+function hasMissingFields(live, seed, prefix) {
+  for (const [key, seedValue] of Object.entries(seed)) {
+    if (key === 'metadata') {
+      continue;
+    }
+
+    const path = prefix ? `${prefix}.${key}` : key;
+    const liveValue = _.get(live, path);
+
+    if (liveValue === undefined) {
+      return true;
+    }
+
+    if (_.isPlainObject(seedValue) && _.isPlainObject(liveValue)) {
+      if (hasMissingFields(live, seedValue, path)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Recursively fill missing fields from seed into updates.
+ * Only sets fields that don't exist in the live doc — never overwrites.
+ * Skips metadata (managed separately).
+ */
+function fillMissing(live, seed, updates, prefix) {
+  for (const [key, seedValue] of Object.entries(seed)) {
+    if (key === 'metadata') {
+      continue;
+    }
+
+    const path = prefix ? `${prefix}.${key}` : key;
+    const liveValue = _.get(live, path);
+
+    // If live doc is missing this field entirely, set it from seed
+    if (liveValue === undefined) {
+      _.set(updates, path, seedValue);
+      console.log(chalk.blue(`  + ${path}: ${chalk.dim('(missing)')} → ${chalk.bold(JSON.stringify(seedValue).slice(0, 80))}`));
+      continue;
+    }
+
+    // If both are plain objects, recurse to check nested fields
+    if (_.isPlainObject(seedValue) && _.isPlainObject(liveValue)) {
+      fillMissing(live, seedValue, updates, path);
     }
   }
 }

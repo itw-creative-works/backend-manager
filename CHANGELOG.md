@@ -14,6 +14,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.164] - 2026-03-18
+### Added
+- Default field backfill in campaign seed setup — missing fields are restored from seed defaults without overwriting user edits
+
 # [5.0.163] - 2026-03-18
 ### Changed
 - Refactored campaign POST/PUT routes to generic field passthrough — schema-validated fields flow through automatically via shared `buildCampaignDoc()` utility, no manual field assignments needed
