@@ -317,7 +317,14 @@ Marketing.prototype.sendCampaign = async function (settings) {
     };
   }
 
-  // Beehiiv: segment resolution will go here when Beehiiv segments are supported
+  if (useProviders.includes('beehiiv') && self.providers.beehiiv) {
+    const segmentIdMap = await beehiivProvider.resolveSegmentIds();
+
+    resolvedSegments.beehiiv = {
+      segments: (resolvedSettings.segments || []).map(key => segmentIdMap[key] || key).filter(Boolean),
+      excludeSegments: (resolvedSettings.excludeSegments || []).map(key => segmentIdMap[key] || key).filter(Boolean),
+    };
+  }
 
   assistant.log('Marketing.sendCampaign():', {
     name: resolvedSettings.name,
@@ -349,8 +356,8 @@ Marketing.prototype.sendCampaign = async function (settings) {
         preheader: resolvedSettings.preheader,
         content: contentHtml,
         sendAt: settings.sendAt,
-        segments: settings.segments,
-        excludeSegments: settings.excludeSegments,
+        segments: resolvedSegments.beehiiv?.segments || [],
+        excludeSegments: resolvedSegments.beehiiv?.excludeSegments || [],
       })
         .then((r) => { results.beehiiv = r; })
         .catch((e) => { results.beehiiv = { success: false, error: e.message }; })

@@ -274,6 +274,47 @@ function buildFields(userDoc) {
   return fields;
 }
 
+// Cached segment name → Beehiiv segment ID map
+let _segmentIdCache = null;
+
+/**
+ * Fetch segment definitions from Beehiiv and build a name → id map.
+ * Segments are created by OMEGA with names matching the SSOT keys in constants.js.
+ * Cached in memory for the lifetime of the process.
+ *
+ * @returns {object} Map of segment name → Beehiiv segment ID
+ */
+async function resolveSegmentIds() {
+  if (_segmentIdCache) {
+    return _segmentIdCache;
+  }
+
+  const publicationId = await getPublicationId();
+
+  if (!publicationId) {
+    return {};
+  }
+
+  try {
+    const data = await fetch(`${BASE_URL}/publications/${publicationId}/segments?limit=100`, {
+      response: 'json',
+      headers: headers(),
+      timeout: 10000,
+    });
+
+    _segmentIdCache = {};
+
+    for (const segment of (data.data || [])) {
+      _segmentIdCache[segment.name] = segment.id;
+    }
+
+    return _segmentIdCache;
+  } catch (e) {
+    console.error('Beehiiv resolveSegmentIds error:', e);
+    return {};
+  }
+}
+
 // --- Campaigns (Posts) ---
 
 /**
@@ -362,6 +403,9 @@ async function createPost(options) {
 }
 
 module.exports = {
+  // Resolution
+  resolveSegmentIds,
+
   // Contacts
   addContact,
   removeContact,

@@ -14,6 +14,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.160] - 2026-03-18
+### Added
+- Beehiiv `resolveSegmentIds()` — fetches segments from API, builds name→ID cache (same pattern as SendGrid)
+- Beehiiv segment resolution in `sendCampaign()` — SSOT keys auto-translate to Beehiiv segment IDs
+
+### Changed
+- Beehiiv `createPost()` now receives resolved segment IDs instead of raw SSOT keys
+
 # [5.0.159] - 2026-03-18
 ### Added
 - Audience-specific email discount codes: `UPGRADE15`, `COMEBACK20`, `MISSYOU25`, `TRYAGAIN10` with eligibility validation per user
