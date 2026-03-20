@@ -31,7 +31,7 @@ module.exports = {
           db.doc(`notifications/${token}`).set({
             token: token,
             owner: 'anonymous',
-            createdAt: new Date(),
+            metadata: { created: { timestamp: new Date().toISOString(), timestampUNIX: Math.floor(Date.now() / 1000) } },
           })
         );
       },
@@ -52,7 +52,7 @@ module.exports = {
           db.doc(`notifications/${token}`).set({
             token: token,
             owner: uid,
-            createdAt: new Date(),
+            metadata: { created: { timestamp: new Date().toISOString(), timestampUNIX: Math.floor(Date.now() / 1000) } },
           })
         );
       },
@@ -74,7 +74,7 @@ module.exports = {
           adminDb.doc(`notifications/${token}`).set({
             token: token,
             owner: uid,
-            createdAt: new Date(),
+            metadata: { created: { timestamp: new Date().toISOString(), timestampUNIX: Math.floor(Date.now() / 1000) } },
           })
         );
 
@@ -101,7 +101,7 @@ module.exports = {
           adminDb.doc(`notifications/${token}`).set({
             token: token,
             owner: otherUid,
-            createdAt: new Date(),
+            metadata: { created: { timestamp: new Date().toISOString(), timestampUNIX: Math.floor(Date.now() / 1000) } },
           })
         );
 
@@ -144,14 +144,14 @@ module.exports = {
           adminDb.doc(`notifications/${token}`).set({
             token: token,
             owner: otherUid,
-            createdAt: new Date(),
+            metadata: { created: { timestamp: new Date().toISOString(), timestampUNIX: Math.floor(Date.now() / 1000) } },
           })
         );
 
         // Should succeed - user can update if token matches
         await rules.expectSuccess(
           db.doc(`notifications/${token}`).update({
-            updatedAt: new Date(),
+            'metadata.updated': { timestamp: new Date().toISOString(), timestampUNIX: Math.floor(Date.now() / 1000) },
           })
         );
       },
@@ -173,7 +173,7 @@ module.exports = {
           adminDb.doc(`notifications/${token}`).set({
             token: token,
             owner: uid,
-            createdAt: new Date(),
+            metadata: { created: { timestamp: new Date().toISOString(), timestampUNIX: Math.floor(Date.now() / 1000) } },
           })
         );
 
@@ -203,7 +203,7 @@ module.exports = {
           adminDb.doc(`notifications/${realToken}`).set({
             token: realToken,
             owner: otherUid,
-            createdAt: new Date(),
+            metadata: { created: { timestamp: new Date().toISOString(), timestampUNIX: Math.floor(Date.now() / 1000) } },
           })
         );
 
@@ -237,7 +237,7 @@ module.exports = {
           adminDb.doc(`notifications/${token}`).set({
             token: token,
             owner: uid,
-            createdAt: new Date(),
+            metadata: { created: { timestamp: new Date().toISOString(), timestampUNIX: Math.floor(Date.now() / 1000) } },
           })
         );
 
@@ -269,7 +269,7 @@ module.exports = {
           adminDb.doc(`notifications/${token}`).set({
             token: token,
             owner: accounts.basic.uid,
-            createdAt: new Date(),
+            metadata: { created: { timestamp: new Date().toISOString(), timestampUNIX: Math.floor(Date.now() / 1000) } },
           })
         );
       },
@@ -290,7 +290,7 @@ module.exports = {
           adminDb.doc(`notifications/${token}`).set({
             token: token,
             owner: basicUid,
-            createdAt: new Date(),
+            metadata: { created: { timestamp: new Date().toISOString(), timestampUNIX: Math.floor(Date.now() / 1000) } },
           })
         );
 
@@ -315,14 +315,14 @@ module.exports = {
           adminDb.doc(`notifications/${token}`).set({
             token: token,
             owner: accounts.basic.uid,
-            createdAt: new Date(),
+            metadata: { created: { timestamp: new Date().toISOString(), timestampUNIX: Math.floor(Date.now() / 1000) } },
           })
         );
 
         // Should succeed - admin can update any doc
         await rules.expectSuccess(
           adminDb.doc(`notifications/${token}`).update({
-            updatedAt: new Date(),
+            'metadata.updated': { timestamp: new Date().toISOString(), timestampUNIX: Math.floor(Date.now() / 1000) },
             adminModified: true,
           })
         );
@@ -343,7 +343,7 @@ module.exports = {
           adminDb.doc(`notifications/${token}`).set({
             token: token,
             owner: 'someone',
-            createdAt: new Date(),
+            metadata: { created: { timestamp: new Date().toISOString(), timestampUNIX: Math.floor(Date.now() / 1000) } },
           })
         );
 
@@ -370,7 +370,7 @@ module.exports = {
           adminDb.doc(`notifications/${token}`).set({
             token: token,
             owner: uid,
-            createdAt: new Date(),
+            metadata: { created: { timestamp: new Date().toISOString(), timestampUNIX: Math.floor(Date.now() / 1000) } },
           })
         );
 
@@ -396,7 +396,7 @@ module.exports = {
           adminDb.doc(`notifications/${token}`).set({
             token: token,
             owner: 'someone',
-            createdAt: new Date(),
+            metadata: { created: { timestamp: new Date().toISOString(), timestampUNIX: Math.floor(Date.now() / 1000) } },
           })
         );
 

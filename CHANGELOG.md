@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.165] - 2026-03-20
+### Changed
+- Serve command now reads hosting port from `firebase.json` emulator config before falling back to default 5000
+- Notification test fixtures migrated from flat `createdAt`/`updatedAt` to nested `metadata.created`/`metadata.updated` objects matching standard BEM metadata format
+
 # [5.0.164] - 2026-03-18
 ### Added
 - Default field backfill in campaign seed setup — missing fields are restored from seed defaults without overwriting user edits

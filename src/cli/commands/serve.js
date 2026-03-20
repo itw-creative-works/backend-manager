@@ -8,8 +8,9 @@ const WatchCommand = require('./watch');
 class ServeCommand extends BaseCommand {
   async execute() {
     const self = this.main;
-    const port = self.argv.port || self.argv?._?.[1] || '5000';
     const projectDir = self.firebaseProjectPath;
+    const firebaseConfig = JSON.parse(fs.readFileSync(path.join(projectDir, 'firebase.json'), 'utf8'));
+    const port = self.argv.port || self.argv?._?.[1] || firebaseConfig?.emulators?.hosting?.port || '5000';
 
     // Check for port conflicts before starting server
     const canProceed = await this.checkAndKillBlockingProcesses({ serving: parseInt(port, 10) });

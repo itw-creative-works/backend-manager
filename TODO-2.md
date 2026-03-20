@@ -13,6 +13,31 @@ payments/upgrade
 TEST NEWSLETTER
 POST /admin/cron { id: 'daily/marketing-newsletter-generate' }
 
+
+SIGNUP HANDLER
+Here are the instructions for BEM:
+
+Update updateReferral() in sign-up.js to resolve all legacy affiliate code formats:
+
+The affiliateCode value coming from the client could be in 3 formats:
+
+Format	Example	How to resolve
+Affiliate code (7-14 alphanumeric)	rmUKlC4z1	Query users where affiliate.code == value (current behavior)
+UID (28 chars)	6sNjQFxTsObA73D8lkF01gcWdP92	Direct doc lookup: users/{value}
+Base64 email (e.g. cG9ldH...Lm_2)	cG9ldHJ5aW5hY3Rpb24yMDE4QGdtYWlsLmNvbQ_2	Strip _\d+ suffix, base64-decode, query users where auth.email == decoded
+Any other format → ignore (resolve with no referrer).
+
+The resolution logic should go at the top of updateReferral(), before the current where('affiliate.code', '==', affiliateCode) query. Try each format in order:
+
+If affiliateCode matches /^[0-9a-zA-Z_-]{7,14}$/ → query by affiliate.code (current path)
+Else if affiliateCode.length === 28 → direct doc get users/{affiliateCode}, use that as the referrer
+Else try base64 decode: strip trailing _\d+, decode, if result contains @ → query by auth.email
+Else → log and return (unrecognized format)
+Once the referrer doc is found (by any method), the rest stays the same: push to affiliate.referrals.
+
+* if the usage was used and the user is actuall authenticated (uid, not just an admin or unauthed user),
+  * set the user's context (ip, location, etc)
+
 Payment attribution
 * can you ensure the the user's attribution (utm etc) is assocaited with the purchase
 * mostly i am referring to the payent events sent to GA4, tiktok, meta
