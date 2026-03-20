@@ -14,6 +14,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.166] - 2026-03-20
+### Added
+- `reasoning: true` feature flag to GPT-5.x and o-series models in MODEL_TABLE
+- New GPT-5.4-mini and GPT-5.4-nano model entries with pricing
+
+### Changed
+- Reasoning parameter is now conditionally included in API requests only when the model supports it
+- `resolveReasoning()` validates model support and warns when reasoning is requested for unsupported models
+
 # [5.0.165] - 2026-03-20
 ### Changed
 - Serve command now reads hosting port from `firebase.json` emulator config before falling back to default 5000

@@ -22,6 +22,7 @@ const MODEL_TABLE = {
     features: {
       json: true,
       temperature: false,
+      reasoning: true,
     },
   },
   'gpt-5.2': {
@@ -31,6 +32,7 @@ const MODEL_TABLE = {
     features: {
       json: true,
       temperature: false,
+      reasoning: true,
     },
   },
   'gpt-5.1': {
@@ -40,6 +42,7 @@ const MODEL_TABLE = {
     features: {
       json: true,
       temperature: false,
+      reasoning: true,
     },
   },
   'gpt-5': {
@@ -49,6 +52,7 @@ const MODEL_TABLE = {
     features: {
       json: true,
       temperature: false,
+      reasoning: true,
     },
   },
   'gpt-5-mini': {
@@ -58,6 +62,7 @@ const MODEL_TABLE = {
     features: {
       json: true,
       temperature: false,
+      reasoning: true,
     },
   },
   'gpt-5-nano': {
@@ -67,6 +72,29 @@ const MODEL_TABLE = {
     features: {
       json: true,
       temperature: false,
+      reasoning: true,
+    },
+  },
+  // Mar 20, 2026
+  // GPT-5.4 mini/nano family
+  'gpt-5.4-mini': {
+    input: 0.75,
+    output: 4.50,
+    provider: 'openai',
+    features: {
+      json: true,
+      temperature: false,
+      reasoning: true,
+    },
+  },
+  'gpt-5.4-nano': {
+    input: 0.20,
+    output: 1.25,
+    provider: 'openai',
+    features: {
+      json: true,
+      temperature: false,
+      reasoning: true,
     },
   },
   // GPT-4.5
@@ -127,6 +155,7 @@ const MODEL_TABLE = {
     provider: 'openai',
     features: {
       json: true,
+      reasoning: true,
     },
   },
   'o3-pro': {
@@ -135,6 +164,7 @@ const MODEL_TABLE = {
     provider: 'openai',
     features: {
       json: true,
+      reasoning: true,
     },
   },
   'o3': {
@@ -143,6 +173,7 @@ const MODEL_TABLE = {
     provider: 'openai',
     features: {
       json: true,
+      reasoning: true,
     },
   },
   'o3-mini': {
@@ -151,6 +182,7 @@ const MODEL_TABLE = {
     provider: 'openai',
     features: {
       json: true,
+      reasoning: true,
     },
   },
   'o1-pro': {
@@ -159,6 +191,7 @@ const MODEL_TABLE = {
     provider: 'openai',
     features: {
       json: true,
+      reasoning: true,
     },
   },
   'o1': {
@@ -167,6 +200,7 @@ const MODEL_TABLE = {
     provider: 'openai',
     features: {
       json: true,
+      reasoning: true,
     },
   },
   'o1-preview': {
@@ -175,6 +209,7 @@ const MODEL_TABLE = {
     provider: 'openai',
     features: {
       json: true,
+      reasoning: true,
     },
   },
   'o1-mini': {
@@ -183,6 +218,7 @@ const MODEL_TABLE = {
     provider: 'openai',
     features: {
       json: true,
+      reasoning: true,
     },
   },
   'gpt-4-turbo': {
@@ -794,12 +830,17 @@ function makeRequest(mode, options, self, prompt, message, user, _log) {
         user: user,
         max_output_tokens: options.maxTokens,
         text: resolveFormatting(options),
-        reasoning: resolveReasoning(options),
       }
 
       // Only include temperature if the model supports it
       if (modelConfig.features?.temperature !== false) {
         request.body.temperature = options.temperature;
+      }
+
+      // Only include reasoning if the model supports it
+      const reasoning = resolveReasoning(options);
+      if (reasoning) {
+        request.body.reasoning = reasoning;
       }
     }
 
@@ -861,16 +902,22 @@ function resolveFormatting(options) {
 }
 
 function resolveReasoning(options) {
-  // If reasoning is set, return reasoning format
-  if (options.reasoning) {
-    return {
-      effort: options.reasoning.effort || 'medium',
-      // summary: options.reasoning.summary || 'concise',
-    };
+  // If reasoning is not requested, return undefined
+  if (!options.reasoning) {
+    return undefined;
   }
 
-  // Other, return undefined
-  return undefined;
+  // Check if the model supports reasoning
+  const modelConfig = getModelConfig(options.model);
+  if (!modelConfig.features?.reasoning) {
+    console.warn(`Reasoning not supported for model: ${options.model}, ignoring reasoning option`);
+    return undefined;
+  }
+
+  return {
+    effort: options.reasoning.effort || 'medium',
+    // summary: options.reasoning.summary || 'concise',
+  };
 }
 
 module.exports = OpenAI;
