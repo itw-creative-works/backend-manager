@@ -821,8 +821,6 @@ function makeRequest(mode, options, self, prompt, message, user, _log) {
       const history = formatHistory(options, prompt, message, _log);
 
       // Set request
-      const modelConfig = getModelConfig(options.model);
-
       request.url = 'https://api.openai.com/v1/responses';
       request.body = {
         model: options.model,
@@ -833,8 +831,9 @@ function makeRequest(mode, options, self, prompt, message, user, _log) {
       }
 
       // Only include temperature if the model supports it
-      if (modelConfig.features?.temperature !== false) {
-        request.body.temperature = options.temperature;
+      const temperature = resolveTemperature(options);
+      if (temperature !== undefined) {
+        request.body.temperature = temperature;
       }
 
       // Only include reasoning if the model supports it
@@ -899,6 +898,16 @@ function resolveFormatting(options) {
 
   // Other, return undefined
   return undefined;
+}
+
+function resolveTemperature(options) {
+  // Check if the model supports temperature
+  const modelConfig = getModelConfig(options.model);
+  if (modelConfig.features?.temperature === false) {
+    return undefined;
+  }
+
+  return options.temperature;
 }
 
 function resolveReasoning(options) {
