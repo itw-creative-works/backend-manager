@@ -8,6 +8,7 @@
 const moment = require('moment');
 const _ = require('lodash');
 const hcaptcha = require('hcaptcha');
+const User = require('./user.js');
 
 function Usage(m) {
   const self = this;
@@ -319,8 +320,8 @@ Usage.prototype.getProduct = function (id) {
 
   const products = Manager.config.payment?.products || [];
 
-  // Look up by provided ID, or fall back to user's subscription product
-  id = id || self.user.subscription.product.id;
+  // Look up by provided ID, or fall back to user's resolved plan
+  id = id || User.resolveSubscription(self.user).plan;
 
   return products.find(p => p.id === id)
     || products.find(p => p.id === 'basic')

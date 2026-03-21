@@ -7,6 +7,7 @@ const path = require('path');
 const powertools = require('node-powertools');
 const { merge } = require('lodash');
 const JSON5 = require('json5');
+const User = require('./user.js');
 
 function Middleware(m, req, res) {
   const self = this;
@@ -126,7 +127,8 @@ Middleware.prototype.run = function (libPath, options) {
 
     // Log working user
     const workingUser = assistant.getUser();
-    assistant.log(`Middleware.process(): User (${workingUser.auth.uid}, ${workingUser.auth.email}, ${workingUser.subscription.product.id}=${workingUser.subscription.status}):`, safeStringify(workingUser));
+    const resolvedSub = User.resolveSubscription(workingUser);
+    assistant.log(`Middleware.process(): User (${workingUser.auth.uid}, ${workingUser.auth.email}, ${workingUser.subscription.product.id}=${workingUser.subscription.status} (resolved: ${resolvedSub.plan})):`, safeStringify(workingUser));
 
     // Setup analytics
     if (options.setupAnalytics) {

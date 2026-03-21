@@ -1,5 +1,6 @@
 const powertools = require('node-powertools');
 const { REMINDER_DELAYS, COLLECTION } = require('../../libraries/abandoned-cart-config.js');
+const User = require('../../helpers/user.js');
 
 /**
  * Abandoned cart reminder cron job
@@ -49,8 +50,7 @@ module.exports = async ({ Manager, assistant, context, libraries }) => {
       const userDoc = userSnap.data();
 
       // Belt-and-suspenders: skip if user already has active paid subscription
-      if (userDoc.subscription?.status === 'active'
-        && userDoc.subscription?.product?.id !== 'basic') {
+      if (User.resolveSubscription(userDoc).active) {
         assistant.log(`User ${uid} now has active subscription, marking cart completed`);
         await markCompleted(doc, admin, nowUNIX);
         skipped++;
