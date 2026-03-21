@@ -218,6 +218,16 @@ async function processPaymentEvent({ category, library, resource, resourceType, 
     ? library.toUnifiedSubscription(resource, transformOptions)
     : library.toUnifiedOneTime(resource, transformOptions);
 
+  // Override: immediately suspend on payment denial
+  // Processors keep the sub active while retrying, but we revoke access right away.
+  // If the retry succeeds (e.g. PAYMENT.SALE.COMPLETED), it will restore active status.
+  // PayPal: PAYMENT.SALE.DENIED, Stripe: invoice.payment_failed, Chargebee: payment_failed
+  const PAYMENT_DENIED_EVENTS = ['PAYMENT.SALE.DENIED', 'invoice.payment_failed', 'payment_failed'];
+  if (isSubscription && PAYMENT_DENIED_EVENTS.includes(eventType) && unified.status === 'active') {
+    assistant.log(`Overriding status to suspended: ${eventType} received but provider still says active`);
+    unified.status = 'suspended';
+  }
+
   assistant.log(`Unified ${category}: product=${unified.product.id}, status=${unified.status}`, unified);
 
   // Read checkout context from payments-intents (attribution, discount, supplemental)

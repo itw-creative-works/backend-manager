@@ -14,6 +14,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.168] - 2026-03-21
+### Fixed
+- Immediately suspend subscription on payment denial (PAYMENT.SALE.DENIED, invoice.payment_failed) instead of waiting for the processor to give up retrying — recovery via PAYMENT.SALE.COMPLETED restores active status
+
 # [5.0.167] - 2026-03-20
 ### Changed
 - Extracted `resolveTemperature()` helper for consistency with `resolveFormatting()` and `resolveReasoning()`
