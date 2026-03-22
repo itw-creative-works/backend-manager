@@ -2,12 +2,12 @@ const path = require('path');
 const powertools = require('node-powertools');
 
 /**
- * POST /payments/dispute-alert?alerts=chargeblast&key=XXX
+ * POST /payments/dispute-alert?provider=chargeblast&key=XXX
  * Receives dispute alert webhooks (e.g., from Chargeblast), validates them,
  * and saves to Firestore for async processing via onWrite trigger
  *
  * Query params:
- *   - alerts: alert provider name (default: 'chargeblast')
+ *   - provider: alert provider name (default: 'chargeblast')
  *   - key: must match BACKEND_MANAGER_KEY
  */
 module.exports = async ({ assistant, Manager, libraries }) => {
@@ -22,7 +22,7 @@ module.exports = async ({ assistant, Manager, libraries }) => {
   }
 
   // Determine alert provider (default: chargeblast)
-  const provider = query.alerts || 'chargeblast';
+  const provider = query.provider || 'chargeblast';
 
   // Load the processor module
   let processorModule;
