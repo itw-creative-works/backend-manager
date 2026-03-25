@@ -10,6 +10,27 @@ payments/reactivate
 payments/upgrade
   * takes a subscription id and a new plan id and upgrades the user's subscription to the new plan. this can only be done if the user has an active subscription.
 
+-------
+UPSELL
+* products in BEM can have an UPSELL where you link another product ID and it allows you to add it to your cart OR shows you after checkout?
+
+-------
+USER OBJECT UPDGRADE --> INSTANCE?
+
+const User = require('backend-manager/src/manager/helpers/user');
++
+User.resolveSubscription(self.request.user);
+-->
+one object that cna do resolveSubscription(), getAccount(), etc
+
+since you changed some things, do all tests in all projects align still?
+
+after that, udpate README, CLAUDE.md and ANY TOPLEVLE CLAUDE SKILLS so that we never make this mistake again
+
+including
+
+---------
+
 TEST NEWSLETTER
 POST /admin/cron { id: 'daily/marketing-newsletter-generate' }
 

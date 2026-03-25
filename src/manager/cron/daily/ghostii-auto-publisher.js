@@ -235,7 +235,7 @@ function uploadPost(assistant, settings, article) {
       author: settings.author,
       categories: article.categories,
       tags: article.keywords,
-      path: 'ghostii',
+      postPath: 'ghostii',
       githubUser: settings.brand.github.user,
       githubRepo: settings.brand.github.repo,
     },

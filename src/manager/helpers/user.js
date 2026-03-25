@@ -108,7 +108,6 @@ const SCHEMA = {
         timestampUNIX: { type: 'number', default: 0 },
       },
     },
-    requests: '$template',
   },
   personal: {
     birthday: '$timestamp',

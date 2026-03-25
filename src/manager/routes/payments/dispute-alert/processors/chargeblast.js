@@ -2,9 +2,9 @@
  * Chargeblast dispute alert processor
  * Normalizes Chargeblast webhook payloads into a standard dispute alert shape
  *
- * Chargeblast sends:
- *   id, card (full number or last4), cardBrand, amount (dollars),
- *   transactionDate ("YYYY-MM-DD HH:MM:SS"), app, processor, alerts
+ * Chargeblast sends two event types:
+ *   alert.created: id, card, cardBrand, amount, transactionDate, processor, etc.
+ *   alert.updated: same + externalOrder (charge ID), metadata (payment intent), customerEmail, etc.
  */
 module.exports = {
   /**
@@ -38,6 +38,15 @@ module.exports = {
       amount: parseFloat(body.amount),
       transactionDate: String(body.transactionDate).split(' ')[0], // date only, no time
       processor: body.processor ? String(body.processor).toLowerCase() : 'stripe',
+      alertType: body.alertType || null,
+      customerEmail: body.customerEmail || null,
+      // Stripe-specific IDs provided by Chargeblast on alert.updated events
+      chargeId: body.externalOrder || null,
+      paymentIntentId: body.metadata || null,
+      stripeUrl: body.externalUrl || null,
+      reasonCode: body.reasonCode || null,
+      subprovider: body.subprovider || null,
+      isRefunded: body.isRefunded || false,
     };
   },
 };
