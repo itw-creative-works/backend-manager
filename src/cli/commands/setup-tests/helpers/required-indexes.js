@@ -58,6 +58,17 @@ module.exports = [
     ],
   },
 
+  // Admin dashboard — active paid subscriber count
+  // Serves: .where('subscription.status', '==', 'active').where('subscription.product.id', '!=', 'basic')
+  {
+    collectionGroup: 'users',
+    queryScope: 'COLLECTION',
+    fields: [
+      { fieldPath: 'subscription.status', order: 'ASCENDING' },
+      { fieldPath: 'subscription.product.id', order: 'ASCENDING' },
+    ],
+  },
+
   // GET /marketing/campaign — list by type + sendAt range
   // Query: .where('type', '==', type).where('sendAt', '>=', start).where('sendAt', '<=', end)
   {
