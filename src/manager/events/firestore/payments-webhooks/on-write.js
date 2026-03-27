@@ -314,12 +314,15 @@ async function processPaymentEvent({ category, library, resource, resourceType, 
     const orderRef = admin.firestore().doc(`payments-orders/${orderId}`);
     const orderSnap = await orderRef.get();
 
-    // Initialize requests on first creation only (avoid overwriting cancel/refund data set by endpoints)
     if (!orderSnap.exists) {
+      // Initialize requests on first creation only (avoid overwriting cancel/refund data set by endpoints)
       order.requests = {
         cancellation: null,
         refund: null,
       };
+    } else {
+      // Preserve original created timestamp on subsequent webhook events
+      order.metadata.created = orderSnap.data().metadata?.created || order.metadata.created;
     }
 
     await orderRef.set(order, { merge: true });
