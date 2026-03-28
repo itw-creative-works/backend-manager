@@ -32,7 +32,7 @@ module.exports = {
       name: 'rejects-unknown-provider',
       auth: 'none',
       async run({ http, assert }) {
-        const response = await http.as('none').post(`payments/dispute-alert?alerts=unknown&key=${process.env.BACKEND_MANAGER_KEY}`, {
+        const response = await http.as('none').post(`payments/dispute-alert?provider=unknown&key=${process.env.BACKEND_MANAGER_KEY}`, {
           id: '_test-dispute-unknown-provider',
           card: '4242',
           amount: 9.99,

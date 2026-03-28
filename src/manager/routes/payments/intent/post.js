@@ -55,10 +55,12 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
       return assistant.respond('Frequency is required for subscription products', { code: 400 });
     }
 
-    // Check if user already has an active non-basic subscription
-    if (user.subscription?.status === 'active' && user.subscription?.product?.id !== 'basic') {
-      assistant.log(`User ${uid} already has active subscription: product=${user.subscription.product.id}, status=${user.subscription.status}, resourceId=${user.subscription.payment?.resourceId}`);
-      return assistant.respond('User already has an active subscription', { code: 400 });
+    // Block checkout unless user has no subscription or is fully cancelled
+    const subProductId = user.subscription?.product?.id || 'basic';
+    const subStatus = user.subscription?.status;
+    if (subProductId !== 'basic' && subStatus !== 'cancelled') {
+      assistant.log(`User ${uid} has existing subscription: product=${subProductId}, status=${subStatus}, resourceId=${user.subscription.payment?.resourceId}`);
+      return assistant.respond('You already have a subscription. Please cancel your existing subscription before purchasing a new one.', { code: 400 });
     }
 
     // Resolve trial eligibility: if requested but user has subscription history, silently downgrade

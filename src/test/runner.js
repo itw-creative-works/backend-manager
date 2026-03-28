@@ -229,7 +229,8 @@ class TestRunner {
     // Create fresh test accounts
     const result = await testAccounts.createTestAccounts(
       this.options.admin,
-      this.options.domain
+      this.options.domain,
+      this.config
     );
 
     if (!result.success) {
@@ -240,7 +241,7 @@ class TestRunner {
     console.log(chalk.green(`✓ (${result.created} created)`));
 
     // Fetch account privateKeys
-    this.accounts = await testAccounts.fetchPrivateKeys(this.options.admin, this.options.domain);
+    this.accounts = await testAccounts.fetchPrivateKeys(this.options.admin, this.options.domain, this.config);
 
     // Initialize rules testing context for security rules tests
     process.stdout.write(chalk.gray('  Initializing rules testing context... '));
@@ -663,30 +664,20 @@ class TestRunner {
     });
 
     // Set default auth
-    switch (auth) {
-      case 'admin':
-        http.setAuth('backendManagerKey', { key: this.options.backendManagerKey });
-        break;
-      case 'basic':
-      case 'user':
-        if (this.accounts?.basic?.privateKey) {
-          http.setAuth('privateKey', { privateKey: this.accounts.basic.privateKey });
-        }
-        break;
-      case 'premium-active':
-        if (this.accounts?.['premium-active']?.privateKey) {
-          http.setAuth('privateKey', { privateKey: this.accounts['premium-active'].privateKey });
-        }
-        break;
-      case 'premium-expired':
-        if (this.accounts?.['premium-expired']?.privateKey) {
-          http.setAuth('privateKey', { privateKey: this.accounts['premium-expired'].privateKey });
-        }
-        break;
-      case 'none':
-      default:
-        http.setAuth('none');
-        break;
+    if (auth === 'admin') {
+      http.setAuth('backendManagerKey', { key: this.options.backendManagerKey });
+    } else if (auth === 'none') {
+      http.setAuth('none');
+    } else if (auth === 'user') {
+      // Alias for basic
+      if (this.accounts?.basic?.privateKey) {
+        http.setAuth('privateKey', { privateKey: this.accounts.basic.privateKey });
+      }
+    } else if (this.accounts?.[auth]?.privateKey) {
+      // Dynamic lookup — any account type with a privateKey
+      http.setAuth('privateKey', { privateKey: this.accounts[auth].privateKey });
+    } else {
+      http.setAuth('none');
     }
 
     // Create firestore helper (only if admin SDK available)

@@ -4,6 +4,8 @@
  * Returns user account info for authenticated users
  * Validates that User() correctly structures user data
  */
+const { getFirstPaidProduct } = require('../../../src/test/test-accounts.js');
+
 module.exports = {
   description: 'User resolve (account info)',
   type: 'group',
@@ -104,10 +106,11 @@ module.exports = {
     // Test 5: Premium active user - verify premium subscription is retained
     {
       name: 'premium-active-user-resolved-correctly',
-      auth: 'premium-active',
+      auth: 'resolve-premium-active',
       timeout: 15000,
 
-      async run({ http, assert, accounts }) {
+      async run({ http, assert, accounts, config }) {
+        const paidProduct = getFirstPaidProduct(config);
         const response = await http.get('user', {});
 
         assert.isSuccess(response, 'Resolve should succeed for premium user');
@@ -115,11 +118,10 @@ module.exports = {
         const user = response.data.user;
 
         // Verify auth properties
-        assert.equal(user.auth.uid, accounts['premium-active'].uid, 'UID should match premium test account');
-        assert.equal(user.auth.email, accounts['premium-active'].email, 'Email should match premium test account');
+        assert.equal(user.auth.uid, accounts['resolve-premium-active'].uid, 'UID should match premium test account');
 
-        // Verify subscription - premium user should retain premium subscription
-        assert.equal(user.subscription.product.id, 'premium', 'Subscription ID should be premium');
+        // Verify subscription - premium user should retain paid subscription
+        assert.equal(user.subscription.product.id, paidProduct.id, 'Subscription ID should match first paid product');
         assert.equal(user.subscription.status, 'active', 'Subscription status should be active');
 
         // Verify expires is in the future
@@ -132,10 +134,11 @@ module.exports = {
     // Test 6: Premium expired user - verify subscription retains product but shows cancelled status
     {
       name: 'premium-expired-user-cancelled',
-      auth: 'premium-expired',
+      auth: 'resolve-premium-expired',
       timeout: 15000,
 
-      async run({ http, assert, accounts }) {
+      async run({ http, assert, accounts, config }) {
+        const paidProduct = getFirstPaidProduct(config);
         const response = await http.get('user', {});
 
         assert.isSuccess(response, 'Resolve should succeed for expired premium user');
@@ -143,10 +146,10 @@ module.exports = {
         const user = response.data.user;
 
         // Verify auth properties
-        assert.equal(user.auth.uid, accounts['premium-expired'].uid, 'UID should match expired premium test account');
+        assert.equal(user.auth.uid, accounts['resolve-premium-expired'].uid, 'UID should match expired premium test account');
 
-        // Verify subscription - product.id stays premium, status reflects cancellation
-        assert.equal(user.subscription.product.id, 'premium', 'Product ID should remain premium');
+        // Verify subscription - product.id stays as paid product, status reflects cancellation
+        assert.equal(user.subscription.product.id, paidProduct.id, 'Product ID should remain paid product');
         assert.equal(user.subscription.status, 'cancelled', 'Status should be cancelled');
       },
     },

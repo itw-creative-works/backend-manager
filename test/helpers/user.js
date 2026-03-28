@@ -72,10 +72,7 @@ module.exports = {
         assert.ok(user.api.privateKey.length > 0, 'api.privateKey should not be empty');
 
         // Usage
-        assert.equal(user.usage.requests.monthly, 0, 'usage.requests.monthly should be 0');
-        assert.equal(user.usage.requests.daily, 0, 'usage.requests.daily should be 0');
-        assert.equal(user.usage.requests.total, 0, 'usage.requests.total should be 0');
-        assert.equal(user.usage.requests.last.id, null, 'usage.requests.last.id should be null');
+        assert.deepEqual(user.usage, {}, 'usage should be empty object by default');
 
         // Personal
         assert.equal(user.personal.name.first, null, 'personal.name.first should be null');
@@ -231,12 +228,11 @@ module.exports = {
     },
 
     {
-      name: 'usage-only-requests-when-no-extra-keys',
+      name: 'usage-empty-when-no-keys-provided',
       async run({ assert }) {
         const user = createUser({});
 
-        assert.ok(user.usage.requests, 'usage.requests should exist');
-        assert.equal(Object.keys(user.usage).length, 1, 'usage should only have requests key');
+        assert.deepEqual(user.usage, {}, 'usage should be empty object when no keys provided');
       },
     },
 

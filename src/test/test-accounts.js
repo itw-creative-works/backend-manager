@@ -1,6 +1,18 @@
 const uuid = require('uuid');
 
 /**
+ * Resolve the first paid subscription product from config
+ * Falls back to 'premium' if no config or no paid products found
+ */
+function getFirstPaidProduct(config) {
+  const products = config?.payment?.products || [];
+  const paid = products.find(p => p.type === 'subscription' && p.id !== 'basic');
+  return paid
+    ? { id: paid.id, name: paid.name }
+    : { id: 'premium', name: 'Premium' };
+}
+
+/**
  * Helper to create a future expiration date for premium subscriptions
  * User() checks subscription.expires to determine if subscription is active
  * If expires is in the past (or default 1970), subscription gets downgraded to basic
@@ -75,6 +87,24 @@ const STATIC_ACCOUNTS = {
     properties: {
       roles: {},
       subscription: { product: { id: 'premium' }, status: 'cancelled', expires: getPastExpires() },
+    },
+  },
+  'premium-suspended': {
+    id: 'premium-suspended',
+    uid: '_test-premium-suspended',
+    email: '_test.premium-suspended@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'premium' }, status: 'suspended', expires: getFutureExpires() },
+    },
+  },
+  'premium-cancelling': {
+    id: 'premium-cancelling',
+    uid: '_test-premium-cancelling',
+    email: '_test.premium-cancelling@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'premium' }, status: 'active', expires: getFutureExpires(), cancellation: { pending: true } },
     },
   },
   delete: {
@@ -397,6 +427,25 @@ const JOURNEY_ACCOUNTS = {
       subscription: { product: { id: 'basic' }, status: 'active' },
     },
   },
+  // Dedicated accounts for user resolve tests — must not be reused by other tests
+  'resolve-premium-active': {
+    id: 'resolve-premium-active',
+    uid: '_test-resolve-premium-active',
+    email: '_test.resolve-premium-active@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'premium' }, status: 'active', expires: getFutureExpires() },
+    },
+  },
+  'resolve-premium-expired': {
+    id: 'resolve-premium-expired',
+    uid: '_test-resolve-premium-expired',
+    email: '_test.resolve-premium-expired@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'premium' }, status: 'cancelled', expires: getPastExpires() },
+    },
+  },
 };
 
 /**
@@ -408,19 +457,29 @@ const TEST_ACCOUNTS = {
 };
 
 /**
- * Get all test account definitions with resolved emails
+ * Get all test account definitions with resolved emails and dynamic product IDs
  * @param {string} domain - Domain for email addresses (e.g., 'itwcreativeworks.com')
+ * @param {object} [config] - BEM config (used to resolve first paid product)
  * @returns {object} Account definitions with resolved emails
  */
-function getAccountDefinitions(domain) {
+function getAccountDefinitions(domain, config) {
+  const paidProduct = getFirstPaidProduct(config);
   const accounts = {};
 
   for (const [key, account] of Object.entries(TEST_ACCOUNTS)) {
+    const properties = JSON.parse(JSON.stringify(account.properties));
+
+    // Replace hardcoded 'premium' product with the actual first paid product from config
+    if (properties.subscription?.product?.id === 'premium') {
+      properties.subscription.product.id = paidProduct.id;
+      properties.subscription.product.name = paidProduct.name;
+    }
+
     accounts[key] = {
       id: account.id,
       uid: account.uid,
       email: account.email.replace('{domain}', domain),
-      properties: account.properties,
+      properties,
     };
   }
 
@@ -431,10 +490,11 @@ function getAccountDefinitions(domain) {
  * Fetch privateKeys for test accounts from Firestore
  * @param {object} admin - Firebase admin instance
  * @param {string} domain - Domain for email addresses (e.g., 'itwcreativeworks.com')
+ * @param {object} [config] - BEM config (used to resolve first paid product)
  * @returns {Promise<object>} Account credentials with privateKeys
  */
-async function fetchPrivateKeys(admin, domain) {
-  const definitions = getAccountDefinitions(domain);
+async function fetchPrivateKeys(admin, domain, config) {
+  const definitions = getAccountDefinitions(domain, config);
   const accounts = {};
 
   // Fetch all in parallel
@@ -617,10 +677,11 @@ async function deleteTestUsers(admin) {
  * Assumes deleteTestUsers() was called first to ensure clean state
  * @param {object} admin - Firebase admin instance
  * @param {string} domain - Domain for email addresses (e.g., 'itwcreativeworks.com')
+ * @param {object} [config] - BEM config (used to resolve first paid product)
  * @returns {Promise<object>} Result with created/failed counts
  */
-async function createTestAccounts(admin, domain) {
-  const definitions = getAccountDefinitions(domain);
+async function createTestAccounts(admin, domain, config) {
+  const definitions = getAccountDefinitions(domain, config);
   const results = { created: [], failed: [] };
 
   // Create all accounts in parallel
@@ -716,6 +777,7 @@ module.exports = {
   JOURNEY_ACCOUNTS,
   TEST_ACCOUNTS,
   TEST_DATA,
+  getFirstPaidProduct,
   getAccountDefinitions,
   fetchPrivateKeys,
   deleteTestUsers,

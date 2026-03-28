@@ -212,8 +212,8 @@ const SEGMENTS = {
   engagement_active_30d:      { display: 'Engaged Last 30 Days', conditions: [{ type: 'engagement', op: 'opened_or_clicked', value: '30d' }] },
   engagement_active_90d:      { display: 'Engaged Last 90 Days', conditions: [{ type: 'engagement', op: 'opened_or_clicked', value: '90d' }] },
   engagement_inactive_90d:    { display: 'Inactive 90+ Days', conditions: [{ type: 'engagement', op: 'not_opened', value: '90d' }] },
-  engagement_inactive_5m:     { display: 'Inactive 5+ Months', conditions: [{ type: 'engagement', op: 'not_opened', value: '150d' }] },
-  engagement_inactive_6m:     { display: 'Inactive 6+ Months', conditions: [{ type: 'engagement', op: 'not_opened', value: '180d' }] },
+  engagement_inactive_5m:     { display: 'Inactive 5+ Months', conditions: [{ type: 'engagement', op: 'not_opened', value: '150d' }, { field: 'user_metadata_signup_date', op: 'not_within', value: '150d' }] },
+  engagement_inactive_6m:     { display: 'Inactive 6+ Months', conditions: [{ type: 'engagement', op: 'not_opened', value: '180d' }, { field: 'user_metadata_signup_date', op: 'not_within', value: '180d' }] },
 
   // Test
   test_admin:                 { display: 'Test Admin', conditions: [{ type: 'contact', op: 'email_is', value: 'hello@itwcreativeworks.com' }] },

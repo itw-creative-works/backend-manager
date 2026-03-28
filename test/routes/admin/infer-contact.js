@@ -44,6 +44,9 @@ module.exports = {
       name: 'single-email-returns-result',
       auth: 'admin',
       timeout: 30000,
+      skip: !process.env.TEST_EXTENDED_MODE
+        ? 'TEST_EXTENDED_MODE not set (skipping inference test)'
+        : false,
 
       async run({ http, assert }) {
         const response = await http.post('admin/infer-contact', {
@@ -89,12 +92,15 @@ module.exports = {
       },
     },
 
-    // ─── Name parsing (regex) ───
+    // ─── Name parsing (requires AI) ───
 
     {
       name: 'regex-parses-dot-separated-names',
       auth: 'admin',
       timeout: 30000,
+      skip: !process.env.TEST_EXTENDED_MODE
+        ? 'TEST_EXTENDED_MODE not set (skipping inference test)'
+        : false,
 
       async run({ http, assert }) {
         const response = await http.post('admin/infer-contact', {
@@ -104,7 +110,6 @@ module.exports = {
         assert.isSuccess(response);
         const result = response.data.results[0];
 
-        // AI or regex — either way should get the name right
         assert.equal(result.firstName, 'Alice', 'Should parse first name');
         assert.equal(result.lastName, 'Wonderland', 'Should parse last name');
       },
@@ -114,6 +119,9 @@ module.exports = {
       name: 'infers-company-from-custom-domain',
       auth: 'admin',
       timeout: 30000,
+      skip: !process.env.TEST_EXTENDED_MODE
+        ? 'TEST_EXTENDED_MODE not set (skipping inference test)'
+        : false,
 
       async run({ http, assert }) {
         const response = await http.post('admin/infer-contact', {
@@ -130,6 +138,9 @@ module.exports = {
       name: 'no-company-from-generic-domain',
       auth: 'admin',
       timeout: 30000,
+      skip: !process.env.TEST_EXTENDED_MODE
+        ? 'TEST_EXTENDED_MODE not set (skipping inference test)'
+        : false,
 
       async run({ http, assert }) {
         const response = await http.post('admin/infer-contact', {

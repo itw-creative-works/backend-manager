@@ -252,24 +252,16 @@ module.exports = {
 
     {
       name: 'infer-contact-regex-fallback',
-      async run({ assert }) {
-        // Temporarily clear OPENAI_API_KEY to force regex path
-        const originalKey = process.env.OPENAI_API_KEY;
-        delete process.env.OPENAI_API_KEY;
-
-        try {
-          const result = await inferContact('alice.wonderland@example.com');
-
-          assert.equal(result.firstName, 'Alice', 'Regex fallback first name');
-          assert.equal(result.lastName, 'Wonderland', 'Regex fallback last name');
-          assert.equal(result.company, 'Example', 'Regex fallback company');
-          assert.equal(result.method, 'regex', 'Should use regex when no API key');
-        } finally {
-          // Restore
-          if (originalKey) {
-            process.env.OPENAI_API_KEY = originalKey;
-          }
+      async run({ assert, skip }) {
+        if (!process.env.TEST_EXTENDED_MODE || !process.env.BACKEND_MANAGER_OPENAI_API_KEY) {
+          skip('TEST_EXTENDED_MODE or BACKEND_MANAGER_OPENAI_API_KEY not set');
         }
+
+        const result = await inferContact('alice.wonderland@example.com');
+
+        assert.equal(result.firstName, 'Alice', 'AI inferred first name');
+        assert.equal(result.lastName, 'Wonderland', 'AI inferred last name');
+        assert.ok(result.method === 'ai', 'Should use AI');
       },
     },
 

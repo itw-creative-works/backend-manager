@@ -162,22 +162,20 @@ async function seedTestAccounts(accounts) {
     throw new Error('Test environment not initialized. Call initRulesTestEnv() first.');
   }
 
-  // Get static account definitions for roles/subscription data
-  const { TEST_ACCOUNTS } = require('../test-accounts.js');
-
-  // Use withSecurityRulesDisabled to write test data
+  // Use withSecurityRulesDisabled to write ONLY roles (for isAdmin() rules checks)
+  // Do NOT write subscription — that's already set by createAccount with config-resolved product IDs
   await testEnv.withSecurityRulesDisabled(async (context) => {
     const db = context.firestore();
+    const { TEST_ACCOUNTS } = require('../test-accounts.js');
 
     for (const [accountType, account] of Object.entries(accounts)) {
       if (!account.uid) {
         continue;
       }
 
-      // Get the static definition for this account type (has roles, subscription)
       const staticDef = TEST_ACCOUNTS[accountType];
 
-      // Build user document with roles for isAdmin() check
+      // Only write auth + roles for rules testing — subscription is already correct in the doc
       const userData = {
         auth: {
           uid: account.uid,
@@ -185,11 +183,6 @@ async function seedTestAccounts(accounts) {
         },
         roles: staticDef?.properties?.roles || {},
       };
-
-      // Add subscription if present in static definition
-      if (staticDef?.properties?.subscription) {
-        userData.subscription = staticDef.properties.subscription;
-      }
 
       await db.doc(`users/${account.uid}`).set(userData, { merge: true });
     }

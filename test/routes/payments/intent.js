@@ -86,6 +86,54 @@ module.exports = {
     },
 
     {
+      name: 'rejects-suspended-user',
+      auth: 'premium-suspended',
+      async run({ http, assert, config }) {
+        const paidProduct = config.payment.products.find(p => p.id !== 'basic' && p.prices);
+
+        const response = await http.as('premium-suspended').post('payments/intent', {
+          processor: 'stripe',
+          productId: paidProduct.id,
+          frequency: 'monthly',
+        });
+
+        assert.isError(response, 400, 'Should reject user with suspended subscription');
+      },
+    },
+
+    {
+      name: 'rejects-cancelling-user',
+      auth: 'premium-cancelling',
+      async run({ http, assert, config }) {
+        const paidProduct = config.payment.products.find(p => p.id !== 'basic' && p.prices);
+
+        const response = await http.as('premium-cancelling').post('payments/intent', {
+          processor: 'stripe',
+          productId: paidProduct.id,
+          frequency: 'monthly',
+        });
+
+        assert.isError(response, 400, 'Should reject user with cancelling subscription');
+      },
+    },
+
+    {
+      name: 'allows-cancelled-user',
+      auth: 'premium-expired',
+      async run({ http, assert, config }) {
+        const paidProduct = config.payment.products.find(p => p.id !== 'basic' && p.prices);
+
+        const response = await http.as('premium-expired').post('payments/intent', {
+          processor: 'test',
+          productId: paidProduct.id,
+          frequency: 'monthly',
+        });
+
+        assert.isSuccess(response, 'Should allow user with fully cancelled subscription');
+      },
+    },
+
+    {
       name: 'rejects-invalid-product',
       async run({ http, assert }) {
         const response = await http.as('basic').post('payments/intent', {

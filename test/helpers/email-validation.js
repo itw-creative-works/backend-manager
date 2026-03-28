@@ -101,14 +101,14 @@ module.exports = {
     },
 
     {
-      name: 'localpart-admin-blocked',
+      name: 'localpart-admin-allowed',
       timeout: 5000,
 
       async run({ assert }) {
         const result = await validate('admin@company.com');
 
-        assert.equal(result.valid, false, '"admin" local part should be blocked');
-        assert.propertyEquals(result, 'checks.localPart.blocked', true, 'Should be flagged as blocked');
+        assert.equal(result.valid, true, '"admin" local part should be allowed (team/role address)');
+        assert.propertyEquals(result, 'checks.localPart.valid', true, 'localPart check should pass');
       },
     },
 
