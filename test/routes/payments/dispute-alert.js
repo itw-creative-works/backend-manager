@@ -115,6 +115,14 @@ module.exports = {
           amount: 29.99,
           transactionDate: '2026-03-07 14:30:00',
           processor: 'stripe',
+          alertType: 'FRAUD',
+          customerEmail: 'test@example.com',
+          externalOrder: 'ch_test123',
+          metadata: 'pi_test456',
+          externalUrl: 'https://dashboard.stripe.com/charges/ch_test123',
+          reasonCode: 'WIP',
+          subprovider: 'Ethoca',
+          isRefunded: false,
         });
 
         assert.isSuccess(response, 'Should accept valid Chargeblast alert');
@@ -129,16 +137,62 @@ module.exports = {
           'Status should be pending or processing',
         );
 
-        // Verify normalized alert data
+        // Verify core normalized alert data
         assert.equal(doc.alert.card.last4, '4242', 'Should extract last4 from full card number');
         assert.equal(doc.alert.card.brand, 'visa', 'Should lowercase card brand');
         assert.equal(doc.alert.amount, 29.99, 'Amount should be preserved');
         assert.equal(doc.alert.transactionDate, '2026-03-07', 'Should extract date without time');
         assert.equal(doc.alert.processor, 'stripe', 'Processor should be stripe');
 
+        // Verify new normalized fields
+        assert.equal(doc.alert.alertType, 'FRAUD', 'Alert type should be preserved');
+        assert.equal(doc.alert.customerEmail, 'test@example.com', 'Customer email should be preserved');
+        assert.equal(doc.alert.chargeId, 'ch_test123', 'Charge ID should be extracted from externalOrder');
+        assert.equal(doc.alert.paymentIntentId, 'pi_test456', 'Payment intent ID should be extracted from metadata');
+        assert.equal(doc.alert.stripeUrl, 'https://dashboard.stripe.com/charges/ch_test123', 'Stripe URL should be preserved');
+        assert.equal(doc.alert.reasonCode, 'WIP', 'Reason code should be preserved');
+        assert.equal(doc.alert.subprovider, 'Ethoca', 'Subprovider should be preserved');
+        assert.equal(doc.alert.isRefunded, false, 'isRefunded should be preserved');
+
         // Verify raw payload is preserved
         assert.ok(doc.raw, 'Raw payload should be preserved');
         assert.equal(doc.raw.id, alertId, 'Raw id should match');
+
+        // Clean up
+        await firestore.delete(`payments-disputes/${alertId}`);
+      },
+    },
+
+    {
+      name: 'accepts-alert-without-optional-fields',
+      auth: 'none',
+      async run({ http, assert, firestore }) {
+        const alertId = '_test-dispute-minimal';
+
+        // Clean up any existing doc
+        await firestore.delete(`payments-disputes/${alertId}`);
+
+        // Send minimal alert (alert.created shape — no externalOrder, metadata, etc.)
+        const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_KEY}`, {
+          id: alertId,
+          card: '9124',
+          amount: 10,
+          transactionDate: '2026-03-21 00:01:02',
+        });
+
+        assert.isSuccess(response, 'Should accept minimal alert');
+
+        const doc = await firestore.get(`payments-disputes/${alertId}`);
+        assert.equal(doc.alert.card.last4, '9124', 'Should use card as last4');
+        assert.equal(doc.alert.processor, 'stripe', 'Processor should default to stripe');
+        assert.equal(doc.alert.chargeId, null, 'Charge ID should be null when not provided');
+        assert.equal(doc.alert.paymentIntentId, null, 'Payment intent should be null when not provided');
+        assert.equal(doc.alert.customerEmail, null, 'Customer email should be null when not provided');
+        assert.equal(doc.alert.alertType, null, 'Alert type should be null when not provided');
+        assert.equal(doc.alert.stripeUrl, null, 'Stripe URL should be null when not provided');
+        assert.equal(doc.alert.reasonCode, null, 'Reason code should be null when not provided');
+        assert.equal(doc.alert.subprovider, null, 'Subprovider should be null when not provided');
+        assert.equal(doc.alert.isRefunded, false, 'isRefunded should default to false');
 
         // Clean up
         await firestore.delete(`payments-disputes/${alertId}`);
@@ -242,7 +296,7 @@ module.exports = {
     },
 
     {
-      name: 'defaults-alerts-to-chargeblast',
+      name: 'defaults-provider-to-chargeblast',
       auth: 'none',
       async run({ http, assert, firestore }) {
         const alertId = '_test-dispute-default-provider';
@@ -250,7 +304,7 @@ module.exports = {
         // Clean up any existing doc
         await firestore.delete(`payments-disputes/${alertId}`);
 
-        // Send without alerts query param
+        // Send without provider query param
         const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_KEY}`, {
           id: alertId,
           card: '4242',
@@ -258,7 +312,7 @@ module.exports = {
           transactionDate: '2026-01-15',
         });
 
-        assert.isSuccess(response, 'Should accept without explicit alerts param');
+        assert.isSuccess(response, 'Should accept without explicit provider param');
 
         const doc = await firestore.get(`payments-disputes/${alertId}`);
         assert.equal(doc.provider, 'chargeblast', 'Provider should default to chargeblast');
