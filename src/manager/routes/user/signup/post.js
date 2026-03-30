@@ -332,7 +332,7 @@ function sendCheckupEmail(assistant, uid, firstName) {
     to: uid,
     sender: 'hello',
     categories: ['account/checkup'],
-    subject: `How's your experience with ${Manager.config.brand.name}?`,
+    subject: `How is your experience with ${Manager.config.brand.name}?`,
     template: 'default',
     copy: false,
     sendAt: moment().add(5, 'days').unix(),

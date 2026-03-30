@@ -16,7 +16,7 @@ module.exports = () => ({
   sender: { types: ['string'], default: undefined },
   subject: { types: ['string'], default: undefined },
   template: { types: ['string'], default: undefined },
-  group: { types: ['number'], default: undefined },
+  group: { types: ['number', 'string'], default: undefined },
   sendAt: { types: ['number', 'string'], default: undefined },
   data: { types: ['object'], default: {} },
   categories: { types: ['array'], default: [] },
