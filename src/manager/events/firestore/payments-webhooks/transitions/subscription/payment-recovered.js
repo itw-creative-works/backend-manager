@@ -11,6 +11,7 @@ module.exports = async function ({ before, after, order, uid, userDoc, assistant
     template: 'main/order/payment-recovered',
     subject: `Payment received for order #${order?.id || ''}`,
     categories: ['order/payment-recovered'],
+    internalOnly: true,
     userDoc,
     assistant,
     data: {

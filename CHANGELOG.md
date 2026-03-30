@@ -14,6 +14,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.177] - 2026-03-29
+### Changed
+- `payment-recovered` transition now sends email to internal team only — customer no longer receives a "Payment received" notification
+
 # [5.0.176] - 2026-03-30
 ### Fixed
 - Chargeblast `alert.created` events use `alertId` instead of `id` — normalizer now accepts either field

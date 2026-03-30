@@ -15,22 +15,27 @@ const moment = require('moment');
  * @param {object} options.userDoc - User document data (passed as `to` — email.js extracts email/name and user template data)
  * @param {object} options.assistant - Assistant instance
  */
-function sendOrderEmail({ template, subject, categories, data, userDoc, assistant, copy, sender = 'orders' }) {
+function sendOrderEmail({ template, subject, categories, data, userDoc, assistant, copy, internalOnly, sender = 'orders' }) {
   const email = assistant.Manager.Email(assistant);
   const uid = userDoc?.auth?.uid;
 
-  if (!userDoc?.auth?.email) {
+  if (!internalOnly && !userDoc?.auth?.email) {
     assistant.error(`sendOrderEmail(): No email found for uid=${uid}, skipping`);
     return;
   }
 
+  const brandContact = assistant.Manager.config?.brand?.contact;
+  const to = internalOnly
+    ? { email: brandContact?.email, name: brandContact?.name || assistant.Manager.config?.brand?.name }
+    : userDoc;
+
   email.send({
     sender,
-    to: userDoc,
+    to,
     subject,
     template,
     categories,
-    copy: copy !== false,
+    copy: internalOnly ? false : copy !== false,
     data,
   })
     .then((result) => {
