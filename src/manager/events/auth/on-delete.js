@@ -1,17 +1,15 @@
-const { FieldValue } = require('firebase-admin/firestore');
-
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
 
 /**
- * onDelete - Delete user doc + decrement count
+ * onDelete - Delete user doc
  *
  * This function fires when a user is deleted from Firebase Auth.
- * It deletes the user doc and decrements the user count in an atomic batch write.
+ * It deletes the user doc from Firestore.
  *
  * Key behaviors:
  * - Checks if user doc exists before attempting delete
- * - Batch deletes user doc + decrements count atomically
+ * - Retries up to 3 times with exponential backoff on failure
  * - Logs timing for performance monitoring
  */
 module.exports = async ({ Manager, assistant, user, context, libraries }) => {
@@ -33,20 +31,10 @@ module.exports = async ({ Manager, assistant, user, context, libraries }) => {
     return;
   }
 
-  // Batch write with retry: delete user doc + decrement count atomically
+  // Delete user doc with retry
   try {
-    await retryBatchWrite(assistant, async () => {
-      const batch = admin.firestore().batch();
-
-      // Delete user doc
-      batch.delete(admin.firestore().doc(`users/${user.uid}`));
-
-      // Decrement user count (use set+merge so doc is created if missing)
-      batch.set(admin.firestore().doc('meta/stats'), {
-        users: { total: FieldValue.increment(-1) },
-      }, { merge: true });
-
-      await batch.commit();
+    await retryWrite(assistant, async () => {
+      await admin.firestore().doc(`users/${user.uid}`).delete();
     }, MAX_RETRIES, RETRY_DELAY_MS);
 
     assistant.log(`onDelete: Successfully deleted user doc for ${user.uid}`);
@@ -78,7 +66,7 @@ module.exports = async ({ Manager, assistant, user, context, libraries }) => {
 /**
  * Retry a function up to maxRetries times with exponential backoff
  */
-async function retryBatchWrite(assistant, fn, maxRetries, delayMs) {
+async function retryWrite(assistant, fn, maxRetries, delayMs) {
   let lastError;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -87,7 +75,7 @@ async function retryBatchWrite(assistant, fn, maxRetries, delayMs) {
       return; // Success
     } catch (error) {
       lastError = error;
-      assistant.error(`onDelete: Batch write attempt ${attempt}/${maxRetries} failed:`, error);
+      assistant.error(`onDelete: Write attempt ${attempt}/${maxRetries} failed:`, error);
 
       if (attempt < maxRetries) {
         const delay = delayMs * Math.pow(2, attempt - 1); // Exponential backoff: 1s, 2s, 4s

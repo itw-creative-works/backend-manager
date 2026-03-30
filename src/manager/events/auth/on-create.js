@@ -1,17 +1,14 @@
-const { FieldValue } = require('firebase-admin/firestore');
-
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
 
 /**
- * onCreate - Create user doc + increment count
+ * onCreate - Create user doc
  *
  * This function fires for ALL user creations (including Admin SDK).
- * It creates the user doc and increments the user count in an atomic batch write.
+ * It creates the user doc in Firestore.
  *
  * Key behaviors:
  * - Checks if user doc already exists (auth.uid) → skips if exists (handles test accounts, provider linking)
- * - Batch writes user doc + increment count atomically
  * - Retries up to 3 times with exponential backoff on failure
  *
  * If the user signed up via a provider (Google, Facebook, etc.), their display name
@@ -67,20 +64,10 @@ module.exports = async ({ Manager, assistant, user, context, libraries }) => {
 
   assistant.log(`onCreate: Creating user doc for ${user.uid}`, userRecord);
 
-  // Batch write with retry: create user doc + increment count
+  // Write user doc with retry
   try {
-    await retryBatchWrite(assistant, async () => {
-      const batch = admin.firestore().batch();
-
-      // Create user doc
-      batch.set(admin.firestore().doc(`users/${user.uid}`), userRecord);
-
-      // Increment user count (use set+merge so doc is created if missing)
-      batch.set(admin.firestore().doc('meta/stats'), {
-        users: { total: FieldValue.increment(1) },
-      }, { merge: true });
-
-      await batch.commit();
+    await retryWrite(assistant, async () => {
+      await admin.firestore().doc(`users/${user.uid}`).set(userRecord);
     }, MAX_RETRIES, RETRY_DELAY_MS);
 
     assistant.log(`onCreate: Successfully created user doc for ${user.uid} (${Date.now() - startTime}ms)`);
@@ -119,7 +106,7 @@ function extractProviderName(user) {
 /**
  * Retry a function up to maxRetries times with exponential backoff
  */
-async function retryBatchWrite(assistant, fn, maxRetries, delayMs) {
+async function retryWrite(assistant, fn, maxRetries, delayMs) {
   let lastError;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -128,7 +115,7 @@ async function retryBatchWrite(assistant, fn, maxRetries, delayMs) {
       return; // Success
     } catch (error) {
       lastError = error;
-      assistant.error(`onCreate: Batch write attempt ${attempt}/${maxRetries} failed:`, error);
+      assistant.error(`onCreate: Write attempt ${attempt}/${maxRetries} failed:`, error);
 
       if (attempt < maxRetries) {
         const delay = delayMs * Math.pow(2, attempt - 1); // Exponential backoff: 1s, 2s, 4s
