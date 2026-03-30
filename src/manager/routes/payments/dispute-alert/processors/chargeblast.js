@@ -14,7 +14,7 @@ module.exports = {
    * @returns {object} Normalized dispute alert
    */
   normalize(body) {
-    if (!body.id) {
+    if (!body.id && !body.alertId) {
       throw new Error('Missing required field: id');
     }
     if (!body.card) {
@@ -30,7 +30,7 @@ module.exports = {
     const cardStr = String(body.card);
 
     return {
-      id: String(body.id),
+      id: String(body.id || body.alertId),
       card: {
         last4: cardStr.slice(-4),
         brand: body.cardBrand ? String(body.cardBrand).toLowerCase() : null,

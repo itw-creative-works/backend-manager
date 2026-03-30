@@ -164,6 +164,37 @@ module.exports = {
     },
 
     {
+      name: 'accepts-alert-with-alertId-field',
+      auth: 'none',
+      async run({ http, assert, firestore }) {
+        const alertId = '_test-dispute-alertid-field';
+
+        // Clean up any existing doc
+        await firestore.delete(`payments-disputes/${alertId}`);
+
+        // Chargeblast alert.created events use alertId instead of id
+        const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_KEY}`, {
+          alertId: alertId,
+          card: '546616******5805',
+          cardBrand: 'Mastercard',
+          amount: 8,
+          transactionDate: '2026-03-19 00:00:00.000000Z',
+        });
+
+        assert.isSuccess(response, 'Should accept alert using alertId field');
+
+        const doc = await firestore.get(`payments-disputes/${alertId}`);
+        assert.ok(doc, 'Dispute doc should exist in Firestore');
+        assert.equal(doc.id, alertId, 'Doc ID should match alertId');
+        assert.equal(doc.alert.id, alertId, 'Alert id should be set from alertId');
+        assert.equal(doc.alert.card.last4, '5805', 'Should extract last4 from masked card');
+
+        // Clean up
+        await firestore.delete(`payments-disputes/${alertId}`);
+      },
+    },
+
+    {
       name: 'accepts-alert-without-optional-fields',
       auth: 'none',
       async run({ http, assert, firestore }) {

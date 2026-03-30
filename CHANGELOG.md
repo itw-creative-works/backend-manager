@@ -14,6 +14,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.176] - 2026-03-30
+### Fixed
+- Chargeblast `alert.created` events use `alertId` instead of `id` — normalizer now accepts either field
+- Dispute charge matching now uses `charges.search()` instead of invoice search, fixing cases where Stripe invoices had `charge: null` even when paid (via balance/credit). Single reliable strategy: amount + ±2 day date window + card last4
+### Changed
+- Dispute `on-write` trigger is now processor-agnostic — Stripe-specific match/refund logic extracted to `processors/stripe.js`, matching the pattern used by payments-webhooks
+
 # [5.0.174] - 2026-03-27
 ### Fixed
 - Payments-orders `metadata.created` timestamp no longer overwritten on subsequent webhook events (renewals, cancellations, payment failures)
