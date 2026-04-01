@@ -1218,6 +1218,15 @@ function resolveMcpRoutePath(routePath) {
     return routePath;
   }
 
+  // Root-level OAuth paths — Claude Chat sends these directly
+  // regardless of what the discovery endpoints return
+  if (routePath === 'authorize') {
+    return 'mcp/authorize';
+  }
+  if (routePath === 'token') {
+    return 'mcp/token';
+  }
+
   return null;
 }
 

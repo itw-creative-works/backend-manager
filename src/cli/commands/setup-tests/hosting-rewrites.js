@@ -5,7 +5,7 @@ const _ = require('lodash');
 // The expected source pattern for bm_api hosting rewrite
 // Includes /backend-manager/* routes and root-level MCP OAuth paths
 // that Claude Chat sends directly (e.g. /authorize, /token, /.well-known/*)
-const BM_API_SOURCE = '{/backend-manager,/backend-manager/**,/.well-known/oauth-protected-resource,/.well-known/oauth-authorization-server}';
+const BM_API_SOURCE = '{/backend-manager,/backend-manager/**,/.well-known/oauth-protected-resource,/.well-known/oauth-authorization-server,/authorize,/token}';
 
 class HostingRewritesTest extends BaseTest {
   getName() {
