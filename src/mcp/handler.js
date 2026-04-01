@@ -93,7 +93,7 @@ function handleAuthorize(req, res, options) {
   const Manager = options.Manager;
 
   // Auto-approve if client_id matches the BEM key
-  if (isValidKey(client_id, Manager) && redirect_uri) {
+  if (isValidKey(client_id) && redirect_uri) {
     const url = new URL(redirect_uri);
     url.searchParams.set('code', client_id);
     if (state) {
@@ -151,7 +151,7 @@ function handleAuthorize(req, res, options) {
     const redirectUri = body.redirect_uri || '';
     const postState = body.state || '';
 
-    if (!isValidKey(key, Manager)) {
+    if (!isValidKey(key)) {
       res.writeHead(403, { 'Content-Type': 'text/html' });
       res.end('<html><body style="background:#111;color:#e55;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh"><h2>Invalid key. Go back and try again.</h2></body></html>');
       return;
@@ -188,7 +188,7 @@ function handleToken(req, res, options) {
   const Manager = options.Manager;
 
   // The code, client_secret, or client_id IS the backendManagerKey — validate any
-  if (!isValidKey(code, Manager)) {
+  if (!isValidKey(code)) {
     return sendJson(res, 401, {
       error: 'invalid_grant',
       error_description: 'Invalid authorization code.',
@@ -213,7 +213,7 @@ async function handleMcpProtocol(req, res, options) {
   const authHeader = req.headers.authorization || '';
   const key = authHeader.replace(/^Bearer\s+/i, '');
 
-  if (!isValidKey(key, Manager)) {
+  if (!isValidKey(key)) {
     // Return 401 with OAuth discovery hint
     const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
     const host = req.headers['x-forwarded-host'] || req.headers.host || '';
@@ -321,8 +321,8 @@ async function handleMcpProtocol(req, res, options) {
  * Validate a key against the configured backendManagerKey.
  * Returns false if either the key or the config key is empty/missing.
  */
-function isValidKey(key, Manager) {
-  const configKey = Manager.config?.backendManagerKey;
+function isValidKey(key) {
+  const configKey = process.env.BACKEND_MANAGER_KEY || '';
   return !!key && !!configKey && key === configKey;
 }
 
