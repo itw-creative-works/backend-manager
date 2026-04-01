@@ -793,11 +793,9 @@ Manager.prototype.setupFunctions = function (exporter, options) {
     const route = self.BemRouter(req, res).resolve();
 
     // MCP endpoint — bypass middleware, handle protocol directly
-    if (route.routePath === 'mcp'
-      || route.routePath.startsWith('mcp/')
-      || route.routePath === '.well-known/oauth-protected-resource'
-      || route.routePath === '.well-known/oauth-authorization-server') {
-      return self._handleMcp(req, res, route.routePath);
+    const mcpRoutePath = resolveMcpRoutePath(route.routePath);
+    if (mcpRoutePath) {
+      return self._handleMcp(req, res, mcpRoutePath);
     }
 
     if (route.isLegacy) {
@@ -1199,6 +1197,28 @@ function requireJSON5(file, throwError) {
     console.error(`Failed to load JSON at ${file}:`, e);
     throw e;
   }
+}
+
+/**
+ * Check if a routePath is an MCP-related route and normalize it.
+ * Handles /backend-manager/mcp/* paths and /.well-known/oauth-* discovery.
+ *
+ * @param {string} routePath - Resolved route path from BemRouter
+ * @returns {string|null} - Normalized MCP route path, or null if not MCP
+ */
+function resolveMcpRoutePath(routePath) {
+  // Direct MCP paths (via /backend-manager/mcp/*)
+  if (routePath === 'mcp' || routePath.startsWith('mcp/')) {
+    return routePath;
+  }
+
+  // OAuth discovery (via /.well-known/oauth-*)
+  if (routePath === '.well-known/oauth-protected-resource'
+    || routePath === '.well-known/oauth-authorization-server') {
+    return routePath;
+  }
+
+  return null;
 }
 
 module.exports = Manager;
