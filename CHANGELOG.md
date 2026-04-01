@@ -14,6 +14,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.186] - 2026-04-01
+### Fixed
+- Move markdown rendering and UTM link tagging to run after `_.merge()` so caller overrides to `body.message` and `email.body` are properly processed
+
 # [5.0.185] - 2026-04-01
 ### Changed
 - Use `_.merge` for dynamic template data so callers can override any nested field (e.g. `email.preview`, `personalization.name`, `data.body.*`)

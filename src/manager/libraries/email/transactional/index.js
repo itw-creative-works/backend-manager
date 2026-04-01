@@ -188,30 +188,6 @@ Transactional.prototype.build = async function (settings) {
     signoff.urlText = signoff.urlText || '@ianwieds';
   }
 
-  // Process markdown in body fields
-  if (settings?.data?.body?.message) {
-    settings.data.body.message = md.render(settings.data.body.message);
-  }
-  if (settings?.data?.email?.body) {
-    settings.data.email.body = md.render(settings.data.email.body);
-  }
-
-  // Tag links with UTM params for attribution
-  const utmOptions = {
-    brandUrl: brand?.url,
-    brandId: brand?.id,
-    campaign: settings.sender || templateId,
-    type: 'transactional',
-    utm: settings.utm,
-  };
-
-  if (settings?.data?.body?.message) {
-    settings.data.body.message = tagLinks(settings.data.body.message, utmOptions);
-  }
-  if (settings?.data?.email?.body) {
-    settings.data.email.body = tagLinks(settings.data.email.body, utmOptions);
-  }
-
   // Build dynamic template data defaults
   const dynamicTemplateData = {
     email: {
@@ -240,6 +216,30 @@ Transactional.prototype.build = async function (settings) {
   // (e.g. email.preview, email.subject, personalization.name, data.body.*, etc.)
   if (settings.data) {
     _.merge(dynamicTemplateData, settings.data);
+  }
+
+  // Process markdown in body fields (after merge so all data paths are resolved)
+  if (dynamicTemplateData.data?.body?.message) {
+    dynamicTemplateData.data.body.message = md.render(dynamicTemplateData.data.body.message);
+  }
+  if (dynamicTemplateData.email?.body) {
+    dynamicTemplateData.email.body = md.render(dynamicTemplateData.email.body);
+  }
+
+  // Tag links with UTM params for attribution
+  const utmOptions = {
+    brandUrl: brand?.url,
+    brandId: brand?.id,
+    campaign: settings.sender || templateId,
+    type: 'transactional',
+    utm: settings.utm,
+  };
+
+  if (dynamicTemplateData.data?.body?.message) {
+    dynamicTemplateData.data.body.message = tagLinks(dynamicTemplateData.data.body.message, utmOptions);
+  }
+  if (dynamicTemplateData.email?.body) {
+    dynamicTemplateData.email.body = tagLinks(dynamicTemplateData.email.body, utmOptions);
   }
 
   // Build the email object
