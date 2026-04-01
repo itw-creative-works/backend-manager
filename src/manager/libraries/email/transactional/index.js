@@ -212,30 +212,35 @@ Transactional.prototype.build = async function (settings) {
     settings.data.email.body = tagLinks(settings.data.email.body, utmOptions);
   }
 
-  // Build dynamic template data
+  // Build dynamic template data defaults
   const dynamicTemplateData = {
     email: {
       id: Manager.require('uuid').v4(),
-      subject: settings?.data?.email?.subject || subject,
-      preview: settings?.data?.email?.preview || null,
-      body: settings?.data?.email?.body || null,
+      subject,
+      preview: null,
+      body: null,
       unsubscribeUrl,
       categories,
       footer: {
-        text: settings?.data?.email?.footer?.text || null,
+        text: null,
       },
       carbonCopy: copy,
     },
     personalization: {
       email: to[0].email,
       name: to[0].name,
-      ...settings?.data?.personalization,
     },
     signoff,
     brand: brandData,
     user: userProperties,
-    data: settings.data || {},
+    data: {},
   };
+
+  // Deep-merge caller's data on top so they can override any field
+  // (e.g. email.preview, email.subject, personalization.name, data.body.*, etc.)
+  if (settings.data) {
+    _.merge(dynamicTemplateData, settings.data);
+  }
 
   // Build the email object
   const email = {

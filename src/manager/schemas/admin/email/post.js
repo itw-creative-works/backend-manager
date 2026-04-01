@@ -15,7 +15,7 @@ module.exports = () => ({
   replyTo: { types: ['string'], default: undefined },
   sender: { types: ['string'], default: undefined },
   subject: { types: ['string'], default: undefined },
-  template: { types: ['string'], default: undefined },
+  template: { types: ['string'], default: 'default' },
   group: { types: ['number', 'string'], default: undefined },
   sendAt: { types: ['number', 'string'], default: undefined },
   data: { types: ['object'], default: {} },

@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.185] - 2026-04-01
+### Changed
+- Use `_.merge` for dynamic template data so callers can override any nested field (e.g. `email.preview`, `personalization.name`, `data.body.*`)
+- Set email schema `template` default to `'default'` instead of `undefined`
+
 # [5.0.184] - 2026-03-31
 ### Changed
 - Renamed email template shortcuts from `main/` to `core/` prefix across constants and all consumer files
