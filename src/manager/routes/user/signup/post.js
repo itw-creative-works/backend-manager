@@ -378,7 +378,7 @@ function sendFeedbackEmail(assistant, uid) {
     sender: 'hello',
     categories: ['engagement/feedback'],
     subject: `Want to share your feedback about ${Manager.config.brand.name}?`,
-    template: 'main/engagement/feedback',
+    template: 'core/engagement/feedback',
     copy: false,
     sendAt: moment().add(10, 'days').unix(),
   })

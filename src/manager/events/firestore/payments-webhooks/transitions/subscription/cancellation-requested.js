@@ -8,7 +8,7 @@ module.exports = async function ({ before, after, order, uid, userDoc, assistant
   assistant.log(`Transition [subscription/cancellation-requested]: uid=${uid}, product=${after.product?.id}, cancelDate=${after.cancellation?.date?.timestamp}`);
 
   sendOrderEmail({
-    template: 'main/order/cancellation-requested',
+    template: 'core/order/cancellation-requested',
     subject: `Your cancellation is confirmed #${order?.id || ''}`,
     categories: ['order/cancellation-requested'],
     userDoc,

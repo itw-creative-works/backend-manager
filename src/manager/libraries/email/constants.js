@@ -8,23 +8,30 @@
 // Template shortcut map — callers use readable paths instead of SendGrid IDs
 // Paths mirror the email website structure: {category}/{subcategory}/{name}
 const TEMPLATES = {
-  // v2 templates
-  'main/basic/card': 'd-1cd2eee44b6340268c964cd7971d49b9',
-  'main/engagement/feedback': 'd-319ab5c9d5074b21926a93562d6f41f6',
-  'main/misc/app-download-link': 'd-fc8b4834d7e1472896fe7e46152029f4',
-  'main/order/confirmation': 'd-5371ac2b4e3b490bbce51bfc2922ece8',
-  'main/order/payment-failed': 'd-e56af0ac62364bfb9e50af02854e2cd3',
-  'main/order/payment-recovered': 'd-d6dbd17a260a4755b34a852ba09c2454',
-  'main/order/cancellation-requested': 'd-78074f3e8c844146bf263b86fc8d5ecf',
-  'main/order/cancelled': 'd-39041132e6b24e5ebf0e95bce2d94dba',
-  'main/order/plan-changed': 'd-399086311bbb48b4b77bc90b20fb9d0a',
-  'main/order/trial-ending': 'd-af8ab499cbfb4d56918b4118f44343b0',
-  'main/order/refunded': 'd-aa47fdbffa2b4ca9b73b6256e963e49f',
-  'main/order/abandoned-cart': 'd-d8b3fa67e2b44b398dc280d0576bf1b7',
+  // Default templates
+  'core/card': 'd-1cd2eee44b6340268c964cd7971d49b9',
+  'core/plain': 'd-1d99985c1f0e40ff99d130c94047b080',
+
+  // Global templates
+  'core/engagement/feedback': 'd-319ab5c9d5074b21926a93562d6f41f6',
+  'core/misc/app-download-link': 'd-fc8b4834d7e1472896fe7e46152029f4',
+  'core/marketing/promotional': 'd-5fbaf210b0aa498e9167dfd8ae8e08d0',
+  'core/order/confirmation': 'd-5371ac2b4e3b490bbce51bfc2922ece8',
+  'core/order/payment-failed': 'd-e56af0ac62364bfb9e50af02854e2cd3',
+  'core/order/payment-recovered': 'd-d6dbd17a260a4755b34a852ba09c2454',
+  'core/order/cancellation-requested': 'd-78074f3e8c844146bf263b86fc8d5ecf',
+  'core/order/cancelled': 'd-39041132e6b24e5ebf0e95bce2d94dba',
+  'core/order/plan-changed': 'd-399086311bbb48b4b77bc90b20fb9d0a',
+  'core/order/trial-ending': 'd-af8ab499cbfb4d56918b4118f44343b0',
+  'core/order/refunded': 'd-aa47fdbffa2b4ca9b73b6256e963e49f',
+  'core/order/abandoned-cart': 'd-d8b3fa67e2b44b398dc280d0576bf1b7',
+
+  // Brand-specific templates are NOT registered here.
+  // Each consuming project should hardcode its own brand-specific template IDs directly.
 };
 
-// "default" resolves to the basic card template
-TEMPLATES['default'] = TEMPLATES['main/basic/card'];
+// "default" resolves to the default card template
+TEMPLATES['default'] = TEMPLATES['core/card'];
 
 // Group shortcut map — SendGrid ASM group IDs
 // Rename these in SendGrid dashboard to match the comments

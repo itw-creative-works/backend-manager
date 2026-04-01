@@ -10,6 +10,10 @@ payments/reactivate
 payments/upgrade
   * takes a subscription id and a new plan id and upgrades the user's subscription to the new plan. this can only be done if the user has an active subscription.
 
+---
+GHOSTII REVAMP
+* better logic for generating posts. better model? claude?
+
 -------
 UPSELL
 * products in BEM can have an UPSELL where you link another product ID and it allows you to add it to your cart OR shows you after checkout?

@@ -71,7 +71,7 @@ module.exports = async ({ Manager, assistant, context, libraries }) => {
       email.send({
         sender: 'marketing',
         to: userDoc,
-        template: 'main/order/abandoned-cart',
+        template: 'core/order/abandoned-cart',
         subject: `Complete your ${brandName} ${productName} checkout`,
         categories: ['order/abandoned-cart', `order/abandoned-cart/reminder-${reminderIndex + 1}`],
         copy: false,

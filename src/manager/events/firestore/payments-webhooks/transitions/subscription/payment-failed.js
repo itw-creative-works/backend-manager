@@ -8,7 +8,7 @@ module.exports = async function ({ before, after, order, uid, userDoc, assistant
   assistant.log(`Transition [subscription/payment-failed]: uid=${uid}, product=${after.product?.id}, previousStatus=${before?.status}`);
 
   sendOrderEmail({
-    template: 'main/order/payment-failed',
+    template: 'core/order/payment-failed',
     subject: `Payment failed for order #${order?.id || ''}`,
     categories: ['order/payment-failed'],
     userDoc,

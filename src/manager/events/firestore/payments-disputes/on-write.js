@@ -225,7 +225,7 @@ function sendDisputeEmail({ alert, match, result, alertId, assistant }) {
     sender: 'internal',
     to: brandEmail,
     subject: subject,
-    template: 'main/basic/card',
+    template: 'core/card',
     categories: ['order/dispute-alert'],
     copy: true,
     data: {

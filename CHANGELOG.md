@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.184] - 2026-03-31
+### Changed
+- Renamed email template shortcuts from `main/` to `core/` prefix across constants and all consumer files
+- Added new templates: `core/plain` and `core/marketing/promotional`
+
 # [5.0.177] - 2026-03-29
 ### Changed
 - `payment-recovered` transition now sends email to internal team only — customer no longer receives a "Payment received" notification

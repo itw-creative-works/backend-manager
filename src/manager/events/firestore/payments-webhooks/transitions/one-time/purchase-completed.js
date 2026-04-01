@@ -16,7 +16,7 @@ module.exports = async function ({ before, after, order, uid, userDoc, assistant
   assistant.log(`Transition [one-time/purchase-completed]: uid=${uid}, resourceId=${after.payment?.resourceId}, discount=${hasPromoDiscount ? discount.code : 'none'}`);
 
   sendOrderEmail({
-    template: 'main/order/confirmation',
+    template: 'core/order/confirmation',
     subject: `Your ${brandName} ${productName} order #${order?.id || ''}`,
     categories: ['order/confirmation'],
     userDoc,

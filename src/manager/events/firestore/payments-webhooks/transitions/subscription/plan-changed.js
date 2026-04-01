@@ -9,7 +9,7 @@ module.exports = async function ({ before, after, order, uid, userDoc, assistant
   assistant.log(`Transition [subscription/plan-changed]: uid=${uid}, ${before.product?.id} → ${after.product?.id} (${direction})`);
 
   sendOrderEmail({
-    template: 'main/order/plan-changed',
+    template: 'core/order/plan-changed',
     subject: `Your plan has been updated #${order?.id || ''}`,
     categories: ['order/plan-changed'],
     userDoc,
