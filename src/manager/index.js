@@ -431,6 +431,19 @@ Manager.prototype._preProcess = function (mod) {
   });
 };
 
+Manager.prototype._handleMcp = function (req, res, routePath) {
+  const self = this;
+  const cors = self.libraries.cors;
+
+  return cors(req, res, async () => {
+    const { handleMcpRoute } = require('../mcp/handler.js');
+    await handleMcpRoute(req, res, {
+      Manager: self,
+      routePath: routePath,
+    });
+  });
+};
+
 Manager.prototype._processMiddleware = function (req, res, routePath) {
   const self = this;
 
@@ -778,6 +791,14 @@ Manager.prototype.setupFunctions = function (exporter, options) {
   fn({memory: '256MB', timeoutSeconds: 60 * 5})
   .https.onRequest(async (req, res) => {
     const route = self.BemRouter(req, res).resolve();
+
+    // MCP endpoint — bypass middleware, handle protocol directly
+    if (route.routePath === 'mcp'
+      || route.routePath.startsWith('mcp/')
+      || route.routePath === '.well-known/oauth-protected-resource'
+      || route.routePath === '.well-known/oauth-authorization-server') {
+      return self._handleMcp(req, res, route.routePath);
+    }
 
     if (route.isLegacy) {
       // Legacy command-based API -> goes through api.js + _process() for hooks

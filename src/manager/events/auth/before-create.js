@@ -1,5 +1,5 @@
 const ERROR_TOO_MANY_ATTEMPTS = 'You have created too many accounts with our service. Please try again later.';
-const MAX_SIGNUPS_PER_DAY = 3;
+const MAX_SIGNUPS_PER_DAY = 2;
 
 /**
  * beforeUserCreated - IP Rate Limiting ONLY

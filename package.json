@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "5.0.179",
+  "version": "5.0.180",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -48,6 +48,7 @@
     "@firebase/rules-unit-testing": "^5.0.0",
     "@google-cloud/pubsub": "^5.3.0",
     "@google-cloud/storage": "^7.19.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@octokit/rest": "^19.0.13",
     "@sendgrid/mail": "^8.1.6",
     "@sentry/node": "^6.19.7",

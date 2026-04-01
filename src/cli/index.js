@@ -29,6 +29,7 @@ const StripeCommand = require('./commands/stripe');
 const FirestoreCommand = require('./commands/firestore');
 const AuthCommand = require('./commands/auth');
 const LogsCommand = require('./commands/logs');
+const McpCommand = require('./commands/mcp');
 
 function Main() {}
 
@@ -150,6 +151,12 @@ Main.prototype.process = async function (args) {
   // Logs utility commands
   if (self.options['logs:read'] || self.options['logs:tail'] || self.options['logs:stream']) {
     const cmd = new LogsCommand(self);
+    return await cmd.execute();
+  }
+
+  // MCP server
+  if (self.options['mcp']) {
+    const cmd = new McpCommand(self);
     return await cmd.execute();
   }
 };
