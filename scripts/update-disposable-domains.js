@@ -39,6 +39,6 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error('Failed to update disposable domains:', e.message);
-  process.exit(1);
+  console.warn('Warning: Failed to update disposable domains:', e.message);
+  console.warn('Using existing list. Run manually later: node scripts/update-disposable-domains.js');
 });
