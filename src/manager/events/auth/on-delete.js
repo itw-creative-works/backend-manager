@@ -1,5 +1,4 @@
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 1000;
+const { retryWrite, MAX_RETRIES } = require('./utils.js');
 
 /**
  * onDelete - Delete user doc
@@ -11,12 +10,23 @@ const RETRY_DELAY_MS = 1000;
  * - Checks if user doc exists before attempting delete
  * - Retries up to 3 times with exponential backoff on failure
  * - Logs timing for performance monitoring
+ *
+ * Available parameters (1st gen):
+ *
+ * user (UserRecord — firebase-admin):
+ *   uid, email, emailVerified, displayName, photoURL, phoneNumber, disabled,
+ *   metadata: { creationTime, lastSignInTime, lastRefreshTime },
+ *   providerData: [{ uid, displayName, email, photoURL, providerId, phoneNumber }],
+ *   passwordHash, passwordSalt, customClaims, tenantId, tokensValidAfterTime, multiFactor
+ *
+ * context (EventContext — NOT AuthEventContext, no ipAddress/userAgent/locale):
+ *   eventId, eventType, timestamp, resource: { service, name }, params
  */
 module.exports = async ({ Manager, assistant, user, context, libraries }) => {
   const startTime = Date.now();
   const { admin } = libraries;
 
-  assistant.log(`onDelete: ${user.uid}`, { email: user.email });
+  assistant.log(`onDelete: ${user.uid} (${user.email})`, user, context);
 
   // Check if user doc exists before attempting delete
   const existingDoc = await admin.firestore().doc(`users/${user.uid}`)
@@ -33,9 +43,9 @@ module.exports = async ({ Manager, assistant, user, context, libraries }) => {
 
   // Delete user doc with retry
   try {
-    await retryWrite(assistant, async () => {
+    await retryWrite(assistant, 'onDelete', async () => {
       await admin.firestore().doc(`users/${user.uid}`).delete();
-    }, MAX_RETRIES, RETRY_DELAY_MS);
+    });
 
     assistant.log(`onDelete: Successfully deleted user doc for ${user.uid}`);
   } catch (error) {
@@ -62,28 +72,3 @@ module.exports = async ({ Manager, assistant, user, context, libraries }) => {
 
   assistant.log(`onDelete: Completed for ${user.uid} (${Date.now() - startTime}ms)`);
 };
-
-/**
- * Retry a function up to maxRetries times with exponential backoff
- */
-async function retryWrite(assistant, fn, maxRetries, delayMs) {
-  let lastError;
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      await fn();
-      return; // Success
-    } catch (error) {
-      lastError = error;
-      assistant.error(`onDelete: Write attempt ${attempt}/${maxRetries} failed:`, error);
-
-      if (attempt < maxRetries) {
-        const delay = delayMs * Math.pow(2, attempt - 1); // Exponential backoff: 1s, 2s, 4s
-        assistant.log(`onDelete: Retrying in ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-  }
-
-  throw lastError; // All retries failed
-}

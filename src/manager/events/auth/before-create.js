@@ -12,6 +12,23 @@ const MAX_SIGNUPS_PER_DAY = 2;
  * Why not create user doc here?
  * - Admin SDK (used for tests) does NOT trigger beforeUserCreated
  * - on-create fires for ALL user creations, making it more reliable
+ *
+ * Available parameters (1st gen):
+ *
+ * user (AuthUserRecord):
+ *   uid, email, emailVerified, displayName, photoURL, phoneNumber, disabled,
+ *   metadata: { creationTime, lastSignInTime },
+ *   providerData: [{ uid, displayName, email, photoURL, providerId, phoneNumber }],
+ *   passwordHash, passwordSalt, customClaims, tenantId, tokensValidAfterTime, multiFactor
+ *
+ * context (AuthEventContext):
+ *   ipAddress, userAgent, locale, eventId, eventType, authType, resource, timestamp,
+ *   additionalUserInfo: { providerId, profile, username, isNewUser, recaptchaScore, email, phoneNumber },
+ *   credential: { providerId, signInMethod, claims, idToken, accessToken, refreshToken, expirationTime, secret } | null,
+ *   emailType, smsType, params
+ *
+ * Note: recaptchaScore requires reCAPTCHA Enterprise (Google Cloud level), NOT the Firebase SMS fraud toggle.
+ * Note: credential tokens (idToken, accessToken, refreshToken) require opt-in via BlockingOptions.
  */
 module.exports = async ({ Manager, assistant, user, context, libraries }) => {
   const startTime = Date.now();
@@ -54,8 +71,5 @@ module.exports = async ({ Manager, assistant, user, context, libraries }) => {
   usage.increment('signups');
   await usage.update();
 
-  assistant.log(`beforeCreate: Rate limit passed for ${ipAddress}, allowing user creation (${Date.now() - startTime}ms)`);
-
-  // Allow user creation to proceed
-  // User doc will be created by on-create.js
+  assistant.log(`beforeCreate: Completed for ${user.uid} (${Date.now() - startTime}ms)`);
 };

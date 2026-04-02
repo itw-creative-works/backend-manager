@@ -1,5 +1,4 @@
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 1000;
+const { retryWrite, MAX_RETRIES } = require('./utils.js');
 
 /**
  * onCreate - Create user doc
@@ -16,12 +15,23 @@ const RETRY_DELAY_MS = 1000;
  *
  * Non-critical work (welcome emails, marketing contact) is handled
  * by the user/signup endpoint, which the frontend calls after account creation.
+ *
+ * Available parameters (1st gen):
+ *
+ * user (UserRecord — firebase-admin):
+ *   uid, email, emailVerified, displayName, photoURL, phoneNumber, disabled,
+ *   metadata: { creationTime, lastSignInTime, lastRefreshTime },
+ *   providerData: [{ uid, displayName, email, photoURL, providerId, phoneNumber }],
+ *   passwordHash, passwordSalt, customClaims, tenantId, tokensValidAfterTime, multiFactor
+ *
+ * context (EventContext — NOT AuthEventContext, no ipAddress/userAgent/locale):
+ *   eventId, eventType, timestamp, resource: { service, name }, params
  */
 module.exports = async ({ Manager, assistant, user, context, libraries }) => {
   const startTime = Date.now();
   const { admin } = libraries;
 
-  assistant.log(`onCreate: ${user.uid}`, { email: user.email });
+  assistant.log(`onCreate: ${user.uid} (${user.email})`, user, context);
 
   // Skip anonymous users
   if (user.providerData?.every(p => p.providerId === 'anonymous')) {
@@ -66,9 +76,9 @@ module.exports = async ({ Manager, assistant, user, context, libraries }) => {
 
   // Write user doc with retry
   try {
-    await retryWrite(assistant, async () => {
+    await retryWrite(assistant, 'onCreate', async () => {
       await admin.firestore().doc(`users/${user.uid}`).set(userRecord);
-    }, MAX_RETRIES, RETRY_DELAY_MS);
+    });
 
     assistant.log(`onCreate: Successfully created user doc for ${user.uid} (${Date.now() - startTime}ms)`);
   } catch (error) {
@@ -101,29 +111,4 @@ function extractProviderName(user) {
     first: parts[0] || null,
     last: parts.slice(1).join(' ') || null,
   };
-}
-
-/**
- * Retry a function up to maxRetries times with exponential backoff
- */
-async function retryWrite(assistant, fn, maxRetries, delayMs) {
-  let lastError;
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      await fn();
-      return; // Success
-    } catch (error) {
-      lastError = error;
-      assistant.error(`onCreate: Write attempt ${attempt}/${maxRetries} failed:`, error);
-
-      if (attempt < maxRetries) {
-        const delay = delayMs * Math.pow(2, attempt - 1); // Exponential backoff: 1s, 2s, 4s
-        assistant.log(`onCreate: Retrying in ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-  }
-
-  throw lastError; // All retries failed
 }
