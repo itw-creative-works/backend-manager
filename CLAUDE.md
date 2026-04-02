@@ -65,24 +65,32 @@ src/
           stripe.js                   # Stripe SDK init, fetchResource, toUnified*, resolvePriceId
           paypal.js                   # PayPal fetchResource, toUnified* (custom_id parsing)
           test.js                     # Test processor (delegates to Stripe shapes)
-    functions/core/                   # Built-in functions
+    events/                             # All event-driven code
+      auth/                             # Auth event handlers (hookable)
+        before-create.js                # Disposable email blocking + IP rate limiting
+        before-signin.js                # Activity update + sign-in analytics
+        on-create.js                    # User doc creation
+        on-delete.js                    # User doc deletion + marketing cleanup
+        utils.js                        # Shared utilities (retryWrite, runAuthHook)
+      cron/                             # Cron job runners
+        runner.js                       # Shared cron job runner (BEM + consumer hooks)
+        daily.js                        # Daily cron entry point
+        daily/{job}.js                  # Individual daily cron jobs
+        frequent.js                     # Frequent cron entry point
+        frequent/{job}.js               # Individual frequent cron jobs
+      firestore/                        # Firestore triggers
+        payments-webhooks/              # Webhook processing pipeline
+          on-write.js                   # Orchestrator: fetch→transform→transition→write
+          analytics.js                  # Payment analytics tracking (GA4, Meta, TikTok)
+          transitions/                  # State transition detection + handlers
+            index.js                    # Transition detection logic
+            send-email.js               # Shared email helper for handlers
+            subscription/               # Subscription transition handlers
+            one-time/                   # One-time payment transition handlers
+    functions/core/                     # Built-in functions
       actions/
-        api.js                        # Main bm_api handler
-        api/{category}/{action}.js    # API command handlers
-      events/
-        auth/                         # Auth event handlers
-        firestore/                    # Firestore triggers
-          payments-webhooks/          # Webhook processing pipeline
-            on-write.js               # Orchestrator: fetch→transform→transition→write
-            analytics.js              # Payment analytics tracking (GA4, Meta, TikTok)
-            transitions/              # State transition detection + handlers
-              index.js                # Transition detection logic
-              send-email.js           # Shared email helper for handlers
-              subscription/           # Subscription transition handlers
-              one-time/               # One-time payment transition handlers
-      cron/
-        daily.js                      # Daily cron runner
-        daily/{job}.js                # Individual cron jobs
+        api.js                          # Main bm_api handler
+        api/{category}/{action}.js      # API command handlers
     routes/                           # Built-in routes
       admin/
         post/                         # POST /admin/post - Create blog posts via GitHub
@@ -142,6 +150,11 @@ functions/
     {endpoint}/
       index.js                        # Schema definition
   hooks/
+    auth/
+      before-create.js                # Custom pre-signup checks (can block)
+      before-signin.js                # Custom pre-signin checks (can block)
+      on-create.js                    # Post-signup side effects (non-blocking)
+      on-delete.js                    # Post-deletion side effects (non-blocking)
     cron/
       daily/
         {job}.js                      # Custom daily jobs
@@ -416,6 +429,80 @@ Job.prototype.main = function () {
 module.exports = Job;
 ```
 
+### Auth Hooks (Consumer Project)
+
+Auth hooks let consumer projects inject custom logic into BEM's auth event lifecycle. BEM runs its core handler first, then looks for a matching hook at `hooks/auth/{event-name}.js`.
+
+| Hook | File | Behavior |
+|------|------|----------|
+| `before-create` | `hooks/auth/before-create.js` | Runs after BEM's disposable email + rate limit checks. **Can throw `HttpsError` to block signup.** |
+| `before-signin` | `hooks/auth/before-signin.js` | Runs after BEM's activity update. **Can throw `HttpsError` to block sign-in.** |
+| `on-create` | `hooks/auth/on-create.js` | Runs after BEM creates the user doc. **Non-blocking** — errors are caught and logged. |
+| `on-delete` | `hooks/auth/on-delete.js` | Runs after BEM deletes the user doc. **Non-blocking** — errors are caught and logged. |
+
+Hook signature (same as BEM's internal handlers):
+```javascript
+module.exports = async ({ Manager, assistant, user, context, libraries }) => {
+  // user: AuthUserRecord (uid, email, providerData, etc.)
+  // context: AuthEventContext for blocking functions (ipAddress, userAgent, additionalUserInfo)
+  //          EventContext for triggers (eventId, eventType, timestamp — no IP/userAgent)
+  // libraries: { admin, functions, ... }
+};
+```
+
+#### Blocking hook example (before-create)
+
+```javascript
+// hooks/auth/before-create.js — Only allow Google OAuth signups
+const ENFORCE = true;
+
+const ALLOWED_PROVIDERS = ['google.com'];
+
+module.exports = async ({ assistant, user, context, libraries }) => {
+  if (!ENFORCE) { return; }
+
+  const { functions } = libraries;
+  const provider = context.additionalUserInfo?.providerId;
+
+  if (!ALLOWED_PROVIDERS.includes(provider)) {
+    assistant.error(`hook/before-create: Blocked provider '${provider}' for ${user.email}`);
+    throw new functions.auth.HttpsError('permission-denied', 'Please sign up with Google.');
+  }
+};
+```
+
+#### Non-blocking hook example (on-create)
+
+```javascript
+// hooks/auth/on-create.js — Auto-delete spam referrals
+const powertools = require('node-powertools');
+
+const ENFORCE = true;
+const BLOCKED_AFFILIATE_CODES = ['iLvQjmvm'];
+
+module.exports = async ({ Manager, assistant, user, context, libraries }) => {
+  if (!ENFORCE) { return; }
+
+  const { admin } = libraries;
+  const uid = user.uid;
+
+  // Poll until signup route attaches attribution.affiliate.code
+  let referredBy = null;
+
+  await powertools.poll(async () => {
+    const userDoc = await admin.firestore().doc(`users/${uid}`).get().catch(() => null);
+    if (!userDoc?.exists) { return true; }
+    referredBy = userDoc.data()?.attribution?.affiliate?.code;
+    return !!referredBy;
+  }, { interval: 10000, timeout: 60000 }).catch(() => {});
+
+  if (!referredBy || !BLOCKED_AFFILIATE_CODES.includes(referredBy)) { return; }
+
+  // Delete spam account (triggers on-delete for cleanup)
+  await admin.auth().deleteUser(uid).catch(e => assistant.error('Delete failed:', e));
+};
+```
+
 ## Common Operations
 
 ### Authenticate User
@@ -482,7 +569,9 @@ Manager.handlers.bm_api = function (mod, position) {
 | Schemas | `schemas/{name}/` | `index.js` or `{method}.js` |
 | API Commands | `actions/api/{category}/` | `{action}.js` |
 | Auth Events | `events/auth/` | `{event}.js` |
-| Cron Jobs | `cron/daily/` or `hooks/cron/daily/` | `{job}.js` |
+| Auth Hooks (consumer) | `hooks/auth/` | `{event}.js` |
+| Cron Jobs (BEM) | `events/cron/daily/` | `{job}.js` |
+| Cron Jobs (consumer) | `hooks/cron/daily/` | `{job}.js` |
 
 ## Admin Post Route
 
@@ -1302,6 +1391,12 @@ marketing: {
 | Rate limiting | `src/manager/helpers/usage.js` |
 | User properties + schema | `src/manager/helpers/user.js` |
 | Batch utilities | `src/manager/helpers/utilities.js` |
+| Auth: before-create | `src/manager/events/auth/before-create.js` |
+| Auth: before-signin | `src/manager/events/auth/before-signin.js` |
+| Auth: on-create | `src/manager/events/auth/on-create.js` |
+| Auth: on-delete | `src/manager/events/auth/on-delete.js` |
+| Auth: shared utilities | `src/manager/events/auth/utils.js` |
+| Cron runner | `src/manager/events/cron/runner.js` |
 | Main API handler | `src/manager/functions/core/actions/api.js` |
 | Config template | `templates/backend-manager-config.json` |
 | CLI entry | `src/cli/index.js` |
