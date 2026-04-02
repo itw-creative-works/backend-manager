@@ -18,7 +18,7 @@ module.exports = async ({ Manager, assistant, user, context, libraries }) => {
   const { functions } = libraries;
   const ipAddress = context.ipAddress || '';
 
-  assistant.log(`beforeCreate: ${user.uid}`, { email: user.email, ip: ipAddress });
+  assistant.log(`beforeCreate: ${user.uid} (${user.email})`, user, context);
 
   // Block disposable email domains
   if (isDisposable(user.email)) {

@@ -11,7 +11,7 @@ module.exports = async ({ Manager, assistant, user, context, libraries }) => {
   const startTime = Date.now();
   const { admin } = libraries;
 
-  assistant.log(`beforeSignIn: ${user.uid}`, { email: user.email, ip: context.ipAddress });
+  assistant.log(`beforeSignIn: ${user.uid} (${user.email})`, user, context);
 
   const now = new Date();
 
