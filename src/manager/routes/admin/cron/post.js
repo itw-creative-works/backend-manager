@@ -22,7 +22,7 @@ module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
   assistant.log('Running cron job:', settings.id);
 
   // Run the cron job
-  const cronPath = require('path').resolve(__dirname, `../../../cron/${settings.id}.js`);
+  const cronPath = `${Manager.rootDirectory}/events/cron/${settings.id}.js`;
   const cronHandler = require(cronPath);
   const result = await cronHandler({ Manager, assistant, context: {}, libraries: Manager.libraries }).catch(e => e);
 

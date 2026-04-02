@@ -22,7 +22,7 @@ Module.prototype.main = function () {
     }
 
     // Run the cron job
-    Manager._process((new (require(`../../../cron/${payload.data.payload.id}.js`))()).init(Manager, { context: {}, }))
+    Manager._process((new (require(`${Manager.rootDirectory}/events/cron/${payload.data.payload.id}.js`))()).init(Manager, { context: {}, }))
     .then((res) => {
       return resolve({data: res});
     })

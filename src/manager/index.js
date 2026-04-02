@@ -14,8 +14,8 @@ const util = require('util');
 const core = './functions/core';
 const wrappers = './functions/wrappers';
 const _legacy = './functions/_legacy';
-const cron = path.resolve(__dirname, './cron');
 const events = path.resolve(__dirname, './events');
+const cron = path.resolve(events, './cron');
 
 const BEM_CONFIG_TEMPLATE_PATH = path.resolve(__dirname, '../../templates/backend-manager-config.json');
 const BEM_PACKAGE = require('../../package.json');

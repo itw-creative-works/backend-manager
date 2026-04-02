@@ -24,6 +24,8 @@
  * Note: recaptchaScore requires reCAPTCHA Enterprise (Google Cloud level), NOT the Firebase SMS fraud toggle.
  * Note: credential tokens (idToken, accessToken, refreshToken) require opt-in via BlockingOptions.
  */
+const { runAuthHook } = require('./utils.js');
+
 module.exports = async ({ Manager, assistant, user, context, libraries }) => {
   const startTime = Date.now();
   const { admin } = libraries;
@@ -59,6 +61,9 @@ module.exports = async ({ Manager, assistant, user, context, libraries }) => {
   } else {
     assistant.log(`beforeSignIn: Updated user activity`);
   }
+
+  // Run consumer hook (can throw HttpsError to block sign-in)
+  await runAuthHook('before-signin', { Manager, assistant, user, context, libraries });
 
   assistant.log(`beforeSignIn: Completed for ${user.uid} (${Date.now() - startTime}ms)`);
 };

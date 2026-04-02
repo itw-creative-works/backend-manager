@@ -1,4 +1,4 @@
-const { retryWrite, MAX_RETRIES } = require('./utils.js');
+const { retryWrite, runAuthHook, MAX_RETRIES } = require('./utils.js');
 
 /**
  * onDelete - Delete user doc
@@ -69,6 +69,11 @@ module.exports = async ({ Manager, assistant, user, context, libraries }) => {
     assistant: assistant,
     uuid: user.uid,
   }).event('user_delete', {});
+
+  // Run consumer hook (non-blocking — errors logged but don't fail)
+  await runAuthHook('on-delete', { Manager, assistant, user, context, libraries }).catch(e => {
+    assistant.error('onDelete: Consumer hook error:', e);
+  });
 
   assistant.log(`onDelete: Completed for ${user.uid} (${Date.now() - startTime}ms)`);
 };

@@ -1,4 +1,5 @@
 const { isDisposable } = require('../../libraries/email/validation.js');
+const { runAuthHook } = require('./utils.js');
 
 const ERROR_TOO_MANY_ATTEMPTS = 'Unable to create account at this time. Please try again later.';
 const ERROR_DISPOSABLE_EMAIL = 'This email domain is not allowed. Please use a different email address.';
@@ -70,6 +71,9 @@ module.exports = async ({ Manager, assistant, user, context, libraries }) => {
   // Increment rate limit counter
   usage.increment('signups');
   await usage.update();
+
+  // Run consumer hook (can throw HttpsError to block signup)
+  await runAuthHook('before-create', { Manager, assistant, user, context, libraries });
 
   assistant.log(`beforeCreate: Completed for ${user.uid} (${Date.now() - startTime}ms)`);
 };

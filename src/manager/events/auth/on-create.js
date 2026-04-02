@@ -1,4 +1,4 @@
-const { retryWrite, MAX_RETRIES } = require('./utils.js');
+const { retryWrite, runAuthHook, MAX_RETRIES } = require('./utils.js');
 
 /**
  * onCreate - Create user doc
@@ -87,6 +87,11 @@ module.exports = async ({ Manager, assistant, user, context, libraries }) => {
     // Don't reject - the user was already created in Auth
     // The user/signup endpoint will handle creating the doc if it's missing
   }
+
+  // Run consumer hook (non-blocking — errors logged but don't fail)
+  await runAuthHook('on-create', { Manager, assistant, user, context, libraries }).catch(e => {
+    assistant.error('onCreate: Consumer hook error:', e);
+  });
 };
 
 /**

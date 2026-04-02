@@ -2,7 +2,7 @@
  * Abandoned cart reminder configuration (SSOT)
  *
  * Used by:
- * - cron/frequent/abandoned-carts.js (processing reminders)
+ * - events/cron/frequent/abandoned-carts.js (processing reminders)
  * - Client-side checkout page (creating cart doc with first delay)
  */
 module.exports = {
