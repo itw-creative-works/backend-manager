@@ -1,6 +1,6 @@
 const moment = require('moment');
 const { inferContact } = require('../../../libraries/infer-contact.js');
-const { validate: validateEmail } = require('../../../libraries/email/validation.js');
+const { validate: validateEmail, isDisposable } = require('../../../libraries/email/validation.js');
 
 const MAX_POLL_TIME_MS = 30000;
 const POLL_INTERVAL_MS = 500;
@@ -73,7 +73,7 @@ module.exports = async ({ assistant, user, settings, libraries }) => {
     .set(userRecord, { merge: true });
 
   // 5. Process affiliate referral (writes to referrer's doc, not this user's)
-  await processAffiliate(assistant, uid, settings);
+  await processAffiliate(assistant, uid, email, settings);
 
   // 6. Send emails + marketing (non-blocking, fire-and-forget)
   syncMarketingContact(assistant, uid, email);
@@ -181,13 +181,19 @@ async function inferUserContact(assistant, email) {
  * Process affiliate referral if affiliate code provided
  * Writes to the referrer's doc (not the current user's)
  */
-async function processAffiliate(assistant, uid, settings) {
+async function processAffiliate(assistant, uid, email, settings) {
   const { admin } = assistant.Manager.libraries;
   const affiliateCode = settings.attribution?.affiliate?.code
     || settings.affiliateCode
     || null;
 
   if (!affiliateCode) {
+    return;
+  }
+
+  // Skip referral credit for disposable email signups (affiliate fraud prevention)
+  if (isDisposable(email)) {
+    assistant.log(`processAffiliate(): Skipping referral — disposable email ${email}`);
     return;
   }
 

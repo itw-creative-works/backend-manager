@@ -5,7 +5,7 @@
  * Format, local part, and disposable tests always run (free, regex-based).
  * Mailbox verification tests require TEST_EXTENDED_MODE + ZEROBOUNCE_API_KEY.
  */
-const { validate, DEFAULT_CHECKS, ALL_CHECKS } = require('../../src/manager/libraries/email/validation.js');
+const { validate, isDisposable, DEFAULT_CHECKS, ALL_CHECKS } = require('../../src/manager/libraries/email/validation.js');
 
 module.exports = {
   description: 'Email validation',
@@ -284,6 +284,59 @@ module.exports = {
 
         assert.equal(result.valid, true, 'Custom domain should be valid');
         assert.propertyEquals(result, 'checks.disposable.valid', true, 'Should pass disposable check');
+      },
+    },
+
+    // --- isDisposable helper ---
+
+    {
+      name: 'isDisposable-vendor-domain-detected',
+      timeout: 5000,
+
+      async run({ assert }) {
+        assert.equal(isDisposable('user@mailinator.com'), true, 'mailinator.com should be disposable');
+        assert.equal(isDisposable('user@guerrillamail.com'), true, 'guerrillamail.com should be disposable');
+      },
+    },
+
+    {
+      name: 'isDisposable-custom-domain-detected',
+      timeout: 5000,
+
+      async run({ assert }) {
+        assert.equal(isDisposable('user@sharebot.net'), true, 'Custom list domain should be disposable');
+        assert.equal(isDisposable('user@pickmemail.com'), true, 'Custom list domain should be disposable');
+      },
+    },
+
+    {
+      name: 'isDisposable-legitimate-domain-passes',
+      timeout: 5000,
+
+      async run({ assert }) {
+        assert.equal(isDisposable('user@gmail.com'), false, 'gmail.com should not be disposable');
+        assert.equal(isDisposable('user@somiibo.com'), false, 'Custom domain should not be disposable');
+      },
+    },
+
+    {
+      name: 'isDisposable-accepts-domain-only',
+      timeout: 5000,
+
+      async run({ assert }) {
+        assert.equal(isDisposable('mailinator.com'), true, 'Should work with bare domain');
+        assert.equal(isDisposable('gmail.com'), false, 'Should work with bare domain');
+      },
+    },
+
+    {
+      name: 'isDisposable-handles-edge-cases',
+      timeout: 5000,
+
+      async run({ assert }) {
+        assert.equal(isDisposable(''), false, 'Empty string should return false');
+        assert.equal(isDisposable(null), false, 'Null should return false');
+        assert.equal(isDisposable(undefined), false, 'Undefined should return false');
       },
     },
 

@@ -130,9 +130,10 @@ module.exports = {
       },
     },
 
-    // Test 5: Name inferred from email
+    // Test 5: Name inferred from email (AI only — requires extended mode)
     {
       name: 'add-name-inferred-from-email',
+      skip: !process.env.TEST_EXTENDED_MODE ? 'TEST_EXTENDED_MODE not set (AI inference requires OPENAI_API_KEY)' : false,
       auth: 'admin',
       timeout: 30000,
 

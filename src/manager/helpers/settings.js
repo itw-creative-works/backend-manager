@@ -8,6 +8,7 @@ const powertools = require('node-powertools');
 const _ = require('lodash');
 const moment = require('moment');
 
+
 function Settings(m) {
   const self = this;
 
@@ -129,6 +130,7 @@ Settings.prototype.resolve = function (assistant, schema, settings, options) {
       available: typeof schemaNode.available === 'undefined' ? true : schemaNode.available,
       min: typeof schemaNode.min === 'undefined' ? undefined : schemaNode.min,
       max: typeof schemaNode.max === 'undefined' ? undefined : schemaNode.max,
+      sanitize: typeof schemaNode.sanitize === 'undefined' ? true : schemaNode.sanitize,
     }
 
     // Update schema

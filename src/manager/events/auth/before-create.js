@@ -1,10 +1,12 @@
-const ERROR_TOO_MANY_ATTEMPTS = 'You have created too many accounts with our service. Please try again later.';
+const { isDisposable } = require('../../libraries/email/validation.js');
+
+const ERROR_TOO_MANY_ATTEMPTS = 'Unable to create account at this time. Please try again later.';
+const ERROR_DISPOSABLE_EMAIL = 'This email domain is not allowed. Please use a different email address.';
 const MAX_SIGNUPS_PER_DAY = 2;
 
 /**
- * beforeUserCreated - IP Rate Limiting ONLY
+ * beforeUserCreated - Disposable email blocking + IP rate limiting
  *
- * This function ONLY handles IP rate limiting to prevent abuse.
  * User doc creation is handled by on-create.js (which fires for all user creations including Admin SDK).
  *
  * Why not create user doc here?
@@ -17,6 +19,13 @@ module.exports = async ({ Manager, assistant, user, context, libraries }) => {
   const ipAddress = context.ipAddress || '';
 
   assistant.log(`beforeCreate: ${user.uid}`, { email: user.email, ip: ipAddress });
+
+  // Block disposable email domains
+  if (isDisposable(user.email)) {
+    assistant.error(`beforeCreate: Blocked disposable email ${user.email}`);
+
+    throw new functions.auth.HttpsError('invalid-argument', ERROR_DISPOSABLE_EMAIL);
+  }
 
   // Skip rate limiting if no IP (shouldn't happen in production)
   if (!ipAddress) {

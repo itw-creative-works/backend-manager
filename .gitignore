@@ -67,4 +67,5 @@ node_modules/
 
 # Custom
 _backup
-scripts
+scripts/*
+!scripts/update-disposable-domains.js

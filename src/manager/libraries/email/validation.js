@@ -20,9 +20,13 @@
 const fetch = require('wonderful-fetch');
 const path = require('path');
 
-// Load disposable domains list once at module level
+// Load disposable domains: curated vendor list + custom additions
 const DISPOSABLE_DOMAINS = require(path.join(__dirname, '..', 'disposable-domains.json'));
-const DISPOSABLE_SET = new Set(DISPOSABLE_DOMAINS.map(d => d.toLowerCase()));
+const CUSTOM_DISPOSABLE_DOMAINS = require(path.join(__dirname, '..', 'custom-disposable-domains.json'));
+const DISPOSABLE_SET = new Set([
+  ...DISPOSABLE_DOMAINS.map(d => d.toLowerCase()),
+  ...CUSTOM_DISPOSABLE_DOMAINS.map(d => d.toLowerCase()),
+]);
 
 // Spam/junk local parts — exact matches (checked after stripping +suffix)
 const BLOCKED_LOCAL_PARTS = new Set([
@@ -167,4 +171,23 @@ async function validate(email, options = {}) {
   return result;
 }
 
-module.exports = { validate, DEFAULT_CHECKS, ALL_CHECKS };
+/**
+ * Quick check: is this email from a disposable domain?
+ * Works with a full email address or just a domain.
+ *
+ * @param {string} emailOrDomain
+ * @returns {boolean}
+ */
+function isDisposable(emailOrDomain) {
+  if (!emailOrDomain) {
+    return false;
+  }
+
+  const domain = emailOrDomain.includes('@')
+    ? emailOrDomain.split('@')[1]
+    : emailOrDomain;
+
+  return DISPOSABLE_SET.has(domain.toLowerCase());
+}
+
+module.exports = { validate, isDisposable, DEFAULT_CHECKS, ALL_CHECKS };

@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "5.0.186",
+  "version": "5.0.187",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -11,6 +11,7 @@
   },
   "scripts": {
     "start": "node src/manager/index.js",
+    "prepublishOnly": "node scripts/update-disposable-domains.js",
     "prepare": "node -e \"require('prepare-package')()\"",
     "prepare:watch": "node -e \"require('prepare-package/watch')()\""
   },
@@ -78,6 +79,7 @@
     "npm-api": "^1.0.1",
     "paypal-server-api": "^2.0.14",
     "pushid": "^1.0.0",
+    "sanitize-html": "^2.17.2",
     "shortid": "^2.2.17",
     "stripe": "^20.3.1",
     "uid-generator": "^2.0.0",

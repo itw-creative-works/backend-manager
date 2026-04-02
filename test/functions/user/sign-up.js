@@ -196,6 +196,44 @@ module.exports = {
       },
     },
 
+    // --- Disposable email referral test ---
+    {
+      name: 'disposable-email-referral-skipped',
+      async run({ http, firestore, assert, state, accounts }) {
+        // Record current referral count before disposable signup
+        const referrerBefore = await firestore.get(`users/${state.referrerUid}`);
+        const referralsBefore = referrerBefore?.affiliate?.referrals || [];
+        state.referralCountBefore = referralsBefore.length;
+
+        // Sign up a disposable email account with the referrer's affiliate code
+        // The signup itself should succeed (account was created via Admin SDK, bypassing beforeCreate)
+        // But the referral credit should be SKIPPED because the email is disposable
+        const signupResponse = await http.as('referred-disposable').command('user:sign-up', {
+          attribution: {
+            affiliate: { code: state.referrerAffiliateCode },
+          },
+        });
+
+        assert.isSuccess(signupResponse, 'Disposable email signup should succeed');
+
+        // Verify NO new referral was added to the referrer
+        // Small delay to ensure any async writes would have completed
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+
+        const referrerAfter = await firestore.get(`users/${state.referrerUid}`);
+        const referralsAfter = referrerAfter?.affiliate?.referrals || [];
+
+        assert.equal(
+          referralsAfter.length,
+          state.referralCountBefore,
+          `Referrer should NOT get credit for disposable email referral (before=${state.referralCountBefore}, after=${referralsAfter.length})`
+        );
+
+        const disposableReferral = referralsAfter.find(r => r.uid === accounts['referred-disposable'].uid);
+        assert.ok(!disposableReferral, 'Disposable account should NOT appear in referrals');
+      },
+    },
+
     // --- Auth rejection test (at end per convention) ---
     {
       name: 'unauthenticated-rejected',

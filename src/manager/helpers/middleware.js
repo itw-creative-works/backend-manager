@@ -35,7 +35,7 @@ Middleware.prototype.run = function (libPath, options) {
     options.setupAnalytics = typeof options.setupAnalytics === 'boolean' ? options.setupAnalytics : true;
     options.setupUsage = typeof options.setupUsage === 'boolean' ? options.setupUsage : true;
     options.setupSettings = typeof options.setupSettings === 'undefined' ? true : options.setupSettings;
-    options.cleanSettings = typeof options.cleanSettings === 'undefined' ? true : options.cleanSettings;
+    options.sanitize = typeof options.sanitize === 'undefined' ? true : options.sanitize;
     options.includeNonSchemaSettings = typeof options.includeNonSchemaSettings === 'undefined' ? false : options.includeNonSchemaSettings;
     options.schema = typeof options.schema === 'undefined' ? libPath : options.schema;
     options.parseMultipartFormData = typeof options.parseMultipartFormData === 'undefined' ? true : options.parseMultipartFormData;
@@ -168,14 +168,6 @@ Middleware.prototype.run = function (libPath, options) {
         assistant.settings = merge(data, assistant.settings)
       }
 
-      // Clean settings by looping through and trimming all strings
-      if (options.cleanSettings) {
-        clean(assistant.settings);
-      }
-
-      // Log
-      assistant.log(`Middleware.process(): Resolved settings with schema=${options.schema}`, safeStringify(assistant.settings));
-
       // Log multipart files if they exist
       const files = assistant.request.multipartData.files || {};
       if (files) {
@@ -184,6 +176,19 @@ Middleware.prototype.run = function (libPath, options) {
     } else {
       assistant.settings = data;
     }
+
+    // Sanitize settings — trim whitespace and strip HTML from all strings
+    // Respects sanitize: false on individual schema fields
+    if (options.sanitize) {
+      const schema = options.setupSettings ? Manager.Settings().schema : null;
+      const utilities = Manager.Utilities();
+
+      // Walk settings, skipping fields the schema marks as sanitize: false
+      assistant.settings = sanitizeWithSchema(utilities, assistant.settings, schema);
+    }
+
+    // Log
+    assistant.log(`Middleware.process(): Resolved settings with schema=${options.schema}`, safeStringify(assistant.settings));
 
     // Build context object for route handler
     const context = {
@@ -194,6 +199,7 @@ Middleware.prototype.run = function (libPath, options) {
       settings: assistant.settings,
       analytics: assistant.analytics,
       libraries: Manager.libraries,
+      utilities: Manager.Utilities(),
     };
 
     // Execute route handler
@@ -208,15 +214,29 @@ Middleware.prototype.run = function (libPath, options) {
   });
 };
 
-function clean(obj) {
-  for (let key in obj) {
-    if (typeof obj[key] === 'object') {
-      clean(obj[key]);
-    } else if (typeof obj[key] === 'string') {
-      obj[key] = obj[key]
-        .trim();
+function sanitizeWithSchema(utilities, obj, schema) {
+  // Not an object — sanitize directly
+  if (obj == null || typeof obj !== 'object') {
+    return utilities.sanitize(obj);
+  }
+
+  // Arrays — sanitize each item (no schema for array items)
+  if (Array.isArray(obj)) {
+    return obj.map(item => utilities.sanitize(item));
+  }
+
+  // Objects — walk keys, skip fields where schema says sanitize: false
+  const result = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const schemaNode = schema ? schema[key] : null;
+
+    if (schemaNode && schemaNode.sanitize === false) {
+      result[key] = value;
+    } else {
+      result[key] = sanitizeWithSchema(utilities, value, schemaNode);
     }
   }
+  return result;
 }
 
 function stripUrl(url) {

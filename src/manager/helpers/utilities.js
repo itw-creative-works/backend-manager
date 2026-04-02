@@ -1,5 +1,6 @@
 let nanoId;
 let _;
+let sanitizeHtml;
 
 function Utilities(Manager) {
   const self = this;
@@ -465,6 +466,45 @@ Utilities.prototype.get = function (docPath, options) {
         .catch((e) => reject(e));
     }
   });
+};
+
+/**
+ * Sanitize input by stripping HTML tags and trimming strings.
+ * Accepts any data type — walks objects/arrays recursively.
+ *
+ * @param {*} input - The data to sanitize (string, object, array, or primitive)
+ * @returns {*} Sanitized copy (objects/arrays) or sanitized value (strings)
+ */
+Utilities.prototype.sanitize = function (input) {
+  // Handle null/undefined
+  if (input == null) {
+    return input;
+  }
+
+  // Handle strings
+  if (typeof input === 'string') {
+    sanitizeHtml = sanitizeHtml
+      ? sanitizeHtml
+      : require('sanitize-html');
+    return sanitizeHtml(input, { allowedTags: [], allowedAttributes: {} }).trim();
+  }
+
+  // Handle arrays
+  if (Array.isArray(input)) {
+    return input.map(item => this.sanitize(item));
+  }
+
+  // Handle objects
+  if (typeof input === 'object') {
+    const result = {};
+    for (const [key, value] of Object.entries(input)) {
+      result[key] = this.sanitize(value);
+    }
+    return result;
+  }
+
+  // Numbers, booleans, etc. — pass through
+  return input;
 };
 
 module.exports = Utilities;

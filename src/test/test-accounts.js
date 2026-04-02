@@ -153,6 +153,15 @@ const STATIC_ACCOUNTS = {
       subscription: { product: { id: 'basic' }, status: 'active' },
     },
   },
+  'referred-disposable': {
+    id: 'referred-disposable',
+    uid: '_test-referred-disposable',
+    email: '_test.referred-disposable@mailinator.com',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'basic' }, status: 'active' },
+    },
+  },
 };
 
 /**

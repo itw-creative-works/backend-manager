@@ -21,5 +21,5 @@ module.exports = () => ({
   data: { types: ['object'], default: {} },
   categories: { types: ['array'], default: [] },
   copy: { types: ['boolean'], default: undefined },
-  html: { types: ['string'], default: undefined },
+  html: { types: ['string'], default: undefined, sanitize: false },
 });
