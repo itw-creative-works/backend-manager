@@ -14,6 +14,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.192] - 2026-04-02
+### Added
+- Setup test to create `hooks/auth/` and `hooks/cron/daily/` directories in consumer projects during `npx bm setup`
+
 # [5.0.186] - 2026-04-01
 ### Fixed
 - Move markdown rendering and UTM link tagging to run after `_.merge()` so caller overrides to `body.message` and `email.body` are properly processed

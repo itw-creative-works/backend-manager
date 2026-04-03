@@ -36,6 +36,7 @@ const RemoteconfigTemplateFileTest = require('./remoteconfig-template-file');
 const HostingFolderTest = require('./hosting-folder');
 const PublicHtmlFilesTest = require('./public-html-files');
 const FirestoreIndexesRequiredTest = require('./firestore-indexes-required');
+const HooksDirectoriesTest = require('./hooks-directories');
 const LegacyTestsCleanupTest = require('./legacy-tests-cleanup');
 const MarketingCampaignsSeededTest = require('./marketing-campaigns-seeded');
 
@@ -78,6 +79,7 @@ function getTests(context) {
     new RemoteconfigTemplateFileTest(context),
     new HostingFolderTest(context),
     new PublicHtmlFilesTest(context),
+    new HooksDirectoriesTest(context),
     new LegacyTestsCleanupTest(context),
     new MarketingCampaignsSeededTest(context),
   ];
