@@ -2,7 +2,7 @@ let Poster;
 let pathApi;
 let os;
 // let JSON5;
-const fetch = require('node-fetch');
+// Native fetch (Node 22+)
 const Mailchimp = require('mailchimp-api-v3');
 
 let Module = {

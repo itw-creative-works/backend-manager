@@ -1,5 +1,5 @@
-const chalk = require('chalk');
-const inquirer = require('inquirer');
+const chalk = require('chalk').default;
+const { confirm } = require('@inquirer/prompts');
 const { execSync, spawn } = require('child_process');
 const path = require('path');
 const jetpack = require('fs-jetpack');
@@ -63,12 +63,10 @@ class BaseCommand {
       }
     }
 
-    const { shouldKill } = await inquirer.prompt([{
-      type: 'confirm',
-      name: 'shouldKill',
+    const shouldKill = await confirm({
       message: 'Kill these processes to free the ports?',
       default: true,
-    }]);
+    });
 
     if (!shouldKill) {
       this.log(chalk.gray('\n  Aborting. Free the ports and try again.\n'));
@@ -174,7 +172,7 @@ class BaseCommand {
     // Load .env so STRIPE_SECRET_KEY and BACKEND_MANAGER_KEY are available
     const envPath = path.join(functionsDir, '.env');
     if (jetpack.exists(envPath)) {
-      require('dotenv').config({ path: envPath });
+      require('dotenv').config({ path: envPath, quiet: true });
     }
 
     // Check for Stripe secret key

@@ -29,7 +29,7 @@ const Stripe = {
         throw new Error('STRIPE_SECRET_KEY environment variable is required');
       }
 
-      stripeInstance = require('stripe')(secretKey);
+      stripeInstance = new (require('stripe'))(secretKey);
     }
 
     return stripeInstance;

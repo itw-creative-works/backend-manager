@@ -123,7 +123,7 @@ Manager.prototype.init = function (exporter, options) {
 
   // Set dotenv
   try {
-    const env = require('dotenv').config();
+    const env = require('dotenv').config({ quiet: true });
   } catch (e) {
     self.assistant.error(new Error(`Failed to set up environment variables from .env file: ${e.message}`));
   }
@@ -619,12 +619,11 @@ Manager.prototype.storage = function (options) {
     const subfolder = `storage/${self.options.uniqueAppName || 'primary'}/${options.name}`;
 
     // Setup lowdb
-    const low = require('lowdb');
-    const FileSync = require('lowdb/adapters/FileSync');
+    const { LowSync } = require('lowdb');
+    const { JSONFileSync } = require('lowdb/node');
     const location = options.temporary
       ? `${require('os').tmpdir()}/${subfolder}.json`
       : `./.data/${subfolder}.json`;
-    const adapter = new FileSync(location);
 
     // Log
     if (options.log) {
@@ -650,9 +649,22 @@ Manager.prototype.storage = function (options) {
       if (!jetpack.exists(location)) {
         jetpack.write(location, {});
       }
-      self._internal.storage[options.name] = low(adapter);
+      const db = new LowSync(new JSONFileSync(location), {});
+      db.read();
 
-      self._internal.storage[options.name].set('_location', location)
+      // Wrap lowdb in a v1-compatible API so consumers don't need lodash
+      self._internal.storage[options.name] = {
+        _db: db,
+        _location: location,
+        get(path, defaultValue) {
+          const result = _.get(db.data, path, defaultValue);
+          return { value() { return result; } };
+        },
+        set(path, value) { _.set(db.data, path, value); return this; },
+        write() { db.write(); return this; },
+        getState() { return db.data; },
+        setState(data) { db.data = data; return this; },
+      };
     }
 
     try {
@@ -1147,14 +1159,13 @@ Manager.prototype.setupCustomServer = function (_library, options) {
   });
 
   // Run the server!
-  const server = app.listen({ port: process.env.PORT || 3000, host: '0.0.0.0' }, () => {
-    const address = server.address();
-
-    // Check if there's an error
-    if (server.address() === null) {
-      self.assistant.error(e);
+  const server = app.listen({ port: process.env.PORT || 3000, host: '0.0.0.0' }, (error) => {
+    if (error) {
+      self.assistant.error(error);
       process.exit(1);
     }
+
+    const address = server.address();
 
     // Log
     if (options.log) {

@@ -17,7 +17,7 @@
  *
  * Runs on bm_cronDaily.
  */
-const sendgridProvider = require('../../libraries/email/providers/sendgrid.js');
+const sendgridProvider = require('../../../libraries/email/providers/sendgrid.js');
 
 module.exports = async ({ Manager, assistant }) => {
   // Only run on the 1st of the month
@@ -127,7 +127,7 @@ async function stagePrune(Manager, assistant) {
 
     // Also remove from Beehiiv (same emails)
     if (marketing.beehiiv?.enabled !== false && process.env.BEEHIIV_API_KEY) {
-      const beehiivProvider = require('../../libraries/email/providers/beehiiv.js');
+      const beehiivProvider = require('../../../libraries/email/providers/beehiiv.js');
       const emails = exportResult.contacts.map(c => c.email).filter(Boolean);
 
       assistant.log(`Marketing prune: Removing ${emails.length} contacts from Beehiiv`);

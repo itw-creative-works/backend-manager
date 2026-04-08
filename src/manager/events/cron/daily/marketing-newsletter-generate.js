@@ -17,7 +17,7 @@ const pushid = require('pushid');
 
 // Generator modules — keyed by generator field value
 const generators = {
-  newsletter: require('../../libraries/email/generators/newsletter.js'),
+  newsletter: require('../../../libraries/email/generators/newsletter.js'),
 };
 
 module.exports = async ({ Manager, assistant, libraries }) => {

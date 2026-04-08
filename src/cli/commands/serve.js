@@ -1,7 +1,7 @@
 const BaseCommand = require('./base-command');
 const path = require('path');
 const fs = require('fs');
-const chalk = require('chalk');
+const chalk = require('chalk').default;
 const powertools = require('node-powertools');
 const WatchCommand = require('./watch');
 

@@ -1,7 +1,7 @@
 const BaseTest = require('./base-test');
 const jetpack = require('fs-jetpack');
 const JSON5 = require('json5');
-const chalk = require('chalk');
+const chalk = require('chalk').default;
 
 /**
  * Ensures projectId is consistent across all configuration files:

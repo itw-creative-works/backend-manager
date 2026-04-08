@@ -1,5 +1,5 @@
 const BaseCommand = require('./base-command');
-const chalk = require('chalk');
+const chalk = require('chalk').default;
 const fs = require('fs');
 const { execSync, spawn } = require('child_process');
 const path = require('path');

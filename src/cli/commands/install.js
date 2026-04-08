@@ -1,5 +1,5 @@
 const BaseCommand = require('./base-command');
-const chalk = require('chalk');
+const chalk = require('chalk').default;
 const os = require('os');
 const powertools = require('node-powertools');
 const Npm = require('npm-api');

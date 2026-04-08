@@ -93,7 +93,7 @@ module.exports = async ({ Manager, assistant, context, libraries }) => {
  * Build brand config from Manager.config (same shape as /brand endpoint response)
  */
 function buildBrandConfig(config) {
-  const { buildPublicConfig } = require(require('path').join(__dirname, '..', '..', 'routes', 'brand', 'get.js'));
+  const { buildPublicConfig } = require(require('path').join(__dirname, '..', '..', '..', 'routes', 'brand', 'get.js'));
 
   return buildPublicConfig(config);
 }

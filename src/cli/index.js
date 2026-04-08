@@ -1,6 +1,6 @@
 const os = require('os');
 const path = require('path');
-const argv = require('yargs').argv;
+const argv = require('yargs')(process.argv.slice(2)).argv;
 const _ = require('lodash');
 
 // Abort if running from ~/node_modules (accidental home directory install)
@@ -165,7 +165,7 @@ Main.prototype.process = async function (args) {
 Main.prototype.test = async function(name, fn, fix, args) {
   const self = this;
   let status;
-  const chalk = require('chalk');
+  const chalk = require('chalk').default;
 
   return new Promise(async function(resolve, reject) {
     let passed = await fn();

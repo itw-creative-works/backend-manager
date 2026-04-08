@@ -177,7 +177,7 @@ module.exports = Module;
 function addToMCList(key, listId, email) {
   return new Promise((resolve, reject) => {
     let datacenter = key.split('-')[1];
-    fetch = fetch || require('node-fetch');
+    // Native fetch (Node 22+)
     fetch(`https://${datacenter}.api.mailchimp.com/3.0/lists/${listId}/members`, {
         method: 'post',
         body: JSON.stringify({

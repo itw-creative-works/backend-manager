@@ -1,6 +1,6 @@
 const BaseTest = require('./base-test');
 const jetpack = require('fs-jetpack');
-const chalk = require('chalk');
+const chalk = require('chalk').default;
 const _ = require('lodash');
 const powertools = require('node-powertools');
 

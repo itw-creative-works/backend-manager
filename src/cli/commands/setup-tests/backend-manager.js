@@ -1,5 +1,5 @@
 const BaseTest = require('./base-test');
-const chalk = require('chalk');
+const chalk = require('chalk').default;
 const wonderfulVersion = require('wonderful-version');
 const powertools = require('node-powertools');
 const Npm = require('npm-api');

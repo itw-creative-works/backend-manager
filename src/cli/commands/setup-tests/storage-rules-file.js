@@ -1,7 +1,7 @@
 const BaseTest = require('./base-test');
 const jetpack = require('fs-jetpack');
 const path = require('path');
-const chalk = require('chalk');
+const chalk = require('chalk').default;
 
 class StorageRulesFileTest extends BaseTest {
   getName() {

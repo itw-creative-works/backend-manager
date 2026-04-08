@@ -1,5 +1,5 @@
 const BaseCommand = require('./base-command');
-const chalk = require('chalk');
+const chalk = require('chalk').default;
 const jetpack = require('fs-jetpack');
 const path = require('path');
 const JSON5 = require('json5');
@@ -23,7 +23,7 @@ class SetupCommand extends BaseCommand {
     // Load environment variables from .env file
     const envPath = `${self.firebaseProjectPath}/functions/.env`;
     if (jetpack.exists(envPath)) {
-      require('dotenv').config({ path: envPath });
+      require('dotenv').config({ path: envPath, quiet: true });
     }
   }
 

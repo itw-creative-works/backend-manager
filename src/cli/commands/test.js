@@ -1,7 +1,7 @@
 const BaseCommand = require('./base-command');
 const path = require('path');
 const fs = require('fs');
-const chalk = require('chalk');
+const chalk = require('chalk').default;
 const jetpack = require('fs-jetpack');
 const JSON5 = require('json5');
 const powertools = require('node-powertools');
@@ -85,7 +85,7 @@ class TestCommand extends BaseCommand {
     // Load .env first so env vars are available
     const envPath = path.join(functionsDir, '.env');
     if (jetpack.exists(envPath)) {
-      require('dotenv').config({ path: envPath });
+      require('dotenv').config({ path: envPath, quiet: true });
     }
 
     // Load backend-manager-config.json

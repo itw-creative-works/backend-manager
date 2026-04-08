@@ -1,6 +1,6 @@
 const BaseCommand = require('./base-command');
-const chalk = require('chalk');
-const inquirer = require('inquirer');
+const chalk = require('chalk').default;
+const { confirm } = require('@inquirer/prompts');
 const { initFirebase } = require('./firebase-init');
 
 class FirestoreCommand extends BaseCommand {
@@ -175,12 +175,10 @@ class FirestoreCommand extends BaseCommand {
 
     // Require confirmation for production (skip for emulator or --force)
     if (!isEmulator && !argv.force) {
-      const { confirmed } = await inquirer.prompt([{
-        type: 'confirm',
-        name: 'confirmed',
+      const confirmed = await confirm({
         message: `Delete document "${docPath}" from PRODUCTION?`,
         default: false,
-      }]);
+      });
 
       if (!confirmed) {
         this.log(chalk.gray('  Aborted.'));

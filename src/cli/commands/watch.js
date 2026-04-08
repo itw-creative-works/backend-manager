@@ -1,6 +1,6 @@
 const BaseCommand = require('./base-command');
 const path = require('path');
-const chalk = require('chalk');
+const chalk = require('chalk').default;
 const jetpack = require('fs-jetpack');
 const { execSync, spawn } = require('child_process');
 

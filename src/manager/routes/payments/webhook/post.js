@@ -55,7 +55,7 @@ module.exports = async ({ assistant, Manager, libraries }) => {
 
   const { eventId, eventType, category, resourceType, resourceId, raw, uid } = parsed;
 
-  assistant.log(`Parsed webhook: eventId=${eventId}, eventType=${eventType}, category=${category || 'null'}, resourceType=${resourceType || 'null'}, uid=${uid || 'null'}`);
+  assistant.log(`Parsed webhook: eventId=${eventId}, eventType=${eventType}, category=${category || 'null'}, resourceType=${resourceType || 'null'}, uid=${uid || 'null'}, api_version=${raw?.api_version || 'unknown'}`);
 
   // Let the processor decide if this event type is relevant
   if (processorModule.isSupported && !processorModule.isSupported(eventType)) {

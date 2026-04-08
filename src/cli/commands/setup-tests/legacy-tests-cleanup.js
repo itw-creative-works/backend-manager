@@ -1,6 +1,6 @@
 const BaseTest = require('./base-test');
 const jetpack = require('fs-jetpack');
-const chalk = require('chalk');
+const chalk = require('chalk').default;
 
 // Legacy test files that should be removed from consuming projects
 const LEGACY_FILES = [

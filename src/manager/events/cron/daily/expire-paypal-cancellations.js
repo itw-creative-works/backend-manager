@@ -16,7 +16,7 @@ const powertools = require('node-powertools');
  */
 module.exports = async ({ Manager, assistant, context, libraries }) => {
   const { admin } = libraries;
-  const transitions = require('../../events/firestore/payments-webhooks/transitions/index.js');
+  const transitions = require('../../firestore/payments-webhooks/transitions/index.js');
 
   const now = new Date();
   const nowStr = powertools.timestamp(now, { output: 'string' });

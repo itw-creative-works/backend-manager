@@ -1,7 +1,7 @@
 const powertools = require('node-powertools');
 const yargs = require('yargs/yargs');
 const { hideBin } = require('yargs/helpers');
-const chalk = require('chalk');
+const chalk = require('chalk').default;
 
 function ServerManager(command, options) {
   const self = this;

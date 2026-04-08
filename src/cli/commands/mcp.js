@@ -10,7 +10,7 @@ class McpCommand extends BaseCommand {
     const jetpack = require('fs-jetpack');
     const envPath = path.join(functionsDir, '.env');
     if (jetpack.exists(envPath)) {
-      require('dotenv').config({ path: envPath });
+      require('dotenv').config({ path: envPath, quiet: true });
     }
 
     // Resolve the BEM server URL

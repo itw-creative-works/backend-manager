@@ -107,7 +107,7 @@ async function createFile(user, repoUser, repoName, key, path, contents) {
         body: {
         },
         timeout: 30000,
-        json: true,
+        response: 'json',
         headers: {
           'User-Agent': user,
           // 'Authorization': `Basic ${user}:${key}`,
@@ -137,7 +137,7 @@ async function createFile(user, repoUser, repoName, key, path, contents) {
       content: base64Data,
     },
     timeout: 30000,
-    json: true,
+    response: 'json',
     headers: {
       'User-Agent': user,
       // 'Authorization': `Basic ${user}:${key}`,
@@ -163,7 +163,7 @@ async function createFile(user, repoUser, repoName, key, path, contents) {
 
 function makeRequest(options) {
   return new Promise(function(resolve, reject) {
-    fetch = fetch || require('node-fetch');
+    // Native fetch (Node 22+)
     options.headers = options.headers || {};
     options.headers['Content-Type'] = 'application/json';
     let hasBody = Object.keys(options.body || {}).length > 0

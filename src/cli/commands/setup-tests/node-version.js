@@ -1,5 +1,5 @@
 const BaseTest = require('./base-test');
-const chalk = require('chalk');
+const chalk = require('chalk').default;
 const wonderfulVersion = require('wonderful-version');
 
 class NodeVersionTest extends BaseTest {

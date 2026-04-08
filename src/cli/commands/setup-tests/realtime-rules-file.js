@@ -1,6 +1,6 @@
 const BaseTest = require('./base-test');
 const jetpack = require('fs-jetpack');
-const chalk = require('chalk');
+const chalk = require('chalk').default;
 
 const bem_allRulesRegex = /(\/\/\/---backend-manager---\/\/\/)(.*?)(\/\/\/---------end---------\/\/\/)/sgm;
 const bem_allRulesBackupRegex = /({{\s*?backend-manager\s*?}})/sgm;

@@ -17,7 +17,7 @@ function initFirebase({ firebaseProjectPath, emulator }) {
   // Load .env so env vars like GCLOUD_PROJECT are available
   const envPath = path.join(functionsDir, '.env');
   if (jetpack.exists(envPath)) {
-    require('dotenv').config({ path: envPath });
+    require('dotenv').config({ path: envPath, quiet: true });
   }
 
   // Resolve firebase-admin from the consumer project's node_modules (peer dep)

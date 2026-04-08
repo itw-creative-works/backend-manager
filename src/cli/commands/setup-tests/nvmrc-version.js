@@ -1,6 +1,6 @@
 const BaseTest = require('./base-test');
 const jetpack = require('fs-jetpack');
-const chalk = require('chalk');
+const chalk = require('chalk').default;
 const wonderfulVersion = require('wonderful-version');
 
 class NvmrcVersionTest extends BaseTest {

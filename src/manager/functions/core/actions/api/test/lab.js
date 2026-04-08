@@ -1,4 +1,3 @@
-const fetch = require('node-fetch');
 const _ = require('lodash')
 
 function Module() {

@@ -1,6 +1,6 @@
 const powertools = require('node-powertools');
-const { REMINDER_DELAYS, COLLECTION } = require('../../libraries/abandoned-cart-config.js');
-const User = require('../../helpers/user.js');
+const { REMINDER_DELAYS, COLLECTION } = require('../../../libraries/abandoned-cart-config.js');
+const User = require('../../../helpers/user.js');
 
 /**
  * Abandoned cart reminder cron job

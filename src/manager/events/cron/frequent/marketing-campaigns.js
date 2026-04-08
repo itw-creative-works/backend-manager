@@ -15,7 +15,7 @@
  */
 const moment = require('moment');
 const pushid = require('pushid');
-const notification = require('../../libraries/notification.js');
+const notification = require('../../../libraries/notification.js');
 
 module.exports = async ({ Manager, assistant, libraries }) => {
   const { admin } = libraries;

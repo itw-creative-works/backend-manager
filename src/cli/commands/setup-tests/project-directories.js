@@ -1,21 +1,23 @@
 const BaseTest = require('./base-test');
 const jetpack = require('fs-jetpack');
 
-const HOOKS_DIRS = [
+const DIRS = [
+  'routes',
+  'schemas',
   'hooks/auth',
   'hooks/cron/daily',
 ];
 
-class HooksDirectoriesTest extends BaseTest {
+class ProjectDirectoriesTest extends BaseTest {
   getName() {
-    return 'hooks directories exist';
+    return 'project directories exist';
   }
 
   async run() {
     const self = this.self;
     const functionsDir = `${self.firebaseProjectPath}/functions`;
 
-    for (const dir of HOOKS_DIRS) {
+    for (const dir of DIRS) {
       jetpack.dir(`${functionsDir}/${dir}`);
     }
 
@@ -27,4 +29,4 @@ class HooksDirectoriesTest extends BaseTest {
   }
 }
 
-module.exports = HooksDirectoriesTest;
+module.exports = ProjectDirectoriesTest;

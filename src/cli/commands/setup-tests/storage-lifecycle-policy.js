@@ -1,7 +1,7 @@
 const BaseTest = require('./base-test');
 const powertools = require('node-powertools');
 const path = require('path');
-const chalk = require('chalk');
+const chalk = require('chalk').default;
 
 class StorageLifecyclePolicyTest extends BaseTest {
   getName() {

@@ -2,7 +2,7 @@ const os = require('os');
 const path = require('path');
 const Module = require('module');
 const jetpack = require('fs-jetpack');
-const chalk = require('chalk');
+const chalk = require('chalk').default;
 
 const HttpClient = require('./utils/http-client.js');
 const assertions = require('./utils/assertions.js');
