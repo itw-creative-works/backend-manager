@@ -56,11 +56,12 @@ class LogsCommand extends BaseCommand {
 
   /**
    * Fetch historical logs.
-   * Usage: npx bm logs:read [--fn bm_api] [--severity ERROR] [--since 1h] [--limit 300]
+   * Usage: npx bm logs:read [--fn bm_api] [--severity ERROR] [--since 1h] [--limit 300] [--search "text"] [--order desc] [--filter 'raw gcloud filter']
    */
   async read(projectId, argv) {
     const filter = this.buildFilter(argv);
     const limit = parseInt(argv.limit, 10) || 300;
+    const order = argv.order || 'desc';
 
     const cmd = [
       'gcloud', 'logging', 'read',
@@ -68,7 +69,7 @@ class LogsCommand extends BaseCommand {
       `--project=${projectId}`,
       `--limit=${limit}`,
       '--format=json',
-      '--order=asc',
+      `--order=${order}`,
     ].filter(Boolean).join(' ');
 
     // Set up log file in the project directory
@@ -83,7 +84,7 @@ class LogsCommand extends BaseCommand {
       const output = execSync(cmd, {
         encoding: 'utf8',
         maxBuffer: 10 * 1024 * 1024, // 10MB
-        timeout: 30000,
+        timeout: 60000,
       });
 
       const entries = JSON.parse(output || '[]');
@@ -231,6 +232,16 @@ class LogsCommand extends BaseCommand {
     // Severity filter
     if (argv.severity) {
       parts.push(`severity>=${argv.severity.toUpperCase()}`);
+    }
+
+    // Text search filter (searches textPayload)
+    if (argv.search) {
+      parts.push(`textPayload:"${argv.search}"`);
+    }
+
+    // Raw filter passthrough (appended as-is)
+    if (argv.filter) {
+      parts.push(argv.filter);
     }
 
     // Timestamp filter (read only, not tail)

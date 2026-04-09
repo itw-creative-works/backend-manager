@@ -142,6 +142,8 @@ Transactional.prototype.build = async function (settings) {
     throw errorWithCode('Parameter subject is required', 400);
   }
 
+  const preview = settings.preview || settings?.data?.email?.preview || null;
+
   const templateId = TEMPLATES[settings.template] || settings.template || TEMPLATES['default'];
 
   // Resolve sender category
@@ -176,7 +178,7 @@ Transactional.prototype.build = async function (settings) {
   const unsubSig = crypto.createHmac('sha256', process.env.UNSUBSCRIBE_HMAC_KEY).update(to[0].email.toLowerCase()).digest('hex');
   const unsubscribeUrl = `${Manager.project.websiteUrl}/portal/email-preferences?email=${encode(to[0].email)}&asmId=${encode(groupId)}&templateId=${encode(templateId)}&sig=${unsubSig}`;
 
-  // Build signoff
+  // Build signoff defaults
   const signoff = settings?.data?.signoff || {};
   signoff.type = signoff.type || 'team';
 
@@ -188,12 +190,12 @@ Transactional.prototype.build = async function (settings) {
     signoff.urlText = signoff.urlText || '@ianwieds';
   }
 
-  // Build dynamic template data defaults
+  // Build dynamic template data — system-generated defaults
   const dynamicTemplateData = {
     email: {
       id: Manager.require('uuid').v4(),
       subject,
-      preview: null,
+      preview,
       body: null,
       unsubscribeUrl,
       categories,
@@ -209,18 +211,20 @@ Transactional.prototype.build = async function (settings) {
     signoff,
     brand: brandData,
     user: userProperties,
-    data: {},
   };
 
-  // Deep-merge caller's data on top so they can override any field
-  // (e.g. email.preview, email.subject, personalization.name, data.body.*, etc.)
+  // Deep-merge caller's data on top of defaults.
+  // This is the single template data tree — everything the template can access.
+  // Callers can override any field (email.preview, signoff.type, etc.)
+  // and add custom data (order.*, body.*, abandonedCart.*, etc.) at the root.
+  // Templates access all fields at the root: {{order.id}}, {{email.preview}}, {{brand.name}}.
   if (settings.data) {
     _.merge(dynamicTemplateData, settings.data);
   }
 
-  // Process markdown in body fields (after merge so all data paths are resolved)
-  if (dynamicTemplateData.data?.body?.message) {
-    dynamicTemplateData.data.body.message = md.render(dynamicTemplateData.data.body.message);
+  // Process markdown in body fields (after merge so caller data is resolved)
+  if (dynamicTemplateData.body?.message) {
+    dynamicTemplateData.body.message = md.render(dynamicTemplateData.body.message);
   }
   if (dynamicTemplateData.email?.body) {
     dynamicTemplateData.email.body = md.render(dynamicTemplateData.email.body);
@@ -235,8 +239,8 @@ Transactional.prototype.build = async function (settings) {
     utm: settings.utm,
   };
 
-  if (dynamicTemplateData.data?.body?.message) {
-    dynamicTemplateData.data.body.message = tagLinks(dynamicTemplateData.data.body.message, utmOptions);
+  if (dynamicTemplateData.body?.message) {
+    dynamicTemplateData.body.message = tagLinks(dynamicTemplateData.body.message, utmOptions);
   }
   if (dynamicTemplateData.email?.body) {
     dynamicTemplateData.email.body = tagLinks(dynamicTemplateData.email.body, utmOptions);

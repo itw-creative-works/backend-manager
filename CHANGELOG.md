@@ -14,6 +14,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.194] - 2026-04-08
+### Fixed
+- Fix email template data merge: caller's `settings.data` is now deep-merged at root of template data tree, removing the broken `data.` prefix indirection that caused empty order confirmation emails since 5.0.185
+### Added
+- `preview` as a top-level setting on `email.send()` (alongside `subject`)
+- `logs:read` CLI: `--search`, `--order`, `--filter` flags and increased default limit to 300
+### Changed
+- Email templates now access caller data at root (`{{order.id}}`, `{{body.message}}`) instead of under `data.*`
+
 # [5.0.192] - 2026-04-02
 ### Added
 - Setup test to create `hooks/auth/` and `hooks/cron/daily/` directories in consumer projects during `npx bm setup`
