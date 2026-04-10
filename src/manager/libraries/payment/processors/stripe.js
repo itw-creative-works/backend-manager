@@ -206,6 +206,9 @@ const Stripe = {
     }
 
     // Create new customer
+    // Use an idempotency key scoped to the uid so concurrent creates (e.g. user
+    // double-clicks checkout) return the same customer instead of duplicates.
+    // Stripe caches the response under this key for 24 hours.
     const params = {
       metadata: { uid },
     };
@@ -214,7 +217,9 @@ const Stripe = {
       params.email = email;
     }
 
-    const customer = await stripe.customers.create(params);
+    const customer = await stripe.customers.create(params, {
+      idempotencyKey: `bem-customer-create-${uid}`,
+    });
     assistant.log(`Created new Stripe customer: ${customer.id}`);
     return customer;
   },

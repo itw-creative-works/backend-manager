@@ -121,9 +121,14 @@ async function processDispute(match, alert, assistant) {
   // Issue full refund
   if (match.chargeId) {
     try {
+      // Idempotency key scoped to the charge prevents double-refund when the
+      // Firestore trigger fires more than once (retries, re-delivered webhooks,
+      // etc.). Stripe caches the response for 24 hours.
       const refund = await stripe.refunds.create({
         charge: match.chargeId,
         amount: amountCents,
+      }, {
+        idempotencyKey: `bem-dispute-refund-${match.chargeId}`,
       });
 
       result.refundId = refund.id;

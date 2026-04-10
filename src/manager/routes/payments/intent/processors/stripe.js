@@ -153,11 +153,16 @@ async function resolveStripeCoupon(stripe, discount, assistant) {
   }
 
   // Create the coupon
+  // Idempotency key uses the deterministic couponId so concurrent requests for
+  // the same discount code don't race each other into a duplicate-create error.
+  // Stripe returns the cached response for 24 hours.
   await stripe.coupons.create({
     id: couponId,
     percent_off: discount.percent,
     duration: 'once',
     name: `${discount.code} (${discount.percent}% off first payment)`,
+  }, {
+    idempotencyKey: `bem-coupon-${couponId}`,
   });
 
   assistant.log(`Stripe coupon created: ${couponId}`);

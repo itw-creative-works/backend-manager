@@ -14,6 +14,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.198] - 2026-04-10
+### Security
+- Added Stripe idempotency keys on all Stripe write operations to prevent duplicate charges, refunds, customers, and coupons from webhook retries, concurrent requests, or user double-clicks. Keys are scoped to stable resource identifiers and Stripe caches responses for 24 hours.
+  - `bem-dispute-refund-{chargeId}` on auto-refunds from dispute alert Firestore triggers
+  - `bem-customer-create-{uid}` on Stripe customer creation
+  - `bem-coupon-{couponId}` on coupon creation in the intent route
+  - `bem-refund-{resourceId}` on manual subscription refunds
+
 # [5.0.197] - 2026-04-10
 ### Added
 - `--retry=N` flag on `npx mgr setup` — re-runs the full setup sequence up to N times, stopping early as soon as all checks pass. Useful for test cases that only succeed after a prior run creates fixtures or indexes propagate.

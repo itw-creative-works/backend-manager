@@ -79,10 +79,16 @@ module.exports = {
       ? invoice.payment_intent
       : invoice.payment_intent.id;
 
+    // Idempotency key scoped to the subscription prevents double-refund from
+    // a user double-clicking the refund button. Stripe caches the response for
+    // 24 hours — any concurrent or repeated refund request for the same sub
+    // within that window returns the original refund instead of issuing a new one.
     const refund = await stripe.refunds.create({
       payment_intent: paymentIntentId,
       amount: refundAmount,
       reason: 'requested_by_customer',
+    }, {
+      idempotencyKey: `bem-refund-${resourceId}`,
     });
 
     assistant.log(`Stripe refund created: refundId=${refund.id}, amount=${refundAmount}, full=${isFullRefund}, uid=${uid}`);
