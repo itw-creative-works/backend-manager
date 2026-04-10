@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.196] - 2026-04-10
+### Changed
+- Moved disposable domain fetch from `prepublishOnly` lifecycle hook to `prepare-package`'s new `hooks.before` config. The fetch now runs on every `npm run prepare` / `npm install` / `npm publish`, so fresh domains land in both the git working tree and the published tarball — no more drift between git and npm.
+- Bumped `prepare-package` devDep to ^2.1.0 (required for hooks support)
+
 # [5.0.195] - 2026-04-10
 ### Fixed
 - 24-hour cancellation guard in `payments/cancel` was comparing `Date.now()` (milliseconds) against `startDateUNIX` (seconds), producing an "age" of ~56 years for every subscription — guard never fired and users could cancel brand-new subscriptions. Now multiplies `startDateUNIX` by 1000 before subtraction.

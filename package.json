@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "5.0.195",
+  "version": "5.0.196",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -11,7 +11,6 @@
   },
   "scripts": {
     "start": "node src/manager/index.js",
-    "prepublishOnly": "node scripts/update-disposable-domains.js",
     "prepare": "node -e \"require('prepare-package')()\"",
     "prepare:watch": "node -e \"require('prepare-package/watch')()\""
   },
@@ -44,7 +43,10 @@
     "input": "./src_",
     "output": "./dist_",
     "replace": {},
-    "type": "copy"
+    "type": "copy",
+    "hooks": {
+      "before": "node scripts/update-disposable-domains.js"
+    }
   },
   "dependencies": {
     "@firebase/rules-unit-testing": "^5.0.0",
@@ -54,7 +56,7 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@octokit/rest": "^22.0.1",
     "@sendgrid/mail": "^8.1.6",
-    "@sentry/node": "^10.47.0",
+    "@sentry/node": "^10.48.0",
     "body-parser": "^2.2.2",
     "busboy": "^1.6.0",
     "chalk": "^5.6.2",
@@ -78,7 +80,7 @@
     "npm-api": "^1.0.1",
     "pushid": "^1.0.0",
     "sanitize-html": "^2.17.2",
-    "stripe": "^22.0.0",
+    "stripe": "^22.0.1",
     "uid-generator": "^2.0.0",
     "uuid": "^13.0.0",
     "wonderful-fetch": "^2.0.5",
@@ -88,10 +90,10 @@
     "yargs": "^18.0.0"
   },
   "devDependencies": {
-    "prepare-package": "^2.0.8"
+    "prepare-package": "^2.1.0"
   },
   "peerDependencies": {
-    "firebase-admin": "^13.7.0",
-    "firebase-functions": "^7.2.3"
+    "firebase-admin": "^13.8.0",
+    "firebase-functions": "^7.2.5"
   }
 }
