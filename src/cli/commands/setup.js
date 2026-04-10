@@ -10,11 +10,43 @@ const bem_allRulesRegex = /(\/\/\/---backend-manager---\/\/\/)(.*?)(\/\/\/------
 
 class SetupCommand extends BaseCommand {
   async execute() {
+    const self = this.main;
+
     // Load config
     await this.loadConfig();
 
-    // Run setup
-    await this.runSetup();
+    // Resolve retry limit from --retry flag (default 1 = no retry)
+    const maxAttempts = Math.max(1, parseInt(self.argv.retry, 10) || 1);
+
+    // Run setup, retrying up to maxAttempts times until all tests pass
+    let attempt = 0;
+    while (attempt < maxAttempts) {
+      attempt++;
+
+      if (maxAttempts > 1) {
+        this.logSuccess(`\n==== SETUP ATTEMPT ${attempt}/${maxAttempts} ====`);
+      }
+
+      // Reset counters so each attempt starts fresh
+      self.testCount = 0;
+      self.testTotal = 0;
+
+      await this.runSetup();
+
+      const allPassed = self.testCount === self.testTotal;
+      if (allPassed) {
+        if (maxAttempts > 1 && attempt > 1) {
+          this.logSuccess(`\nAll checks passed on attempt ${attempt}/${maxAttempts}.`);
+        }
+        return;
+      }
+
+      if (attempt < maxAttempts) {
+        this.logWarning(`\nAttempt ${attempt}/${maxAttempts} had failures. Retrying...`);
+      } else if (maxAttempts > 1) {
+        this.logWarning(`\nReached retry limit (${maxAttempts}). Some checks still failing.`);
+      }
+    }
   }
 
   async loadConfig() {

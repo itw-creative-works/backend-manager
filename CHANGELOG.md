@@ -14,6 +14,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.197] - 2026-04-10
+### Added
+- `--retry=N` flag on `npx mgr setup` — re-runs the full setup sequence up to N times, stopping early as soon as all checks pass. Useful for test cases that only succeed after a prior run creates fixtures or indexes propagate.
+
 # [5.0.196] - 2026-04-10
 ### Changed
 - Moved disposable domain fetch from `prepublishOnly` lifecycle hook to `prepare-package`'s new `hooks.before` config. The fetch now runs on every `npm run prepare` / `npm install` / `npm publish`, so fresh domains land in both the git working tree and the published tarball — no more drift between git and npm.
