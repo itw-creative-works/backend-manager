@@ -10,9 +10,48 @@ payments/reactivate
 payments/upgrade
   * takes a subscription id and a new plan id and upgrades the user's subscription to the new plan. this can only be done if the user has an active subscription.
 
+I'd call that cancellation-reversed — it pairs naturally with the existing cancellation-requested transition and clearly communicates the action (they reversed/undid the pending cancellation).
+
+on the email we send, for payment recovered what is the category
+Let me check the handler.
+
+Read payment-recovered.js
+The category is order/payment-recovered (line 13).
+
+TODO-2.md
+waht about when they request a cancel
+Read cancellation-requested.js
+The category is order/cancellation-requested (line 13).
+
+----
+add a dedicated BEM JSON field for usage to reset
+  * this way we can have clear LIMITS with their definitions like
+  * [
+    {
+      name: 'credits'
+      reset: true,
+    },
+    {
+      name: 'agents',
+      reset: false,
+    }
+  ]
+  * mirrors: [
+    {
+      collection: 'agents',
+      fields: ['usage.credits.daily', 'runs.replies.daily],
+    }
+  ]
+
+---
+MIRROR settigns in BEM JSON so that usage reset can properly get MIRRED DOCS liek slapform forms or chatsy agents DOCS
+
 ---
 GHOSTII REVAMP
 * better logic for generating posts. better model? claude?
+
+---- MCP
+* ability for consuming prjec to specify MCP functions
 
 -------
 UPSELL

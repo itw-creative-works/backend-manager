@@ -14,6 +14,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.195] - 2026-04-10
+### Fixed
+- 24-hour cancellation guard in `payments/cancel` was comparing `Date.now()` (milliseconds) against `startDateUNIX` (seconds), producing an "age" of ~56 years for every subscription — guard never fired and users could cancel brand-new subscriptions. Now multiplies `startDateUNIX` by 1000 before subtraction.
+### Changed
+- Standardized CLI examples in `CLAUDE.md` and `README.md` to use `npx mgr` instead of the deprecated `npx bm` alias
+
 # [5.0.194] - 2026-04-08
 ### Fixed
 - Fix email template data merge: caller's `settings.data` is now deep-merged at root of template data tree, removing the broken `data.` prefix indirection that caused empty order confirmation emails since 5.0.185

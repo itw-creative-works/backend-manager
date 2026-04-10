@@ -600,30 +600,30 @@ The `POST /admin/post` route creates blog posts via GitHub's API. It handles ima
 ### Running Tests
 ```bash
 # Option 1: Two terminals
-npx bm emulator  # Terminal 1 - keeps emulator running
-npx bm test      # Terminal 2 - runs tests
+npx mgr emulator  # Terminal 1 - keeps emulator running
+npx mgr test      # Terminal 2 - runs tests
 
 # Option 2: Single command (auto-starts emulator)
-npx bm test
+npx mgr test
 ```
 
 ### Log Files
 BEM CLI commands automatically save all output to log files in `functions/` while still streaming to the console:
-- **`functions/serve.log`** — Output from `npx bm serve` (Firebase serve)
+- **`functions/serve.log`** — Output from `npx mgr serve` (Firebase serve)
 - **`functions/emulator.log`** — Full emulator output (Firebase emulator + Cloud Functions logs)
 - **`functions/test.log`** — Test runner output (when running against an existing emulator)
-- **`functions/logs.log`** — Cloud Function logs from `npx bm logs:read` or `npx bm logs:tail` (raw JSON for `read`, streaming text for `tail`)
+- **`functions/logs.log`** — Cloud Function logs from `npx mgr logs:read` or `npx mgr logs:tail` (raw JSON for `read`, streaming text for `tail`)
 
-When `npx bm test` starts its own emulator, logs go to `emulator.log` (since it delegates to the emulator command). When running against an already-running emulator, logs go to `test.log`.
+When `npx mgr test` starts its own emulator, logs go to `emulator.log` (since it delegates to the emulator command). When running against an already-running emulator, logs go to `test.log`.
 
 These files are overwritten on each run and are gitignored (`*.log`). Use them to search for errors, debug webhook pipelines, or review full function output after a test run.
 
 ### Filtering Tests
 ```bash
-npx bm test rules/             # Run rules tests (both BEM and project)
-npx bm test bem:rules/         # Only BEM's rules tests
-npx bm test project:rules/     # Only project's rules tests
-npx bm test user/ admin/       # Multiple paths
+npx mgr test rules/             # Run rules tests (both BEM and project)
+npx mgr test bem:rules/         # Only BEM's rules tests
+npx mgr test project:rules/     # Only project's rules tests
+npx mgr test user/ admin/       # Multiple paths
 ```
 
 ### Test Locations
@@ -716,7 +716,7 @@ assert.fail(message)                           // Explicit fail
 
 ## Stripe Webhook Forwarding
 
-BEM auto-starts Stripe CLI webhook forwarding when running `npx bm serve` or `npx bm emulator`. This forwards Stripe test webhooks to the local server so the full payment pipeline works end-to-end during development.
+BEM auto-starts Stripe CLI webhook forwarding when running `npx mgr serve` or `npx mgr emulator`. This forwards Stripe test webhooks to the local server so the full payment pipeline works end-to-end during development.
 
 **Requirements:**
 - `STRIPE_SECRET_KEY` set in `functions/.env`
@@ -725,7 +725,7 @@ BEM auto-starts Stripe CLI webhook forwarding when running `npx bm serve` or `np
 
 **Standalone usage:**
 ```bash
-npx bm stripe
+npx mgr stripe
 ```
 
 If any prerequisite is missing, webhook forwarding is silently skipped with an info message.
@@ -736,28 +736,28 @@ The forwarding URL is: `http://localhost:{hostingPort}/backend-manager/payments/
 
 Quick commands for reading/writing Firestore and managing Auth users directly from the terminal. Works in any BEM consumer project (requires `functions/service-account.json` for production, or `--emulator` for local).
 
-**IMPORTANT: All CLI commands (`npx mgr ...` / `npx bm ...`) MUST be run from the consumer project's `functions/` subdirectory** (e.g., `cd /path/to/my-project/functions && npx mgr ...`). The `mgr` binary lives in `functions/node_modules/.bin/` — running from the project root or any other directory will fail.
+**IMPORTANT: All CLI commands (`npx mgr ...`) MUST be run from the consumer project's `functions/` subdirectory** (e.g., `cd /path/to/my-project/functions && npx mgr ...`). The `mgr` binary lives in `functions/node_modules/.bin/` — running from the project root or any other directory will fail.
 
 ### Firestore Commands
 
 ```bash
-npx bm firestore:get <path>                          # Read a document
-npx bm firestore:set <path> '<json>'                 # Write/merge a document
-npx bm firestore:set <path> '<json>' --no-merge      # Overwrite a document entirely
-npx bm firestore:query <collection>                  # Query a collection (default limit 25)
+npx mgr firestore:get <path>                          # Read a document
+npx mgr firestore:set <path> '<json>'                 # Write/merge a document
+npx mgr firestore:set <path> '<json>' --no-merge      # Overwrite a document entirely
+npx mgr firestore:query <collection>                  # Query a collection (default limit 25)
   --where "field==value"                              #   Filter (repeatable for AND)
   --orderBy "field:desc"                              #   Sort
   --limit N                                           #   Limit results
-npx bm firestore:delete <path>                       # Delete a document (prompts for confirmation)
+npx mgr firestore:delete <path>                       # Delete a document (prompts for confirmation)
 ```
 
 ### Auth Commands
 
 ```bash
-npx bm auth:get <uid-or-email>                       # Get user by UID or email (auto-detected via @)
-npx bm auth:list [--limit N] [--page-token T]        # List users (default 100)
-npx bm auth:delete <uid-or-email>                    # Delete user (prompts for confirmation)
-npx bm auth:set-claims <uid-or-email> '<json>'       # Set custom claims
+npx mgr auth:get <uid-or-email>                       # Get user by UID or email (auto-detected via @)
+npx mgr auth:list [--limit N] [--page-token T]        # List users (default 100)
+npx mgr auth:delete <uid-or-email>                    # Delete user (prompts for confirmation)
+npx mgr auth:set-claims <uid-or-email> '<json>'       # Set custom claims
 ```
 
 ### Logs Commands
@@ -765,21 +765,21 @@ npx bm auth:set-claims <uid-or-email> '<json>'       # Set custom claims
 Fetch or stream Cloud Function logs from Google Cloud Logging. Requires `gcloud` CLI installed and authenticated. Auto-resolves the project ID from `service-account.json`, `.firebaserc`, or `GCLOUD_PROJECT`.
 
 ```bash
-npx bm logs:read                                     # Read last 1h of logs (default: 300 entries, newest first)
-npx bm logs:read --fn bm_api                         # Filter by function name
-npx bm logs:read --fn bm_api --severity ERROR        # Filter by severity (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-npx bm logs:read --since 2d --limit 100              # Custom time range and limit
-npx bm logs:read --search "72.134.242.25"            # Search textPayload for a string (IP, email, error, etc.)
-npx bm logs:read --fn bm_authBeforeCreate --search "ian@example.com" --since 7d  # Combined filters
-npx bm logs:read --order asc                         # Oldest first (default: desc/newest first)
-npx bm logs:read --filter 'jsonPayload.level="error"'  # Raw gcloud filter passthrough
-npx bm logs:tail                                     # Stream live logs
-npx bm logs:tail --fn bm_paymentsWebhookOnWrite      # Stream filtered live logs
+npx mgr logs:read                                     # Read last 1h of logs (default: 300 entries, newest first)
+npx mgr logs:read --fn bm_api                         # Filter by function name
+npx mgr logs:read --fn bm_api --severity ERROR        # Filter by severity (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+npx mgr logs:read --since 2d --limit 100              # Custom time range and limit
+npx mgr logs:read --search "72.134.242.25"            # Search textPayload for a string (IP, email, error, etc.)
+npx mgr logs:read --fn bm_authBeforeCreate --search "ian@example.com" --since 7d  # Combined filters
+npx mgr logs:read --order asc                         # Oldest first (default: desc/newest first)
+npx mgr logs:read --filter 'jsonPayload.level="error"'  # Raw gcloud filter passthrough
+npx mgr logs:tail                                     # Stream live logs
+npx mgr logs:tail --fn bm_paymentsWebhookOnWrite      # Stream filtered live logs
 ```
 
 Both commands save output to `functions/logs.log` (overwritten on each run). `logs:read` saves raw JSON; `logs:tail` streams text.
 
-**Cloud Logs vs Local Logs:** These commands query **production** Google Cloud Logging. For **local/dev** logs, read `functions/serve.log` (from `npx bm serve`) or `functions/emulator.log` (from `npx bm test`) directly — they are plain text files, not gcloud.
+**Cloud Logs vs Local Logs:** These commands query **production** Google Cloud Logging. For **local/dev** logs, read `functions/serve.log` (from `npx mgr serve`) or `functions/emulator.log` (from `npx mgr test`) directly — they are plain text files, not gcloud.
 
 | Flag | Description | Default | Commands |
 |------|-------------|---------|----------|
@@ -834,22 +834,22 @@ The `--fn` flag uses the **deployed Cloud Function name**, not the route path.
 
 ```bash
 # Read a user document from production
-npx bm firestore:get users/abc123
+npx mgr firestore:get users/abc123
 
 # Write to emulator
-npx bm firestore:set users/test123 '{"name":"Test User"}' --emulator
+npx mgr firestore:set users/test123 '{"name":"Test User"}' --emulator
 
 # Query with filters
-npx bm firestore:query users --where "subscription.status==active" --limit 10
+npx mgr firestore:query users --where "subscription.status==active" --limit 10
 
 # Look up auth user by email
-npx bm auth:get user@example.com
+npx mgr auth:get user@example.com
 
 # Set admin claims
-npx bm auth:set-claims user@example.com '{"admin":true}'
+npx mgr auth:set-claims user@example.com '{"admin":true}'
 
 # Delete from emulator (no confirmation needed)
-npx bm firestore:delete users/test123 --emulator
+npx mgr firestore:delete users/test123 --emulator
 ```
 
 ## Usage & Rate Limiting
@@ -1366,7 +1366,7 @@ Campaigns reference segments by SSOT key: `segments: ['subscription_free']`. Aut
 
 ### Seed Campaigns
 
-Created by `npx bm setup` (idempotent, enforced fields checked every run):
+Created by `npx mgr setup` (idempotent, enforced fields checked every run):
 
 | ID | Type | Description |
 |----|------|-------------|
@@ -1419,7 +1419,7 @@ marketing: {
 
 8. **Increment usage before update** - Call `usage.increment()` then `usage.update()`
 
-9. **Add Firestore composite indexes for new compound queries** - Any new Firestore query using multiple `.where()` clauses or `.where()` + `.orderBy()` requires a composite index. Add it to `src/cli/commands/setup-tests/helpers/required-indexes.js` (the SSOT). Consumer projects pick these up via `npx bm setup`, which syncs them into `firestore.indexes.json`. Without the index, the query will crash with `FAILED_PRECONDITION` in production.
+9. **Add Firestore composite indexes for new compound queries** - Any new Firestore query using multiple `.where()` clauses or `.where()` + `.orderBy()` requires a composite index. Add it to `src/cli/commands/setup-tests/helpers/required-indexes.js` (the SSOT). Consumer projects pick these up via `npx mgr setup`, which syncs them into `firestore.indexes.json`. Without the index, the query will crash with `FAILED_PRECONDITION` in production.
 
 ## Key Files Reference
 
@@ -1463,7 +1463,7 @@ marketing: {
 ```javascript
 assistant.isDevelopment()  // true when ENVIRONMENT !== 'production' or in emulator
 assistant.isProduction()   // true when ENVIRONMENT === 'production'
-assistant.isTesting()      // true when running tests (via npx bm test)
+assistant.isTesting()      // true when running tests (via npx mgr test)
 ```
 
 ## Model Context Protocol (MCP)
@@ -1473,7 +1473,7 @@ BEM includes a built-in MCP server that exposes BEM routes as tools for Claude C
 ### Architecture
 
 Two transport modes:
-- **Stdio** (local): `npx bm mcp` — for Claude Code / Claude Desktop
+- **Stdio** (local): `npx mgr mcp` — for Claude Code / Claude Desktop
 - **Streamable HTTP** (remote): `POST /backend-manager/mcp` — for Claude Chat (stateless, Firebase Functions compatible)
 
 ### Available Tools (19)
@@ -1507,7 +1507,7 @@ Two transport modes:
 
 ### Hosting Rewrites
 
-The `npx bm setup` command automatically adds required Firebase Hosting rewrites for MCP OAuth:
+The `npx mgr setup` command automatically adds required Firebase Hosting rewrites for MCP OAuth:
 ```json
 {
   "source": "{/backend-manager,/backend-manager/**,/.well-known/oauth-protected-resource,/.well-known/oauth-authorization-server,/authorize,/token}",
@@ -1518,7 +1518,7 @@ The `npx bm setup` command automatically adds required Firebase Hosting rewrites
 ### CLI Usage
 
 ```bash
-npx bm mcp                    # Start stdio MCP server (for Claude Code)
+npx mgr mcp                    # Start stdio MCP server (for Claude Code)
 ```
 
 ### Claude Code Configuration

@@ -89,7 +89,7 @@ module.exports = function (assistant) {
 Run the setup command:
 
 ```bash
-npx bm setup
+npx mgr setup
 ```
 
 ## Initialization Options
@@ -802,28 +802,28 @@ BEM includes an integration test framework that runs against the Firebase emulat
 
 ```bash
 # Option 1: Two terminals (recommended for development)
-npx bm emulator  # Terminal 1 - keeps emulator running
-npx bm test      # Terminal 2 - runs tests
+npx mgr emulator  # Terminal 1 - keeps emulator running
+npx mgr test      # Terminal 2 - runs tests
 
 # Option 2: Single command (auto-starts emulator, shuts down after)
-npx bm test
+npx mgr test
 ```
 
 ### Filtering Tests
 
 ```bash
-npx bm test rules/             # Run rules tests (both BEM and project)
-npx bm test bem:rules/         # Only BEM's rules tests
-npx bm test project:rules/     # Only project's rules tests
-npx bm test user/ admin/       # Multiple paths
+npx mgr test rules/             # Run rules tests (both BEM and project)
+npx mgr test bem:rules/         # Only BEM's rules tests
+npx mgr test project:rules/     # Only project's rules tests
+npx mgr test user/ admin/       # Multiple paths
 ```
 
 ### Log Files
 
 BEM CLI commands automatically save output to log files in the project directory:
-- **`emulator.log`** — Full emulator + Cloud Functions output (`npx bm emulator`)
-- **`test.log`** — Test runner output (`npx bm test`, when running against an existing emulator)
-- **`logs.log`** — Cloud Function logs (`npx bm logs:read` or `npx bm logs:tail`)
+- **`emulator.log`** — Full emulator + Cloud Functions output (`npx mgr emulator`)
+- **`test.log`** — Test runner output (`npx mgr test`, when running against an existing emulator)
+- **`logs.log`** — Cloud Function logs (`npx mgr logs:read` or `npx mgr logs:tail`)
 
 Logs are overwritten on each run. Use them to debug failing tests or review function output.
 
