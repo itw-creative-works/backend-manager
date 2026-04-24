@@ -14,6 +14,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.199] - 2026-04-23
+### Fixed
+- Storage helper (`Manager.storage().get()` / `.set()`) was referencing `_.get` and `_.set` without a lodash namespace import — lodash is destructured at the top of the file, so `_` was undefined and every call crashed. Destructured `get` and `set` (aliased as `_get` / `_set`) and updated both call sites.
+
 # [5.0.198] - 2026-04-10
 ### Security
 - Added Stripe idempotency keys on all Stripe write operations to prevent duplicate charges, refunds, customers, and coupons from webhook retries, concurrent requests, or user double-clicks. Keys are scoped to stable resource identifiers and Stripe caches responses for 24 hours.

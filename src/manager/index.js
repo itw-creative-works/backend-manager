@@ -1,6 +1,6 @@
 // Libraries
 const path = require('path');
-const { mergeWith, isArray } = require('lodash');
+const { mergeWith, isArray, get: _get, set: _set } = require('lodash');
 const jetpack = require('fs-jetpack');
 const JSON5 = require('json5');
 const EventEmitter = require('events');
@@ -657,10 +657,10 @@ Manager.prototype.storage = function (options) {
         _db: db,
         _location: location,
         get(path, defaultValue) {
-          const result = _.get(db.data, path, defaultValue);
+          const result = _get(db.data, path, defaultValue);
           return { value() { return result; } };
         },
-        set(path, value) { _.set(db.data, path, value); return this; },
+        set(path, value) { _set(db.data, path, value); return this; },
         write() { db.write(); return this; },
         getState() { return db.data; },
         setState(data) { db.data = data; return this; },
