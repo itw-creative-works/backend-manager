@@ -14,6 +14,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.200] - 2026-05-05
+### Changed
+- Bumped `uuid` from `^13.0.2` to `^14.0.0`. uuid v14 is ESM-only, but Node 22+'s native `require(esm)` support means existing CommonJS call sites (`require('uuid').v4`, `.v5`, etc.) work unchanged.
+
 # [5.0.199] - 2026-04-23
 ### Fixed
 - Storage helper (`Manager.storage().get()` / `.set()`) was referencing `_.get` and `_.set` without a lodash namespace import — lodash is destructured at the top of the file, so `_` was undefined and every call crashed. Destructured `get` and `set` (aliased as `_get` / `_set`) and updated both call sites.
