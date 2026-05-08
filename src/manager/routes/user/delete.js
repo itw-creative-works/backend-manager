@@ -81,7 +81,7 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
   // Send confirmation email (fire-and-forget)
   const shouldSend = !assistant.isTesting() || process.env.TEST_EXTENDED_MODE;
   if (email && shouldSend) {
-    sendConfirmationEmail(assistant, email, reason, userData?.personal?.name?.first);
+    sendConfirmationEmail(assistant, email, uid, reason, userData?.personal?.name?.first);
   }
 
   return assistant.respond({ success: true });
@@ -90,7 +90,7 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
 /**
  * Send account deletion confirmation email (fire-and-forget)
  */
-function sendConfirmationEmail(assistant, email, reason, firstName) {
+function sendConfirmationEmail(assistant, email, uid, reason, firstName) {
   const Manager = assistant.Manager;
   const brandName = Manager.config.brand.name;
   const mailer = Manager.Email(assistant);
@@ -98,6 +98,7 @@ function sendConfirmationEmail(assistant, email, reason, firstName) {
   const reasonLine = reason
     ? `\n\n**Reason provided:** ${reason}`
     : '';
+  const deletionDate = new Date().toUTCString();
 
   mailer.send({
     to: email,
@@ -113,6 +114,12 @@ function sendConfirmationEmail(assistant, email, reason, firstName) {
       body: {
         title: 'Account Deleted',
         message: `${greeting} **${brandName}** account and all associated personal data have been permanently deleted from our systems. This action is irreversible.${reasonLine}
+
+**Deletion details:**
+
+- **Account email:** ${email}
+- **Account UID:** ${uid}
+- **Deletion date:** ${deletionDate}
 
 **What this means:**
 

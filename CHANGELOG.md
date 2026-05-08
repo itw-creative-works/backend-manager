@@ -14,6 +14,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.201] - 2026-05-08
+### Changed
+- Account deletion confirmation email now includes a "Deletion details:" block with the user's account email, UID, and deletion timestamp (UTC) — matching the pattern used in the data-request download email.
+
 # [5.0.200] - 2026-05-05
 ### Changed
 - Bumped `uuid` from `^13.0.2` to `^14.0.0`. uuid v14 is ESM-only, but Node 22+'s native `require(esm)` support means existing CommonJS call sites (`require('uuid').v4`, `.v5`, etc.) work unchanged.
