@@ -14,6 +14,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.202] - 2026-05-12
+### Added
+- **`src/defaults/CLAUDE.md`** — new file shipped to consumer projects, marker-wrapped with `# ========== Default Values ==========` / `# ========== Custom Values ==========`. Framework section stays live-synced across `npx mgr setup` while the Custom section is preserved verbatim. Aligns BEM with EM/BXM/UJM, which already ship a consumer-facing default CLAUDE.md.
+- **`src/utils/merge-line-files.js`** — new file. Implements the line-based merge for the marker-wrapped Default/Custom sections (copied verbatim from `electron-manager`'s utility). Reusable across `.env`, `.gitignore`, `CLAUDE.md`, and any other line-based files BEM might ship in the future.
+- **`copyDefaults()` method** in `src/cli/commands/setup.js`. New defaults-shipping mechanism for BEM (which previously had no `src/defaults/` directory at all). Mirrors EM's `copyDefaults` pattern: iterates `src/defaults/**`, renames `_.foo` → `.foo`, routes files matching `MERGEABLE_BASENAMES` (`['.env', '.gitignore', 'CLAUDE.md']`) through `mergeLineBasedFiles`, copies non-mergeable files only if they don't already exist. Wired into `runSetup()` BEFORE `runTests()` so test inspections see the merged state.
+
 # [5.0.201] - 2026-05-08
 ### Changed
 - Account deletion confirmation email now includes a "Deletion details:" block with the user's account email, UID, and deletion timestamp (UTC) — matching the pattern used in the data-request download email.

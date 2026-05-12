@@ -107,6 +107,10 @@ class SetupCommand extends BaseCommand {
     // Clean up leftover trigger files from watch command
     this.cleanupTriggerFiles();
 
+    // Copy / merge defaults into consumer project root (matches EM/BXM/UJM pattern).
+    // Runs BEFORE tests so any test that inspects scaffolded files sees the merged state.
+    this.copyDefaults();
+
     // Run all tests
     await this.runTests();
 
@@ -145,6 +149,74 @@ class SetupCommand extends BaseCommand {
 
     self.default.databaseRulesWhole = (jetpack.read(path.resolve(`${__dirname}/../../../templates/database.rules.json`))).replace('=0.0.0-', `=${self.default.version}-`);
     self.default.databaseRulesCore = self.default.databaseRulesWhole.match(bem_allRulesRegex)[0];
+  }
+
+  // Copy default files (src/defaults/**) into the consumer project root.
+  // For files in MERGEABLE_BASENAMES, route through `mergeLineBasedFiles` so the
+  // framework's section stays live-synced while the consumer's Custom section is
+  // preserved verbatim. For non-mergeable files: copy on first setup, skip if exists.
+  //
+  // Mirrors EM's copyDefaults pattern (src/commands/setup.js in electron-manager).
+  // Same marker convention as .env/.gitignore in EM/BXM/UJM:
+  //   # ========== Default Values ==========   (framework-owned)
+  //   # ========== Custom Values ==========    (consumer-owned)
+  copyDefaults() {
+    const self = this.main;
+    const defaultsDir = path.resolve(`${__dirname}/../../defaults`);
+
+    if (!jetpack.exists(defaultsDir)) {
+      // Defaults dir is optional — older BEM versions didn't have one. If missing, skip silently.
+      return;
+    }
+
+    const { mergeLineBasedFiles } = require('../../utils/merge-line-files.js');
+    // Files routed through the marker-based merge (vs verbatim copy / skip-if-exists).
+    // .env / .gitignore aren't currently shipped by BEM but are included here so this
+    // matches the EM/BXM/UJM contract if we ever add them.
+    const MERGEABLE_BASENAMES = new Set(['.env', '.gitignore', 'CLAUDE.md']);
+
+    const files = jetpack.find(defaultsDir, { matching: '**/*', recursive: true, files: true, directories: false });
+
+    for (const src of files) {
+      const rel = path.relative(defaultsDir, src);
+      const segments = rel.split(path.sep);
+
+      // Skip "archive" directories — anything under a path segment starting with `_` and
+      // followed by a non-`.` character. Matches EM/BXM/UJM convention. The `_.env` /
+      // `_.gitignore` files are NOT skipped; their leading `_` strips on copy below.
+      if (segments.some((s) => s.startsWith('_') && !s.startsWith('_.'))) {
+        continue;
+      }
+
+      // Convert leading `_.` to `.` so dotfiles ship past npm's filter.
+      const target = segments.map((part) => part.startsWith('_.') ? part.slice(1) : part).join(path.sep);
+      const dest = path.join(self.firebaseProjectPath, target);
+      const basename = path.basename(target);
+
+      if (jetpack.exists(dest)) {
+        if (MERGEABLE_BASENAMES.has(basename)) {
+          try {
+            const existing = jetpack.read(dest, 'utf8');
+            const incoming = jetpack.read(src, 'utf8');
+            const merged   = mergeLineBasedFiles(existing, incoming, basename);
+            if (merged !== existing) {
+              jetpack.write(dest, merged);
+              this.logSuccess(`Merged default → ${target}`);
+            }
+          } catch (e) {
+            this.logWarning(`Failed to merge ${target}: ${e.message}`);
+          }
+          continue;
+        }
+
+        // Non-mergeable, already exists → preserve consumer's version.
+        continue;
+      }
+
+      // First time: copy as-is.
+      jetpack.copy(src, dest);
+      this.logSuccess(`Copied default → ${target}`);
+    }
   }
 
   cleanupTriggerFiles() {
