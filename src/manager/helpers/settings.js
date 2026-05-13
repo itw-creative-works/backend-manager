@@ -47,19 +47,38 @@ Settings.prototype.resolve = function (assistant, schema, settings, options) {
     const method = (assistant?.request?.method || '').toLowerCase();
     const methodFile = `${method}.js`;
     const schemaFile = options.schema.replace('.js', '');
-    let schemaPath;
 
-    // First try method-specific schema (e.g., test/get.js, test/post.js)
     const methodSchemaPath = path.resolve(options.dir, `${schemaFile}/${methodFile}`);
+    const indexSchemaPath = path.resolve(options.dir, `${schemaFile}/index.js`);
+
+    // Helper: only fall back when THIS specific file is missing.
+    // If the file exists but throws (syntax error, runtime error, etc.) we re-throw
+    // so the real problem surfaces instead of being masked by a misleading fallback.
+    const isMissingModule = (err, expectedPath) => err
+      && err.code === 'MODULE_NOT_FOUND'
+      && typeof err.message === 'string'
+      && err.message.includes(expectedPath);
 
     try {
       schema = loadSchema(assistant, methodSchemaPath);
       assistant.log(`Settings.resolve(): Loaded method-specific schema: ${schemaFile}/${methodFile}`);
-    } catch (e) {
-      // Fallback to main schema if method-specific doesn't exist
-      schemaPath = path.resolve(options.dir, `${schemaFile}/index.js`);
-      schema = loadSchema(assistant, schemaPath);
-      assistant.log(`Settings.resolve(): Method-specific schema not found, using main schema fallback`);
+    } catch (methodErr) {
+      if (!isMissingModule(methodErr, methodSchemaPath)) {
+        throw methodErr;
+      }
+
+      try {
+        schema = loadSchema(assistant, indexSchemaPath);
+        assistant.log(`Settings.resolve(): Method-specific schema not found, using main schema fallback`);
+      } catch (indexErr) {
+        if (!isMissingModule(indexErr, indexSchemaPath)) {
+          throw indexErr;
+        }
+        throw assistant.errorify(
+          `No schema for ${method.toUpperCase()} request: expected ${schemaFile}/${methodFile} or ${schemaFile}/index.js`,
+          {code: 500},
+        );
+      }
     }
   }
 

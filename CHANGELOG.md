@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.0.203] - 2026-05-13
+### Fixed
+- `Settings.resolve()` now surfaces a clear `No schema for <METHOD> request: expected <schema>/<method>.js or <schema>/index.js` error (code 500) when both the method-specific schema (e.g. `delete.js`) and the `index.js` fallback are absent. Previously the raw Node `Cannot find module .../<schema>/index.js` error propagated to consumers, leaking the require stack and surfacing the internal `/workspace/...` deploy path.
+- Schema files that exist but throw (syntax error, runtime error) are now re-thrown directly instead of being silently masked by an unintended fallback to `index.js`. The real error surfaces, making bugs in schema files debuggable.
+
 # [5.0.202] - 2026-05-12
 ### Added
 - **`src/defaults/CLAUDE.md`** — new file shipped to consumer projects, marker-wrapped with `# ========== Default Values ==========` / `# ========== Custom Values ==========`. Framework section stays live-synced across `npx mgr setup` while the Custom section is preserved verbatim. Aligns BEM with EM/BXM/UJM, which already ship a consumer-facing default CLAUDE.md.
