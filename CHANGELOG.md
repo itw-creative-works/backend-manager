@@ -14,6 +14,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.1.2] - 2026-05-14
+
+### Changed
+
+- **Broadened `test` / `example` local-part blocks** in `email/data/blocked-local-patterns.js`:
+  - `/^test[._-]/` → `/^test/` — now catches `testuser`, `test123abc`, etc., not only `test.user` / `test_123` / `test-foo`.
+  - Added `/^example/` — catches `example`, `exampleuser`, `example.user`, `examples`, etc.
+  - Both patterns are anchored to the start of the local part, so legitimate addresses that contain (but don't start with) those substrings are still allowed: `rachel.tester`, `contestant`, `exam` all pass.
+
 # [5.1.1] - 2026-05-13
 
 ### Added
