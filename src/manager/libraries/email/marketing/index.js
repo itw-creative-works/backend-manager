@@ -29,6 +29,7 @@ const md = new MarkdownIt({ html: true, breaks: true, linkify: true });
 
 const { TEMPLATES, GROUPS, SENDERS } = require('../constants.js');
 const { tagLinks } = require('../utm.js');
+const { isCorporate } = require('../validation.js');
 const sendgridProvider = require('../providers/sendgrid.js');
 const beehiivProvider = require('../providers/beehiiv.js');
 
@@ -70,6 +71,11 @@ Marketing.prototype.add = async function (options) {
   if (!email) {
     assistant.warn('Marketing.add(): No email provided, skipping');
     return {};
+  }
+
+  if (isCorporate(email)) {
+    assistant.warn(`Marketing.add(): Blocked corporate/social-media domain, skipping: ${email}`);
+    return { blocked: 'corporate', email };
   }
 
   if (assistant.isTesting() && !process.env.TEST_EXTENDED_MODE) {
@@ -149,6 +155,11 @@ Marketing.prototype.sync = async function (userDocOrUid) {
   if (!email) {
     assistant.warn('Marketing.sync(): No email found in user doc, skipping');
     return {};
+  }
+
+  if (isCorporate(email)) {
+    assistant.warn(`Marketing.sync(): Blocked corporate/social-media domain, skipping: ${email}`);
+    return { blocked: 'corporate', email };
   }
 
   if (assistant.isTesting() && !process.env.TEST_EXTENDED_MODE) {

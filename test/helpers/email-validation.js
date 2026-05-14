@@ -5,7 +5,7 @@
  * Format, local part, and disposable tests always run (free, regex-based).
  * Mailbox verification tests require TEST_EXTENDED_MODE + ZEROBOUNCE_API_KEY.
  */
-const { validate, isDisposable, DEFAULT_CHECKS, ALL_CHECKS } = require('../../src/manager/libraries/email/validation.js');
+const { validate, isDisposable, isCorporate, DEFAULT_CHECKS, ALL_CHECKS } = require('../../src/manager/libraries/email/validation.js');
 
 module.exports = {
   description: 'Email validation',
@@ -287,6 +287,144 @@ module.exports = {
       },
     },
 
+    // --- Corporate / social-media domain checks ---
+
+    {
+      name: 'corporate-meta-blocked',
+      timeout: 5000,
+
+      async run({ assert }) {
+        const result = await validate('ian@meta.com');
+
+        assert.equal(result.valid, false, 'meta.com should be blocked');
+        assert.propertyEquals(result, 'checks.corporate.blocked', true, 'Should be flagged as blocked');
+        assert.propertyEquals(result, 'checks.corporate.domain', 'meta.com', 'Should include blocked domain');
+        assert.propertyEquals(result, 'checks.corporate.reason', 'Corporate/social-media domain', 'Should have human-readable reason');
+      },
+    },
+
+    {
+      name: 'corporate-instagram-blocked',
+      timeout: 5000,
+
+      async run({ assert }) {
+        const result = await validate('rachel.greene@instagram.com');
+
+        assert.equal(result.valid, false, 'instagram.com should be blocked');
+        assert.propertyEquals(result, 'checks.corporate.blocked', true, 'Should be flagged as blocked');
+      },
+    },
+
+    {
+      name: 'corporate-soundcloud-blocked',
+      timeout: 5000,
+
+      async run({ assert }) {
+        const result = await validate('user@soundcloud.com');
+
+        assert.equal(result.valid, false, 'soundcloud.com should be blocked');
+        assert.propertyEquals(result, 'checks.corporate.blocked', true, 'Should be flagged as blocked');
+      },
+    },
+
+    {
+      name: 'corporate-gmail-allowed',
+      timeout: 5000,
+
+      async run({ assert }) {
+        const result = await validate('rachel.greene@gmail.com');
+
+        assert.equal(result.valid, true, 'gmail.com should NOT be flagged as corporate');
+        assert.propertyEquals(result, 'checks.corporate.valid', true, 'Corporate check should pass');
+        assert.propertyEquals(result, 'checks.corporate.blocked', false, 'Should not be blocked');
+      },
+    },
+
+    {
+      name: 'corporate-runs-before-localpart',
+      timeout: 5000,
+
+      async run({ assert }) {
+        // "test@meta.com" would be blocked by BOTH corporate and localPart;
+        // corporate runs first, so we should see corporate (not localPart) in the result.
+        const result = await validate('test@meta.com');
+
+        assert.equal(result.valid, false, 'Should be blocked');
+        assert.propertyEquals(result, 'checks.corporate.blocked', true, 'Corporate should be the failure reason');
+        assert.equal(result.checks.localPart, undefined, 'localPart should not run after corporate fails');
+      },
+    },
+
+    {
+      name: 'corporate-can-be-skipped-via-checks-option',
+      timeout: 5000,
+
+      async run({ assert }) {
+        // Allow a caller to bypass the corporate check (e.g., during signup, where Meta employees are real users)
+        const result = await validate('ian@meta.com', { checks: ['format', 'disposable', 'localPart'] });
+
+        assert.equal(result.valid, true, 'Without corporate check, meta.com should pass');
+        assert.equal(result.checks.corporate, undefined, 'corporate should not run');
+      },
+    },
+
+    // --- isCorporate helper ---
+
+    {
+      name: 'isCorporate-social-domain-detected',
+      timeout: 5000,
+
+      async run({ assert }) {
+        assert.equal(isCorporate('user@meta.com'), true, 'meta.com should be corporate');
+        assert.equal(isCorporate('user@instagram.com'), true, 'instagram.com should be corporate');
+        assert.equal(isCorporate('user@soundcloud.com'), true, 'soundcloud.com should be corporate');
+        assert.equal(isCorporate('user@tiktok.com'), true, 'tiktok.com should be corporate');
+        assert.equal(isCorporate('user@linkedin.com'), true, 'linkedin.com should be corporate');
+      },
+    },
+
+    {
+      name: 'isCorporate-legitimate-domain-passes',
+      timeout: 5000,
+
+      async run({ assert }) {
+        assert.equal(isCorporate('user@gmail.com'), false, 'gmail.com should not be corporate');
+        assert.equal(isCorporate('user@somiibo.com'), false, 'Custom domain should not be corporate');
+        assert.equal(isCorporate('user@mailinator.com'), false, 'Disposable is a separate category');
+      },
+    },
+
+    {
+      name: 'isCorporate-accepts-domain-only',
+      timeout: 5000,
+
+      async run({ assert }) {
+        assert.equal(isCorporate('meta.com'), true, 'Should work with bare domain');
+        assert.equal(isCorporate('gmail.com'), false, 'Should work with bare domain');
+      },
+    },
+
+    {
+      name: 'isCorporate-handles-edge-cases',
+      timeout: 5000,
+
+      async run({ assert }) {
+        assert.equal(isCorporate(''), false, 'Empty string should return false');
+        assert.equal(isCorporate(null), false, 'Null should return false');
+        assert.equal(isCorporate(undefined), false, 'Undefined should return false');
+      },
+    },
+
+    {
+      name: 'isCorporate-case-insensitive',
+      timeout: 5000,
+
+      async run({ assert }) {
+        assert.equal(isCorporate('user@META.COM'), true, 'Should be case-insensitive');
+        assert.equal(isCorporate('USER@Instagram.Com'), true, 'Should be case-insensitive');
+      },
+    },
+
     // --- isDisposable helper ---
 
     {
@@ -389,8 +527,8 @@ module.exports = {
       timeout: 5000,
 
       async run({ assert }) {
-        assert.deepEqual(DEFAULT_CHECKS, ['format', 'disposable', 'localPart'], 'DEFAULT_CHECKS should be format + disposable + localPart');
-        assert.deepEqual(ALL_CHECKS, ['format', 'disposable', 'localPart', 'mailbox'], 'ALL_CHECKS should include mailbox');
+        assert.deepEqual(DEFAULT_CHECKS, ['format', 'disposable', 'corporate', 'localPart'], 'DEFAULT_CHECKS should be format + disposable + corporate + localPart');
+        assert.deepEqual(ALL_CHECKS, ['format', 'disposable', 'corporate', 'localPart', 'mailbox'], 'ALL_CHECKS should include mailbox');
       },
     },
 

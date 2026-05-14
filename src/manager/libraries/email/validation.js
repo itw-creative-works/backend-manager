@@ -4,11 +4,12 @@
  * Available checks (run in this order):
  * - format     — basic email regex
  * - disposable — checks against known disposable domain list
+ * - corporate  — blocks corporate/social-media domains (meta.com, instagram.com, soundcloud.com, etc.)
  * - localPart  — blocks spam/junk local parts (test, noreply, all-numeric, etc.)
  * - mailbox  — verifies mailbox exists via API (costs money, requires ZEROBOUNCE_API_KEY)
  *
  * Usage:
- *   validate(email)                                          // All free checks (format + disposable + localPart)
+ *   validate(email)                                          // All free checks (format + disposable + corporate + localPart)
  *   validate(email, { checks: ['format', 'disposable'] })    // Only format + disposable
  *   validate(email, { checks: ALL_CHECKS })                  // Everything including mailbox
  *
@@ -16,57 +17,41 @@
  * - routes/marketing/contact/post.js
  * - functions/core/actions/api/general/add-marketing-contact.js
  * - routes/user/signup/post.js (disposable check only)
+ * - libraries/email/marketing/index.js (safety net before Beehiiv/SendGrid add/sync)
  */
 const fetch = require('wonderful-fetch');
 const path = require('path');
 
+// All data lives in ./data/ — domains and local-part blocklists are co-located JSON files.
+const DATA_DIR = path.join(__dirname, 'data');
+
 // Load disposable domains: curated vendor list + custom additions
-const DISPOSABLE_DOMAINS = require(path.join(__dirname, '..', 'disposable-domains.json'));
-const CUSTOM_DISPOSABLE_DOMAINS = require(path.join(__dirname, '..', 'custom-disposable-domains.json'));
+const DISPOSABLE_DOMAINS = require(path.join(DATA_DIR, 'disposable-domains.json'));
+const CUSTOM_DISPOSABLE_DOMAINS = require(path.join(DATA_DIR, 'custom-disposable-domains.json'));
 const DISPOSABLE_SET = new Set([
   ...DISPOSABLE_DOMAINS.map(d => d.toLowerCase()),
   ...CUSTOM_DISPOSABLE_DOMAINS.map(d => d.toLowerCase()),
 ]);
 
-// Spam/junk local parts — exact matches (checked after stripping +suffix)
-const BLOCKED_LOCAL_PARTS = new Set([
-  // Generic/test
-  'test', 'testing', 'tester', 'test1', 'test123',
-  'example', 'sample', 'demo', 'dummy', 'fake', 'temp',
-  // System/role addresses
-  'noreply', 'no-reply', 'donotreply', 'do-not-reply',
-  'mailer-daemon', 'postmaster', 'webmaster', 'hostmaster',
-  'abuse', 'spam', 'root',
-  // Keyboard walks / junk
-  'asdf', 'qwerty', 'zxcv', 'asd', 'qwe',
-  'aaa', 'bbb', 'xxx', 'zzz',
-  'abc', 'abc123', 'abcdef',
-  // Team
-  // 'user', 'email', 'mail', 'hello', 'info',
-  // 'admin', 'administrator', 'support',
-  // 'contact',
-  // Placeholder
-  'name', 'firstname', 'lastname',
-  'foo', 'bar', 'baz', 'foobar',
-  'null', 'undefined', 'none', 'anonymous',
-]);
+// Load corporate/social-media domains — real mailboxes we never want on marketing lists
+const CORPORATE_DOMAINS = require(path.join(DATA_DIR, 'corporate-domains.json'));
+const CORPORATE_SET = new Set(CORPORATE_DOMAINS.map(d => d.toLowerCase()));
 
-// Patterns that indicate junk local parts (checked after stripping +suffix)
-const BLOCKED_LOCAL_PATTERNS = [
-  /^\d+$/,           // All numeric: 123456
-  /^(.)\1{2,}$/,     // Repeating single char: aaaa, xxxx
-  /^[a-z]{1,2}\d+$/, // Single letter + numbers: a123, x999
-  /^test[._-]/,      // Starts with test separator: test.user, test_123
-];
+// Load local-part blocklists from ./data/ (JSON for strings, JS for regex patterns)
+const BLOCKED_LOCAL_PARTS_DATA = require(path.join(DATA_DIR, 'blocked-local-parts.json'));
+const BLOCKED_LOCAL_PARTS = new Set(
+  Object.values(BLOCKED_LOCAL_PARTS_DATA).flat().map(p => p.toLowerCase())
+);
+const BLOCKED_LOCAL_PATTERNS = require(path.join(DATA_DIR, 'blocked-local-patterns.js'));
 
 // Format regex
 const EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Default checks (all free checks — mailbox excluded because it costs money)
-const DEFAULT_CHECKS = ['format', 'disposable', 'localPart'];
+const DEFAULT_CHECKS = ['format', 'disposable', 'corporate', 'localPart'];
 
 // All available checks
-const ALL_CHECKS = ['format', 'disposable', 'localPart', 'mailbox'];
+const ALL_CHECKS = ['format', 'disposable', 'corporate', 'localPart', 'mailbox'];
 
 /**
  * Validate an email address through selected checks.
@@ -76,7 +61,7 @@ const ALL_CHECKS = ['format', 'disposable', 'localPart', 'mailbox'];
  * @param {string} email
  * @param {object} [options]
  * @param {Array<string>} [options.checks] - Which checks to run (default: DEFAULT_CHECKS)
- * @returns {{ valid: boolean, checks: { format?: object, disposable?: object, localPart?: object, mailbox?: object } }}
+ * @returns {{ valid: boolean, checks: { format?: object, disposable?: object, corporate?: object, localPart?: object, mailbox?: object } }}
  */
 async function validate(email, options = {}) {
   const checks = new Set(options.checks || DEFAULT_CHECKS);
@@ -106,7 +91,18 @@ async function validate(email, options = {}) {
     result.checks.disposable = { valid: true, blocked: false };
   }
 
-  // 3. Local part — strip +suffix before checking
+  // 3. Corporate / social-media domain (real mailbox, but never wanted on marketing lists)
+  if (checks.has('corporate') && domain) {
+    if (CORPORATE_SET.has(domain)) {
+      result.valid = false;
+      result.checks.corporate = { valid: false, blocked: true, domain, reason: 'Corporate/social-media domain' };
+      return result;
+    }
+
+    result.checks.corporate = { valid: true, blocked: false };
+  }
+
+  // 4. Local part — strip +suffix before checking
   if (checks.has('localPart') && rawLocalPart) {
     const localPart = rawLocalPart.split('+')[0];
 
@@ -127,7 +123,7 @@ async function validate(email, options = {}) {
     result.checks.localPart = { valid: true };
   }
 
-  // 4. Mailbox verification (ZeroBounce)
+  // 5. Mailbox verification (ZeroBounce)
   if (checks.has('mailbox')) {
     if (!process.env.ZEROBOUNCE_API_KEY) {
       result.checks.mailbox = { valid: true, skipped: true, reason: 'No API key' };
@@ -190,4 +186,23 @@ function isDisposable(emailOrDomain) {
   return DISPOSABLE_SET.has(domain.toLowerCase());
 }
 
-module.exports = { validate, isDisposable, DEFAULT_CHECKS, ALL_CHECKS };
+/**
+ * Quick check: is this email from a blocked corporate/social-media domain?
+ * Works with a full email address or just a domain.
+ *
+ * @param {string} emailOrDomain
+ * @returns {boolean}
+ */
+function isCorporate(emailOrDomain) {
+  if (!emailOrDomain) {
+    return false;
+  }
+
+  const domain = emailOrDomain.includes('@')
+    ? emailOrDomain.split('@')[1]
+    : emailOrDomain;
+
+  return CORPORATE_SET.has(domain.toLowerCase());
+}
+
+module.exports = { validate, isDisposable, isCorporate, DEFAULT_CHECKS, ALL_CHECKS };

@@ -89,6 +89,11 @@ Module.prototype.main = function () {
           return reject(assistant.errorify(`Disposable email domain not allowed: ${disposable.domain}`, { code: 400 }));
         }
 
+        const corporate = validation.checks.corporate;
+        if (corporate && !corporate.valid) {
+          return reject(assistant.errorify(`Corporate/social-media domain not allowed: ${corporate.domain}`, { code: 400 }));
+        }
+
         return reject(assistant.errorify('Email validation failed', { code: 400 }));
       }
     }

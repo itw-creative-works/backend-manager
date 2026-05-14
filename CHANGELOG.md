@@ -14,6 +14,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.1.1] - 2026-05-13
+
+### Added
+
+- **Corporate / social-media domain blacklist** — new `corporate` check in `email/validation.js` blocks marketing-list adds from corporate social-media domains (meta.com, instagram.com, soundcloud.com, tiktok.com, x.com, reddit.com, linkedin.com, youtube.com, discord.com, telegram.org, signal.org, and more — 21 domains total). Added to `DEFAULT_CHECKS` so every existing caller of `validate()` picks it up automatically. New `isCorporate(emailOrDomain)` helper exported alongside `isDisposable()`.
+- **Defense-in-depth guards** in `Marketing.add()` and `Marketing.sync()` — even when validation is bypassed (e.g. testing mode), corporate domains are blocked before any Beehiiv or SendGrid call.
+- **13 new tests** in `test/helpers/email-validation.js` covering the `corporate` validate-check, the `isCorporate()` helper, case-insensitivity, edge cases, and check-ordering behavior. Suite: 44 pass, 0 fail, 2 skip (ZeroBounce-only).
+
+### Changed
+
+- **Email data files reorganized** — all blacklists now live in `src/manager/libraries/email/data/` (one folder, next to their consumer), instead of being scattered one level up alongside unrelated libraries:
+  - `disposable-domains.json`, `custom-disposable-domains.json`, `corporate-domains.json` — domain blocklists
+  - `blocked-local-parts.json` — categorized local-part blocklist (`generic`, `system`, `junk`, `placeholder`), extracted from a hardcoded `Set` in `validation.js`
+  - `blocked-local-patterns.js` — regex patterns, extracted from `validation.js` (kept as JS so RegExp literals stay native)
+- **`scripts/update-disposable-domains.js`** — prepare-step downloader now writes to `email/data/disposable-domains.json`.
+
 # [5.1.0] - 2026-05-13
 
 ### Added

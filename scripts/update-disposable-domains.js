@@ -13,7 +13,7 @@ const fs = require('fs');
 const path = require('path');
 
 const SOURCE_URL = 'https://raw.githubusercontent.com/disposable-email-domains/disposable-email-domains/main/disposable_email_blocklist.conf';
-const OUTPUT_PATH = path.join(__dirname, '..', 'src', 'manager', 'libraries', 'disposable-domains.json');
+const OUTPUT_PATH = path.join(__dirname, '..', 'src', 'manager', 'libraries', 'email', 'data', 'disposable-domains.json');
 
 async function main() {
   console.log('Fetching disposable domain list...');

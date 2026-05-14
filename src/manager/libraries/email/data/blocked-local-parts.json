@@ -1,0 +1,55 @@
+{
+  "generic": [
+    "test",
+    "testing",
+    "tester",
+    "test1",
+    "test123",
+    "example",
+    "sample",
+    "demo",
+    "dummy",
+    "fake",
+    "temp"
+  ],
+  "system": [
+    "noreply",
+    "no-reply",
+    "donotreply",
+    "do-not-reply",
+    "mailer-daemon",
+    "postmaster",
+    "webmaster",
+    "hostmaster",
+    "abuse",
+    "spam",
+    "root"
+  ],
+  "junk": [
+    "asdf",
+    "qwerty",
+    "zxcv",
+    "asd",
+    "qwe",
+    "aaa",
+    "bbb",
+    "xxx",
+    "zzz",
+    "abc",
+    "abc123",
+    "abcdef"
+  ],
+  "placeholder": [
+    "name",
+    "firstname",
+    "lastname",
+    "foo",
+    "bar",
+    "baz",
+    "foobar",
+    "null",
+    "undefined",
+    "none",
+    "anonymous"
+  ]
+}

@@ -41,7 +41,7 @@ module.exports = async ({ assistant, Manager, settings, analytics }) => {
       return assistant.respond({ success: true });
     }
 
-    const { format, localPart, disposable } = validation.checks;
+    const { format, localPart, disposable, corporate } = validation.checks;
 
     if (format && !format.valid) {
       return assistant.respond('Invalid email format', { code: 400 });
@@ -53,6 +53,10 @@ module.exports = async ({ assistant, Manager, settings, analytics }) => {
 
     if (disposable && !disposable.valid) {
       return assistant.respond(`Disposable email domain not allowed: ${disposable.domain}`, { code: 400 });
+    }
+
+    if (corporate && !corporate.valid) {
+      return assistant.respond(`Corporate/social-media domain not allowed: ${corporate.domain}`, { code: 400 });
     }
 
     return assistant.respond('Email validation failed', { code: 400 });
