@@ -1,0 +1,244 @@
+# Marketing Campaign System
+
+## Campaign CRUD Routes (admin-only)
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | `/marketing/campaign` | Create campaign (immediate or scheduled) |
+| GET | `/marketing/campaign` | List/filter campaigns by date range, status, type |
+| PUT | `/marketing/campaign` | Update pending campaigns (reschedule, edit) |
+| DELETE | `/marketing/campaign` | Delete pending campaigns |
+
+## Firestore Collection: `marketing-campaigns/{id}`
+
+```javascript
+{
+  settings: { name, subject, preheader, content, template, sender, segments, excludeSegments, ... },
+  sendAt: 1743465600,        // Unix timestamp (any format accepted, normalized on create)
+  status: 'pending',         // pending | sent | failed
+  type: 'email',             // email | push
+  recurrence: { pattern, hour, day },  // Optional — makes it recurring
+  generator: 'newsletter',   // Optional — runs content generator before sending
+  recurringId: '_recurring-sale',      // Present on history docs (links to parent template)
+  generatedFrom: '_recurring-newsletter', // Present on generated docs
+  results: { sendgrid: {...}, beehiiv: {...} },
+  metadata: { created: {...}, updated: {...} },
+}
+```
+
+## Campaign Types
+
+- **Email**: dispatches to SendGrid (Single Send) + Beehiiv (Post) via `mailer.sendCampaign()`
+- **Push**: dispatches to FCM via `notification.send()` (shared library)
+- Content is **markdown** — converted to HTML at send time. Template variables resolved before conversion.
+
+## Recurring Campaigns
+
+Campaigns with a `recurrence` field repeat automatically:
+- Cron fires → creates a **history doc** (same collection, `recurringId` set) → advances `sendAt` to next occurrence
+- Status stays `pending` on the recurring template, history docs are `sent`/`failed`
+- `_` prefix on IDs groups them at top of Firestore console
+
+Recurrence patterns: `daily`, `weekly`, `monthly`, `quarterly`, `yearly`
+
+## Generator Campaigns
+
+Campaigns with a `generator` field don't send directly. A daily cron pre-generates content 24 hours before `sendAt`:
+1. Daily cron finds generator campaigns due within 24 hours
+2. Runs the generator module (e.g., `generators/newsletter.js`)
+3. Creates a NEW standalone `pending` campaign with generated content
+4. Advances the recurring template's `sendAt`
+5. Generated campaign appears on calendar for review, sent by frequent cron when due
+
+## Template Variables
+
+Resolved at send time via `powertools.template()`. Single braces `{var}` for campaign-level, double `{{var}}` for SendGrid template-level.
+
+| Variable | Example Output |
+|----------|---------------|
+| `{brand.name}` | Somiibo |
+| `{brand.id}` | somiibo |
+| `{brand.url}` | https://somiibo.com |
+| `{season.name}` | Winter, Spring, Summer, Fall |
+| `{holiday.name}` | Black Friday, Christmas, Valentine's Day, etc. |
+| `{date.month}` | November |
+| `{date.year}` | 2026 |
+| `{date.full}` | March 17, 2026 |
+
+## UTM Auto-Tagging
+
+`libraries/email/utm.js` scans HTML for `<a href>` matching the brand's domain and appends UTM params. Applied to both marketing campaigns and transactional emails.
+
+Defaults: `utm_source=brand.id`, `utm_medium=email`, `utm_campaign=name`, `utm_content=type`. Override via `settings.utm` object.
+
+## Segments SSOT
+
+`SEGMENTS` dictionary in `constants.js` — 22 segment definitions. OMEGA creates them in SendGrid, BEM resolves keys to provider IDs at runtime via `resolveSegmentIds()` (cached).
+
+| Category | Segments |
+|----------|----------|
+| Subscription (9) | `subscription_free`, `subscription_paid`, `subscription_trialing`, `subscription_cancelling`, `subscription_suspended`, `subscription_cancelled`, `subscription_churned`, `subscription_ever_paid`, `subscription_never_paid` |
+| Lifecycle (5) | `lifecycle_7d`, `lifecycle_30d`, `lifecycle_90d`, `lifecycle_6m`, `lifecycle_1y` |
+| Engagement (5) | `engagement_active_30d`, `engagement_active_90d`, `engagement_inactive_90d`, `engagement_inactive_5m`, `engagement_inactive_6m` |
+
+Campaigns reference segments by SSOT key: `segments: ['subscription_free']`. Auto-translated to provider IDs.
+
+## Contact Pruning
+
+`cron/daily/marketing-prune.js` — runs 1st of each month. Two stages:
+1. **Re-engagement**: send email to `engagement_inactive_5m` (excluding `engagement_inactive_6m`)
+2. **Prune**: export `engagement_inactive_6m` contacts, bulk delete from SendGrid + Beehiiv. Never prunes paying customers.
+
+## Newsletter Generator
+
+`generators/newsletter.js` orchestrates a multi-step pipeline that produces a fully rendered, email-safe newsletter. Output is HTML (not markdown) — the marketing library detects `settings.contentHtml` and uses it directly, skipping the markdown pipeline.
+
+Pipeline:
+1. Fetch sources: `GET {parentUrl}/newsletter/sources?category=X&claimFor=brandId` (atomic claim)
+2. **structure.js** — Generic dispatcher. Resolves the active template, merges `BASE_SCHEMA` (universal fields: subject, preheader, signoff, citations) with the template's own `schema` fragment, calls the template's `buildPrompt({brand, newsletterConfig, sources})` to get the AI brief, runs the AI call, and normalizes the result via the template's optional `normalize()`. Default provider: `openai` (override per-run only via `NEWSLETTER_PROVIDER_STRUCTURE` env).
+3. **svg-illustrator.js** — One SVG per section in parallel (`Promise.all`). Iterates `structure.sections` — templates whose content shape isn't section-based (e.g. field-report uses `dispatches`) populate `sections` in their `normalize()` step so this loop keeps working unchanged. Default provider: `anthropic` (override via `NEWSLETTER_PROVIDER_SVG` env).
+4. **mjml-template.js** — Resolves the template by name from `templates/index.js`, calls `template.build({structure, imagePaths, theme, ...})` for the MJML, compiles to email-safe HTML via the `mjml` package. Brand-domain links get UTM-tagged via the existing `tagLinks()` utility.
+5. Mark used: `PUT {parentUrl}/newsletter/sources` per source
+
+## Template-owned schemas
+
+Each template under `lib/templates/` owns its own content shape. Templates export:
+
+```js
+module.exports = {
+  build({ structure, imagePaths, theme, brandName, brandUrl, brandAddress, sponsorships, now }),  // → MJML
+  meta:     { name, description, requires, optional, supports },
+  schema:   { required, properties },  // JSON schema FRAGMENT — merged into BASE_SCHEMA
+  normalize(structure, { brand, newsletterConfig }),  // optional post-AI normalization
+  buildPrompt({ brand, newsletterConfig, sources }),  // optional — defaults to classic prompt
+};
+```
+
+`BASE_SCHEMA` (in `structure.js`) declares the universals every newsletter must have: `subject`, `preheader`, `signoff`, `citations`. Templates merge their own fields on top via `schema.properties` + `schema.required`.
+
+**Adding a new template:**
+1. Create `lib/templates/<name>.js` with `build`, `meta`, `schema`, and `normalize`. Add `buildPrompt` if the content shape requires a custom AI brief.
+2. Register it in `lib/templates/index.js`.
+3. **Add a matching fixture** at `test/marketing/fixtures/<name>.json` with the same content shape. This is REQUIRED — the iteration test loads it by default when the active brand's template is your new one. Without it, the default test run fails with "fixture not found".
+4. Add the template name to the `TEMPLATES` array in `test/marketing/newsletter-templates.js` so the fixture suite renders it. Add per-template assertions if the new template renders unique identity markers (e.g. field-report's `LEAD DISPATCH` kicker).
+5. Audit graceful omission — every template's `build()` must handle missing optional fields (return `''` for omitted blocks rather than throwing). Existing templates (clean, editorial, field-report) all do this.
+
+Existing classic-shape templates (`clean`, `editorial`) share their schema via `lib/templates/classic-schema.js`. New templates with the same `{intro, sections: [{title, body, cta, image_prompt}]}` shape should reuse `CLASSIC_SCHEMA` + `normalizeClassic` rather than duplicating.
+
+## Iteration test default behavior
+
+`test/marketing/newsletter-generate.js` runs in **fixture mode by default** — it loads `test/marketing/fixtures/<active-template>.json` and renders straight through MJML. ~25-50ms, no AI, $0. This is what runs in CI and what you use for layout iteration.
+
+Set `TEST_EXTENDED_MODE=1` to switch to the full AI pipeline against real sources from the parent server. That mode requires `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `BACKEND_MANAGER_KEY`, and a parent URL.
+
+Per-brand customization lives under `marketing.beehiiv.content` — nested under `beehiiv` because Beehiiv is the platform that publishes the result, and the whole pipeline is gated by `marketing.beehiiv.enabled`. There's no separate enabled flag on the content block (redundant — disabling beehiiv disables content generation as a side effect, since there's nowhere for the generated content to land). The `content` block name is provider-agnostic on purpose — eventually `marketing.sendgrid.content` would describe a similarly-shaped pipeline for promo email blasts:
+
+```js
+marketing.beehiiv = {
+  enabled: true,
+  publicationId: 'pub_xxxxx',
+  content: {
+    categories: ['social-media', 'marketing'],
+    instructions: '...',           // free-form text for the AI
+    tone: 'professional',          // 'casual' | 'actionable' | 'witty' | etc.
+    template: 'field-report',      // clean | editorial | field-report
+    theme: { primaryColor, secondaryColor, accentColor, font },
+    sponsorships: [ ... ],
+  },
+}
+```
+
+AI provider defaults live in code (openai for structure, anthropic for SVG — each chosen for what each model does best). Override per-run only via env: `NEWSLETTER_PROVIDER_STRUCTURE` / `NEWSLETTER_PROVIDER_SVG`. No per-brand override — every brand uses the same defaults.
+
+## Asset hosting (production cron flow)
+
+The daily cron uploads PNGs + the rendered `newsletter.html` to the public `itw-creative-works/newsletter-assets` repo as two atomic Git Trees commits per issue. Folder layout: `{brandId}/{campaignId}/section-N.png` + `{brandId}/{campaignId}/newsletter.html`.
+
+The `campaignId` is the same Firestore doc ID the cron uses for the generated `marketing-campaigns/{newId}` doc, reserved up front so the GitHub URLs and the Firestore doc always match.
+
+Asset URLs are stamped onto the generated campaign doc:
+
+```js
+marketing-campaigns/{newId}: {
+  settings:    { subject, preheader, contentHtml, ... },
+  assets: {
+    campaignId,           // same as the doc id
+    folderUrl,            // https://github.com/itw-creative-works/newsletter-assets/tree/main/{brandId}/{campaignId}
+    htmlUrl,              // https://raw.githubusercontent.com/.../newsletter.html  — paste this into Beehiiv
+    imageUrls: [...]      // raw.githubusercontent.com URLs already embedded in contentHtml
+  },
+  meta:        { tokens, cost, durations, source scores },
+  ...
+}
+```
+
+Requires `GITHUB_TOKEN` env var (org-scoped, write access to `newsletter-assets`). Without it, the cron's HTML/image upload calls throw and the run aborts.
+
+## Iteration test asset story
+
+`NEWSLETTER_GITHUB_UPLOAD=1` in the iteration test enables the same upload flow against the same repo. Local-only by default for fast layout iteration (writes to `.temp/newsletter/run-<stamp>/newsletter.html`).
+
+| Module | Purpose |
+|---|---|
+| `lib/structure.js` | Generic AI dispatcher — merges template schema with BASE_SCHEMA, calls template.buildPrompt, normalizes |
+| `lib/svg-illustrator.js` | Per-section SVG → PNG (rasterized via `@resvg/resvg-js`) |
+| `lib/mjml-template.js` | Template dispatcher → MJML → email-safe HTML, UTM-tagged |
+| `lib/templates/index.js` | Template registry (`clean`, `editorial`, `field-report`) |
+| `lib/templates/classic-schema.js` | Shared content schema for `clean` + `editorial` |
+| `lib/templates/shared.js` | Opinionated `shell()` + primitives (sponsorship, citations, footer, address) |
+| `lib/templates/editorial-helpers.js` | Editorial-only helpers (pullquote, issue number, eyebrow) |
+| `lib/templates/field-report-helpers.js` | Field-report-only helpers (kicker, dispatch dateline, terminal block, terminator) |
+| `newsletter.js` | Orchestrator — calls lib modules, fetches sources, claims sources |
+| `test/marketing/fixtures/{name}.json` | Hand-crafted structure per template (loaded by iteration test in fixture mode) |
+
+## Seed Campaigns
+
+Created by `npx mgr setup` (idempotent, enforced fields checked every run):
+
+| ID | Type | Description |
+|----|------|-------------|
+| `_recurring-sale` | email (sendgrid) | Seasonal sale targeting free + cancelled + churned users |
+| `_recurring-newsletter` | email (beehiiv) | AI-generated newsletter from parent server sources |
+
+## Marketing Config
+
+```javascript
+marketing: {
+  sendgrid: { enabled: true },
+  beehiiv: {
+    enabled: false,
+    publicationId: 'pub_xxxxx',
+    content: {
+      categories: ['social-media', 'marketing'],
+      instructions: '',                     // free-form AI instructions
+      tone: 'professional',
+      template: 'clean',                    // clean | editorial | field-report
+      theme: { primaryColor, secondaryColor, accentColor, font },
+      sponsorships: [ ... ],
+    },
+  },
+  prune: { enabled: true },
+}
+```
+
+## Key Marketing Files
+
+| Purpose | File |
+|---------|------|
+| Marketing library | `src/manager/libraries/email/marketing/index.js` |
+| Field + segment SSOT | `src/manager/libraries/email/constants.js` |
+| UTM tagging | `src/manager/libraries/email/utm.js` |
+| Newsletter generator | `src/manager/libraries/email/generators/newsletter.js` |
+| Newsletter copy (AI) | `src/manager/libraries/email/generators/lib/structure.js` |
+| Newsletter SVG (AI) | `src/manager/libraries/email/generators/lib/svg-illustrator.js` |
+| Newsletter MJML → HTML | `src/manager/libraries/email/generators/lib/mjml-template.js` |
+| Newsletter asset host (GitHub upload — PNGs + newsletter.html) | `src/manager/libraries/email/generators/lib/image-host.js` |
+| Unified AI library | `src/manager/libraries/ai/index.js` (OpenAI + Anthropic via `Manager.AI(assistant).request({ provider, ... })`) |
+| Notification library | `src/manager/libraries/notification.js` |
+| SendGrid provider | `src/manager/libraries/email/providers/sendgrid.js` |
+| Beehiiv provider | `src/manager/libraries/email/providers/beehiiv.js` |
+| Campaign routes | `src/manager/routes/marketing/campaign/{get,post,put,delete}.js` |
+| Campaign cron | `src/manager/cron/frequent/marketing-campaigns.js` |
+| Newsletter pre-gen cron | `src/manager/cron/daily/marketing-newsletter-generate.js` |
+| Pruning cron | `src/manager/cron/daily/marketing-prune.js` |
+| Seed campaigns | `src/cli/commands/setup-tests/helpers/seed-campaigns.js` |

@@ -469,6 +469,27 @@ Utilities.prototype.get = function (docPath, options) {
 };
 
 /**
+ * Convert a string into a URL-safe slug.
+ * Strips all non-alphanumeric characters, collapses runs of hyphens, lowercases.
+ * Canonical slug builder — share this between BEM admin/post and any consumer
+ * that needs to predict the resulting URL (e.g. sponsorship platform).
+ *
+ * @param {string} input - The string to slugify
+ * @returns {string} URL-safe slug (or empty string for non-string input)
+ */
+Utilities.prototype.slugify = function (input) {
+  if (typeof input !== 'string') {
+    return '';
+  }
+
+  return input
+    .replace(/[^a-zA-Z0-9]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase();
+};
+
+/**
  * Sanitize input by stripping HTML tags and trimming strings.
  * Accepts any data type — walks objects/arrays recursively.
  *

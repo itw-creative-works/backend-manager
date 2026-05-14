@@ -7,6 +7,18 @@
     contact: {
       email: 'support@example.com',
     },
+    // Physical postal address — required by CAN-SPAM in commercial email footers.
+    // Rendered in the newsletter footer + transactional email footers.
+    // Structured so the renderer can format it consistently across locales
+    // and break onto multiple lines if needed. line2/region/postalCode are optional.
+    address: {
+      line1: '123 Main St',
+      line2: 'Suite 100',
+      city: 'City',
+      region: 'ST',
+      postalCode: '12345',
+      country: 'United States',
+    },
     images: {
       wordmark: 'https://example.com/wordmark.png',
       brandmark: 'https://example.com/wordmark.png',
@@ -17,6 +29,7 @@
     user: 'username',
     repo_website: 'https://github.com/username/backend-manager',
   },
+  parent: '',  // URL of the parent BEM instance (e.g., 'https://api.itwcreativeworks.com') — used by newsletter generator to pull sources
   sentry: {
     dsn: 'https://d965557418748jd749d837asf00552f@o777489.ingest.sentry.io/8789941',
   },
@@ -129,13 +142,44 @@
     beehiiv: {
       enabled: false,
       // publicationId: 'pub_xxxxx',  // Set to skip fuzzy-match API call
+      // Content pipeline. Lives under the provider that publishes the result —
+      // Beehiiv for newsletters, eventually SendGrid for promo blasts. The
+      // shape is the same regardless of provider: sources, tone, template,
+      // theme, sponsorships. `beehiiv.enabled: false` above disables it all.
+      content: {
+        categories: [],  // e.g., ['social-media', 'marketing'] — content categories to pull from parent server
+        // AI-customization fields below are all optional with sensible defaults
+        instructions: '',  // free-form text passed to the AI ("focus on X", "avoid Y", brand voice notes)
+        tone: 'professional',  // 'professional', 'casual', 'actionable', 'witty', etc. — passed to AI prompt
+        template: 'clean',   // 'clean' | 'editorial' | 'field-report' — layout template (each owns its own content shape and aesthetic)
+        theme: {
+          primaryColor: '#5B5BFF',   // accent color: buttons, links, brand text
+          secondaryColor: '#1E1E2A', // body text color
+          accentColor: '#F6F7FB',    // page background outside the 600px body
+          font: 'Inter, system-ui, sans-serif',
+        },
+        // AI provider defaults are hard-coded in the library (openai for structure,
+        // anthropic for SVG — each chosen for what each model does best). Override
+        // per-run only via env: NEWSLETTER_PROVIDER_STRUCTURE / NEWSLETTER_PROVIDER_SVG.
+        // Brand-owned sponsorship/promo slots — rendered as "sponsored" blocks inline
+        // with the newsletter. Use for promoting your own products, affiliate offers,
+        // or paid placements. Each entry can be positioned at 'top', 'middle', or 'end'.
+        // Per-campaign overrides via settings.sponsorships on a marketing-campaigns doc.
+        sponsorships: [
+          // {
+          //   label:       'Sponsored',                 // optional eyebrow label (defaults to "Sponsored")
+          //   headline:    'Grow your audience faster', // bold headline
+          //   body:        'Short pitch text…',         // 1-2 sentence body
+          //   url:         'https://somiibo.com/promo', // click destination
+          //   image:       'https://...png',            // optional image URL
+          //   ctaLabel:    'Try Somiibo',               // button text (default: "Learn more")
+          //   position:    'middle',                    // 'top' | 'middle' | 'end' (default: 'middle')
+          // },
+        ],
+      },
     },
     prune: {
       enabled: true,
-    },
-    newsletter: {
-      enabled: false,
-      categories: [],  // e.g., ['social-media', 'marketing'] — content categories to pull from parent server
     },
   },
   firebaseConfig: {

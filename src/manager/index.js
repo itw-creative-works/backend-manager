@@ -558,7 +558,7 @@ Manager.prototype.Email = function (assistant) {
 
 Manager.prototype.AI = function (assistant, key) {
   const self = this;
-  self.libraries.AI = self.libraries.AI || require('./libraries/openai.js');
+  self.libraries.AI = self.libraries.AI || require('./libraries/ai/index.js');
   return new self.libraries.AI(assistant, key);
 };
 

@@ -11,6 +11,8 @@ const path = require('path');
 const { Octokit } = require('@octokit/rest');
 const { get, set } = require('lodash');
 
+const deduplicateImageAlts = require('./deduplicate-image-alts');
+
 const POST_TEMPLATE = jetpack.read(`${__dirname}/templates/post.html`);
 const IMAGE_PATH_SRC = `src/assets/images/blog/post-{id}/`;
 const IMAGE_REGEX = /(?:!\[(.*?)\]\((.*?)\))/img;
@@ -63,14 +65,8 @@ module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
     return assistant.respond('Missing required parameter: body', { code: 400 });
   }
 
-  // Fix URL
-  settings.url = settings.url
-    .replace(/blog\//ig, '')
-    .replace(/^\/|\/$/g, '')
-    .replace(/[^a-zA-Z0-9]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .toLowerCase();
+  // Fix URL — strip blog/ prefix then slugify (slugify handles slashes/special chars)
+  settings.url = Manager.Utilities().slugify(settings.url.replace(/blog\//ig, ''));
 
   // Fix body
   settings.body = settings.body
@@ -159,6 +155,11 @@ async function downloadImages(assistant, settings) {
     header: true,
   });
 
+  // Deduplicate alt-text across different image URLs (mutates images in place,
+  // returns rewritten body). See deduplicate-image-alts.js for full rationale.
+  const dedup = deduplicateImageAlts(images, settings.body);
+  settings.body = dedup.body;
+
   assistant.log('downloadImages(): images', images);
 
   if (!images.length) {
@@ -199,7 +200,7 @@ async function downloadImages(assistant, settings) {
 // Helper: Download image
 async function downloadImage(assistant, src, alt) {
   const fetch = assistant.Manager.require('wonderful-fetch');
-  const hyphenated = hyphenate(alt);
+  const hyphenated = assistant.Manager.Utilities().slugify(alt);
 
   assistant.log(`downloadImage(): src=${src}, alt=${alt}, hyphenated=${hyphenated}`);
 
@@ -325,11 +326,3 @@ function formatClone(payload) {
   return payload;
 }
 
-// Helper: Hyphenate string
-function hyphenate(s) {
-  return s
-    .replace(/[^a-zA-Z0-9]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-    .toLowerCase();
-}

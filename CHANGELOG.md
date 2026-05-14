@@ -14,6 +14,62 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.1.0] - 2026-05-13
+
+### Added
+
+#### Newsletter generation system
+- **Three production-quality templates** with distinct aesthetics, each owning its own content schema and AI prompt — switching templates produces fundamentally different content, not a recolor:
+  - `clean` — Stripe/Linear marketing aesthetic. Safe, conservative, works everywhere.
+  - `editorial` — Magazine-style: masthead, drop-cap intro, numbered sections, pull-quotes, italic signoff.
+  - `field-report` — Wire-service correspondent × Bloomberg terminal. Dispatch kickers, datelines, mono data callouts, end-of-dispatch terminators, correspondent signoff.
+- **Schema-per-template architecture** (`lib/structure.js` is now a generic dispatcher). `BASE_SCHEMA` declares universals (subject, preheader, signoff, citations); each template extends with its own fields via `schema.properties` + `schema.required`. `clean` + `editorial` share `CLASSIC_SCHEMA` (`{intro, sections: [{title, body, cta?, image_prompt}]}`); `field-report` declares `{tldr, dateline, dispatches: [{kicker, headline, byline, location, lede, dispatch, dataPoints, cta, image_prompt}]}`.
+- **Templates export `buildPrompt({brand, newsletterConfig, sources})`** — each template fully owns its AI brief. `clean` + `editorial` use the shared classic prompt; `field-report` has its own wire-service-correspondent voice.
+- **Graceful omission everywhere** — every template's `build()` handles missing optional fields (returns `''` for omitted blocks instead of throwing). Empty sections/dispatches drop entirely (no hollow stubs).
+- **Asset hosting pipeline (`lib/image-host.js`)** — `uploadAssets({ images, html, brandId, campaignId, subject })` uploads section PNGs + `newsletter.html` to `itw-creative-works/newsletter-assets/{brandId}/{campaignId}/` via Git Trees API. PNG magic-byte verification + strict path regex. Public-safety guarantees baked in.
+
+#### Daily cron pipeline (production-ready)
+- **`marketing-newsletter-generate.js` now runs the FULL pipeline end-to-end**: fetch sources → AI structure → AI SVG → upload PNGs to GitHub → render HTML with embedded CDN URLs → upload `newsletter.html` to the same folder → upload Beehiiv draft (fails gracefully on free plan with `SEND_API_NOT_ENTERPRISE_PLAN`) → write `marketing-campaigns/{newId}` Firestore doc with `assets: { folderUrl, htmlUrl, imageUrls, beehiivPostId, campaignId }`.
+- **Reserved Firestore doc ID is used as the GitHub folder name** so URLs and the campaign doc always match.
+
+#### Unified AI library
+- **`src/manager/libraries/ai/`** — `Manager.AI(assistant).request({ provider: 'openai' | 'anthropic' | 'claude-code', ... })` dispatches to either provider with a consistent options + return shape. OpenAI is the default (back-compat); Anthropic added for SVG generation; `claude-code` provider added via `@anthropic-ai/claude-agent-sdk` for credit-less subscription-backed generation.
+- New env var: `BACKEND_MANAGER_ANTHROPIC_API_KEY` / `ANTHROPIC_API_KEY`.
+
+#### Iteration test as mirror of production
+- **Fixture mode is the default** (`npx mgr test bem:marketing/newsletter-generate`) — loads `test/marketing/fixtures/<active-template>.json` and renders straight through MJML. ~35ms, $0, deterministic. Used in CI to catch layout regressions for free.
+- **EXTENDED mode** (`TEST_EXTENDED_MODE=1`) is now a TRUE mirror of the production cron: always uploads to GitHub, always tries Beehiiv draft, no per-side-effect opt-outs.
+- **Three fixture JSONs** shipped at `test/marketing/fixtures/{clean,editorial,field-report}.json` — one per template, each matching its template's content shape. Convention enforced: adding a new template REQUIRES a matching fixture (default test run fails with `fixture not found` otherwise).
+- **17-test fixture suite** (`test/marketing/newsletter-templates.js`) covers graceful omission, empty-section drop, CTA conditional rendering, citation rendering, sponsorship rendering, button padding regression guard, long subjects, minimum-viable structures, template metadata, schema export contract.
+
+#### Other additions
+- **`Manager.Utilities().slugify()`** — canonical URL slug builder. Strips non-alphanumeric chars, collapses hyphens, trims, lowercases. Single source of truth shared by admin/post + any consumer that needs to predict slugs (e.g. sponsorship platform).
+- **`routes/admin/post/deduplicate-image-alts.js`** — utility that suffixes alt-text when two images share alt-text but have different URLs (prevents filename collisions on upload). Wired into both `routes/admin/post/post.js` and `actions/api/admin/create-post.js`. Unit-tested.
+- New env vars in `templates/_.env`: `BACKEND_MANAGER_ANTHROPIC_API_KEY`, `ANTHROPIC_API_KEY`.
+- `templates/_.gitignore` now includes `.temp/` in the BEM defaults section.
+
+#### Documentation split
+- **CLAUDE.md reduced from ~1500 lines to a navigable table of contents.**
+- **21 new `docs/*.md` deep references**: architecture, directory-structure, code-patterns, file-naming, environment-detection, response-headers, routes, schemas, sanitization, auth-hooks, common-operations, admin-post-route, payment-system, marketing-campaigns, mcp, usage-rate-limiting, ai-library, marketing-fields, stripe-webhook-forwarding, testing, cli-firestore-auth, cli-logs.
+
+### Changed
+
+- **Config restructuring**: `marketing.newsletter` → `marketing.beehiiv.content`. Nesting under the provider that publishes the result makes the coupling explicit and leaves room for future `marketing.sendgrid.content` for promo email blasts. `marketing.beehiiv.enabled` now gates the whole content pipeline (no separate `newsletter.enabled` flag — disabling beehiiv disables newsletter generation as a side effect, since there's nowhere for the generated content to land).
+- **Marketing library** (`libraries/email/marketing/index.js`) — now prefers `settings.contentHtml` over running the markdown pipeline. Lets generators produce pre-rendered HTML directly. UTM tagging still runs on the chosen HTML either way.
+- **`Manager.AI()`** now points to the unified `libraries/ai/index.js`. `libraries/openai.js` is a thin compatibility shim that re-exports `libraries/ai/providers/openai.js`.
+- **Footer no longer renders a hand-rolled `${brandUrl}/unsubscribe` link** — Beehiiv and SendGrid both auto-append CAN-SPAM-compliant unsubscribe links on sent emails. The hand-rolled one was a dead second link. Fixture suite now has a regression guard preventing accidental re-adds.
+- **Beehiiv provider** (`libraries/email/providers/beehiiv.js`) — `createPost()` accepts an explicit `publicationId` arg (bypasses singleton-Manager lookup); `getPublicationId()` null-guards an uninitialized Manager singleton (matters for test stubs).
+- **`admin/post.js` + `actions/api/admin/create-post.js`** — replaced inline slugify implementations with calls to the new `Manager.Utilities().slugify()`. Wired alt-text dedup helper into the post-creation flow.
+- **`.temp/` moved** from `functions/.temp/` to project root (matches UJM/BXM/electron-manager convention).
+- **`src/defaults/CLAUDE.md`** — strengthened framework-docs callout for consumer projects; clarified the Default/Custom marker boundary.
+
+### Removed
+
+- **`marketing.newsletter.provider/sectionStyle`** — `provider` defaults now live in code (openai for structure, anthropic for SVG), overridable per-run via env vars. `sectionStyle` was a free-form hint string the AI ignored.
+- **`marketing.beehiiv.uploadAs`** — vestigial config from the abandoned Beehiiv-send-path detour.
+- **`NEWSLETTER_GITHUB_UPLOAD` env flag** — redundant. EXTENDED mode now always uploads (production-equivalent run).
+- **Footer's hand-rolled unsubscribe link** (see Changed).
+
 # [5.0.203] - 2026-05-13
 ### Fixed
 - `Settings.resolve()` now surfaces a clear `No schema for <METHOD> request: expected <schema>/<method>.js or <schema>/index.js` error (code 500) when both the method-specific schema (e.g. `delete.js`) and the `index.js` fallback are absent. Previously the raw Node `Cannot find module .../<schema>/index.js` error propagated to consumers, leaking the require stack and surfacing the internal `/workspace/...` deploy path.

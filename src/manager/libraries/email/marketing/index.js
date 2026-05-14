@@ -292,8 +292,11 @@ Marketing.prototype.sendCampaign = async function (settings) {
     };
   }
 
-  // Convert markdown content to HTML, then tag links with UTM params
-  let contentHtml = resolvedSettings.content ? md.render(resolvedSettings.content) : '';
+  // Use pre-rendered HTML (from a generator) if present, otherwise render markdown.
+  // Generators like newsletter produce email-safe HTML via MJML — skip the markdown
+  // pipeline entirely. tagLinks() is still applied so UTM params get injected.
+  let contentHtml = resolvedSettings.contentHtml
+    || (resolvedSettings.content ? md.render(resolvedSettings.content) : '');
 
   if (contentHtml) {
     contentHtml = tagLinks(contentHtml, {

@@ -151,8 +151,9 @@ async function getPublicationId() {
     return configPubId;
   }
 
-  // Fuzzy-match by brand name
-  const brandName = Manager.config.brand?.name;
+  // Fuzzy-match by brand name (guard against uninitialized Manager singleton —
+  // happens in test stubs that build their own Manager without init()).
+  const brandName = Manager.config?.brand?.name;
 
   if (!brandName) {
     console.error('Beehiiv: Brand name is required to find publication');
@@ -322,6 +323,9 @@ async function resolveSegmentIds() {
  *
  * @param {object} options
  * @param {string} options.title - Post title (required)
+ * @param {string} [options.publicationId] - Explicit publication ID (bypasses getPublicationId lookup).
+ *                                            Preferred when the caller already knows it (e.g. newsletter.js
+ *                                            reads it from marketing.beehiiv.publicationId).
  * @param {string} [options.subject] - Email subject line (defaults to title)
  * @param {string} [options.preheader] - Email preview text
  * @param {string} [options.content] - HTML content body
@@ -332,7 +336,7 @@ async function resolveSegmentIds() {
  * @returns {{ success: boolean, id?: string, scheduled?: boolean, error?: string }}
  */
 async function createPost(options) {
-  const publicationId = await getPublicationId();
+  const publicationId = options.publicationId || await getPublicationId();
 
   if (!publicationId) {
     return { success: false, error: 'Publication not found' };

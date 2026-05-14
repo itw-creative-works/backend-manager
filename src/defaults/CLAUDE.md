@@ -1,14 +1,16 @@
 # ========== Default Values ==========
 # Backend Manager (BEM) — consumer project
 
-> **Auto-managed file.** Everything between `# ========== Default Values ==========` and `# ========== Custom Values ==========` is owned by `backend-manager` and rewritten on every `npx mgr setup`. Put your own project-specific notes BELOW the `Custom Values` marker — that section is preserved verbatim across setups.
-
 ## Framework
 
 This project consumes **Backend Manager** (BEM) — a comprehensive framework for building modern Firebase Cloud Functions backends. BEM provides a single `Manager.init(exports, {...})` bootstrap that wires built-in functions (`bm_api`, auth events, cron jobs), helper classes (Assistant, User, Analytics, Usage, Middleware, Settings, Utilities, Metadata), payment processor integrations (Stripe / PayPal), Firestore-trigger pipelines, and a deploy/emulator/watch tooling pipeline.
 
-**Framework's own docs** (read these for deep-dives; both paths point to the same files, the absolute path works regardless of working directory):
-- Top-level overview: `/Users/ian/Developer/Repositories/ITW-Creative-Works/backend-manager/CLAUDE.md` (or `node_modules/backend-manager/CLAUDE.md`)
+## 🚨 READ THE FRAMEWORK DOCS FIRST
+
+**Before doing ANY work on this codebase, Claude MUST read the framework documentation — that is where the architecture, conventions, APIs, and gotchas live. Skipping these will result in solutions that conflict with framework patterns.**
+
+**Required reading:**
+- **`node_modules/backend-manager/CLAUDE.md`** — full framework reference (single comprehensive file; not yet split into per-subsystem docs)
 
 ## Quick start
 
@@ -65,6 +67,8 @@ After `Manager.init()`, the Manager instance exposes factory methods:
 - `Manager.storage({ name })` — local JSON storage (lowdb)
 
 Auth events, payment-webhook transitions, and cron jobs are wired automatically — hook into them by exporting from `functions/hooks/<area>/<event>.js`.
+
+<!-- Everything above this marker is owned by the framework and rewritten on every `npx mgr setup`. Add your project-specific notes below — they are preserved across setups. -->
 
 # ========== Custom Values ==========
 

@@ -55,20 +55,8 @@ Module.prototype.main = function () {
         return reject(assistant.errorify(`Missing required parameter: body`, {code: 400}));
       }
 
-      // Fix required values
-      payload.data.payload.url = payload.data.payload.url
-        // Replace blog/
-        .replace(/blog\//ig, '')
-        // Remove leading and trailing slashes
-        .replace(/^\/|\/$/g, '')
-        // Replace anything that's not a letter or number with a hyphen
-        .replace(/[^a-zA-Z0-9]/g, '-')
-        // Remove multiple hyphens
-        .replace(/-+/g, '-')
-        // Remove leading and trailing hyphens
-        .replace(/^-+|-+$/g, '')
-        // Lowercase
-        .toLowerCase();
+      // Fix required values — strip blog/ prefix then slugify (slugify handles slashes/special chars)
+      payload.data.payload.url = Manager.Utilities().slugify(payload.data.payload.url.replace(/blog\//ig, ''));
 
       // Fix body
       payload.data.payload.body = payload.data.payload.body
@@ -207,7 +195,7 @@ Module.prototype.downloadImage = function (src, alt) {
 
   return new Promise(async function(resolve, reject) {
     // Log
-    const hyphenated = hyphenate(alt);
+    const hyphenated = Manager.Utilities().slugify(alt);
 
     // Log
     assistant.log(`downloadImage(): src=${src}, alt=${alt}, hyphenated=${hyphenated}`);
@@ -368,18 +356,6 @@ function formatClone(payload) {
   });
 
   return payload;
-}
-
-function hyphenate(s) {
-  return s
-    // Remove everything that is not a letter or a number
-    .replace(/[^a-zA-Z0-9]/g, '-')
-    // Replace multiple hyphens with a single hyphen
-    .replace(/-+/g, '-')
-    // Remove leading and trailing hyphens
-    .replace(/^-|-$/g, '')
-    // Lowercase
-    .toLowerCase();
 }
 
 module.exports = Module;

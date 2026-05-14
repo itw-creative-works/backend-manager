@@ -1,0 +1,54 @@
+{
+  "_comment": "Predefined fixture for the `field-report` template. Loaded via NEWSLETTER_FIXTURE=field-report. Wire-service content shape: tldr + dateline + dispatches[{kicker, headline, byline, location, lede, dispatch, dataPoints, cta, image_prompt}].",
+  "subject": "LinkedIn tightens identity — operators document everything",
+  "preheader": "Three filings from this week's platform front lines.",
+  "tldr": "LinkedIn is rolling out verified-account scrutiny across every business profile. Operators with paper trails will outrun the rest. Documentation is the new growth lever.",
+  "dateline": "OAKLAND",
+  "signoff": "— Stay sharp,\nThe Somiibo Desk",
+  "citations": [
+    { "note": "LinkedIn flagged 12,000 impersonation attempts in the verified-profile beta.", "source": "Reported by LinkedIn product team, May 2026" },
+    { "note": "Operator playbook adoption up 38% week-over-week in Q2.", "source": "Per platform analytics, May 2026" }
+  ],
+  "dispatches": [
+    {
+      "kicker": "LEAD DISPATCH",
+      "headline": "LinkedIn ships verified-profile gates for every business account",
+      "byline": "Filed by The Somiibo platform desk",
+      "location": "OAKLAND",
+      "lede": "A wave of identity-verification gates is rolling out across LinkedIn business profiles this week — and the platform is not asking politely.",
+      "dispatch": "LinkedIn now requires verified identity attestations on any business profile claiming more than 500 followers. The rollout is fast and uneven: some accounts hit the gate inside two days of profile activity, others sit unchallenged for weeks. The pattern that matters is this — accounts with documented attribution histories sail through verification in under twelve hours. Accounts without get queued. The practical implication is to lock down your attribution log this week, not next.",
+      "dataPoints": [
+        { "label": "PROFILES FLAGGED", "value": "12.4K" },
+        { "label": "AVG REVIEW TIME", "value": "14HR" },
+        { "label": "WoW APPROVAL", "value": "+38%" }
+      ],
+      "cta": { "label": "READ THE BRIEF", "url": "https://somiibo.com/blog/linkedin-verification" },
+      "image_prompt": "Abstract geometric illustration of a verification checkmark inside a layered profile card."
+    },
+    {
+      "kicker": "FIELD NOTES",
+      "headline": "Documentation is the new operator moat",
+      "byline": "Filed by The Somiibo growth desk",
+      "location": "REMOTE",
+      "lede": "The teams surviving this round of platform scrutiny share one habit: they write everything down.",
+      "dispatch": "Operator playbooks — once dismissed as overhead — are now the difference between an account that recovers from a flag and one that gets permanently restricted. The teams already running on documented processes recover in days. The ones without burn weeks negotiating with support queues. Treat your playbook as a compliance artifact, not a knowledge-management nice-to-have.",
+      "dataPoints": [
+        { "label": "RECOVERY (DOCUMENTED)", "value": "4D" },
+        { "label": "RECOVERY (UNDOC)", "value": "21D" }
+      ],
+      "cta": { "label": "SEE THE PLAYBOOK", "url": "https://somiibo.com/blog/operator-playbook" },
+      "image_prompt": "Stack of geometric document layers casting clean shadows on a flat surface."
+    },
+    {
+      "kicker": "WATCH",
+      "headline": "YouTube tests creator-attribution metadata on uploads",
+      "byline": "Filed by The Somiibo signals desk",
+      "location": "NEW YORK",
+      "lede": "A small pilot suggests YouTube will soon ask creators to declare automated tooling and cross-posting workflows at upload time.",
+      "dispatch": "A subset of channels saw a new upload checkbox this week asking whether content was assisted by automation. The checkbox is optional today. Reading the room: it will not stay optional. Creators with clear internal workflows already labeled will adapt in an afternoon. Everyone else will spend a quarter retrofitting.",
+      "dataPoints": [],
+      "cta": null,
+      "image_prompt": "Minimalist play button morphing into a label tag, flat geometric style."
+    }
+  ]
+}

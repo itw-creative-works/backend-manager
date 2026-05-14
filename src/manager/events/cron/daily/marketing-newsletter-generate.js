@@ -2,13 +2,29 @@
  * Newsletter pre-generation cron job
  *
  * Runs daily. Looks for generator campaigns (e.g., _recurring-newsletter)
- * with sendAt within the next 24 hours. Generates content via AI and creates
- * a NEW standalone pending campaign with the real content.
+ * with sendAt within the next 24 hours. For each due campaign it runs the
+ * FULL pipeline:
+ *
+ *   1. Fetch + filter sources from parent server (per brand category set)
+ *   2. AI authors structured content (subject, sections/dispatches, signoff, ...)
+ *   3. AI authors per-section SVG, rasterized to PNG
+ *   4. Upload PNGs to itw-creative-works/newsletter-assets/{brandId}/{newId}/
+ *      and render MJML → email-safe HTML embedding those URLs
+ *   5. Upload the rendered newsletter.html into the same folder so the issue
+ *      has a browseable, downloadable archive (and a paste-into-Beehiiv URL)
+ *   6. Create a NEW pending campaign doc with the generated content + asset URLs
+ *   7. Advance the recurring template's sendAt to the next occurrence
  *
  * The generated campaign appears on the calendar for review.
  * The frequent cron picks it up and sends it when sendAt is due.
  *
- * After generating, advances the recurring doc's sendAt to the next occurrence.
+ * Generated doc shape (marketing-campaigns/{newId}):
+ *   {
+ *     settings:        { ...generated content, subject, contentHtml, ... },
+ *     assets:          { folderUrl, htmlUrl, imageUrls, campaignId },
+ *     meta:            { telemetry — tokens, cost, durations, source scores },
+ *     type, sendAt, status: 'pending', generatedFrom, metadata
+ *   }
  *
  * Runs on bm_cronDaily.
  */
@@ -55,21 +71,38 @@ module.exports = async ({ Manager, assistant, libraries }) => {
 
     assistant.log(`Generating content for ${campaignId} (${generator}): ${settings.name}`);
 
-    // Run the generator
-    const generated = await generators[generator].generate(Manager, assistant, settings);
+    // Reserve the new doc ID UP FRONT so the generator can use it as the
+    // GitHub folder name. The asset URLs (raw.githubusercontent.com/.../{newId}/...)
+    // get baked into the rendered HTML, and we want those URLs to match the
+    // Firestore doc that hosts the campaign. Stable, predictable, browseable.
+    const newId = pushid();
+
+    // Run the generator with imageHost forced to 'github' (production cron
+    // path always uploads — that's what "production" means here) and the
+    // campaignId pinned so all assets land in marketing-campaigns/{newId}/'s
+    // matching folder.
+    const generated = await generators[generator].generate(Manager, assistant, settings, {
+      campaignId: newId,
+      imageHost: 'github',
+    });
 
     if (!generated) {
       assistant.log(`Generator "${generator}" returned no content for ${campaignId}, skipping`);
       continue;
     }
 
-    // Create a new standalone campaign with the generated content
-    const newId = pushid();
     const nowISO = new Date().toISOString();
     const nowUNIX = Math.round(Date.now() / 1000);
 
+    // Strip non-serializable fields out of the generator's return before
+    // writing to Firestore. `images` is an array of PNG Buffers (not safe
+    // to persist) and `mjml` is a raw template string that pollutes the doc.
+    const { images: _images, mjml: _mjml, assets, meta, ...campaignSettings } = generated;
+
     await admin.firestore().doc(`marketing-campaigns/${newId}`).set({
-      settings: generated,
+      settings: campaignSettings,
+      assets: assets || null,   // { folderUrl, htmlUrl, imageUrls, campaignId } or null
+      meta:   meta   || null,   // tokens, cost, durations, source scores
       type,
       sendAt: data.sendAt,
       status: 'pending',
@@ -81,6 +114,13 @@ module.exports = async ({ Manager, assistant, libraries }) => {
     });
 
     assistant.log(`Created campaign ${newId} from generator ${campaignId}: "${generated.subject}"`);
+    if (assets?.htmlUrl) {
+      assistant.log(`  HTML:   ${assets.htmlUrl}`);
+      assistant.log(`  Folder: ${assets.folderUrl}`);
+    }
+    if (assets?.beehiivPostId) {
+      assistant.log(`  Beehiiv: draft post ${assets.beehiivPostId}`);
+    }
 
     // Advance the recurring doc's sendAt to the next occurrence
     if (recurrence) {
