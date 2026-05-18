@@ -44,11 +44,23 @@ const DEFAULT_MODELS = {
 const BASE_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['subject', 'preheader', 'signoff', 'citations'],
+  required: ['subject', 'preheader', 'signoff', 'citations', 'tags', 'summary'],
   properties: {
     subject:   { type: 'string', maxLength: 80 },
     preheader: { type: 'string', maxLength: 120 },
     signoff:   { type: 'string' },
+    // Two-to-three-sentence editorial summary of the issue. Used as the body of
+    // `summary.md` alongside the newsletter, and as a preview snippet when the
+    // issue is shared. Distinct from preheader (which is an inbox-preview hook).
+    summary:   { type: 'string', maxLength: 600 },
+    // Topical tags for the issue. Flow into Beehiiv's `content_tags` field on
+    // the post draft (array of strings, lowercase, kebab-case preferred).
+    // Empty array is valid.
+    tags: {
+      type: 'array',
+      maxItems: 5,
+      items: { type: 'string', maxLength: 40 },
+    },
     // Citations for hard data (statistics, numbers, direct quotes) pulled from sources.
     // Rendered as a small footnote section at the bottom of the newsletter — never inline.
     // Empty array is valid (most newsletters won't need citations).
@@ -169,6 +181,8 @@ async function generateStructure({ sources, brand, newsletterConfig, ai, assista
   structure.preheader = structure.preheader || '';
   structure.signoff   = structure.signoff   || `Best,\nThe ${brand?.name || 'Team'} Team`;
   structure.citations = Array.isArray(structure.citations) ? structure.citations : [];
+  structure.tags      = Array.isArray(structure.tags) ? structure.tags : [];
+  structure.summary   = typeof structure.summary === 'string' ? structure.summary : '';
 
   // Let the template normalize its own fields (e.g. sections defaults).
   // Falls back to a sane default if the template doesn't ship one.
@@ -226,10 +240,13 @@ function buildClassicSystemPrompt(brand, config) {
     'CONTENT REQUIREMENTS:',
     '- Subject (≤60 chars, no emojis, attention-grabbing but not clickbait)',
     '- Preheader (≤100 chars, complements the subject)',
+    '- Summary (2-3 sentences, plain text, no markdown) — an editorial recap of the issue, written like a TL;DR. Distinct from preheader (which is an inbox hook). This is what someone reads if they only have 10 seconds.',
+    '- Tags (3-5 short topical tags, lowercase, kebab-case, no spaces) — e.g. "linkedin", "creator-economy", "platform-policy". Empty array is fine if nothing fits.',
     '- Intro (1-2 sentences, markdown allowed) — frame the issue as if you are setting up your own reporting',
     '- 3-5 sections — each is ONE topic, rewritten in your voice as original content',
-    '- Each section: title (compelling, scannable), body (80-150 words, markdown OK), optional cta { label, url }',
+    '- Each section: title (compelling, scannable), body (80-150 words, markdown OK)',
     '- Each section: image_prompt — one-sentence visual description for an illustrator. Be specific about subject/style.',
+    '- Do NOT include CTAs, "read more" links, or any URLs in section bodies. The newsletter is a self-contained read — never invent links or send readers off-property.',
     `- Signoff: a SHORT human sign-off, formatted as two lines with \\n between them. First line is a closing phrase like "Best,", "Cheers,", "Until next week,", or "Stay sharp,". Second line is the team name like "The ${brand?.name || 'Team'} Team". Example: "Best,\\nThe ${brand?.name || 'Team'} Team". Do NOT write a summary, tagline, motto, or thematic conclusion sentence — this is the literal way you sign off the email, like the end of a letter.`,
     '- citations: array of { note, source } for any hard data referenced. Empty array if none.',
     '',

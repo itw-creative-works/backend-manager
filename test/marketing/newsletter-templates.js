@@ -48,19 +48,16 @@ const CLASSIC_STRUCTURE = {
     {
       title: 'Section one',
       body: 'First section body. Identity matters because trust is the new growth lever. Teams that handle this well will spend less time cleaning up later.',
-      cta: { label: 'Learn more', url: 'https://testco.example/one' },
       image_prompt: 'abstract illustration',
     },
     {
       title: 'Section two',
       body: 'Second section body. The practical takeaway is straightforward: keep your account hygiene tight and document your processes.',
-      cta: { label: 'Take action', url: 'https://testco.example/two' },
       image_prompt: 'abstract illustration',
     },
     {
       title: 'Section three',
-      body: 'Third section body. This one has no CTA on purpose — to verify that templates handle missing CTAs gracefully.',
-      cta: null,
+      body: 'Third section body. Self-contained, no outbound links.',
       image_prompt: 'abstract illustration',
     },
   ],
@@ -84,7 +81,6 @@ const FIELD_REPORT_STRUCTURE = {
         { label: 'USERS REACHED', value: '12.4K' },
         { label: 'WoW GROWTH',    value: '+38%' },
       ],
-      cta: { label: 'READ THE BRIEF', url: 'https://testco.example/one' },
       image_prompt: 'abstract illustration',
     },
     {
@@ -95,18 +91,16 @@ const FIELD_REPORT_STRUCTURE = {
       lede: 'The accounts that survive the next platform sweep are the ones with paper trails.',
       dispatch: 'Account hygiene is now a documentation problem, not a tooling problem. Save your processes. The teams already running on documented playbooks are ahead.',
       dataPoints: [],
-      cta: { label: 'SEE THE PLAYBOOK', url: 'https://testco.example/two' },
       image_prompt: 'abstract illustration',
     },
     {
       kicker: 'WATCH',
-      headline: 'A third dispatch with no CTA',
+      headline: 'A third dispatch',
       byline: 'Filed by The TestCo signals desk',
       location: 'NEW YORK',
-      lede: 'Some filings just observe — no call to action attached.',
-      dispatch: 'This one has no CTA on purpose, to verify the template handles missing CTAs gracefully.',
+      lede: 'Some filings just observe.',
+      dispatch: 'Self-contained dispatch, no outbound links.',
       dataPoints: [{ label: 'OBSERVATIONS', value: '3' }],
-      cta: null,
       image_prompt: 'abstract illustration',
     },
   ],
@@ -254,21 +248,6 @@ module.exports = {
       },
     },
     {
-      name: 'CTAs render only when both label+url present',
-      async run({ assert }) {
-        // Classic templates use section CTAs; Field Report uses dispatch CTAs.
-        // Either way the fixture has 2 CTAs in items 1-2 and null in item 3.
-        for (const templateName of ['clean', 'editorial']) {
-          const result = await render(templateName);
-          assert.ok(result.html.includes('Learn more'),  `${templateName}: section 1 CTA renders`);
-          assert.ok(result.html.includes('Take action'), `${templateName}: section 2 CTA renders`);
-        }
-        const fr = await render('field-report');
-        assert.ok(fr.html.includes('READ THE BRIEF'),   `field-report: dispatch 1 CTA renders`);
-        assert.ok(fr.html.includes('SEE THE PLAYBOOK'), `field-report: dispatch 2 CTA renders`);
-      },
-    },
-    {
       name: 'signoff renders without dramatic dark-block treatment',
       async run({ assert }) {
         // Classic templates carry "Best,\nThe TestCo Team"; Field Report carries "— Stay sharp,\nThe TestCo Desk"
@@ -384,35 +363,35 @@ module.exports = {
     {
       name: 'gracefully omits missing optional fields without breaking the template',
       async run({ assert }) {
-        // Classic templates — missing intro, missing one section body, missing all CTAs.
+        // Classic templates — missing intro, missing one section body.
         for (const templateName of ['clean', 'editorial']) {
           const partial = {
             ...CLASSIC_STRUCTURE,
             intro: '',
             sections: [
-              { title: 'Has body', body: 'Body text here.', cta: null, image_prompt: '' },
-              { title: 'No body',  body: '',                cta: null, image_prompt: '' },
-              { title: 'Has CTA',  body: 'Body.',           cta: { label: 'Go', url: 'https://testco.example/go' }, image_prompt: '' },
+              { title: 'Has body', body: 'Body text here.', image_prompt: '' },
+              { title: 'No body',  body: '',                image_prompt: '' },
+              { title: 'Has third', body: 'Body.',          image_prompt: '' },
             ],
           };
           const result = await render(templateName, partial);
           assert.equal(result.errors.length, 0, `${templateName}: partial sections produce no MJML errors`);
           assert.ok(result.html.includes('Has body'), `${templateName}: section with body renders`);
           assert.ok(result.html.includes('No body'),  `${templateName}: section with empty body renders title`);
-          assert.ok(result.html.includes('Go'),       `${templateName}: third-section CTA still renders`);
+          assert.ok(result.html.includes('Has third'), `${templateName}: third section title renders`);
         }
 
-        // Field Report — missing tldr, missing one dispatch body+lede, missing dataPoints + CTAs.
+        // Field Report — missing tldr, missing one dispatch body+lede, missing dataPoints.
         const fr = await render('field-report', {
           tldr: '',
           dispatches: [
             {
               kicker: 'DISPATCH', headline: 'Only headline + body', byline: 'Filed by desk',
-              location: 'REMOTE', lede: '', dispatch: 'Some body text.', dataPoints: [], cta: null, image_prompt: '',
+              location: 'REMOTE', lede: '', dispatch: 'Some body text.', dataPoints: [], image_prompt: '',
             },
             {
               kicker: 'WATCH', headline: 'Just data, no body', byline: 'Filed by desk',
-              location: 'REMOTE', lede: '', dispatch: '', dataPoints: [{ label: 'STAT', value: '99%' }], cta: null, image_prompt: '',
+              location: 'REMOTE', lede: '', dispatch: '', dataPoints: [{ label: 'STAT', value: '99%' }], image_prompt: '',
             },
           ],
         });

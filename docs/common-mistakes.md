@@ -1,0 +1,11 @@
+# Common Mistakes to Avoid
+
+1. **Don't modify Manager internals directly** — Use factory methods and public APIs
+2. **Always use `assistant.respond()` for responses** — Don't use `res.send()` directly
+3. **Match schema names to route names** — If route is `myEndpoint`, schema should be `myEndpoint`
+4. **Always await async operations** — Don't forget `await` on Firestore operations
+5. **Handle errors properly** — Use `assistant.errorify()` with appropriate status codes
+6. **Don't call `respond()` multiple times** — Only one response per request
+7. **Use short-circuit returns** — Return early from error conditions
+8. **Increment usage before update** — Call `usage.increment()` then `usage.update()`
+9. **Add Firestore composite indexes for new compound queries** — Any new Firestore query using multiple `.where()` clauses or `.where()` + `.orderBy()` requires a composite index. Add it to `src/cli/commands/setup-tests/helpers/required-indexes.js` (the SSOT). Consumer projects pick these up via `npx mgr setup`, which syncs them into `firestore.indexes.json`. Without the index, the query will crash with `FAILED_PRECONDITION` in production.

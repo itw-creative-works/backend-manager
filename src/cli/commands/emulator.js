@@ -8,16 +8,33 @@ const powertools = require('node-powertools');
 const WatchCommand = require('./watch');
 const { DEFAULT_EMULATOR_PORTS } = require('./setup-tests/emulator-config');
 const { EXTENDED_MODE_WARNING } = require('../../test/utils/extended-mode-warning');
+const { writeTestMode, captureSyncedEnv } = require('../../test/utils/test-mode-file');
 
 class EmulatorCommand extends BaseCommand {
   async execute() {
     this.log(chalk.cyan('\n  Starting Firebase emulator (keep-alive mode)...\n'));
     this.log(chalk.gray('  Emulator will stay running until you press Ctrl+C\n'));
 
-    // Warn if TEST_EXTENDED_MODE is enabled
+    // Boot-time: seed the shared state file with whatever this emulator was
+    // started with. Two flows are supported:
+    //   - Recommended: start emulator without the flag, set TEST_EXTENDED_MODE
+    //     on `npx mgr test` instead. The test command writes the file; the
+    //     emulator's function workers watch it and flip live.
+    //   - Also supported: start emulator with TEST_EXTENDED_MODE=true. We
+    //     write the file here as a boot default. Useful for inspecting the
+    //     emulator before any tests fire. Note: the next `npx mgr test`
+    //     overwrites the file regardless of how the emulator booted.
+    {
+      const projectDir = this.main.firebaseProjectPath;
+      const envSubset = captureSyncedEnv(process.env);
+      writeTestMode(projectDir, envSubset);
+    }
+
+    // Show the standard warning if the emulator boots in extended mode.
     if (process.env.TEST_EXTENDED_MODE) {
       this.log(chalk.yellow.bold(`\n  ${EXTENDED_MODE_WARNING[0]}`));
       EXTENDED_MODE_WARNING.slice(1).forEach((line) => this.log(chalk.yellow(`  ${line}`)));
+      this.log(chalk.gray(`  (Tip: you can also flip mode per-run by setting TEST_EXTENDED_MODE on \`npx mgr test\`.)`));
       this.log('');
     }
 

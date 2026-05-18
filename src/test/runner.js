@@ -186,15 +186,13 @@ class TestRunner {
       if (response.success) {
         console.log(chalk.green('✓'));
 
-        // Warn if TEST_EXTENDED_MODE mismatch between test runner and emulator
-        const runnerExtended = !!process.env.TEST_EXTENDED_MODE;
+        // Report the live mode the emulator just confirmed. The test command
+        // writes `.temp/test-mode.json` before invoking us; the emulator's
+        // file-watcher mutates its `process.env.TEST_EXTENDED_MODE` to match;
+        // the health endpoint re-reads the file as a freshness guard. By
+        // construction these are equal — no mismatch warning needed.
         const emulatorExtended = !!response.data?.testExtendedMode;
-
-        if (runnerExtended !== emulatorExtended) {
-          console.log(chalk.red.bold(`\n  ⚠️⚠️⚠️  TEST_EXTENDED_MODE mismatch (runner=${runnerExtended}, emulator=${emulatorExtended})  ⚠️⚠️⚠️`));
-          console.log(chalk.red('  Both must match or tests will behave unexpectedly.'));
-          console.log(chalk.red(`  Restart with: ${runnerExtended ? '' : 'TEST_EXTENDED_MODE=true '}npx bm emulator\n`));
-        }
+        console.log(chalk.gray(`  Mode: ${emulatorExtended ? 'EXTENDED (real APIs)' : 'normal (mocked)'}`));
 
         return true;
       }
@@ -706,6 +704,11 @@ class TestRunner {
       pubsub,
       skip,
       admin: this.config.admin,
+      // Real BEM Manager + assistant, booted by run-tests.js with BEM_TEST_RUNNER=1.
+      // Tests can call Manager.AI(), Manager.Email(), Manager.User(), etc. exactly
+      // like production code — no stubs.
+      Manager: this.config.Manager,
+      assistant: this.config.assistant,
       rules: this.rulesContext,
       config: this.config,
     };

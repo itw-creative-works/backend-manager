@@ -6,6 +6,13 @@
  * It reads configuration from BEM_TEST_CONFIG environment variable and runs the test suite
  */
 
+// Mark this process as the test runner BEFORE loading any BEM code. Manager.init()
+// auto-detects this and skips Firebase Functions / server / Sentry wiring (which
+// can't run outside a real Functions runtime). This is what lets tests receive a
+// fully-wired Manager + assistant in their context — no per-test stub.
+process.env.BEM_TEST_RUNNER = '1';
+
+const path = require('path');
 const TestRunner = require('./runner.js');
 
 async function main() {
@@ -33,10 +40,33 @@ async function main() {
     console.error('Warning: Could not initialize Firebase Admin:', error.message);
   }
 
+  // Boot a real Manager. With BEM_TEST_RUNNER set, init() loads libraries +
+  // resolves project config but skips the parts that need a Functions runtime
+  // (handler wiring, server boot, Sentry, admin.initializeApp re-init).
+  // The resulting Manager + assistant are passed into every test context, so
+  // tests can call Manager.AI(), Manager.Email(), Manager.User(), etc. exactly
+  // like production code does — no hand-rolled stubs.
+  let Manager = null;
+  let assistant = null;
+  try {
+    const projectDir = testConfig.projectDir || process.cwd();
+    const BackendManager = require('../manager/index.js');
+    Manager = new BackendManager();
+    Manager.init(null, {
+      cwd: path.join(projectDir, 'functions'),
+      log: false,
+    });
+    assistant = Manager.Assistant({}, { functionName: 'bem-test-runner', accept: 'json' });
+  } catch (error) {
+    console.error('Warning: Could not initialize BEM Manager for tests:', error.message);
+  }
+
   // Create and run the test runner
   const runner = new TestRunner({
     ...testConfig,
     admin,
+    Manager,
+    assistant,
   });
 
   const results = await runner.run();

@@ -14,6 +14,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.1.4] - 2026-05-18
+
+### Fixed
+
+- **`POST /admin/post` response `path`** now returns the full `.md` file path (e.g. `src/_posts/2026/guest/2026-05-14-my-post.md`) instead of the parent directory. Consumers (e.g. the sponsorship system) were treating it as a file path — which it was named to be — and downstream deletes failed with `"sha" wasn't supplied` because GitHub got a directory listing. The parent directory is now exposed separately as `directory` for consumers that still want it. Updated `test/routes/admin/create-post.js` accordingly.
+
+# [5.1.3] - 2026-05-18
+
+### Added
+
+- **Live `TEST_EXTENDED_MODE` sync between `npx mgr test` and the running emulator.** Test command writes an allowlisted env subset to `<projectRoot>/.temp/test-mode.json` pre-flight; emulator's function workers watch the file via `fs.watch` and mutate their own `process.env` in place — flag flips take effect within ~50ms with no env coordination across terminals. No more "restart the emulator with `TEST_EXTENDED_MODE=true`" dance. Health endpoint re-reads the file as a freshness guard. New helper `src/test/utils/test-mode-file.js` is the SSOT for the file format and allowlist.
+- **Real BEM Manager in test contexts.** `run-tests.js` sets `BEM_TEST_RUNNER=1` before loading any BEM code; `Manager.init()` auto-detects this and skips Functions/server/Sentry wiring + `admin.initializeApp()` (which can't run outside a real Functions runtime). Result: tests receive `{ Manager, assistant }` in their context and can call `Manager.AI()`, `Manager.Email()`, `Manager.User()`, etc. exactly like production — no hand-rolled stubs.
+- **Newsletter markdown + summary outputs.** `lib/markdown-renderer.js` walks the same `structure` JSON the HTML is rendered from (no AI cost) and emits `newsletter.md` — each section/dispatch is a standalone `## heading` block ready to paste into Beehiiv's editor one block at a time with ad blocks inserted between dispatches. A separate `summary.md` (2-3 sentence editorial recap) is written alongside.
+- **`summary` and `tags` fields on the structure schema.** `summary` is ≤600 chars, used for the `summary.md` body and as a share snippet (distinct from preheader, which is an inbox hook). `tags` is 0-5 lowercase kebab-case topical tags, passed to Beehiiv's `content_tags` on draft creation.
+- **GitHub asset host writes MD + summary alongside HTML.** `lib/image-host.js` accepts `markdown` + `summary` parameters and uploads `newsletter.md` / `summary.md` to `{brandId}/{campaignId}/` in the same atomic two-commit upload as PNGs + HTML. URLs surface on `assets.markdownUrl` / `assets.summaryUrl`.
+- **Beehiiv fallback alert email.** When Beehiiv draft creation fails (e.g. free-plan `SEND_API_NOT_ENTERPRISE_PLAN`), the generator sends an internal alert via `sender: 'internal'` (alerts@{brandDomain}) to `brand.contact.email` containing the failure reason + subject/preheader/tags + direct links to HTML/MD/summary/folder. The newsletter is never stuck. Best-effort; failure to send is logged but never blocks the Firestore campaign-doc write.
+- **Universal AI system-prompt injections.** `Manager.AI()` `normalizeOptions()` now prepends two rules (em-dash ban, confidentiality) to every system prompt — every caller picks them up automatically.
+- **GPT-5 Codex family pricing** (`gpt-5.3-codex`, `gpt-5.2-codex`, `gpt-5.1-codex-max`, `gpt-5.1-codex`, `gpt-5.1-codex-mini`, `gpt-5-codex`, `codex-mini-latest`) added to the OpenAI provider's MODEL_TABLE.
+- **`docs/common-mistakes.md`** and **`docs/key-files.md`** — extracted from CLAUDE.md to keep the architectural overview under 250 lines.
+
+### Changed
+
+- **SVG illustrator default flipped to `gpt-5.3-codex`.** Codex is the markup/code-specialized GPT-5 variant; SVG is structured markup, so it's the right fit. Anthropic remains supported as a fallback provider.
+- **`structure` schema now requires `summary` and `tags`.** Existing generators pick these up automatically — the AI prompt was updated to instruct on both.
+- **CTAs removed from generated section bodies.** The AI cannot author URLs reliably (no browse access, no real source URLs), so any link it produced was invented. Newsletters are self-contained reads; outbound links come exclusively from the template shell's sponsorship blocks (`marketing.beehiiv.content.sponsorships[]`). Test fixtures updated.
+- **CLAUDE.md restructured** into the standard skeleton (Identity → Recommended skills → Quick Start → Architecture → CLI → File Conventions → Doc-update parity → Documentation index). Per-subsystem details extracted to `docs/`.
+- **Consumer default CLAUDE.md** updated for the new `logs:read` / `logs:tail` / `firestore:*` / `auth:*` CLI commands.
+- **Runner mode reporting.** The old `TEST_EXTENDED_MODE mismatch` warning is gone (made impossible by the live sync) — replaced with a "Mode: EXTENDED/normal" line sourced from the emulator's health-endpoint confirmation.
+
 # [5.1.2] - 2026-05-14
 
 ### Changed

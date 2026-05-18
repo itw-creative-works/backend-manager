@@ -142,11 +142,11 @@ module.exports = {
 
         assert.isSuccess(response, 'Create post should succeed');
         assert.hasProperty(response, 'data.id', 'Response should have post id');
-        assert.hasProperty(response, 'data.path', 'Response should have post path');
+        assert.hasProperty(response, 'data.path', 'Response should have post file path');
 
         // Store for cleanup
         state.postId = response.data.id;
-        state.postPath = `${response.data.path}/${response.data.date}-bem-test-create-post.md`;
+        state.postPath = response.data.path;
       },
     },
 

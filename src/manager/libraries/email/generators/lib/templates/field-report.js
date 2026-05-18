@@ -16,7 +16,7 @@
  *
  * Content schema (template-owned — different from the classic schema):
  *   { tldr, dateline, dispatches: [{ kicker, headline, byline, location,
- *     lede, dispatch, dataPoints?, cta?, image_prompt }] }
+ *     lede, dispatch, dataPoints?, image_prompt }] }
  */
 const {
   shell,
@@ -337,7 +337,7 @@ const FIELD_REPORT_SCHEMA = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['kicker', 'headline', 'byline', 'location', 'lede', 'dispatch', 'image_prompt', 'cta', 'dataPoints'],
+        required: ['kicker', 'headline', 'byline', 'location', 'lede', 'dispatch', 'image_prompt', 'dataPoints'],
         properties: {
           kicker:   { type: 'string', maxLength: 30 },  // "DISPATCH" / "FIELD NOTES" / "WATCH" / "BRIEF"
           headline: { type: 'string', maxLength: 90 },  // Tight, declarative
@@ -358,15 +358,10 @@ const FIELD_REPORT_SCHEMA = {
               },
             },
           },
-          cta: {
-            type: ['object', 'null'],
-            additionalProperties: false,
-            required: ['label', 'url'],
-            properties: {
-              label: { type: 'string' },
-              url:   { type: 'string' },
-            },
-          },
+          // CTAs intentionally not part of the contract — the AI cannot author URLs
+          // reliably (no source URLs available, no brand-site knowledge). Newsletters
+          // are self-contained; outbound links come from sponsorship blocks rendered
+          // by the template shell, not from generated dispatch bodies.
           image_prompt: { type: 'string' },
         },
       },
@@ -390,7 +385,6 @@ function normalizeFieldReport(structure, { brand } = {}) {
     lede:         d.lede        || '',
     dispatch:     d.dispatch    || '',
     dataPoints:   Array.isArray(d.dataPoints) ? d.dataPoints.slice(0, 4) : [],
-    cta:          d.cta         || null,
     image_prompt: d.image_prompt || '',
   }));
 
@@ -439,6 +433,8 @@ function buildPrompt({ brand, newsletterConfig, sources }) {
     'CONTENT REQUIREMENTS:',
     '- subject: ≤60 chars, declarative, no clickbait. Reads like a wire-service headline.',
     '- preheader: ≤100 chars, complements subject.',
+    '- summary: 2-3 sentences, plain text, no markdown. An editorial recap of the whole issue (distinct from the in-template `tldr` strip — the summary is consumed by external surfaces like the share preview / summary.md file).',
+    '- tags: 3-5 topical tags. Lowercase, kebab-case, no spaces. Examples: "linkedin", "creator-economy", "platform-policy". Empty array OK if nothing fits cleanly.',
     '- tldr: 2 short sentences max, ~200 chars total. Present tense. Reads like a terminal briefing — what changed, why it matters.',
     '- dateline: one city or "REMOTE" — sets where the issue is filed from. UPPERCASE. Example: "LOS ANGELES" / "REMOTE" / "NEW YORK".',
     '- dispatches: 3-5 items, each is a discrete filed story.',
@@ -449,8 +445,8 @@ function buildPrompt({ brand, newsletterConfig, sources }) {
     '  - lede: one paragraph (1-2 sentences), italic-serif quality, sets the scene in present tense. Reads like the opening of a New Yorker article.',
     '  - dispatch: the body. 90-160 words. Markdown allowed. Present tense. Specific. End with the practical implication for the reader.',
     '  - dataPoints: 2-4 short label/value pairs IF there are meaningful numbers in the topic. Example: [{label:"USERS REACHED",value:"12.4K"},{label:"WoW GROWTH",value:"+38%"}]. SKIP this (empty array) if the topic has no quantifiable data.',
-    '  - cta: { label, url } OR null. Label is mono, uppercase, short (≤24 chars). Examples: "READ THE BRIEF", "SEE THE NUMBERS".',
     '  - image_prompt: one-sentence visual brief for an illustrator. Specific. Think editorial illustration, not stock photo.',
+    '  - DO NOT invent CTAs, "read more" links, or any URLs anywhere in the dispatch. The dispatch must stand on its own without sending the reader off-property.',
     `- signoff: render as TWO LINES with a literal \\n between them. Format: a short closing phrase + the desk name. Examples:\n    "— Stay sharp,\\nThe ${brandName} Desk"\n    "— Until next dispatch,\\nThe ${brandName} Editorial Desk"\n  Do NOT write a summary, motto, or thematic sentence. This is a literal sign-off.`,
     '',
     'OUTPUT:',
@@ -488,7 +484,7 @@ module.exports = {
     name: 'field-report',
     description: 'Wire-service correspondent × Bloomberg terminal. Dispatch kickers, datelines, mono data callouts, end-of-dispatch terminators.',
     requires: ['subject', 'preheader', 'tldr', 'dateline', 'dispatches', 'signoff'],
-    optional: ['citations', 'dataPoints', 'cta', 'image_prompt'],
+    optional: ['citations', 'dataPoints', 'image_prompt'],
     supports: { sponsorships: ['top', 'middle', 'end'], citations: true, images: true },
   },
   schema: FIELD_REPORT_SCHEMA,

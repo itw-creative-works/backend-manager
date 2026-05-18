@@ -2,16 +2,25 @@
  * SVG illustrator — AI authors per-section SVG illustrations, rasterized to PNG.
  *
  * Each section in a newsletter gets one illustration. Default provider is
- * Anthropic (Claude generates cleaner geometric SVG than GPT in practice).
+ * OpenAI Codex (gpt-5.3-codex) — markup/code-specialized GPT-5 variant tuned
+ * for structured output. SVG is just structured markup, so Codex is the right
+ * fit. Anthropic is supported as a fallback provider.
  *
  * Output is both the raw SVG string (for debugging) and a rasterized PNG buffer
  * (for embedding). Local file persistence is the caller's responsibility — this
  * module returns buffers only.
+ *
+ * Provider-specific default models:
+ *   openai → gpt-5.3-codex  (Codex family is markup/code-specialized; SVG is
+ *                            structured markup. ~$0.005-0.015/image.)
+ *   anthropic → claude-opus (Claude is good at artistic SVG.)
  */
 const { Resvg } = require('@resvg/resvg-js');
 
+const DEFAULT_PROVIDER = 'openai';
+
 const DEFAULT_MODELS = {
-  openai: 'gpt-5.4-mini',
+  openai: 'gpt-5.3-codex',
   anthropic: 'claude-opus',
   'claude-code': 'claude-opus-4-7',
 };
@@ -30,7 +39,7 @@ const PNG_WIDTH = 800; // 2x display width of 400px container
  * @returns {Promise<{svg: string, png: Buffer, fallback: boolean}>}
  */
 async function generateSectionImage({ imagePrompt, brand, newsletterConfig, ai, assistant }) {
-  const provider = newsletterConfig?.provider?.svg || 'anthropic';
+  const provider = newsletterConfig?.provider?.svg || DEFAULT_PROVIDER;
   const model = newsletterConfig?.model?.svg || DEFAULT_MODELS[provider];
   const startTime = Date.now();
 

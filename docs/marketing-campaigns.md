@@ -152,7 +152,17 @@ AI provider defaults live in code (openai for structure, anthropic for SVG — e
 
 ## Asset hosting (production cron flow)
 
-The daily cron uploads PNGs + the rendered `newsletter.html` to the public `itw-creative-works/newsletter-assets` repo as two atomic Git Trees commits per issue. Folder layout: `{brandId}/{campaignId}/section-N.png` + `{brandId}/{campaignId}/newsletter.html`.
+The daily cron uploads per-section PNGs + the rendered `newsletter.html` + `newsletter.md` + `summary.md` to the public `itw-creative-works/newsletter-assets` repo as two atomic Git Trees commits per issue (PNGs first so URLs exist for embedding, then HTML/MD/summary in a second commit). Folder layout:
+
+```
+{brandId}/{campaignId}/
+  section-N.png       — per-section illustration (embedded in HTML)
+  newsletter.html     — final rendered email-safe HTML
+  newsletter.md       — programmatic markdown view (per-section ## blocks, ready for Beehiiv paste)
+  summary.md          — short editorial recap (2-3 sentences)
+```
+
+`newsletter.md` is built programmatically from the same `structure` JSON the HTML is rendered from (no AI cost) by `lib/markdown-renderer.js`. Each section/dispatch becomes a standalone `## heading` block — drop it into the Beehiiv editor one block at a time and insert ad blocks between dispatches.
 
 The `campaignId` is the same Firestore doc ID the cron uses for the generated `marketing-campaigns/{newId}` doc, reserved up front so the GitHub URLs and the Firestore doc always match.
 
@@ -164,13 +174,39 @@ marketing-campaigns/{newId}: {
   assets: {
     campaignId,           // same as the doc id
     folderUrl,            // https://github.com/itw-creative-works/newsletter-assets/tree/main/{brandId}/{campaignId}
-    htmlUrl,              // https://raw.githubusercontent.com/.../newsletter.html  — paste this into Beehiiv
-    imageUrls: [...]      // raw.githubusercontent.com URLs already embedded in contentHtml
+    htmlUrl,              // https://raw.githubusercontent.com/.../newsletter.html  — paste this into Beehiiv as one block
+    markdownUrl,          // https://raw.githubusercontent.com/.../newsletter.md    — per-section blocks (ads between)
+    summaryUrl,           // https://raw.githubusercontent.com/.../summary.md       — share-snippet recap
+    imageUrls: [...],     // raw.githubusercontent.com URLs already embedded in contentHtml
+    beehiivPostId,        // ID of the draft post created on Beehiiv (null if disabled/failed)
+    tags: [...]           // AI-generated content tags (also passed to Beehiiv `content_tags`)
   },
   meta:        { tokens, cost, durations, source scores },
   ...
 }
 ```
+
+**`structure` schema (universals)** — every newsletter the generator produces satisfies this regardless of template:
+
+| Field | Purpose |
+|---|---|
+| `subject` | Email subject (≤80 chars) |
+| `preheader` | Inbox preview text (≤120 chars) |
+| `summary` | 2-3 sentence editorial recap (≤600 chars) — written to `summary.md` and used as share snippet. Distinct from preheader (which is an inbox hook). |
+| `tags` | 0-5 topical tags (lowercase kebab-case) — passed to Beehiiv `content_tags` |
+| `signoff` | Two-line closing |
+| `citations` | 0-10 `{note, source}` pairs rendered as footnotes |
+
+Templates add their own fields on top (e.g. classic adds `intro` + `sections`; field-report adds `tldr` + `dateline` + `dispatches`).
+
+**No CTAs in generated content.** The schema intentionally does NOT include section-level CTAs / outbound links. The AI cannot author URLs reliably — it has no browse access to your site and no real source URLs to reference, so any URL it produces is invented. Newsletters are self-contained reads; outbound links come from sponsorship blocks rendered by the template shell (driven by `marketing.beehiiv.content.sponsorships[]`), not from generated section bodies.
+
+**Beehiiv failure → fallback alert email.** When Beehiiv draft creation fails (e.g. `SEND_API_NOT_ENTERPRISE_PLAN` on the free plan), the generator sends an internal alert email via `sender: 'internal'` (resolves to `alerts@{brandDomain}`) to `brand.contact.email` with:
+- The failure reason
+- Subject, preheader, tags
+- Direct links to the rendered HTML, per-section markdown, summary, and the full GitHub folder
+
+This means the newsletter is never "stuck" — even with Beehiiv disabled or failing, you get an actionable email pointing to ready-to-paste assets. The alert is best-effort; failure to send is logged but does not block the Firestore campaign-doc write.
 
 Requires `GITHUB_TOKEN` env var (org-scoped, write access to `newsletter-assets`). Without it, the cron's HTML/image upload calls throw and the run aborts.
 
@@ -232,7 +268,8 @@ marketing: {
 | Newsletter copy (AI) | `src/manager/libraries/email/generators/lib/structure.js` |
 | Newsletter SVG (AI) | `src/manager/libraries/email/generators/lib/svg-illustrator.js` |
 | Newsletter MJML → HTML | `src/manager/libraries/email/generators/lib/mjml-template.js` |
-| Newsletter asset host (GitHub upload — PNGs + newsletter.html) | `src/manager/libraries/email/generators/lib/image-host.js` |
+| Newsletter asset host (GitHub upload — PNGs + newsletter.html + newsletter.md + summary.md) | `src/manager/libraries/email/generators/lib/image-host.js` |
+| Newsletter markdown renderer (programmatic, no AI) | `src/manager/libraries/email/generators/lib/markdown-renderer.js` |
 | Unified AI library | `src/manager/libraries/ai/index.js` (OpenAI + Anthropic via `Manager.AI(assistant).request({ provider, ... })`) |
 | Notification library | `src/manager/libraries/notification.js` |
 | SendGrid provider | `src/manager/libraries/email/providers/sendgrid.js` |

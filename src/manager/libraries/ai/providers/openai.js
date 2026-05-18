@@ -253,6 +253,81 @@ const MODEL_TABLE = {
       json: false,
     },
   },
+  // Codex family — code/markup-specialized GPT-5 variants. Best for structured
+  // output tasks (SVG, JSON, code), agentic loops. All support reasoning tokens
+  // (low/medium/high/xhigh) and structured outputs.
+  //
+  // Pricing source: https://developers.openai.com/api/docs/models/<id>
+  // Verified: 2026-05-14
+  'gpt-5.3-codex': {
+    input: 1.75,
+    output: 14.00,
+    provider: 'openai',
+    features: {
+      json: true,
+      temperature: false,
+      reasoning: true,
+    },
+  },
+  'gpt-5.2-codex': {
+    input: 1.75,
+    output: 14.00,
+    provider: 'openai',
+    features: {
+      json: true,
+      temperature: false,
+      reasoning: true,
+    },
+  },
+  'gpt-5.1-codex-max': {
+    input: 1.25,
+    output: 10.00,
+    provider: 'openai',
+    features: {
+      json: true,
+      temperature: false,
+      reasoning: true,
+    },
+  },
+  'gpt-5.1-codex': {
+    input: 1.25,
+    output: 10.00,
+    provider: 'openai',
+    features: {
+      json: true,
+      temperature: false,
+      reasoning: true,
+    },
+  },
+  'gpt-5.1-codex-mini': {
+    input: 0.25,
+    output: 2.00,
+    provider: 'openai',
+    features: {
+      json: true,
+      temperature: false,
+      reasoning: true,
+    },
+  },
+  'gpt-5-codex': {
+    input: 1.25,
+    output: 10.00,
+    provider: 'openai',
+    features: {
+      json: true,
+      temperature: false,
+      reasoning: true,
+    },
+  },
+  'codex-mini-latest': {
+    input: 1.50,
+    output: 6.00,
+    provider: 'openai',
+    features: {
+      json: true,
+      reasoning: true,
+    },
+  },
 }
 
 function OpenAI(assistant, key) {

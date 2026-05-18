@@ -809,6 +809,21 @@ npx mgr test      # Terminal 2 - runs tests
 npx mgr test
 ```
 
+### Extended Mode (real APIs)
+
+Set `TEST_EXTENDED_MODE=true` on the **test command** to opt into real external API calls (SendGrid, Beehiiv, Stripe webhook handlers, marketing libraries). The flag flows automatically to the running emulator via `<projectRoot>/.temp/test-mode.json` — no need to set it on the emulator too:
+
+```bash
+# Terminal 1 — start once, no flag needed
+npx mgr emulator
+
+# Terminal 2 — toggle freely between runs
+TEST_EXTENDED_MODE=true npx mgr test ...   # extended mode
+npx mgr test ...                            # normal mode (next run flips back)
+```
+
+See [docs/testing.md](docs/testing.md#extended-mode-test_extended_mode) for the full mechanism.
+
 ### Filtering Tests
 
 ```bash

@@ -82,7 +82,7 @@ module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
   settings.layout = settings.layout;
   settings.date = moment(settings.date || now).subtract(1, 'days').format('YYYY-MM-DD');
   settings.id = settings.id || Math.round(new Date(now).getTime() / 1000);
-  settings.path = `src/_posts/${moment(now).format('YYYY')}/${settings.postPath}`;
+  settings.directory = `src/_posts/${moment(now).format('YYYY')}/${settings.postPath}`;
   settings.githubUser = settings.githubUser || bemRepo.user;
   settings.githubRepo = settings.githubRepo || bemRepo.name;
 
@@ -108,7 +108,7 @@ module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
   );
 
   // Build post file entry
-  const postFilename = `${settings.path}/${settings.date}-${settings.url}.md`;
+  settings.path = `${settings.directory}/${settings.date}-${settings.url}.md`;
   const allFiles = [
     ...imageFiles.map(img => ({
       path: img.githubPath,
@@ -116,7 +116,7 @@ module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
       encoding: 'base64',
     })),
     {
-      path: postFilename,
+      path: settings.path,
       content: Buffer.from(formattedContent).toString('base64'),
       encoding: 'base64',
     },

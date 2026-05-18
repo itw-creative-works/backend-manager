@@ -309,7 +309,7 @@ module.exports = {
     name: 'editorial',
     description: 'Magazine-style: masthead, drop-cap intro, numbered sections, pull-quotes, italic signoff.',
     requires: ['subject', 'preheader', 'intro', 'sections', 'signoff'],
-    optional: ['citations', 'image_prompt', 'cta'],
+    optional: ['citations', 'image_prompt'],
     supports: { sponsorships: ['top', 'middle', 'end'], citations: true, images: true },
   },
   schema: CLASSIC_SCHEMA,

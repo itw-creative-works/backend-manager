@@ -52,20 +52,29 @@ util.inherits(Manager, EventEmitter);
 Manager.prototype.init = function (exporter, options) {
   const self = this;
 
+  // Auto-detect test-runner context. The test runner sets BEM_TEST_RUNNER=1
+  // before invoking anything that loads BEM. When detected, init() runs the
+  // library-loading + project-config-setup pieces normally, but skips wiring
+  // Firebase Cloud Functions handlers and the custom-server boot (neither
+  // works outside an actual Functions runtime). The runner has already called
+  // firebase-admin.initializeApp() so we also skip that step to avoid the
+  // "default app already initialized" crash.
+  const isTestRunner = !!process.env.BEM_TEST_RUNNER;
+
   // Set options defaults
   options = options || {};
-  options.initialize = typeof options.initialize === 'undefined' ? true : options.initialize;
+  options.initialize = typeof options.initialize === 'undefined' ? !isTestRunner : options.initialize;
   options.log = typeof options.log === 'undefined' ? false : options.log;
   options.projectType = typeof options.projectType === 'undefined' ? 'firebase' : options.projectType; // firebase, custom
   options.routes = typeof options.routes === 'undefined' ? '/routes' : options.routes;
   options.schemas = typeof options.schemas === 'undefined' ? '/schemas' : options.schemas;
-  options.setupFunctions = typeof options.setupFunctions === 'undefined' ? true : options.setupFunctions;
+  options.setupFunctions = typeof options.setupFunctions === 'undefined' ? !isTestRunner : options.setupFunctions;
   options.setupFunctionsLegacy = typeof options.setupFunctionsLegacy === 'undefined' ? false : options.setupFunctionsLegacy;
-  options.setupFunctionsIdentity = typeof options.setupFunctionsIdentity === 'undefined' ? true : options.setupFunctionsIdentity;
-  options.setupServer = typeof options.setupServer === 'undefined' ? true : options.setupServer;
+  options.setupFunctionsIdentity = typeof options.setupFunctionsIdentity === 'undefined' ? !isTestRunner : options.setupFunctionsIdentity;
+  options.setupServer = typeof options.setupServer === 'undefined' ? !isTestRunner : options.setupServer;
   options.initializeLocalStorage = typeof options.initializeLocalStorage === 'undefined' ? false : options.initializeLocalStorage;
   options.resourceZone = typeof options.resourceZone === 'undefined' ? 'us-central1' : options.resourceZone;
-  options.sentry = typeof options.sentry === 'undefined' ? true : options.sentry;
+  options.sentry = typeof options.sentry === 'undefined' ? !isTestRunner : options.sentry;
   options.reportErrorsInDev = typeof options.reportErrorsInDev === 'undefined' ? false : options.reportErrorsInDev;
   options.firebaseConfig = options.firebaseConfig;
   options.useFirebaseLogger = typeof options.useFirebaseLogger === 'undefined' ? true : options.useFirebaseLogger;
@@ -236,6 +245,12 @@ Manager.prototype.init = function (exporter, options) {
   // Handle test environment
   if (self.assistant.isTesting()) {
     self.assistant.log('⚠️⚠️⚠️ Running in TEST environment, some features may be disabled ⚠️⚠️⚠️');
+
+    // Install the test-mode-file watcher exactly once. Lets the test command
+    // flip env vars (currently just TEST_EXTENDED_MODE) on the running emulator
+    // mid-session without restarting it. See src/test/utils/test-mode-file.js
+    // for the file format and allowlist.
+    setupTestModeWatcher(self);
   }
 
   // Handle dev environments
@@ -1239,6 +1254,68 @@ function resolveMcpRoutePath(routePath) {
   }
 
   return null;
+}
+
+/**
+ * Install the test-mode-file watcher. Called once during Manager.init() when
+ * running in the test environment (emulator). Reads the shared state file
+ * (`<projectRoot>/.temp/test-mode.json`) at startup to sync any env vars
+ * set by an earlier test command, then watches the file for live changes.
+ *
+ * Idempotent — guarded by a module-level flag so reload-during-nodemon
+ * doesn't stack listeners.
+ *
+ * @param {Manager} manager
+ */
+let _testModeWatcherInstalled = false;
+function setupTestModeWatcher(manager) {
+  if (_testModeWatcherInstalled) {
+    return;
+  }
+  _testModeWatcherInstalled = true;
+
+  const fs = require('fs');
+  const jetpack = require('fs-jetpack');
+  const { TEST_MODE_FILENAME, TEMP_DIR_NAME, getTestModeFilePath, readTestMode, applyEnvFromFile } = require('../test/utils/test-mode-file.js');
+
+  // Resolve the consumer's project root. self.cwd is the consumer's
+  // functions/ directory; the test-mode file lives one level up at
+  // <projectRoot>/.temp/test-mode.json.
+  const projectDir = path.dirname(manager.cwd);
+  const filePath = getTestModeFilePath(projectDir);
+  const tempDir = path.join(projectDir, TEMP_DIR_NAME);
+
+  // Initial sync — apply any state the test/emulator command wrote before
+  // this process booted. Always log the resolved mode so it's obvious what
+  // the worker decided, even if no file existed (defaults to "normal").
+  const initial = readTestMode(projectDir);
+  const changed = applyEnvFromFile(initial);
+  for (const c of changed) {
+    manager.assistant.log(`[test-mode] sync ${c.key}: ${c.was || '(unset)'} → ${c.now || '(unset)'}`);
+  }
+  manager.assistant.log(`[test-mode] resolved TEST_EXTENDED_MODE=${!!process.env.TEST_EXTENDED_MODE} (file ${initial ? 'present' : 'absent'})`);
+
+  // Ensure .temp/ exists so we can watch the directory (fs.watch on a missing
+  // path throws synchronously). Watching the directory rather than the file
+  // means deletes/recreations of test-mode.json don't break the watcher, and
+  // we don't depend on whatever writer happened to run first.
+  jetpack.dir(tempDir);
+
+  try {
+    fs.watch(tempDir, { persistent: false }, (eventType, filename) => {
+      // Only react to our file. fs.watch may emit for any change in the dir.
+      if (filename && filename !== TEST_MODE_FILENAME) {
+        return;
+      }
+      const next = readTestMode(projectDir);
+      const flipped = applyEnvFromFile(next);
+      for (const c of flipped) {
+        manager.assistant.log(`[test-mode] flip ${c.key}: ${c.was || '(unset)'} → ${c.now || '(unset)'}`);
+      }
+    });
+  } catch (e) {
+    manager.assistant.log(`[test-mode] watcher failed to install (${e.message}), live sync disabled`);
+  }
 }
 
 module.exports = Manager;

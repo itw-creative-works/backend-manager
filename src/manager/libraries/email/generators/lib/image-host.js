@@ -32,6 +32,10 @@ const RAW_BASE = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/$
 const IMAGE_PATH_REGEX = /^[a-z0-9-]+\/[A-Za-z0-9_-]+\/section-\d+\.png$/;
 // `{brandId}/{campaignId}/newsletter.html` — fixed file name, same folder
 const HTML_PATH_REGEX  = /^[a-z0-9-]+\/[A-Za-z0-9_-]+\/newsletter\.html$/;
+// `{brandId}/{campaignId}/newsletter.md` — markdown view, same folder
+const MARKDOWN_PATH_REGEX = /^[a-z0-9-]+\/[A-Za-z0-9_-]+\/newsletter\.md$/;
+// `{brandId}/{campaignId}/summary.md` — short editorial recap, same folder
+const SUMMARY_PATH_REGEX  = /^[a-z0-9-]+\/[A-Za-z0-9_-]+\/summary\.md$/;
 
 // PNG magic bytes: 89 50 4E 47 0D 0A 1A 0A
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -45,6 +49,10 @@ const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
  *                                                you only want to upload the HTML (rare).
  * @param {string} [args.html] - The final rendered newsletter HTML. Uploaded as
  *                                `{brandId}/{campaignId}/newsletter.html`.
+ * @param {string} [args.markdown] - Programmatic markdown view of the newsletter.
+ *                                    Uploaded as `{brandId}/{campaignId}/newsletter.md`.
+ * @param {string} [args.summary] - Short editorial recap (2-3 sentences). Uploaded
+ *                                   as `{brandId}/{campaignId}/summary.md`.
  * @param {string} args.brandId - lowercase brand slug (e.g. 'somiibo')
  * @param {string} args.campaignId - Consumer-side `marketing-campaigns/{id}` Firestore doc ID.
  *                                   Folder names use this verbatim — stable forever.
@@ -55,12 +63,14 @@ const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
  * @param {object} [args.assistant] - logger
  * @returns {Promise<{ urls: string[], paths: string[], htmlUrl?: string, htmlPath?: string, folderUrl: string, commitSha: string }>}
  */
-async function uploadAssets({ images, html, brandId, campaignId, subject, commitMessage, token, assistant }) {
+async function uploadAssets({ images, html, markdown, summary, brandId, campaignId, subject, commitMessage, token, assistant }) {
   const hasImages = Array.isArray(images) && images.length > 0;
   const hasHtml = typeof html === 'string' && html.length > 0;
+  const hasMarkdown = typeof markdown === 'string' && markdown.length > 0;
+  const hasSummary = typeof summary === 'string' && summary.length > 0;
 
-  if (!hasImages && !hasHtml) {
-    throw new Error('image-host: at least one of images[] or html must be provided');
+  if (!hasImages && !hasHtml && !hasMarkdown && !hasSummary) {
+    throw new Error('image-host: at least one of images[] / html / markdown / summary must be provided');
   }
 
   validateBrandId(brandId);
@@ -116,13 +126,43 @@ async function uploadAssets({ images, html, brandId, campaignId, subject, commit
     });
   }
 
+  if (hasMarkdown) {
+    const path = `${brandId}/${campaignId}/newsletter.md`;
+
+    if (!MARKDOWN_PATH_REGEX.test(path)) {
+      throw new Error(`image-host: refusing to upload — invalid markdown path "${path}"`);
+    }
+
+    files.push({
+      path,
+      contentBase64: Buffer.from(markdown, 'utf8').toString('base64'),
+      kind: 'markdown',
+    });
+  }
+
+  if (hasSummary) {
+    const path = `${brandId}/${campaignId}/summary.md`;
+
+    if (!SUMMARY_PATH_REGEX.test(path)) {
+      throw new Error(`image-host: refusing to upload — invalid summary path "${path}"`);
+    }
+
+    files.push({
+      path,
+      contentBase64: Buffer.from(summary, 'utf8').toString('base64'),
+      kind: 'summary',
+    });
+  }
+
   const imageCount = files.filter((f) => f.kind === 'image').length;
-  const summary = [
+  const fileSummary = [
     imageCount ? `${imageCount} PNG${imageCount === 1 ? '' : 's'}` : null,
     hasHtml ? 'newsletter.html' : null,
+    hasMarkdown ? 'newsletter.md' : null,
+    hasSummary ? 'summary.md' : null,
   ].filter(Boolean).join(' + ');
 
-  log(`uploading ${summary} to ${REPO_OWNER}/${REPO_NAME} → ${brandId}/${campaignId}/`);
+  log(`uploading ${fileSummary} to ${REPO_OWNER}/${REPO_NAME} → ${brandId}/${campaignId}/`);
 
   const octokit = new Octokit({ auth: githubToken });
 
@@ -189,9 +229,11 @@ async function uploadAssets({ images, html, brandId, campaignId, subject, commit
     sha: newCommit.sha,
   });
 
-  // 7. Split the URL list by kind so callers can grab images + html independently.
+  // 7. Split the URL list by kind so callers can grab each independently.
   const imageFiles = files.filter((f) => f.kind === 'image');
   const htmlFile = files.find((f) => f.kind === 'html');
+  const markdownFile = files.find((f) => f.kind === 'markdown');
+  const summaryFile = files.find((f) => f.kind === 'summary');
 
   const result = {
     urls: imageFiles.map((f) => `${RAW_BASE}/${f.path}`),
@@ -203,6 +245,16 @@ async function uploadAssets({ images, html, brandId, campaignId, subject, commit
   if (htmlFile) {
     result.htmlUrl = `${RAW_BASE}/${htmlFile.path}`;
     result.htmlPath = htmlFile.path;
+  }
+
+  if (markdownFile) {
+    result.markdownUrl = `${RAW_BASE}/${markdownFile.path}`;
+    result.markdownPath = markdownFile.path;
+  }
+
+  if (summaryFile) {
+    result.summaryUrl = `${RAW_BASE}/${summaryFile.path}`;
+    result.summaryPath = summaryFile.path;
   }
 
   log(`committed ${newCommit.sha.slice(0, 7)} — folder: ${result.folderUrl}`);

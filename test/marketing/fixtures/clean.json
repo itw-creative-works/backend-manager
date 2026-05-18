@@ -2,24 +2,23 @@
   "_comment": "Predefined fixture for the `clean` template. Loaded via NEWSLETTER_FIXTURE=clean. Edit freely — no AI involved. Classic content shape: intro + sections[{title, body, cta, image_prompt}].",
   "subject": "Identity is the new growth lever",
   "preheader": "Three platform shifts to lock in this week.",
+  "summary": "LinkedIn, YouTube, and the broader creator stack are all tightening identity controls this week. The operators with documented attribution histories will outrun the rest. Documentation is no longer overhead — it's the moat.",
+  "tags": ["linkedin", "youtube", "platform-policy", "creator-economy", "operator-tools"],
   "intro": "Identity matters because trust is the new growth lever. Teams that handle this well will spend less time cleaning up later.",
   "sections": [
     {
       "title": "LinkedIn ships verified-profile gates for business accounts",
       "body": "LinkedIn now requires verified identity attestations on any business profile claiming more than 500 followers. Accounts with documented attribution histories sail through verification in under twelve hours. The practical implication is to lock down your attribution log this week, not next.",
-      "cta": { "label": "Read the brief", "url": "https://somiibo.com/blog/linkedin-verification" },
       "image_prompt": "Abstract geometric illustration of a verification checkmark inside a layered profile card."
     },
     {
       "title": "Documentation is the new operator moat",
       "body": "Operator playbooks are now the difference between an account that recovers from a flag and one that gets permanently restricted. Teams running documented processes recover in days. The ones without burn weeks negotiating with support queues.",
-      "cta": { "label": "See the playbook", "url": "https://somiibo.com/blog/operator-playbook" },
       "image_prompt": "Stack of geometric document layers casting clean shadows on a flat surface."
     },
     {
       "title": "YouTube tests creator-attribution metadata on uploads",
       "body": "A subset of channels saw a new upload checkbox this week asking whether content was assisted by automation. The checkbox is optional today. Reading the room: it will not stay optional. Creators with clear internal workflows will adapt in an afternoon.",
-      "cta": null,
       "image_prompt": "Minimalist play button morphing into a label tag, flat geometric style."
     }
   ],

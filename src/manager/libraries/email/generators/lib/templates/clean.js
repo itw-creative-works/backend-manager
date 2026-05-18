@@ -74,7 +74,7 @@ module.exports = {
     name: 'clean',
     description: 'Stripe / Linear marketing aesthetic. Safe, conservative, works everywhere.',
     requires: ['subject', 'preheader', 'intro', 'sections', 'signoff'],
-    optional: ['citations', 'image_prompt', 'cta'],
+    optional: ['citations', 'image_prompt'],
     supports: { sponsorships: ['top', 'middle', 'end'], citations: true, images: true },
   },
   schema: CLASSIC_SCHEMA,

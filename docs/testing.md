@@ -11,6 +11,51 @@ npx mgr test      # Terminal 2 - runs tests
 npx mgr test
 ```
 
+## Extended Mode (`TEST_EXTENDED_MODE`)
+
+Several routes/handlers skip external API calls (SendGrid, Beehiiv, Stripe webhooks, dispute handlers, marketing libraries) when `process.env.TEST_EXTENDED_MODE` is unset, so unit tests don't fire real emails or webhook side effects. Set the flag to opt **in** to those side effects for a full end-to-end run.
+
+**Live sync — no env coordination across terminals.** The flag flows automatically from the test command to the running emulator via a small shared state file at `<projectRoot>/.temp/test-mode.json`. The test command writes the file pre-flight; the emulator's function workers watch it via `fs.watch` and mutate their own `process.env.TEST_EXTENDED_MODE` in place. Effect: you only need to set the flag on **the test command**. The emulator follows.
+
+```bash
+# Terminal 1 — start once, leave running. NO flag needed.
+npx mgr emulator
+
+# Terminal 2 — toggle freely between runs:
+TEST_EXTENDED_MODE=true npx mgr test ...   # runs in extended mode
+npx mgr test ...                            # runs in normal mode
+TEST_EXTENDED_MODE=true npx mgr test ...   # back to extended
+```
+
+The emulator log shows each flip, e.g.:
+
+```
+[test-mode] resolved TEST_EXTENDED_MODE=false (file present)   ← worker boot
+[test-mode] flip TEST_EXTENDED_MODE: (unset) → true            ← test --extended fired
+[test-mode] flip TEST_EXTENDED_MODE: true → (unset)            ← test (no flag) fired
+```
+
+The test command also confirms the mode in its own output (`Test mode: EXTENDED (real APIs)` pre-flight, `Mode: EXTENDED (real APIs)` after the health check). The runner's old "TEST_EXTENDED_MODE mismatch" warning is gone — mismatch is impossible by construction.
+
+**Allowlist.** Only env vars listed in `SYNCED_ENV_KEYS` (`src/test/utils/test-mode-file.js`) flow through. Today: `TEST_EXTENDED_MODE`. Add a key there to make a new env var live-syncable across terminals. The allowlist exists to prevent accidentally syncing process-specific vars (`FIRESTORE_EMULATOR_HOST`) or sensitive ones (API keys).
+
+**Preferred flow: set the flag on the test command.** Every `npx mgr test` invocation overwrites the shared state file with whatever flags it was called with, and the emulator follows live. This is the recommended pattern — start the emulator once with no flag, leave it running, control the mode from your test invocations.
+
+```bash
+# Recommended
+npx mgr emulator                                # boots in normal mode
+TEST_EXTENDED_MODE=true npx mgr test ...        # flips emulator to extended
+npx mgr test ...                                 # flips emulator back to normal
+```
+
+**Also supported: set the flag on the emulator command.** This still works as a boot default — the emulator command writes the file with whatever it was started with, so the very first test run (before any `npx mgr test` overrides it) sees that mode. Useful if you want to inspect the emulator in a particular mode before firing any tests, or if you script the emulator boot from CI. Just know that the next test command overrides whatever you set here.
+
+```bash
+# Also works (boot default — overridden by next test command)
+TEST_EXTENDED_MODE=true npx mgr emulator        # boots in extended mode
+npx mgr test ...                                 # ← this still flips it back to normal
+```
+
 ## Log Files
 
 BEM CLI commands automatically save all output to log files in `functions/` while still streaming to the console:

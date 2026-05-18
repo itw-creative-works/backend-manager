@@ -16,11 +16,13 @@ This project consumes **Backend Manager** (BEM) — a comprehensive framework fo
 
 ```bash
 cd functions
-npx mgr setup       # validate config + scaffold defaults + run checks
-npx mgr emulator    # start Firebase emulators (auth/firestore/functions/database/storage)
-npx mgr watch       # auto-reload functions on file change
-npx mgr deploy      # deploy to Firebase
-npx mgr logs        # tail Cloud Functions logs
+npx mgr setup             # validate config + scaffold defaults + run checks
+npx mgr emulator          # start Firebase emulators (auth/firestore/functions/database/storage)
+npx mgr watch             # auto-reload functions on file change
+npx mgr deploy            # deploy to Firebase
+npx mgr logs:read         # read Cloud Functions logs (also: logs:tail to stream)
+npx mgr firestore:get     # read a doc from Firestore (also: firestore:set / :query / :delete)
+npx mgr auth:get          # read an Auth user (also: auth:list / :delete / :set-claims)
 ```
 
 All `npx mgr <cmd>` aliases — `npx bm <cmd>`, `npx bem <cmd>`, `npx backend-manager <cmd>` work too.

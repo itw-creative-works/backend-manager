@@ -79,7 +79,7 @@ module.exports = {
   // CI). Set TEST_EXTENDED_MODE=1 to switch to the full AI pipeline that fetches
   // real sources, calls the structure + SVG providers, and writes a preview.
   // Other modes (FIXTURE, THEME_ONLY, RELEASE, PEEK) are also opt-in via env.
-  async run({ assert, config }) {
+  async run({ assert, config, Manager, assistant }) {
     const env = process.env;
 
     // --- Apply env overrides into newsletterConfig ---
@@ -158,6 +158,7 @@ module.exports = {
       }
 
       const { renderNewsletter } = require('../../src/manager/libraries/email/generators/lib/mjml-template.js');
+      const { renderMarkdown } = require('../../src/manager/libraries/email/generators/lib/markdown-renderer.js');
 
       const renderStart = Date.now();
       const { html, mjml, template: templateName } = await renderNewsletter({
@@ -167,10 +168,26 @@ module.exports = {
         imagePaths: [],
         campaign: `fixture-${requestedFixture}`,
       });
+      // Force the template metadata onto structure so renderMarkdown picks
+      // the right body strategy (fixtures don't carry _meta on their own).
+      Object.defineProperty(structure, '_meta', {
+        enumerable: false,
+        configurable: true,
+        value: { template: templateName },
+      });
+      const markdown = renderMarkdown({
+        structure,
+        brand: config.brand,
+        imagePaths: [],
+      });
       const renderMs = Date.now() - renderStart;
 
       const previewPath = path.join(runDir, 'newsletter.html');
       jetpack.write(previewPath, html);
+      jetpack.write(path.join(runDir, 'newsletter.md'), markdown);
+      if (structure.summary) {
+        jetpack.write(path.join(runDir, 'summary.md'), structure.summary + '\n');
+      }
       jetpack.write(path.join(runDir, 'newsletter.mjml'), mjml || '');
       jetpack.write(path.join(runDir, 'structure.json'), JSON.stringify(structure, null, 2));
       jetpack.write(path.join(runDir, 'metadata.json'), JSON.stringify({
@@ -178,11 +195,13 @@ module.exports = {
         fixture: requestedFixture,
         template: templateName,
         renderMs,
+        tags: structure.tags || [],
         timestamp: new Date().toISOString(),
       }, null, 2));
 
       console.log(`\n[fixture=${requestedFixture}] Rendered in ${renderMs}ms using template: ${templateName}`);
       console.log(`[fixture=${requestedFixture}] Preview: ${previewPath}`);
+      console.log(`[fixture=${requestedFixture}] Markdown: ${path.join(runDir, 'newsletter.md')}`);
       console.log(`[fixture=${requestedFixture}] (Set TEST_EXTENDED_MODE=1 to switch to the full AI pipeline.)`);
 
       if (!env.NEWSLETTER_NO_OPEN && process.platform === 'darwin') {
@@ -190,6 +209,7 @@ module.exports = {
       }
 
       assert.ok(html.includes('<html'), 'Rendered HTML');
+      assert.ok(markdown.includes('# '), 'Rendered markdown has a heading');
       return;
     }
 
@@ -226,6 +246,7 @@ module.exports = {
       }
 
       const { renderNewsletter } = require('../../src/manager/libraries/email/generators/lib/mjml-template.js');
+      const { renderMarkdown } = require('../../src/manager/libraries/email/generators/lib/markdown-renderer.js');
 
       const renderStart = Date.now();
       const { html, mjml, template: templateName } = await renderNewsletter({
@@ -235,10 +256,26 @@ module.exports = {
         imagePaths,
         campaign: `theme-only-${stamp}`,
       });
+      // Force the template metadata onto structure so renderMarkdown picks
+      // the right body strategy (reused structures may have lost _meta).
+      Object.defineProperty(structure, '_meta', {
+        enumerable: false,
+        configurable: true,
+        value: { template: templateName },
+      });
+      const markdown = renderMarkdown({
+        structure,
+        brand: config.brand,
+        imagePaths,
+      });
       const renderMs = Date.now() - renderStart;
 
       const previewPath = path.join(runDir, 'newsletter.html');
       jetpack.write(previewPath, html);
+      jetpack.write(path.join(runDir, 'newsletter.md'), markdown);
+      if (structure.summary) {
+        jetpack.write(path.join(runDir, 'summary.md'), structure.summary + '\n');
+      }
       jetpack.write(path.join(runDir, 'newsletter.mjml'), mjml || '');
       jetpack.write(path.join(runDir, 'structure.json'), JSON.stringify(structure, null, 2));
       jetpack.write(path.join(runDir, 'metadata.json'), JSON.stringify({
@@ -246,6 +283,7 @@ module.exports = {
         reusedFrom: path.basename(sourceRun),
         template: templateName,
         renderMs,
+        tags: structure.tags || [],
         timestamp: new Date().toISOString(),
       }, null, 2));
 
@@ -316,22 +354,20 @@ module.exports = {
     // Track claimed IDs for later --release-all
     appendClaimed(claimedFile, sources.map((s) => s.id));
 
-    // --- Build a stub Manager + assistant to call the BEM generator library ---
-    // Newsletter config nests under beehiiv. Force `beehiiv.enabled: true` because
-    // the iteration test IS the explicit trigger — we're not checking whether
-    // beehiiv is configured for prod use, we're driving the generator directly.
-    const Manager = buildManagerStub({
-      ...config,
-      marketing: {
-        ...config.marketing,
-        beehiiv: {
-          ...(config.marketing?.beehiiv || {}),
-          enabled: true,
-          content: newsletterConfig,
-        },
+    // Force `beehiiv.enabled: true` and inject the per-run newsletter config
+    // overrides onto Manager.config. The iteration test IS the explicit trigger
+    // — we're not checking whether beehiiv is configured for prod use, we're
+    // driving the generator directly. Mutating Manager.config is fine here
+    // because this is a `type: 'standalone'` test (one test per process — no
+    // cross-test config leakage).
+    Manager.config.marketing = {
+      ...(Manager.config.marketing || {}),
+      beehiiv: {
+        ...(Manager.config.marketing?.beehiiv || {}),
+        enabled: true,
+        content: newsletterConfig,
       },
-    });
-    const assistant = buildAssistantStub(Manager);
+    };
 
     // --- Run the production generator with the local-persist image hook ---
     const generator = require('../../src/manager/libraries/email/generators/newsletter.js');
@@ -380,14 +416,23 @@ module.exports = {
 
     assert.ok(result, 'Generator returned a result');
     assert.ok(result.contentHtml, 'Generator returned contentHtml');
+    assert.ok(result.contentMarkdown, 'Generator returned contentMarkdown');
     assert.ok(result.structure?.sections?.length >= 2, 'Has at least 2 sections');
 
     // --- Write outputs ---
     const previewPath = path.join(runDir, 'newsletter.html');
     jetpack.write(previewPath, result.contentHtml);
+    jetpack.write(path.join(runDir, 'newsletter.md'), result.contentMarkdown);
+    if (result.summary) {
+      jetpack.write(path.join(runDir, 'summary.md'), result.summary + '\n');
+    }
     jetpack.write(path.join(runDir, 'structure.json'), JSON.stringify(result.structure, null, 2));
     jetpack.write(path.join(runDir, 'newsletter.mjml'), result.mjml || '');
-    jetpack.write(path.join(runDir, 'metadata.json'), JSON.stringify(result.meta || {}, null, 2));
+    jetpack.write(path.join(runDir, 'metadata.json'), JSON.stringify({
+      ...(result.meta || {}),
+      tags: result.tags || [],
+      assets: result.assets || null,
+    }, null, 2));
 
     console.log(`\nNewsletter preview written: ${previewPath}`);
     console.log(`Subject:   ${result.subject}`);
@@ -698,34 +743,3 @@ async function releaseAll(claimedFile) {
   return released;
 }
 
-/**
- * Minimal Manager stub for tests. Provides what newsletter.js + lib/* read:
- *   Manager.config         — full config (used for brand, marketing.beehiiv.content, parent)
- *   Manager.AI(assistant)  — instantiates the unified AI library
- */
-function buildManagerStub(config) {
-  return {
-    config,
-    libraries: {},
-    AI(assistant) {
-      const AI = require('../../src/manager/libraries/ai/index.js');
-      return new AI(assistant);
-    },
-  };
-}
-
-function buildAssistantStub(Manager) {
-  return {
-    Manager,
-    user: null,
-    request: { geolocation: { ip: 'local' } },
-    log: (...args) => console.log('[ASSIST]', ...args),
-    error: (...args) => console.error('[ASSIST ERROR]', ...args),
-    getUser: () => null,
-    errorify: (msg, opts) => {
-      const err = new Error(typeof msg === 'string' ? msg : String(msg));
-      if (opts) Object.assign(err, opts);
-      return err;
-    },
-  };
-}

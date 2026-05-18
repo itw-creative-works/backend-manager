@@ -24,6 +24,7 @@ const { filterSources } = require('./lib/filter.js');
 const { generateStructure } = require('./lib/structure.js');
 const { generateSectionImage } = require('./lib/svg-illustrator.js');
 const { renderNewsletter } = require('./lib/mjml-template.js');
+const { renderMarkdown } = require('./lib/markdown-renderer.js');
 const { uploadAssets, RAW_BASE } = require('./lib/image-host.js');
 
 /**
@@ -208,16 +209,34 @@ async function generate(Manager, assistant, settings, opts = {}) {
     sponsorships,
   });
 
-  // 3b. Upload the rendered HTML to GitHub alongside the images. Lives in the
-  //     same {brandId}/{campaignId}/ folder as newsletter.html. The folder URL
-  //     becomes the canonical archive of the issue, browseable + downloadable.
+  // 3a. Programmatic markdown view — same `structure`, walked by code (no AI).
+  //     The markdown is split into ## blocks per section so it can be pasted
+  //     into Beehiiv's block editor with ad blocks inserted between dispatches.
+  //     `summary` is a separate short editorial recap, written by the AI
+  //     during the structure step.
+  const markdown = renderMarkdown({
+    structure,
+    brand,
+    imagePaths,
+    sponsorships,
+  });
+
+  const summaryText = (structure.summary || '').trim();
+
+  // 3b. Upload the rendered HTML + markdown + summary to GitHub alongside the
+  //     images. All four kinds live in the same {brandId}/{campaignId}/ folder.
+  //     The folder URL becomes the canonical archive of the issue.
   let assetsFolderUrl = null;
   let htmlUrl = null;
+  let markdownUrl = null;
+  let summaryUrl = null;
 
   if (host === 'github') {
     try {
       const upload = await uploadAssets({
         html,
+        markdown,
+        summary: summaryText || undefined,
         brandId: brand?.id,
         campaignId,
         subject: structure.subject,
@@ -225,6 +244,8 @@ async function generate(Manager, assistant, settings, opts = {}) {
       });
       assetsFolderUrl = upload.folderUrl;
       htmlUrl = upload.htmlUrl;
+      markdownUrl = upload.markdownUrl || null;
+      summaryUrl = upload.summaryUrl || null;
     } catch (e) {
       assistant.error(`Newsletter generator: HTML upload failed — ${e.message}`);
     }
@@ -238,6 +259,7 @@ async function generate(Manager, assistant, settings, opts = {}) {
   //     succeeds regardless. beehiivConfig was already resolved at the top
   //     of the function for the initial enabled-check.
   let beehiivPostId = null;
+  let beehiivFailureReason = null;
 
   if (host === 'github' && beehiivConfig?.enabled) {
     try {
@@ -248,6 +270,7 @@ async function generate(Manager, assistant, settings, opts = {}) {
         subject:       structure.subject,
         preheader:     structure.preheader,
         content:       html,
+        contentTags:   Array.isArray(structure.tags) ? structure.tags : [],
         status:        'draft',
       });
 
@@ -256,11 +279,34 @@ async function generate(Manager, assistant, settings, opts = {}) {
         assistant.log(`Newsletter generator: Beehiiv draft created — ${beehiivPostId}`);
       } else {
         // Expected today until Enterprise plan — log, do not throw.
-        assistant.log(`Newsletter generator: Beehiiv draft upload skipped/failed — ${result?.error || 'unknown'}`);
+        beehiivFailureReason = result?.error || 'unknown error';
+        assistant.log(`Newsletter generator: Beehiiv draft upload skipped/failed — ${beehiivFailureReason}`);
       }
     } catch (e) {
+      beehiivFailureReason = e.message;
       assistant.error(`Newsletter generator: Beehiiv draft upload threw — ${e.message}`);
     }
+  }
+
+  // 3d. Fallback alert email — sent to the brand's internal alerts inbox when
+  //     Beehiiv draft creation fails. The newsletter is fully generated and
+  //     archived to GitHub at this point, so the email contains everything
+  //     needed for a human to manually upload to Beehiiv: HTML URL (one-shot
+  //     paste), markdown URL (per-section blocks for ad insertion), summary
+  //     URL, and the tags to set. Failure of THIS email is logged but never
+  //     blocks the cron — the campaign doc is still written either way.
+  if (beehiivFailureReason && htmlUrl) {
+    await sendBeehiivFallbackEmail(Manager, assistant, {
+      brand,
+      subject: structure.subject,
+      preheader: structure.preheader,
+      tags: Array.isArray(structure.tags) ? structure.tags : [],
+      htmlUrl,
+      markdownUrl,
+      summaryUrl,
+      folderUrl: assetsFolderUrl,
+      reason: beehiivFailureReason,
+    });
   }
 
   // 4. Mark sources as used on parent server (unless caller opted out)
@@ -308,8 +354,11 @@ async function generate(Manager, assistant, settings, opts = {}) {
     campaignId,
     folderUrl: assetsFolderUrl,
     htmlUrl,
+    markdownUrl,
+    summaryUrl,
     imageUrls: imagePaths,
     beehiivPostId,
+    tags: Array.isArray(structure.tags) ? structure.tags : [],
   } : null;
 
   return {
@@ -318,12 +367,110 @@ async function generate(Manager, assistant, settings, opts = {}) {
     preheader: structure.preheader,
     content: '',          // legacy markdown field, unused when contentHtml is set
     contentHtml: html,    // pre-rendered email-safe HTML
+    contentMarkdown: markdown,  // programmatic markdown view (per-section blocks for Beehiiv paste)
+    summary: summaryText, // editorial recap (separate from preheader)
+    tags: Array.isArray(structure.tags) ? structure.tags : [],
     structure,            // structured copy for debugging / migration
     mjml,                 // raw MJML for debugging
     images: opts._lastImages || [],  // image buffers for the iteration test to persist locally
-    assets,               // GitHub asset URLs (folder, html, images) — null in local mode
+    assets,               // GitHub asset URLs (folder, html, md, summary, images) — null in local mode
     meta,                 // per-step provider/model/cost/timing telemetry
   };
+}
+
+/**
+ * Send an internal alert email when Beehiiv draft creation fails so the
+ * brand team knows there's a ready newsletter waiting for manual upload.
+ *
+ * Uses `sender: 'internal'` which auto-resolves to `alerts@{brandDomain}` via
+ * the SENDERS table in email/constants.js. Recipient is the same alerts@
+ * address — a self-addressed operational alert, no human inbox involved.
+ *
+ * Errors here are logged but never thrown — the alert is best-effort. If
+ * brand.url is unset, the email is skipped entirely.
+ *
+ * @param {object} Manager
+ * @param {object} assistant
+ * @param {object} args
+ * @param {object} args.brand
+ * @param {string} args.subject - The newsletter's subject (used in the alert subject)
+ * @param {string} args.preheader
+ * @param {string[]} args.tags
+ * @param {string} args.htmlUrl - GitHub raw URL to the fully-rendered HTML
+ * @param {string} [args.markdownUrl] - GitHub raw URL to the per-section markdown
+ * @param {string} [args.summaryUrl] - GitHub raw URL to the 2-3 sentence summary
+ * @param {string} [args.folderUrl] - GitHub folder URL (browseable archive)
+ * @param {string} args.reason - Why Beehiiv upload failed (API error message)
+ */
+async function sendBeehiivFallbackEmail(Manager, assistant, args) {
+  // Send TO and FROM the same internal alerts inbox — alerts@{brandDomain}.
+  // The `sender: 'internal'` SENDERS entry already resolves the FROM address
+  // to this; we mirror the same domain for the TO so it's a self-addressed
+  // operational alert (no human inbox involved).
+  const brandDomain = (Manager.config?.brand?.url || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+
+  if (!brandDomain) {
+    assistant.log('Newsletter generator: Beehiiv fallback email skipped — no brand.url');
+    return;
+  }
+
+  const alertsEmail = `alerts@${brandDomain}`;
+
+  try {
+    const email = Manager.Email(assistant);
+    const messageLines = [];
+
+    messageLines.push(`<strong>Beehiiv draft creation failed</strong> — the newsletter is generated and archived, but needs to be manually uploaded to Beehiiv.`);
+    messageLines.push('');
+    messageLines.push(`<strong>Failure reason:</strong> ${args.reason}`);
+    messageLines.push('');
+    messageLines.push('<strong>Newsletter details:</strong>');
+    messageLines.push('<ul>');
+    messageLines.push(`<li><strong>Subject:</strong> ${args.subject}</li>`);
+    messageLines.push(`<li><strong>Preheader:</strong> ${args.preheader || '(none)'}</li>`);
+    if (args.tags?.length) {
+      messageLines.push(`<li><strong>Tags:</strong> ${args.tags.join(', ')}</li>`);
+    }
+    messageLines.push('</ul>');
+    messageLines.push('');
+    messageLines.push('<strong>Assets (manual upload links):</strong>');
+    messageLines.push('<ul>');
+    messageLines.push(`<li><strong>Full HTML</strong> (one-shot paste): <a href="${args.htmlUrl}">${args.htmlUrl}</a></li>`);
+    if (args.markdownUrl) {
+      messageLines.push(`<li><strong>Per-section markdown</strong> (paste as separate blocks, ads between): <a href="${args.markdownUrl}">${args.markdownUrl}</a></li>`);
+    }
+    if (args.summaryUrl) {
+      messageLines.push(`<li><strong>Summary</strong> (2-3 sentence recap): <a href="${args.summaryUrl}">${args.summaryUrl}</a></li>`);
+    }
+    if (args.folderUrl) {
+      messageLines.push(`<li><strong>All assets</strong>: <a href="${args.folderUrl}">${args.folderUrl}</a></li>`);
+    }
+    messageLines.push('</ul>');
+
+    await email.send({
+      sender: 'internal',  // resolves to alerts@{brandDomain}
+      to: alertsEmail,
+      copy: false,  // self-addressed operational alert — no CC/BCC clutter
+      subject: `Newsletter ready for manual Beehiiv upload: "${args.subject}"`,
+      template: 'core/card',
+      categories: ['marketing/newsletter-manual-upload'],
+      data: {
+        email: {
+          preview: `Beehiiv upload failed — newsletter awaiting manual upload from ${args.folderUrl || 'GitHub archive'}`,
+        },
+        body: {
+          title: 'Newsletter Ready for Manual Upload',
+          message: messageLines.join('\n'),
+        },
+      },
+    });
+
+    assistant.log(`Newsletter generator: Beehiiv fallback alert sent to ${alertsEmail}`);
+  } catch (e) {
+    // Best-effort — log and move on. We don't want a misconfigured email
+    // setup to break the cron's Firestore write.
+    assistant.error(`Newsletter generator: Beehiiv fallback email failed — ${e.message}`);
+  }
 }
 
 /**

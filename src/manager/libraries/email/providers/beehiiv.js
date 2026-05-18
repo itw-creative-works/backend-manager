@@ -329,6 +329,7 @@ async function resolveSegmentIds() {
  * @param {string} [options.subject] - Email subject line (defaults to title)
  * @param {string} [options.preheader] - Email preview text
  * @param {string} [options.content] - HTML content body
+ * @param {Array<string>} [options.contentTags] - Topical tags attached to the post (Beehiiv `content_tags`)
  * @param {string} [options.status] - 'draft' or 'confirmed' (default: confirmed = send)
  * @param {string} [options.sendAt] - ISO datetime to schedule, or null for immediate
  * @param {Array<string>} [options.segments] - Segment IDs to include
@@ -342,7 +343,7 @@ async function createPost(options) {
     return { success: false, error: 'Publication not found' };
   }
 
-  const { title, subject, preheader, content, status, sendAt, segments, excludeSegments } = options;
+  const { title, subject, preheader, content, contentTags, status, sendAt, segments, excludeSegments } = options;
 
   try {
     const body = {
@@ -353,6 +354,11 @@ async function createPost(options) {
     // Content
     if (content) {
       body.body_content = content;
+    }
+
+    // Tags (Beehiiv field is `content_tags`, array of strings)
+    if (Array.isArray(contentTags) && contentTags.length) {
+      body.content_tags = contentTags;
     }
 
     // Scheduling

@@ -6,6 +6,7 @@ const jetpack = require('fs-jetpack');
 const JSON5 = require('json5');
 const powertools = require('node-powertools');
 const { DEFAULT_EMULATOR_PORTS } = require('./setup-tests/emulator-config');
+const { writeTestMode, captureSyncedEnv, SYNCED_ENV_KEYS } = require('../../test/utils/test-mode-file');
 const EmulatorCommand = require('./emulator');
 
 class TestCommand extends BaseCommand {
@@ -19,6 +20,23 @@ class TestCommand extends BaseCommand {
     // Determine the project directory
     const projectDir = self.firebaseProjectPath;
     const functionsDir = path.join(projectDir, 'functions');
+
+    // Pre-flight: write the allowlisted env subset to a shared state file
+    // (`<projectDir>/.temp/test-mode.json`). The running emulator watches this
+    // file and mutates its own `process.env` to match, eliminating the need
+    // to coordinate env vars across both terminals. The test command is the
+    // authoritative writer — whatever you pass here becomes the live mode
+    // within ~50ms.
+    //
+    // Allowlist lives in src/test/utils/test-mode-file.js (SYNCED_ENV_KEYS).
+    // Today: just TEST_EXTENDED_MODE. Add more keys there to make them
+    // live-syncable.
+    {
+      const envSubset = captureSyncedEnv(process.env);
+      writeTestMode(projectDir, envSubset);
+      const extended = !!process.env.TEST_EXTENDED_MODE;
+      this.log(chalk.gray(`  Test mode: ${extended ? 'EXTENDED (real APIs)' : 'normal (mocked)'}`));
+    }
 
     // Load emulator ports from firebase.json
     const emulatorPorts = this.loadEmulatorPorts(projectDir);

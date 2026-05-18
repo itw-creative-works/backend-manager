@@ -2,23 +2,97 @@
 
 > **Note for contributors and Claude:** This file is the architectural overview — identity, top-level conventions, and a map to deep references. The **meat** (per-subsystem APIs, behavior tables, recipes) lives in `docs/<topic>.md`. When extending or adding content, write it in the matching `docs/*.md` file and cross-link from here — do NOT inline it. If a topic doesn't have a doc yet, create one. Goal: keep this file under 250 lines.
 
-## Project Identity
+## Identity
 
-**Backend Manager (BEM)** is an NPM package that provides powerful backend features for Firebase Cloud Functions projects, including authentication, rate limiting, analytics, and more.
+Backend Manager (BEM) is a comprehensive framework for building modern Firebase Cloud Functions backends. Sister project to Electron Manager (EM), Browser Extension Manager (BXM), and Ultimate Jekyll Manager (UJM). Provides a single `Manager.init(exports, {...})` bootstrap that wires built-in functions (`bm_api`, auth events, cron jobs), helper classes (Assistant, User, Analytics, Usage, Middleware, Settings, Utilities, Metadata), payment processor integrations (Stripe / PayPal), Firestore-trigger pipelines, marketing campaign automation, an MCP server, and a CLI for emulator/deploy/logs/auth/Firestore operations.
 
-**This repository** (`backend-manager`) is the BEM library itself. If you're working here, you're contributing to the library, not consuming it.
+**This repository** is the BEM library itself. **Consumer projects** are Firebase projects that `require('backend-manager')` in their `functions/index.js`, with `backend-manager-config.json` + `service-account.json` alongside, plus optional `routes/`, `schemas/`, and `hooks/` directories for custom endpoints.
 
-**Consumer projects** are Firebase projects that `require('backend-manager')` in their `functions/index.js`. These have:
-- `functions/` directory with `index.js` that calls `Manager.init(exports, {...})`
-- `backend-manager-config.json` configuration file
-- `service-account.json` for Firebase credentials
-- Optional `routes/` and `schemas/` directories for custom endpoints
+## Recommended skills
 
-## Architecture (at a glance)
+- **`BEM:patterns`** — SSOT for Backend Manager routes, schemas, tests, Firebase functions, Firestore rules, usage tracking patterns. Auto-loads on BEM-specific keywords (`route`, `schema`, `endpoint`, `bm_api`, `Manager.init`, `npx mgr test`, `gcloud logs`, etc.) and when touching files in `functions/routes/`, `functions/schemas/`, `functions/index.js`, `test/`, `src/cli/commands/`.
+- **`js:patterns`** — JavaScript/Node.js conventions: file structure, JSDoc, defensive coding (`?.` usage), template literals, `package.json` conventions. Auto-loads when creating new `.js` files or touching JS module structure.
+
+## Quick Start
+
+### For Consuming Projects
+
+1. `npm install backend-manager --save-dev` (inside `functions/`)
+2. `npx mgr setup` — validates config, scaffolds defaults (CLAUDE.md, CHANGELOG.md, docs/, test/), provisions Firestore indexes
+3. `npx mgr emulator` — start Firebase emulators (auth/firestore/functions/database/storage)
+4. `npx mgr serve` — local serve with Stripe webhook forwarding (if `STRIPE_SECRET_KEY` is set)
+5. `npx mgr test` — runs framework + project test suites against an emulator
+6. `npx mgr deploy` — deploy Cloud Functions to Firebase
+7. `npx mgr logs:read` / `npx mgr logs:tail` — Cloud Function logs from Google Cloud Logging
+
+All `npx mgr <cmd>` aliases work: `npx bm <cmd>`, `npx bem <cmd>`, `npx backend-manager <cmd>`.
+
+> **Important:** All `npx mgr ...` commands MUST be run from the consumer project's `functions/` subdirectory. The binary lives in `functions/node_modules/.bin/`.
+
+### For Framework Development (This Repository)
+
+1. `npm install` — install BEM's own deps
+2. `npm run prepare` — build once: copies `src/` → `dist/` via prepare-package
+3. `npm run prepare:watch` — watch mode
+4. Test in a consumer project: from inside the consumer's `functions/` dir, run `npx mgr install local` (swaps BEM to the local repo via the `install` CLI). Reverse with `npx mgr install prod`.
+
+## Architecture
 
 BEM exposes a single `Manager` class that orchestrates everything: it initializes Firebase Admin, wires built-in functions (`bm_api`, auth events, cron), and hands out helper instances via factory methods. Supports **two deployment modes** — Firebase Functions (`projectType: 'firebase'`) or Custom Server (`projectType: 'custom'`). See [docs/architecture.md](docs/architecture.md) for the full overview of the Manager class, dual-mode support, and helper factory pattern.
 
 For the directory layout of both the BEM library and consumer projects, see [docs/directory-structure.md](docs/directory-structure.md).
+
+## CLI
+
+`npx mgr <command>` (aliases `bm`, `bem`, `backend-manager`):
+
+| Command | Description |
+|---|---|
+| `setup` | Validate config, scaffold defaults (CLAUDE.md, CHANGELOG.md, docs/, test/), provision Firestore indexes |
+| `emulator` | Start Firebase emulators (auth/firestore/functions/database/storage) |
+| `serve` | Local Firebase serve (with auto Stripe webhook forwarding if keys set) |
+| `watch` | Auto-reload functions on file change |
+| `deploy` | Deploy Cloud Functions to Firebase |
+| `test` | Run framework + project test suites against an emulator |
+| `mcp` | Start the stdio MCP server (for Claude Code / Claude Desktop) |
+| `firestore:get/set/query/delete` | Direct Firestore reads/writes from the terminal |
+| `auth:get/list/delete/set-claims` | Manage Auth users from the terminal |
+| `logs:read` / `logs:tail` | Cloud Function logs from Google Cloud Logging |
+| `stripe` | Standalone Stripe CLI webhook forwarding |
+| `indexes` | Sync required Firestore indexes into `firestore.indexes.json` |
+| `firebase-init` | Run Firebase Admin SDK initialization helper |
+| `clean` | Remove generated artifacts (logs, test outputs) |
+| `version` | Print BEM version |
+
+See [docs/cli-firestore-auth.md](docs/cli-firestore-auth.md) and [docs/cli-logs.md](docs/cli-logs.md) for full flag references.
+
+## File Conventions
+
+- **CommonJS** throughout. `prepare-package` copies `src/` → `dist/` 1:1 (no transforms).
+- **`fs-jetpack`** over `fs` / `fs-extra` for file operations.
+- One `module.exports = ...` per file.
+- **Short-circuit early returns** rather than nested ifs.
+- **Logical operators at the start of continuation lines** (`|| condB` on a new line, not `condA ||` trailing).
+- **Firestore shorthand**: `admin.firestore().doc('users/abc123')` (path string) rather than `.collection('users').doc('abc123')`.
+- **Template strings for requires**: `` require(`${functionsDir}/node_modules/backend-manager`) `` rather than string concat.
+- **No backwards compatibility** unless explicitly requested.
+- **Routes receive sanitized data by default** — see [docs/sanitization.md](docs/sanitization.md) for opt-out rules.
+- **Match schema names to route names** — if route is `myEndpoint`, schema is `myEndpoint`.
+- **Always use `assistant.respond()` for responses** — do NOT use `res.send()` directly.
+- **Add Firestore composite indexes** for any compound query (`where` + `orderBy`, or multiple `where`s) to `src/cli/commands/setup-tests/helpers/required-indexes.js` (the SSOT). Without the index, queries crash with `FAILED_PRECONDITION` in production.
+
+See [docs/code-patterns.md](docs/code-patterns.md) for code-pattern detail, [docs/common-mistakes.md](docs/common-mistakes.md) for the full anti-pattern checklist, and [docs/file-naming.md](docs/file-naming.md) for the naming table (routes / schemas / API commands / events / cron jobs / hooks).
+
+## Doc-update parity
+
+Whenever you make a behavioral change (new command, new flag, new pattern, removed feature), update:
+
+1. **`README.md`** — user-facing summary
+2. **`CLAUDE.md`** (this file) — architecture overview, one paragraph or cross-link
+3. **`docs/<topic>.md`** — the meat. If a topic doesn't have a doc yet, create one.
+4. **`CHANGELOG.md`** — if the project keeps one
+
+Don't ship behavioral changes with stale docs. Validate first, then document — write docs that describe shipped reality, not intentions.
 
 ## Documentation
 
@@ -30,6 +104,8 @@ Deep references live in `docs/`. **Whenever you make a behavioral change, update
 - [docs/directory-structure.md](docs/directory-structure.md) — BEM library + consumer project layouts
 - [docs/code-patterns.md](docs/code-patterns.md) — short-circuit returns, logical operators on new lines, Firestore shorthand, template-string requires, fs-jetpack preference
 - [docs/file-naming.md](docs/file-naming.md) — naming table for routes, schemas, API commands, events, cron jobs, hooks
+- [docs/common-mistakes.md](docs/common-mistakes.md) — anti-pattern checklist (don't modify Manager internals, always await, increment-before-update, etc.)
+- [docs/key-files.md](docs/key-files.md) — quick lookup for the most-touched files (Manager, helpers, auth events, cron, payment processors, CLI commands)
 - [docs/environment-detection.md](docs/environment-detection.md) — `assistant.isDevelopment/isProduction/isTesting()`
 - [docs/response-headers.md](docs/response-headers.md) — automatic `bm-properties` header
 
@@ -60,52 +136,3 @@ Deep references live in `docs/`. **Whenever you make a behavioral change, update
 - [docs/testing.md](docs/testing.md) — running, filtering, log files, test types (standalone/suite/group), context object, assertions, auth levels
 - [docs/cli-firestore-auth.md](docs/cli-firestore-auth.md) — `npx mgr firestore:*` and `auth:*` commands, shared flags, examples
 - [docs/cli-logs.md](docs/cli-logs.md) — `npx mgr logs:read` / `logs:tail` with full flag reference and built-in Cloud Function names
-
-## Common Mistakes to Avoid
-
-1. **Don't modify Manager internals directly** — Use factory methods and public APIs
-2. **Always use `assistant.respond()` for responses** — Don't use `res.send()` directly
-3. **Match schema names to route names** — If route is `myEndpoint`, schema should be `myEndpoint`
-4. **Always await async operations** — Don't forget `await` on Firestore operations
-5. **Handle errors properly** — Use `assistant.errorify()` with appropriate status codes
-6. **Don't call `respond()` multiple times** — Only one response per request
-7. **Use short-circuit returns** — Return early from error conditions
-8. **Increment usage before update** — Call `usage.increment()` then `usage.update()`
-9. **Add Firestore composite indexes for new compound queries** — Any new Firestore query using multiple `.where()` clauses or `.where()` + `.orderBy()` requires a composite index. Add it to `src/cli/commands/setup-tests/helpers/required-indexes.js` (the SSOT). Consumer projects pick these up via `npx mgr setup`, which syncs them into `firestore.indexes.json`. Without the index, the query will crash with `FAILED_PRECONDITION` in production.
-
-## Key Files Reference
-
-| Purpose | File |
-|---------|------|
-| Main Manager class | `src/manager/index.js` |
-| Request/response handling | `src/manager/helpers/assistant.js` |
-| Middleware pipeline | `src/manager/helpers/middleware.js` |
-| Schema validation | `src/manager/helpers/settings.js` |
-| Rate limiting | `src/manager/helpers/usage.js` |
-| User properties + schema | `src/manager/helpers/user.js` |
-| Batch utilities | `src/manager/helpers/utilities.js` |
-| Auth: before-create | `src/manager/events/auth/before-create.js` |
-| Auth: before-signin | `src/manager/events/auth/before-signin.js` |
-| Auth: on-create | `src/manager/events/auth/on-create.js` |
-| Auth: on-delete | `src/manager/events/auth/on-delete.js` |
-| Auth: shared utilities | `src/manager/events/auth/utils.js` |
-| Cron runner | `src/manager/events/cron/runner.js` |
-| Main API handler | `src/manager/functions/core/actions/api.js` |
-| Config template | `templates/backend-manager-config.json` |
-| CLI entry | `src/cli/index.js` |
-| Stripe webhook forwarding | `src/cli/commands/stripe.js` |
-| Firebase init helper (CLI) | `src/cli/commands/firebase-init.js` |
-| Firestore CLI commands | `src/cli/commands/firestore.js` |
-| Auth CLI commands | `src/cli/commands/auth.js` |
-| Logs CLI commands | `src/cli/commands/logs.js` |
-| Intent creation | `src/manager/routes/payments/intent/post.js` |
-| Webhook ingestion | `src/manager/routes/payments/webhook/post.js` |
-| Webhook processing (on-write) | `src/manager/events/firestore/payments-webhooks/on-write.js` |
-| Payment analytics | `src/manager/events/firestore/payments-webhooks/analytics.js` |
-| Transition detection | `src/manager/events/firestore/payments-webhooks/transitions/index.js` |
-| Payment processor libraries | `src/manager/libraries/payment/processors/` |
-| Stripe library | `src/manager/libraries/payment/processors/stripe.js` |
-| PayPal library | `src/manager/libraries/payment/processors/paypal.js` |
-| Order ID generator | `src/manager/libraries/payment/order-id.js` |
-| Required Firestore indexes (SSOT) | `src/cli/commands/setup-tests/helpers/required-indexes.js` |
-| Test accounts | `src/test/test-accounts.js` |

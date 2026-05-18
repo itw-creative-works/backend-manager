@@ -1,7 +1,9 @@
 {
-  "_comment": "Predefined fixture for the `field-report` template. Loaded via NEWSLETTER_FIXTURE=field-report. Wire-service content shape: tldr + dateline + dispatches[{kicker, headline, byline, location, lede, dispatch, dataPoints, cta, image_prompt}].",
+  "_comment": "Predefined fixture for the `field-report` template. Loaded via NEWSLETTER_FIXTURE=field-report. Wire-service content shape: tldr + dateline + dispatches[{kicker, headline, byline, location, lede, dispatch, dataPoints, image_prompt}].",
   "subject": "LinkedIn tightens identity — operators document everything",
   "preheader": "Three filings from this week's platform front lines.",
+  "summary": "Wire from the platform front: LinkedIn is rolling identity verification across every business profile, YouTube is piloting upload-time attribution metadata, and the operators with clean documentation are outrunning everyone else.",
+  "tags": ["linkedin", "youtube", "platform-policy", "verification", "operator-playbook"],
   "tldr": "LinkedIn is rolling out verified-account scrutiny across every business profile. Operators with paper trails will outrun the rest. Documentation is the new growth lever.",
   "dateline": "OAKLAND",
   "signoff": "— Stay sharp,\nThe Somiibo Desk",
@@ -22,7 +24,6 @@
         { "label": "AVG REVIEW TIME", "value": "14HR" },
         { "label": "WoW APPROVAL", "value": "+38%" }
       ],
-      "cta": { "label": "READ THE BRIEF", "url": "https://somiibo.com/blog/linkedin-verification" },
       "image_prompt": "Abstract geometric illustration of a verification checkmark inside a layered profile card."
     },
     {
@@ -36,7 +37,6 @@
         { "label": "RECOVERY (DOCUMENTED)", "value": "4D" },
         { "label": "RECOVERY (UNDOC)", "value": "21D" }
       ],
-      "cta": { "label": "SEE THE PLAYBOOK", "url": "https://somiibo.com/blog/operator-playbook" },
       "image_prompt": "Stack of geometric document layers casting clean shadows on a flat surface."
     },
     {
@@ -47,7 +47,6 @@
       "lede": "A small pilot suggests YouTube will soon ask creators to declare automated tooling and cross-posting workflows at upload time.",
       "dispatch": "A subset of channels saw a new upload checkbox this week asking whether content was assisted by automation. The checkbox is optional today. Reading the room: it will not stay optional. Creators with clear internal workflows already labeled will adapt in an afternoon. Everyone else will spend a quarter retrofitting.",
       "dataPoints": [],
-      "cta": null,
       "image_prompt": "Minimalist play button morphing into a label tag, flat geometric style."
     }
   ]

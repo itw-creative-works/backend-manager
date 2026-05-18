@@ -94,14 +94,25 @@ module.exports = async ({ Manager, assistant, libraries }) => {
     const nowISO = new Date().toISOString();
     const nowUNIX = Math.round(Date.now() / 1000);
 
-    // Strip non-serializable fields out of the generator's return before
-    // writing to Firestore. `images` is an array of PNG Buffers (not safe
-    // to persist) and `mjml` is a raw template string that pollutes the doc.
-    const { images: _images, mjml: _mjml, assets, meta, ...campaignSettings } = generated;
+    // Strip non-serializable / oversized fields out of the generator's return
+    // before writing to Firestore.
+    //   images: Buffer[] — not safe to persist
+    //   mjml:   raw template string — pollutes the doc, available in the GH archive
+    //   structure: full JSON dump (5-10kb) — available via assets.markdownUrl + assets.htmlUrl
+    //   contentMarkdown: large markdown blob — available via assets.markdownUrl
+    const {
+      images: _images,
+      mjml: _mjml,
+      structure: _structure,
+      contentMarkdown: _contentMarkdown,
+      assets,
+      meta,
+      ...campaignSettings
+    } = generated;
 
     await admin.firestore().doc(`marketing-campaigns/${newId}`).set({
       settings: campaignSettings,
-      assets: assets || null,   // { folderUrl, htmlUrl, imageUrls, campaignId } or null
+      assets: assets || null,   // { folderUrl, htmlUrl, markdownUrl, summaryUrl, imageUrls, beehiivPostId, tags, campaignId }
       meta:   meta   || null,   // tokens, cost, durations, source scores
       type,
       sendAt: data.sendAt,
@@ -115,11 +126,16 @@ module.exports = async ({ Manager, assistant, libraries }) => {
 
     assistant.log(`Created campaign ${newId} from generator ${campaignId}: "${generated.subject}"`);
     if (assets?.htmlUrl) {
-      assistant.log(`  HTML:   ${assets.htmlUrl}`);
-      assistant.log(`  Folder: ${assets.folderUrl}`);
+      assistant.log(`  HTML:     ${assets.htmlUrl}`);
+      assistant.log(`  Markdown: ${assets.markdownUrl || '(none)'}`);
+      assistant.log(`  Summary:  ${assets.summaryUrl || '(none)'}`);
+      assistant.log(`  Folder:   ${assets.folderUrl}`);
     }
     if (assets?.beehiivPostId) {
-      assistant.log(`  Beehiiv: draft post ${assets.beehiivPostId}`);
+      assistant.log(`  Beehiiv:  draft post ${assets.beehiivPostId}`);
+    }
+    if (assets?.tags?.length) {
+      assistant.log(`  Tags:     ${assets.tags.join(', ')}`);
     }
 
     // Advance the recurring doc's sendAt to the next occurrence
