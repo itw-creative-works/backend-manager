@@ -14,6 +14,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.2.1] - 2026-05-21
+
+### Added
+
+- **`BACKEND_MANAGER_WEBHOOK_KEY` in `templates/_.env`.** The `.env` scaffold the setup CLI copies into consumer projects now declares the webhook key alongside `BACKEND_MANAGER_KEY`. Required for the new `/marketing/webhook` + `/marketing/webhook/forward` routes shipped in 5.2.0. Existing consumers should add it to their own `.env` manually.
+
 # [5.2.0] - 2026-05-21
 
 ### Added
