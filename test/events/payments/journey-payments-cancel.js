@@ -23,7 +23,6 @@ module.exports = {
         state.uid = uid;
         state.paidProductId = paidProduct.id;
         state.paidProductName = paidProduct.name;
-        state.paidStripeProductId = paidProduct.stripe?.productId;
 
         // Create subscription via test intent
         const response = await http.as('journey-payments-cancel').post('payments/intent', {
@@ -51,7 +50,7 @@ module.exports = {
 
     {
       name: 'send-pending-cancel-webhook',
-      async run({ http, assert, state, config }) {
+      async run({ http, assert, state, config, payments }) {
         const futureDate = new Date();
         futureDate.setFullYear(futureDate.getFullYear() + 1);
 
@@ -74,7 +73,7 @@ module.exports = {
               start_date: Math.floor(Date.now() / 1000) - 86400 * 30,
               trial_start: null,
               trial_end: null,
-              plan: { product: state.paidStripeProductId, interval: 'month' },
+              plan: { product: payments.stripeProductIds[state.paidProductId], interval: 'month' },
             },
           },
         });
@@ -103,7 +102,7 @@ module.exports = {
 
     {
       name: 'send-cancelled-webhook',
-      async run({ http, assert, state, config }) {
+      async run({ http, assert, state, config, payments }) {
         state.eventId2 = `_test-evt-journey-cancel-final-${Date.now()}`;
 
         const response = await http.as('none').post(`payments/webhook?processor=test&key=${config.backendManagerKey}`, {
@@ -122,7 +121,7 @@ module.exports = {
               start_date: Math.floor(Date.now() / 1000) - 86400 * 60,
               trial_start: null,
               trial_end: null,
-              plan: { product: state.paidStripeProductId, interval: 'month' },
+              plan: { product: payments.stripeProductIds[state.paidProductId], interval: 'month' },
             },
           },
         });

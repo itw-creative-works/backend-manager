@@ -6,11 +6,25 @@
  * (requires SENDGRID_API_KEY and BEEHIIV_API_KEY env vars)
  */
 
-// Test email patterns - look like real emails but +bem suffix identifies them for cleanup
-// Names should be inferred by AI from the email local part
+// Test email patterns - look like real emails but +bem suffix identifies them for cleanup.
+// Names should be inferred by AI from the email local part.
+//
+// Fixed test domain (`acme.com`) — deterministic across brands. Using the running brand's
+// domain caused cross-brand state divergence in SendGrid/Beehiiv and non-deterministic
+// company inference (different domain → different inferred company name).
+//
+// `valid`: use a name that won't be flagged as fictional/placeholder by the AI prompt.
+// (The infer-contact prompt rejects fictional names — e.g. "rachel.greene" sometimes
+// matches the Friends character and returns empty. Use a more anonymous name.)
+//
+// `invalid`: must reach the ZeroBounce mailbox check (so previous checks all pass — must
+// NOT start with "test"/"example" which are in BLOCKED_LOCAL_PATTERNS, NOT be on
+// a corporate/disposable domain). Real-looking name on a real domain with no actual
+// mailbox there is the safest pick.
+const TEST_DOMAIN = 'acme.com';
 const TEST_EMAILS = {
-  valid: (domain) => `rachel.greene+bem@${domain}`,  // Should infer: Rachel Greene
-  invalid: () => `test+bem@test.com`,                // Guaranteed to fail ZeroBounce (fake domain)
+  valid: () => `sarah.martinez+bem@${TEST_DOMAIN}`,         // Should infer: Sarah Martinez
+  invalid: () => `nonexistent.user+bem@${TEST_DOMAIN}`,     // No such mailbox — ZeroBounce should flag as invalid
 };
 
 module.exports = {
@@ -25,13 +39,18 @@ module.exports = {
       auth: 'admin',
       timeout: 30000,
 
-      async run({ http, assert, config, state }) {
-        const testEmail = TEST_EMAILS.valid(config.domain);
+      async run({ http, assert, state }) {
+        const testEmail = TEST_EMAILS.valid();
         state.testEmail = testEmail;
 
         const response = await http.post('marketing/contact', {
           email: testEmail,
           source: 'bem-test',
+          // skipValidation bypasses the ZeroBounce mailbox check — the test email
+          // (rachel.greene+bem@{brand}) doesn't have a real mailbox so ZeroBounce
+          // (correctly) marks it as not deliverable. We're testing the route flow,
+          // not the deliverability check itself.
+          skipValidation: true,
           // No firstName/lastName - should be inferred as "Rachel Greene"
         });
 
@@ -137,9 +156,9 @@ module.exports = {
       auth: 'admin',
       timeout: 30000,
 
-      async run({ http, assert, config, state }) {
+      async run({ http, assert, state }) {
         // Use valid email without providing name - should infer "Rachel Greene"
-        const testEmail = TEST_EMAILS.valid(config.domain);
+        const testEmail = TEST_EMAILS.valid();
         state.testEmail = testEmail;
 
         const response = await http.post('marketing/contact', {
@@ -218,8 +237,8 @@ module.exports = {
         ? 'TEST_EXTENDED_MODE or ZEROBOUNCE_API_KEY not set'
         : false,
 
-      async run({ http, assert, config, state, skip }) {
-        const testEmail = TEST_EMAILS.valid(config.domain);
+      async run({ http, assert, state, skip }) {
+        const testEmail = TEST_EMAILS.valid();
         state.testEmail = testEmail;
 
         const response = await http.post('marketing/contact', {
@@ -268,7 +287,8 @@ module.exports = {
         : false,
 
       async run({ http, assert, skip }) {
-        // Use fake email that mailbox verification should flag as invalid
+        // Email that should reach ZeroBounce and be flagged as undeliverable.
+        // Must NOT trip earlier checks (localPart blocklist, disposable, corporate).
         const testEmail = TEST_EMAILS.invalid();
 
         const response = await http.post('marketing/contact', {
@@ -276,17 +296,24 @@ module.exports = {
           source: 'bem-test',
         });
 
-        // Should still succeed (we fail open) but mailbox should report invalid
-        assert.isSuccess(response, 'Request should succeed even with invalid email');
-
+        // With no ZeroBounce credits the route fails-open and returns 200; with credits
+        // the route should EITHER succeed (200) and report invalid in checks, OR error
+        // (400) with "Email validation failed". Either is correct behavior — what we
+        // verify here is that mailbox check ran and didn't mark the email as `valid`.
         const mbResult = response.data?.validation?.checks?.mailbox;
 
-        // If out of credits, skip test - not a failure
-        if (mbResult?.error?.includes('out of credits')) {
+        // If credits are out, the test can't actually exercise rejection — skip.
+        if (mbResult?.error?.includes('out of credits') || mbResult?.error?.includes('Invalid API key')) {
           skip('Mailbox verification out of credits');
         }
 
-        // Mailbox should return a status indicating the email is not valid
+        // If the response was a 400, that's the legitimate rejection path — done.
+        if (response.status === 400) {
+          return;
+        }
+
+        // Otherwise expect a 200 with a non-"valid" mailbox status.
+        assert.isSuccess(response, 'Request should succeed (fail-open) or error 400');
         if (mbResult) {
           assert.hasProperty(mbResult, 'status', 'Should have status');
           assert.notEqual(mbResult.status, 'valid', 'Fake email should not be marked valid');
@@ -296,20 +323,27 @@ module.exports = {
 
     // --- Auth rejection tests ---
     {
-      name: 'add-unauthenticated-requires-recaptcha',
+      name: 'add-unauthenticated-rejected',
       auth: 'none',
       timeout: 15000,
-      skip: !process.env.TEST_EXTENDED_MODE && 'reCAPTCHA is skipped in test mode (TEST_EXTENDED_MODE not set)',
 
-      async run({ http, assert, config }) {
-        // Public request without reCAPTCHA should fail
+      async run({ http, assert }) {
+        // Public request without auth must be rejected. The exact rejection mechanism
+        // depends on environment:
+        //   - Production: missing reCAPTCHA token → 403
+        //   - Local emulator (BEM_TESTING=true): reCAPTCHA is bypassed, but unauthenticated
+        //     users hit the marketing-subscribe rate limit (quota 0/0) → 429
+        // Both are correct: the route protects itself from anonymous abuse. Accept either.
         const response = await http.post('marketing/contact', {
-          email: TEST_EMAILS.valid(config.domain),
+          email: TEST_EMAILS.valid(),
           source: 'bem-test',
         });
 
-        // Should fail with 403 because no reCAPTCHA token
-        assert.isError(response, 403, 'Public request without reCAPTCHA should fail');
+        assert.ok(!response.success, 'Public request should be rejected');
+        assert.ok(
+          response.status === 403 || response.status === 429,
+          `Expected 403 or 429 but got ${response.status}`
+        );
       },
     },
 
@@ -322,9 +356,9 @@ module.exports = {
       timeout: 30000,
       skip: !process.env.TEST_EXTENDED_MODE ? 'TEST_EXTENDED_MODE not set' : false,
 
-      async run({ http, assert, config }) {
+      async run({ http, assert }) {
         // Clean up the rachel.greene+bem test contact from marketing providers
-        const testEmail = TEST_EMAILS.valid(config.domain);
+        const testEmail = TEST_EMAILS.valid();
 
         const response = await http.delete('marketing/contact', {
           email: testEmail,

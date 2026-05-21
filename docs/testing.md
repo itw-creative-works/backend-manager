@@ -11,6 +11,42 @@ npx mgr test      # Terminal 2 - runs tests
 npx mgr test
 ```
 
+## Test Data Cleanup — at the START of every run
+
+**Hard rule: all LOCAL cleanup happens BEFORE the suite runs, never after.** If a previous run was killed mid-execution (Ctrl-C, OOM, emulator crash), end-of-run cleanup would never fire and the next run would inherit polluted state — broken trial-eligibility checks, leftover dispute alerts, stale webhook docs, polluted marketing-provider lists. Pre-test cleanup makes every run idempotent regardless of how the last one died.
+
+What the runner wipes pre-test (in [src/test/test-accounts.js](../src/test/test-accounts.js) `deleteTestUsers()` and [src/test/runner.js](../src/test/runner.js) `setupAccounts()`):
+
+1. **`meta/stats`** doc ensured (required for on-create batch writes).
+2. **`users/_test-*`** Firebase Auth users + Firestore docs (delete).
+3. **Marketing providers** (SendGrid + Beehiiv) — leftover test contacts removed. Runs only under `TEST_EXTENDED_MODE`. Runs **before** test users are recreated so a killed run can't leave a contact pinned to an about-to-be-recreated uid.
+4. **Mixed Firestore collections** — `payments-orders`, `payments-webhooks`, `payments-intents`, `payments-disputes`, `marketing-webhooks`. Two-pass cleanup per collection:
+   - Pass 1 — owner-keyed: `where('owner', 'in', [...testUids])` (batched at 30 uids per `in` query).
+   - Pass 2 — id-keyed: any doc whose ID starts with `_test-` (catches ownerless test docs like dispute alerts and raw test webhooks).
+5. **Test-only Firestore collections** — `_test`, `_test_query` — wiped in full.
+6. **Realtime Database** — the `_test` namespace removed in full (`admin.database().ref('_test').remove()`).
+
+### The one exception: third-party provider cleanup runs at start AND end
+
+The `cleanupMarketingProviders` call also fires **after** the suite completes (extended mode only). Reason: pre-run cleanup catches what a crashed previous run left behind, but during a normal-completion run we'd still leak real SendGrid/Beehiiv contacts until the NEXT run cleaned them up. By running cleanup post-suite too, each extended-mode run leaves the provider lists in the same state it found them.
+
+This is **specifically** for third-party state that lives outside the local emulator. **Do not use trailing cleanup for Firestore or Auth data** — those follow the start-only rule because we control the local state and pre-run cleanup is enough.
+
+### When adding a new test that writes data
+
+| If your test writes to... | Then... |
+|---|---|
+| A new Firestore collection (mixed test + prod data) | Add the collection name to `testDataCollections` in `src/test/test-accounts.js`. |
+| A new Firestore collection (test-only data) | Add it to `testOnlyCollections` in `src/test/test-accounts.js`. |
+| Realtime Database | Use a path under `_test/...` — already wiped pre-test. |
+| Anywhere else | Use the `_test-` doc-id prefix so id-keyed pass-2 catches it. |
+
+### Within-run state isolation is different
+
+Per-test cleanup is still appropriate when a test sets up DB state that would pollute a **later test in the same run** — e.g. trial-eligibility's `try/finally` that removes the fake `payments-orders/_test-trial-eligibility-*` doc so the next sibling test sees a clean slate. Those stay in the test. They are *intra-run* state management, not *next-run* cleanup, and the distinction matters.
+
+The rule: **never put cleanup at the END of a test file or suite for the purpose of preparing the next run** — for LOCAL state. If a test cleans up local Firestore/Auth data only to "leave no trace," that cleanup belongs in the runner's pre-test phase instead. Add the collection/namespace to the runner's wipe list and remove the trailing cleanup step. The third-party provider exception (see above) lives in the runner's post-suite hook, not in individual tests.
+
 ## Extended Mode (`TEST_EXTENDED_MODE`)
 
 Several routes/handlers skip external API calls (SendGrid, Beehiiv, Stripe webhooks, dispute handlers, marketing libraries) when `process.env.TEST_EXTENDED_MODE` is unset, so unit tests don't fire real emails or webhook side effects. Set the flag to opt **in** to those side effects for a full end-to-end run.

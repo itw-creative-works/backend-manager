@@ -87,7 +87,7 @@ class TestRunner {
     // Health check (use basic http client without accounts)
     // Use hosting URL for all requests (rewrites to bm_api function)
     const healthHttp = new HttpClient({
-      hostingUrl: this.options.hostingUrl,
+      apiUrl: this.options.apiUrl,
       timeout: this.options.timeout,
     });
 
@@ -119,21 +119,28 @@ class TestRunner {
       await this.runTestsInDir(projectTestsDir, 'project');
     }
 
+    // Post-run cleanup: scrub test accounts from third-party marketing providers
+    // (SendGrid/Beehiiv) so each test run leaves the contact list in the same
+    // state it found it. Pairs with the pre-run cleanup as defense in depth —
+    // pre-run handles crashed previous runs, post-run handles the current run.
+    // Only fires in extended mode (normal mode never touches real providers).
+    if (process.env.TEST_EXTENDED_MODE) {
+      process.stdout.write(chalk.gray('\n  Cleaning up test accounts from marketing providers... '));
+      try {
+        const cleanupResult = await testAccounts.cleanupMarketingProviders(this.options.domain, {
+          apiUrl: this.options.apiUrl,
+          backendManagerKey: this.options.backendManagerKey,
+        });
+        console.log(chalk.green(`✓ (${cleanupResult.cleaned} cleaned)`));
+      } catch (e) {
+        // Post-run cleanup is best-effort — failures shouldn't change the test result
+        console.log(chalk.yellow(`⚠ cleanup error: ${e.message}`));
+      }
+    }
+
     // Cleanup rules context
     if (this.rulesContext) {
       await this.rulesContext.cleanup();
-    }
-
-    // Clean up test accounts from marketing providers (SendGrid/Beehiiv)
-    // Run at end of tests so auth:on-create has time to complete
-    if (process.env.TEST_EXTENDED_MODE) {
-      console.log('');
-      process.stdout.write(chalk.gray('  Cleaning test accounts from marketing providers... '));
-      const cleanupResult = await testAccounts.cleanupMarketingProviders(this.options.domain, {
-        apiUrl: this.options.apiUrl,
-        backendManagerKey: this.options.backendManagerKey,
-      });
-      console.log(chalk.green(`✓ (${cleanupResult.cleaned} cleaned)`));
     }
 
     // Report results
@@ -147,9 +154,9 @@ class TestRunner {
    * Validate configuration
    */
   validateConfig() {
-    if (!this.options.hostingUrl) {
-      console.log(chalk.red('  ✗ Missing hostingUrl'));
-      console.log(chalk.gray('    Set BEM_HOSTING_URL environment variable or pass --url flag'));
+    if (!this.options.apiUrl) {
+      console.log(chalk.red('  ✗ Missing apiUrl'));
+      console.log(chalk.gray('    Set BEM_API_URL environment variable or pass --url flag'));
       return false;
     }
 
@@ -199,7 +206,7 @@ class TestRunner {
 
       console.log(chalk.red('✗'));
       console.log(chalk.red(`  Server not responding: ${response.error}`));
-      console.log(chalk.gray(`  Make sure your functions are deployed and running at ${this.options.hostingUrl}`));
+      console.log(chalk.gray(`  Make sure your functions are deployed and running at ${this.options.apiUrl}`));
       return false;
     } catch (error) {
       console.log(chalk.red('✗'));
@@ -221,6 +228,18 @@ class TestRunner {
     process.stdout.write(chalk.gray('  Deleting existing test users... '));
     const deleteResult = await testAccounts.deleteTestUsers(this.options.admin);
     console.log(chalk.green(`✓ (${deleteResult.deleted} deleted, ${deleteResult.skipped} skipped)`));
+
+    // Clean any leftover test accounts from third-party marketing providers
+    // (SendGrid/Beehiiv). Runs BEFORE we create fresh users so a previously
+    // killed run doesn't leave the contact list polluted.
+    if (process.env.TEST_EXTENDED_MODE) {
+      process.stdout.write(chalk.gray('  Cleaning test accounts from marketing providers... '));
+      const cleanupResult = await testAccounts.cleanupMarketingProviders(this.options.domain, {
+        apiUrl: this.options.apiUrl,
+        backendManagerKey: this.options.backendManagerKey,
+      });
+      console.log(chalk.green(`✓ (${cleanupResult.cleaned} cleaned)`));
+    }
 
     process.stdout.write(chalk.gray('  Creating test accounts... '));
 
@@ -532,6 +551,20 @@ class TestRunner {
             duration,
             suite: suiteDescription,
           });
+
+          // For suites (sequential, state-dependent tests), a skip on any step means
+          // subsequent steps can't run cleanly — propagate skip to the rest of the suite.
+          // Groups (independent tests) continue normally.
+          const shouldStopOnSkip = suite.type !== 'group' && suite.stopOnFailure !== false;
+          if (shouldStopOnSkip) {
+            const remaining = tests.length - i - 1;
+            if (remaining > 0) {
+              console.log(chalk.yellow(`        Skipping ${remaining} remaining test(s) in suite (suite-level skip)`));
+              this.results.skipped += remaining;
+            }
+            break;
+          }
+
           continue;
         }
 
@@ -655,7 +688,7 @@ class TestRunner {
     // Create HTTP client with accounts for as() method
     // Use hosting URL for all requests (rewrites to bm_api function)
     const http = new HttpClient({
-      hostingUrl: this.options.hostingUrl,
+      apiUrl: this.options.apiUrl,
       timeout: this.options.timeout,
       accounts: this.accounts,
       backendManagerKey: this.options.backendManagerKey,
@@ -694,6 +727,15 @@ class TestRunner {
       throw new SkipError(reason);
     };
 
+    // Precomputed map of BEM product id → Stripe-compatible product ID for tests.
+    // Falls back to the "_test_<id>" sentinel when no real Stripe product is configured,
+    // letting the Stripe resolver match it back to the BEM product. SSOT for tests that
+    // need to construct Stripe-shaped webhook payloads (cancel, refund, plan-change, etc.).
+    const products = this.config.payment?.products || [];
+    const stripeProductIds = Object.fromEntries(
+      products.map((p) => [p.id, p.stripe?.productId || `_test_${p.id}`])
+    );
+
     return {
       http,
       accounts: this.accounts,
@@ -711,6 +753,7 @@ class TestRunner {
       assistant: this.config.assistant,
       rules: this.rulesContext,
       config: this.config,
+      payments: { stripeProductIds },
     };
   }
 

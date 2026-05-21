@@ -147,6 +147,35 @@ const SCHEMA = {
       page: { type: 'string', default: null, nullable: true },
     },
   },
+  consent: {
+    legal: {
+      status: { type: 'string', default: 'revoked' },
+      grantedAt: {
+        timestamp: { type: 'string', default: null, nullable: true },
+        timestampUNIX: { type: 'number', default: null, nullable: true },
+        source: { type: 'string', default: null, nullable: true },
+        ip: { type: 'string', default: null, nullable: true },
+        text: { type: 'string', default: null, nullable: true },
+      },
+    },
+    marketing: {
+      status: { type: 'string', default: 'revoked' },
+      grantedAt: {
+        timestamp: { type: 'string', default: null, nullable: true },
+        timestampUNIX: { type: 'number', default: null, nullable: true },
+        source: { type: 'string', default: null, nullable: true },
+        ip: { type: 'string', default: null, nullable: true },
+        text: { type: 'string', default: null, nullable: true },
+      },
+      revokedAt: {
+        timestamp: { type: 'string', default: null, nullable: true },
+        timestampUNIX: { type: 'number', default: null, nullable: true },
+        source: { type: 'string', default: null, nullable: true },
+        ip: { type: 'string', default: null, nullable: true },
+        text: { type: 'string', default: null, nullable: true },
+      },
+    },
+  },
 };
 
 /**

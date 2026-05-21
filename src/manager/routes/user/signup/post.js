@@ -76,7 +76,12 @@ module.exports = async ({ assistant, user, settings, libraries }) => {
   await processAffiliate(assistant, uid, email, settings);
 
   // 6. Send emails + marketing (non-blocking, fire-and-forget)
-  syncMarketingContact(assistant, uid, email);
+  // Gate marketing sync on explicit consent — never add a user to marketing lists without it
+  if (userRecord.consent?.marketing?.status === 'granted') {
+    syncMarketingContact(assistant, uid, email);
+  } else {
+    assistant.log(`signup(): Skipping marketing sync — consent.marketing.status is "${userRecord.consent?.marketing?.status}"`);
+  }
   sendWelcomeEmails(assistant, uid, inferred?.firstName);
 
   return assistant.respond({ signedUp: true });
@@ -137,6 +142,7 @@ function buildUserRecord(assistant, settings, inferred) {
       },
     },
     attribution: attribution || {},
+    consent: buildConsentRecord(assistant, settings.consent),
     metadata: Manager.Metadata().set({ tag: 'user/signup' }),
   };
 
@@ -154,6 +160,64 @@ function buildUserRecord(assistant, settings, inferred) {
   }
 
   return record;
+}
+
+/**
+ * Translate the client's lightweight consent payload into the canonical user-doc shape.
+ *
+ * Client sends: { legal: { granted, text }, marketing: { granted, text } }
+ * Server writes: { legal: { status, grantedAt: {...} }, marketing: { status, grantedAt: {...}, revokedAt: {...} } }
+ *
+ * Server time (not client-supplied) is authoritative — defends against clock manipulation.
+ * IP is captured from request geolocation.
+ *
+ * Legal is REQUIRED — the client must send legal.granted=true. If missing/false we still
+ * record what the client sent, but the route will not have reached this point in practice
+ * (the signup-form HTML5-requires the legal checkbox).
+ */
+function buildConsentRecord(assistant, clientConsent) {
+  const consent = clientConsent || {};
+  const ip = assistant.request.geolocation?.ip || null;
+  const timestamp = assistant.meta.startTime.timestamp;
+  const timestampUNIX = assistant.meta.startTime.timestampUNIX;
+
+  // Build empty leaf shape — used wherever grantedAt or revokedAt is "not set"
+  const emptyMeta = { timestamp: null, timestampUNIX: null, source: null, ip: null, text: null };
+
+  // --- Legal ---
+  const legalGranted = consent.legal?.granted === true;
+  const legalText = typeof consent.legal?.text === 'string' ? consent.legal.text : null;
+
+  const legal = legalGranted
+    ? {
+      status: 'granted',
+      grantedAt: { timestamp, timestampUNIX, source: 'signup', ip, text: legalText },
+    }
+    : {
+      status: 'revoked',
+      grantedAt: { ...emptyMeta },
+    };
+
+  // --- Marketing ---
+  const marketingGranted = consent.marketing?.granted === true;
+  const marketingText = typeof consent.marketing?.text === 'string' ? consent.marketing.text : null;
+
+  const marketing = marketingGranted
+    ? {
+      status: 'granted',
+      grantedAt: { timestamp, timestampUNIX, source: 'signup', ip, text: marketingText },
+      revokedAt: { ...emptyMeta },
+    }
+    : {
+      status: 'revoked',
+      grantedAt: { ...emptyMeta },
+      // Record the decline with source=signup-form-declined. text=null (no message shown).
+      revokedAt: { timestamp, timestampUNIX, source: 'signup', ip, text: null },
+    };
+
+  assistant.log(`buildConsentRecord: legal=${legal.status}, marketing=${marketing.status} (raw input legal.granted=${consent.legal?.granted}, marketing.granted=${consent.marketing?.granted})`);
+
+  return { legal, marketing };
 }
 
 /**

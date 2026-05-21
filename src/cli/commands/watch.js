@@ -53,13 +53,21 @@ class WatchCommand extends BaseCommand {
     // So we must: 1) ensure file exists, 2) wait for FS to settle, 3) write new content
     // --on-change-only: only run exec when files change, not on initial startup
     // --delay 1: debounce multiple rapid changes into one trigger
+    //
+    // The exec also drops <log>.reset sentinels so the parent serve/emulator command
+    // rolls its log file cleanly on every hot reload (mirrors the emulator log-roll
+    // pattern used by the test runner). Sentinels are best-effort — if a parent
+    // command isn't watching, the file is harmless and gets cleaned up by the next
+    // boot's stale-sentinel sweep.
     const triggerFile = config.triggerFile;
+    const serveLogResetPath = path.join(config.functionsDir, 'serve.log.reset');
+    const emulatorLogResetPath = path.join(config.functionsDir, 'emulator.log.reset');
     const nodemon = spawn(nodemonPath, [
       '--on-change-only',
       '--delay', '1',
       '--watch', config.bemSrcDir,
       '--ext', 'js,json',
-      '--exec', `node -e "var f='${triggerFile}',fs=require('fs');if(!fs.existsSync(f)){fs.writeFileSync(f,'// init');require('child_process').execSync('sleep 0.1');}fs.writeFileSync(f,'// '+Date.now())" && echo "  [BEM] Triggered hot reload"`,
+      '--exec', `node -e "var f='${triggerFile}',fs=require('fs');if(!fs.existsSync(f)){fs.writeFileSync(f,'// init');require('child_process').execSync('sleep 0.1');}fs.writeFileSync(f,'// '+Date.now());try{fs.writeFileSync('${serveLogResetPath}','');}catch(e){}try{fs.writeFileSync('${emulatorLogResetPath}','');}catch(e){}" && echo "  [BEM] Triggered hot reload"`,
     ], {
       stdio: 'inherit',
       detached: false,
@@ -93,11 +101,15 @@ class WatchCommand extends BaseCommand {
       jetpack.write(config.triggerFile, `// BEM reload trigger\n`);
     }
 
-    // Use nodemon to watch the BEM src directory and touch the trigger file on changes
+    // Use nodemon to watch the BEM src directory and touch the trigger file on changes.
+    // Also drop <log>.reset sentinels so any sibling serve/emulator command rolls its
+    // log file on each reload (mirrors the test runner's log-roll pattern).
+    const serveLogResetPath = path.join(config.functionsDir, 'serve.log.reset');
+    const emulatorLogResetPath = path.join(config.functionsDir, 'emulator.log.reset');
     const nodemon = spawn(nodemonPath, [
       '--watch', config.bemSrcDir,
       '--ext', 'js,json',
-      '--exec', `touch "${config.triggerFile}" && echo "  → Triggered hot reload"`,
+      '--exec', `touch "${config.triggerFile}" "${serveLogResetPath}" "${emulatorLogResetPath}" && echo "  → Triggered hot reload"`,
     ], {
       stdio: 'inherit',
       cwd: config.bemDir,

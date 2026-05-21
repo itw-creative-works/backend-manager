@@ -90,6 +90,8 @@ module.exports = {
     },
 
     // Test 4: Non-existent repo returns 404
+    // PUT first calls content/post to fetch the existing post; with a unique URL that's never been
+    // created, the fetch itself returns 404 before we ever try to push to the nonexistent repo.
     {
       name: 'nonexistent-repo-returns-404',
       auth: 'admin',
@@ -97,13 +99,13 @@ module.exports = {
 
       async run({ http, assert }) {
         const response = await http.put('admin/post', {
-          url: 'https://example.com/blog/test-post',
+          url: `https://example.com/blog/never-created-${Date.now()}`,
           body: 'Test content',
           githubUser: 'nonexistent-user-12345',
           githubRepo: 'nonexistent-repo-12345',
         });
 
-        assert.isError(response, 404, 'Non-existent repo should return 404');
+        assert.isError(response, 404, 'Non-existent repo or post should return 404');
       },
     },
 

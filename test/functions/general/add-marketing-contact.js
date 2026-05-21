@@ -6,11 +6,13 @@
  * (requires SENDGRID_API_KEY and BEEHIIV_API_KEY env vars)
  */
 
-// Test email patterns - look like real emails but +bem suffix identifies them for cleanup
-// Names should be inferred by AI from the email local part
+// Test email patterns - look like real emails but +bem suffix identifies them for cleanup.
+// Fixed `acme.com` test domain — deterministic across brands. Avoids cross-brand
+// state contamination in SendGrid/Beehiiv when the same test runs under different brands.
+const TEST_DOMAIN = 'acme.com';
 const TEST_EMAILS = {
-  valid: (domain) => `rachel.greene+bem@${domain}`,  // Should infer: Rachel Greene
-  invalid: () => `test+bem@test.com`,                // Guaranteed to fail ZeroBounce (fake domain)
+  valid: () => `sarah.martinez+bem@${TEST_DOMAIN}`,         // Should infer: Sarah Martinez
+  invalid: () => `nonexistent.user+bem@${TEST_DOMAIN}`,     // No such mailbox — ZeroBounce should flag invalid
 };
 
 module.exports = {
@@ -23,8 +25,8 @@ module.exports = {
       auth: 'admin',
       timeout: 30000,
 
-      async run({ http, assert, config, state }) {
-        const testEmail = TEST_EMAILS.valid(config.domain);
+      async run({ http, assert, state }) {
+        const testEmail = TEST_EMAILS.valid();
         state.testEmail = testEmail;
 
         const response = await http.command('general:add-marketing-contact', {
@@ -135,9 +137,9 @@ module.exports = {
       auth: 'admin',
       timeout: 30000,
 
-      async run({ http, assert, config, state }) {
+      async run({ http, assert, state }) {
         // Use valid email without providing name - should infer "Rachel Greene"
-        const testEmail = TEST_EMAILS.valid(config.domain);
+        const testEmail = TEST_EMAILS.valid();
         state.testEmail = testEmail;
 
         const response = await http.command('general:add-marketing-contact', {
@@ -216,8 +218,8 @@ module.exports = {
         ? 'TEST_EXTENDED_MODE or ZEROBOUNCE_API_KEY not set'
         : false,
 
-      async run({ http, assert, config, state, skip }) {
-        const testEmail = TEST_EMAILS.valid(config.domain);
+      async run({ http, assert, state, skip }) {
+        const testEmail = TEST_EMAILS.valid();
         state.testEmail = testEmail;
 
         const response = await http.command('general:add-marketing-contact', {
@@ -299,10 +301,10 @@ module.exports = {
       auth: 'none',
       timeout: 15000,
 
-      async run({ http, assert, config }) {
+      async run({ http, assert }) {
         // Public request without reCAPTCHA should fail
         const response = await http.command('general:add-marketing-contact', {
-          email: TEST_EMAILS.valid(config.domain),
+          email: TEST_EMAILS.valid(),
           source: 'bem-test',
         });
 
@@ -318,9 +320,9 @@ module.exports = {
       timeout: 30000,
       skip: !process.env.TEST_EXTENDED_MODE ? 'TEST_EXTENDED_MODE not set' : false,
 
-      async run({ http, assert, config }) {
+      async run({ http, assert }) {
         // Clean up the rachel.greene+bem test contact from marketing providers
-        const testEmail = TEST_EMAILS.valid(config.domain);
+        const testEmail = TEST_EMAILS.valid();
 
         const response = await http.command('general:remove-marketing-contact', {
           email: testEmail,

@@ -64,17 +64,6 @@ module.exports = {
 
         return { success: true };
       },
-
-      async cleanup({ firestore }) {
-        // Clean up test documents using direct Firestore access if available
-        if (firestore) {
-          try {
-            await firestore.delete(TEST_PATH);
-          } catch (error) {
-            // Ignore cleanup errors
-          }
-        }
-      },
     },
 
     // Test 2: Unauthenticated should fail

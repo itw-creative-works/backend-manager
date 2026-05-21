@@ -38,7 +38,7 @@
  *                                       and re-render. Different from FIXTURE: this loads
  *                                       prior AI output, FIXTURE loads hand-crafted JSON.
  *   NEWSLETTER_REUSE_RUN=<dir>         Pair with THEME_ONLY: reuse a specific run dir.
- *   NEWSLETTER_NO_OPEN=1               Don't auto-open the preview in the browser.
+ *   NEWSLETTER_OPEN=1                  Auto-open the rendered preview in the default browser (macOS only).
  *
  *   --- AI-mode-only env vars (require TEST_EXTENDED_MODE=1) ---
  *   NEWSLETTER_PEEK=1                  Fetch + list ready sources, do not claim, exit.
@@ -79,7 +79,7 @@ module.exports = {
   // CI). Set TEST_EXTENDED_MODE=1 to switch to the full AI pipeline that fetches
   // real sources, calls the structure + SVG providers, and writes a preview.
   // Other modes (FIXTURE, THEME_ONLY, RELEASE, PEEK) are also opt-in via env.
-  async run({ assert, config, Manager, assistant }) {
+  async run({ assert, config, Manager, assistant, skip }) {
     const env = process.env;
 
     // --- Apply env overrides into newsletterConfig ---
@@ -204,7 +204,7 @@ module.exports = {
       console.log(`[fixture=${requestedFixture}] Markdown: ${path.join(runDir, 'newsletter.md')}`);
       console.log(`[fixture=${requestedFixture}] (Set TEST_EXTENDED_MODE=1 to switch to the full AI pipeline.)`);
 
-      if (!env.NEWSLETTER_NO_OPEN && process.platform === 'darwin') {
+      if (env.NEWSLETTER_OPEN === '1' && process.platform === 'darwin') {
         try { execSync(`open "${previewPath}"`); } catch (e) { /* no-op */ }
       }
 
@@ -301,7 +301,7 @@ module.exports = {
         });
       }
 
-      if (!env.NEWSLETTER_NO_OPEN && process.platform === 'darwin') {
+      if (env.NEWSLETTER_OPEN === '1' && process.platform === 'darwin') {
         try { execSync(`open "${previewPath}"`); } catch (e) { /* no-op */ }
       }
 
@@ -312,7 +312,12 @@ module.exports = {
     // --- AI pipeline path (TEST_EXTENDED_MODE) ---
     // Everything below this point talks to the real parent server and the AI
     // providers. The parent URL is required for any of it.
-    const parentUrl = env.PARENT_API_URL || config.parent;
+    // Use Manager.getParentApiUrl() — same helper the production newsletter
+    // generator uses. config.parent stores the parent's brand URL WITHOUT the
+    // `api.` subdomain (e.g. 'https://itwcreativeworks.com'); the helper
+    // inserts `api.` at call time. PARENT_API_URL env override is honored
+    // verbatim for one-off testing against a different parent.
+    const parentUrl = env.PARENT_API_URL || Manager.getParentApiUrl();
     assert.ok(parentUrl, 'PARENT_API_URL (env) or parent (config) must be set for the AI pipeline. Set TEST_EXTENDED_MODE=1 to run it, or omit TEST_EXTENDED_MODE for the fast fixture preview.');
 
     // --- Peek mode (early return) ---
@@ -349,7 +354,12 @@ module.exports = {
       key: env.BACKEND_MANAGER_KEY,
     });
 
-    assert.ok(sources.length > 0, 'Fetched at least one source from parent server');
+    // Environmental precondition: the parent server must have ready sources in
+    // at least one configured category. Skip cleanly when the pool is empty
+    // (transient state — no point hard-failing CI on an external queue).
+    if (sources.length === 0) {
+      return skip('No ready newsletter sources available on parent server (environmental)');
+    }
 
     // Track claimed IDs for later --release-all
     appendClaimed(claimedFile, sources.map((s) => s.id));
@@ -461,7 +471,7 @@ module.exports = {
     }
 
     // --- Auto-open in browser (macOS) ---
-    if (!env.NEWSLETTER_NO_OPEN && process.platform === 'darwin') {
+    if (env.NEWSLETTER_OPEN === '1' && process.platform === 'darwin') {
       try {
         execSync(`open "${previewPath}"`);
       } catch (e) {

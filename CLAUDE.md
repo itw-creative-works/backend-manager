@@ -122,6 +122,7 @@ Deep references live in `docs/`. **Whenever you make a behavioral change, update
 - [docs/admin-post-route.md](docs/admin-post-route.md) — `POST/PUT /admin/post` blog creation via GitHub (image extraction + `@post/` rewriting)
 - [docs/payment-system.md](docs/payment-system.md) — full payment pipeline: Intent → Webhook → On-Write → Transition; subscription model, statuses, `resolveSubscription()`, transition handlers, processor interface, product config, test processor
 - [docs/marketing-campaigns.md](docs/marketing-campaigns.md) — campaign CRUD routes, recurring campaigns, generator pipeline (newsletter), template-owned schemas, asset hosting, seed campaigns
+- [docs/consent.md](docs/consent.md) — marketing consent capture: canonical `consent.{legal,marketing}` user-doc shape, signup-form capture, account-page toggle, HMAC unsub link, SendGrid+Beehiiv webhook receivers, parent forwarder (`/marketing/webhook/forward`), migration script template
 - [docs/mcp.md](docs/mcp.md) — Model Context Protocol server: 19 tools, stdio + HTTP transports, OAuth, Claude Chat/Code configuration
 
 ### Subsystems & Libraries
@@ -133,6 +134,6 @@ Deep references live in `docs/`. **Whenever you make a behavioral change, update
 
 ### Testing & CLI
 
-- [docs/testing.md](docs/testing.md) — running, filtering, log files, test types (standalone/suite/group), context object, assertions, auth levels
+- [docs/testing.md](docs/testing.md) — running, filtering, log files, test types (standalone/suite/group), context object, assertions, auth levels. **For Firestore/Auth/local state, cleanup runs at the START of every run, never at the end** — if you add a test that writes Firestore data, register the collection/namespace in the runner's pre-test wipe list, don't add a trailing cleanup step. **Exception:** third-party providers we can't wipe at start (e.g. SendGrid/Beehiiv contact lists) get a symmetric pre + post cleanup hook in the runner — see `cleanupMarketingProviders` and [docs/consent.md](docs/consent.md). Don't pattern-match this exception for new Firestore code.
 - [docs/cli-firestore-auth.md](docs/cli-firestore-auth.md) — `npx mgr firestore:*` and `auth:*` commands, shared flags, examples
 - [docs/cli-logs.md](docs/cli-logs.md) — `npx mgr logs:read` / `logs:tail` with full flag reference and built-in Cloud Function names

@@ -32,9 +32,9 @@ module.exports = async ({ assistant, user, settings }) => {
     return assistant.respond('No active paid subscription found', { code: 400 });
   }
 
-  // Guard: subscription younger than 24 hours
+  // Guard: subscription younger than 24 hours (callers may bypass via skipGuards)
   const startDateUNIX = subscription.payment?.startDate?.timestampUNIX;
-  if (startDateUNIX) {
+  if (!settings.skipGuards && startDateUNIX) {
     const ageMs = Date.now() - (startDateUNIX * 1000);
     const twentyFourHoursMs = 24 * 60 * 60 * 1000;
     if (ageMs < twentyFourHoursMs) {

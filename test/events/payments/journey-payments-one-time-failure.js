@@ -15,12 +15,15 @@ module.exports = {
   tests: [
     {
       name: 'resolve-one-time-product',
-      async run({ accounts, assert, state, config }) {
+      async run({ accounts, assert, state, config, skip }) {
         const uid = accounts['journey-payments-one-time'].uid;
 
-        // Resolve first one-time product from config
+        // Resolve first one-time product from config. If none configured, skip the
+        // entire journey — this is a config-gap, not a code failure.
         const oneTimeProduct = config.payment.products.find(p => p.type === 'one-time' && p.prices?.once);
-        assert.ok(oneTimeProduct, 'Config should have at least one one-time product');
+        if (!oneTimeProduct) {
+          skip('No one-time product configured in this brand');
+        }
 
         state.uid = uid;
         state.productId = oneTimeProduct.id;

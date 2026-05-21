@@ -103,15 +103,18 @@ module.exports = {
         : false,
 
       async run({ http, assert }) {
+        // Use a name unlikely to trigger the "fictional/brand" rejection in the AI prompt.
+        // The infer-contact prompt rejects placeholder + fictional names (e.g. alice.wonderland,
+        // john.doe). Use a generic-but-realistic name to exercise dot-separated parsing.
         const response = await http.post('admin/infer-contact', {
-          email: 'alice.wonderland@example.com',
+          email: 'sarah.martinez@example.com',
         });
 
         assert.isSuccess(response);
         const result = response.data.results[0];
 
-        assert.equal(result.firstName, 'Alice', 'Should parse first name');
-        assert.equal(result.lastName, 'Wonderland', 'Should parse last name');
+        assert.equal(result.firstName, 'Sarah', 'Should parse first name');
+        assert.equal(result.lastName, 'Martinez', 'Should parse last name');
       },
     },
 

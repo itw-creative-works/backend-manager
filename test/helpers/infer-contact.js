@@ -95,9 +95,9 @@ module.exports = {
       timeout: 30000,
 
       async run({ assert, Manager }) {
-        // This test requires a real OPENAI_API_KEY and running Manager
-        if (!process.env.OPENAI_API_KEY) {
-          return assert.fail('OPENAI_API_KEY not set');
+        // The library reads BACKEND_MANAGER_OPENAI_API_KEY; OPENAI_API_KEY is also accepted as a fallback.
+        if (!process.env.BACKEND_MANAGER_OPENAI_API_KEY && !process.env.OPENAI_API_KEY) {
+          return assert.fail('BACKEND_MANAGER_OPENAI_API_KEY not set');
         }
 
         const assistant = Manager.Assistant();

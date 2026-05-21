@@ -27,7 +27,6 @@ module.exports = {
 
         state.uid = uid;
         state.paidProductId = paidProduct.id;
-        state.paidStripeProductId = paidProduct.stripe?.productId;
       },
     },
 
@@ -110,7 +109,7 @@ module.exports = {
 
     {
       name: 'send-trial-to-active-webhook',
-      async run({ http, assert, state, config }) {
+      async run({ http, assert, state, config, payments }) {
         const futureDate = new Date();
         futureDate.setMonth(futureDate.getMonth() + 1);
 
@@ -132,7 +131,7 @@ module.exports = {
               start_date: Math.floor(Date.now() / 1000) - 86400 * 14,
               trial_start: Math.floor(Date.now() / 1000) - 86400 * 14,
               trial_end: Math.floor(Date.now() / 1000),
-              plan: { product: state.paidStripeProductId, interval: 'month' },
+              plan: { product: payments.stripeProductIds[state.paidProductId], interval: 'month' },
             },
           },
         });

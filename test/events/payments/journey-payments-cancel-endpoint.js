@@ -45,25 +45,16 @@ module.exports = {
     },
 
     {
-      name: 'backdate-start-date',
-      async run({ firestore, state }) {
-        // Backdate startDate so the 24-hour guard doesn't block cancellation
-        const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
-        await firestore.set(`users/${state.uid}`, {
-          subscription: { payment: { startDate: { timestamp: twoDaysAgo.toISOString(), timestampUNIX: twoDaysAgo.getTime() } } },
-        }, { merge: true });
-      },
-    },
-
-    {
       name: 'call-cancel-endpoint',
       async run({ http, assert }) {
         // Test processor writes a payments-webhooks doc directly,
-        // triggering the on-write pipeline automatically — no manual webhook needed
+        // triggering the on-write pipeline automatically — no manual webhook needed.
+        // skipGuards bypasses the 24-hour subscription-age guard.
         const response = await http.as('journey-payments-cancel-route').post('payments/cancel', {
           confirmed: true,
           reason: 'Too expensive',
           feedback: 'Would return at a lower price',
+          skipGuards: true,
         });
 
         assert.isSuccess(response, 'Cancel endpoint should succeed');

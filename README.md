@@ -419,6 +419,21 @@ Built-in marketing system with multi-provider support (SendGrid + Beehiiv + FCM 
 
 Configure via `marketing` section in `backend-manager-config.json`. See CLAUDE.md for full documentation.
 
+## Marketing Consent
+
+GDPR/CASL-compliant consent capture and cross-provider unsubscribe sync.
+
+- **Two-checkbox signup form** — separate legal (required) and marketing (optional) consent
+- **Canonical user-doc shape** — `consent.{legal,marketing}.{status, grantedAt, revokedAt}` with full audit metadata (timestamp, source, IP, exact label text)
+- **Server-authoritative timestamps** — client timestamps ignored, defending against clock manipulation
+- **Account-page toggle** — `/account` notifications section lets logged-in users opt in/out, hits both SendGrid + Beehiiv
+- **HMAC unsubscribe links** — email-footer one-click flow continues to work
+- **Provider webhook receivers** — `POST /marketing/webhook?provider=sendgrid|beehiiv&key=X` catches unsubscribe / spam / bounce events from SendGrid and Beehiiv, writes the user doc + syncs to the OTHER provider
+- **Parent forwarder** — single public webhook endpoint (`/marketing/webhook/forward`) on the parent BEM fans out to every brand's child BEM so each one updates its own Firestore
+- **Guard against marketing sync without consent** — signup route and `email.add()` short-circuit when `consent.marketing.status !== 'granted'`
+
+See [docs/consent.md](docs/consent.md) for the full architecture, source enum reference, migration script template, and provider configuration steps.
+
 ## Helper Classes
 
 ### Assistant

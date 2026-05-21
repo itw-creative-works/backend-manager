@@ -14,6 +14,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.2.0] - 2026-05-21
+
+### Added
+
+- **Marketing consent capture (Phase A-B).** Canonical `consent.{legal,marketing}` sub-tree on every user doc (`status` + `grantedAt` / `revokedAt` with timestamp/source/ip/text). Signup route (`src/manager/routes/user/signup/post.js`) builds the record from the client payload using server-side time + IP, defending against client-clock spoofing. `mailer.sync(uid)` is gated on `consent.marketing.status === 'granted'` — opted-out signups never enter SendGrid/Beehiiv marketing lists.
+- **Email-preferences route (Phase D).** `POST /marketing/email-preferences` now supports authenticated opt-in/opt-out (writes user doc + hits both providers via `email.sync()`/`email.remove()`) in addition to the existing HMAC anonymous unsub flow. Anonymous unsub also writes the consent revoke on the user doc with the right `source`.
+- **Cross-provider unsubscribe webhooks (Phase E).** New `POST /marketing/webhook?provider={sendgrid|beehiiv}&key=...` dispatcher with per-provider processor modules. SendGrid events (`unsubscribe`, `group_unsubscribe`, `spamreport`, `bounce`, `dropped`) and Beehiiv events (`subscription.unsubscribed`, `.deleted`, `.paused`) flip `consent.marketing.status` to `revoked`, attribute via `source`, and propagate to the OTHER provider. Idempotent via `marketing-webhooks/{eventId}` docs.
+- **Parent BEM forwarder.** `POST /marketing/webhook/forward` lets a parent BEM (one with `config.parent === 'self'`) fan webhook events out to sibling brands sharing a SendGrid account or Beehiiv publication. New `Manager.getParentUrl()`, `Manager.getParentApiUrl()`, `Manager.isParent()` helpers — children store the parent's `brand.url` with NO `api.` subdomain and the helper inserts `api.` at call time.
+- **Self-contained TEST_EXTENDED_MODE.** `src/test/runner.js` + `src/test/test-accounts.js` now do pre + post-run cleanup of SendGrid/Beehiiv contacts (the only third-party state we can't wipe at start). Pure Firestore/Auth state is still wiped only at start, per existing convention.
+- **New docs.** `docs/consent.md` (consent system + webhook flows + migration template). `docs/testing.md` updated with the post-run-cleanup exception.
+
+### Changed
+
+- `src/test/runner.js`, `src/test/utils/http-client.js`, `src/cli/commands/test.js`, plus emulator/serve/watch CLIs: renamed `hostingUrl` → `apiUrl` to match the rest of the codebase. Touches most test files for the matching context-API rename.
+- `src/manager/libraries/email/generators/newsletter.js`: uses `Manager.getParentApiUrl()` instead of reading `Manager.config.parent` directly so the `'self'` sentinel and the missing `api.` subdomain are both handled in one place.
+- `src/manager/libraries/email/providers/beehiiv.js`: exposes `getPublicationId` so generators and tests can read it without reaching into the module.
+- Disposable-domain blacklist refreshed (8 new domains) via `prepare-package`'s pre-hook.
+
+### Fixed
+
+- `mailer.sync()` and `mailer.add()` short-circuit when the target user's `consent.marketing.status === 'revoked'` so we never re-add an opted-out user.
+- Payment processor + cancel route touchups picked up by the runner-API rename pass — no behavior change, just keeping signatures aligned.
+
 # [5.1.4] - 2026-05-18
 
 ### Fixed

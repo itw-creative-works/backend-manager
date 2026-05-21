@@ -77,7 +77,7 @@ async function generate(Manager, assistant, settings, opts = {}) {
       return null;
     }
 
-    const parentUrl = Manager.config?.parent;
+    const parentUrl = Manager.getParentApiUrl();
 
     if (!parentUrl) {
       assistant.log('Newsletter generator: no parent URL configured');
@@ -311,7 +311,7 @@ async function generate(Manager, assistant, settings, opts = {}) {
 
   // 4. Mark sources as used on parent server (unless caller opted out)
   if (!opts.skipClaim) {
-    const parentUrl = Manager.config?.parent;
+    const parentUrl = Manager.getParentApiUrl();
 
     if (parentUrl) {
       await claimSources(parentUrl, sources, brand?.id, assistant);

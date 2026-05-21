@@ -19,4 +19,9 @@ module.exports = ({ user }) => ({
     default: {},
     required: false,
   },
+  consent: {
+    types: ['object'],
+    default: {},
+    required: false,
+  },
 });

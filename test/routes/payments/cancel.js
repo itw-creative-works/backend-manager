@@ -113,16 +113,11 @@ module.exports = {
             && userDoc?.subscription?.status === 'active';
         }, 15000, 500);
 
-        // Backdate startDate so the 24-hour guard doesn't block cancellation
-        const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
-        await firestore.set(`users/${uid}`, {
-          subscription: { payment: { startDate: { timestamp: twoDaysAgo.toISOString(), timestampUNIX: twoDaysAgo.getTime() } } },
-        }, { merge: true });
-
-        // Step 2: Call the cancel endpoint
+        // Step 2: Call the cancel endpoint (skipGuards bypasses the 24-hour age guard)
         const cancelResponse = await http.as('route-cancel-success').post('payments/cancel', {
           confirmed: true,
           reason: 'Too expensive',
+          skipGuards: true,
         });
 
         assert.isSuccess(cancelResponse, 'Cancel should succeed');

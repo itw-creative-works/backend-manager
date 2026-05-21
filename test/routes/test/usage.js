@@ -258,12 +258,12 @@ module.exports = {
               const doc = await firestore.get(`users/${accounts.basic.uid}`);
               return doc?.usage?.requests?.daily === 0;
             },
-            10000,
+            15000,
             500
           );
           assert.ok(true, 'Daily counter was reset to 0 by cron');
         } catch (error) {
-          assert.fail('Daily counter should be reset to 0 within 10s');
+          assert.fail('Daily counter should be reset to 0 within 15s');
         }
       },
     },

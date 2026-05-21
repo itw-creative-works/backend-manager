@@ -200,18 +200,5 @@ module.exports = {
       },
     },
 
-    // Test 10: Cleanup
-    {
-      name: 'cleanup',
-      async run({ firestore }) {
-        try {
-          await firestore.delete(`${TEST_COLLECTION}/doc1`);
-          await firestore.delete(`${TEST_COLLECTION}/doc2`);
-          await firestore.delete(`${TEST_COLLECTION}/doc3`);
-        } catch (error) {
-          // Ignore cleanup errors
-        }
-      },
-    },
   ],
 };

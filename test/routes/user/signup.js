@@ -234,6 +234,120 @@ module.exports = {
       },
     },
 
+    // --- Consent capture tests ---
+    {
+      name: 'consent-granted-both-records-canonical-shape',
+      async run({ http, firestore, assert, accounts }) {
+        const consentText = {
+          legal: 'I agree to the Terms of Service and Privacy Policy.',
+          marketing: 'Send me product updates and newsletters. You can unsubscribe anytime.',
+        };
+
+        // Use absurdly-old client timestamp to prove server time wins (defense vs clock skew)
+        const beforeMs = Date.now();
+
+        const signupResponse = await http.as('consent-granted').post('user/signup', {
+          consent: {
+            legal: { granted: true, text: consentText.legal, timestamp: '2000-01-01T00:00:00.000Z' },
+            marketing: { granted: true, text: consentText.marketing, timestamp: '2000-01-01T00:00:00.000Z' },
+          },
+        });
+
+        assert.isSuccess(signupResponse, `Signup should succeed: ${JSON.stringify(signupResponse, null, 2)}`);
+
+        const afterMs = Date.now();
+        const userDoc = await firestore.get(`users/${accounts['consent-granted'].uid}`);
+
+        // Legal
+        assert.equal(userDoc?.consent?.legal?.status, 'granted', 'consent.legal.status should be granted');
+        assert.equal(userDoc?.consent?.legal?.grantedAt?.source, 'signup', 'legal grantedAt.source should be signup-form');
+        assert.equal(userDoc?.consent?.legal?.grantedAt?.text, consentText.legal, 'legal grantedAt.text should match client payload');
+        assert.ok(userDoc?.consent?.legal?.grantedAt?.timestamp, 'legal grantedAt.timestamp should be set');
+        assert.equal(typeof userDoc?.consent?.legal?.grantedAt?.timestampUNIX, 'number', 'legal grantedAt.timestampUNIX should be number');
+
+        // Server time MUST be used (the client-supplied 2000-01-01 should NOT appear)
+        const legalUNIX = userDoc.consent.legal.grantedAt.timestampUNIX;
+        const beforeUNIX = Math.floor(beforeMs / 1000);
+        const afterUNIX = Math.floor(afterMs / 1000);
+        assert.ok(
+          legalUNIX >= beforeUNIX && legalUNIX <= afterUNIX,
+          `legal grantedAt.timestampUNIX (${legalUNIX}) must be server time, not client time. expected between ${beforeUNIX} and ${afterUNIX}`
+        );
+
+        // Marketing
+        assert.equal(userDoc?.consent?.marketing?.status, 'granted', 'consent.marketing.status should be granted');
+        assert.equal(userDoc?.consent?.marketing?.grantedAt?.source, 'signup', 'marketing grantedAt.source should be signup-form');
+        assert.equal(userDoc?.consent?.marketing?.grantedAt?.text, consentText.marketing, 'marketing grantedAt.text should match client payload');
+        assert.equal(typeof userDoc?.consent?.marketing?.grantedAt?.timestampUNIX, 'number', 'marketing grantedAt.timestampUNIX should be number');
+
+        // revokedAt should be all-null sibling object (NOT undefined, NOT missing)
+        assert.ok(userDoc?.consent?.marketing?.revokedAt, 'marketing.revokedAt object should exist (not null)');
+        assert.equal(userDoc?.consent?.marketing?.revokedAt?.timestamp, null, 'marketing revokedAt.timestamp should be null');
+        assert.equal(userDoc?.consent?.marketing?.revokedAt?.source, null, 'marketing revokedAt.source should be null');
+      },
+    },
+
+    {
+      name: 'consent-marketing-declined-records-revokedAt',
+      async run({ http, firestore, assert, accounts }) {
+        const legalText = 'I agree to the Terms of Service and Privacy Policy.';
+
+        const signupResponse = await http.as('consent-declined').post('user/signup', {
+          consent: {
+            legal: { granted: true, text: legalText },
+            marketing: { granted: false, text: 'Send me updates.' },
+          },
+        });
+
+        assert.isSuccess(signupResponse, `Signup should succeed: ${JSON.stringify(signupResponse, null, 2)}`);
+
+        const userDoc = await firestore.get(`users/${accounts['consent-declined'].uid}`);
+
+        // Legal — granted normally
+        assert.equal(userDoc?.consent?.legal?.status, 'granted', 'legal.status should be granted');
+        assert.equal(userDoc?.consent?.legal?.grantedAt?.source, 'signup', 'legal grantedAt.source should be signup-form');
+
+        // Marketing — revoked at signup
+        assert.equal(userDoc?.consent?.marketing?.status, 'revoked', 'marketing.status should be revoked');
+
+        // grantedAt MUST be all-null (never granted, even though client passed text)
+        assert.equal(userDoc?.consent?.marketing?.grantedAt?.timestamp, null, 'marketing grantedAt.timestamp should be null');
+        assert.equal(userDoc?.consent?.marketing?.grantedAt?.source, null, 'marketing grantedAt.source should be null');
+        assert.equal(userDoc?.consent?.marketing?.grantedAt?.text, null, 'marketing grantedAt.text should be null (declined)');
+
+        // revokedAt MUST have signup-form-declined source + server time
+        assert.equal(userDoc?.consent?.marketing?.revokedAt?.source, 'signup', 'marketing revokedAt.source should be signup-form-declined');
+        assert.ok(userDoc?.consent?.marketing?.revokedAt?.timestamp, 'marketing revokedAt.timestamp should be set');
+        assert.equal(typeof userDoc?.consent?.marketing?.revokedAt?.timestampUNIX, 'number', 'marketing revokedAt.timestampUNIX should be number');
+        assert.equal(userDoc?.consent?.marketing?.revokedAt?.text, null, 'marketing revokedAt.text should be null (decline has no message)');
+      },
+    },
+
+    {
+      name: 'consent-missing-defaults-to-revoked',
+      async run({ http, firestore, assert, accounts }) {
+        // Client sends NO consent field at all (legacy or malformed payload).
+        // Expected: both legal + marketing default to revoked. No crash, no marketing sync.
+        const signupResponse = await http.as('consent-missing').post('user/signup', {});
+
+        assert.isSuccess(signupResponse, `Signup should succeed even with no consent: ${JSON.stringify(signupResponse, null, 2)}`);
+
+        const userDoc = await firestore.get(`users/${accounts['consent-missing'].uid}`);
+
+        assert.ok(userDoc?.consent, 'consent object should exist');
+        assert.equal(userDoc?.consent?.legal?.status, 'revoked', 'legal.status should default to revoked');
+        assert.equal(userDoc?.consent?.legal?.grantedAt?.timestamp, null, 'legal grantedAt.timestamp should be null');
+        assert.equal(userDoc?.consent?.legal?.grantedAt?.source, null, 'legal grantedAt.source should be null');
+
+        assert.equal(userDoc?.consent?.marketing?.status, 'revoked', 'marketing.status should default to revoked');
+        assert.equal(userDoc?.consent?.marketing?.grantedAt?.timestamp, null, 'marketing grantedAt.timestamp should be null');
+
+        // Even when consent is missing entirely, the revokedAt block gets stamped with signup-form-declined.
+        // This ensures the user doc has a recorded decline event for audit.
+        assert.equal(userDoc?.consent?.marketing?.revokedAt?.source, 'signup', 'marketing revokedAt.source should be signup-form-declined when consent missing');
+      },
+    },
+
     // --- Auth rejection test (at end per convention) ---
     {
       name: 'unauthenticated-rejected',

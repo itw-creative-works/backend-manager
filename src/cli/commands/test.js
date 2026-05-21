@@ -51,7 +51,7 @@ class TestCommand extends BaseCommand {
     // Use hosting URL for all API requests (rewrites to bm_api function)
     const testConfig = {
       ...projectConfig,
-      hostingUrl: `http://127.0.0.1:${emulatorPorts.hosting}`,
+      apiUrl: `http://127.0.0.1:${emulatorPorts.hosting}`,
       projectDir,
       testPaths,
       emulatorPorts,
@@ -186,10 +186,56 @@ class TestCommand extends BaseCommand {
   }
 
   /**
+   * Signal the running emulator process to roll emulator.log.
+   *
+   * Mechanism: write a sentinel file at emulator.log.reset. The emulator command
+   * (src/cli/commands/emulator.js) polls for it and, on detection, closes its
+   * current write stream and reopens with flags: 'w' (truncating cleanly from its
+   * own perspective — avoids the sparse-file problem caused by external truncation).
+   *
+   * Waits up to 2s for the sentinel to be consumed. If it's still there after 2s
+   * the emulator isn't watching (probably running an older BEM or started outside
+   * `npx mgr emulator`); we delete the sentinel and proceed — tests still run, the
+   * log just won't be reset for this run.
+   */
+  async requestEmulatorLogReset(projectDir) {
+    const logPath = path.join(projectDir, 'functions', 'emulator.log');
+    const sentinelPath = `${logPath}.reset`;
+
+    try {
+      fs.writeFileSync(sentinelPath, '');
+    } catch (e) {
+      return; // Can't write — skip, not fatal
+    }
+
+    // Poll for the emulator to consume the sentinel (it deletes the file when done)
+    const maxWaitMs = 2000;
+    const pollIntervalMs = 100;
+    const start = Date.now();
+
+    while (Date.now() - start < maxWaitMs) {
+      if (!fs.existsSync(sentinelPath)) {
+        return; // Emulator picked it up and rolled the log
+      }
+      await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+    }
+
+    // Timed out — emulator didn't see the sentinel. Clean up so we don't leave it behind.
+    try { fs.unlinkSync(sentinelPath); } catch (e) { /* ok */ }
+  }
+
+  /**
    * Run tests directly (emulator already running)
    */
   async runTestsDirectly(testCommand, functionsDir, emulatorPorts) {
     const projectDir = this.main.firebaseProjectPath;
+
+    // Ask the running emulator process to roll emulator.log so this test run gets a
+    // clean slate. We touch a sentinel file the emulator polls for (every ~500ms) and
+    // wait briefly for it to be consumed. If the emulator isn't watching (older BEM
+    // version, or not started via `npx mgr emulator`), we time out silently — the log
+    // just won't be fresh, tests still run normally.
+    await this.requestEmulatorLogReset(projectDir);
 
     this.log(chalk.gray(`  Hosting: http://127.0.0.1:${emulatorPorts.hosting}`));
     this.log(chalk.gray(`  Firestore: 127.0.0.1:${emulatorPorts.firestore}`));

@@ -210,6 +210,35 @@ Manager.prototype.init = function (exporter, options) {
       : self.config.brand?.url || '';
   };
 
+  // Resolve the parent BEM's website URL (the parent's brand domain, NO `api.` subdomain).
+  // - If config.parent === 'self', THIS BEM is the parent — returns this brand's own URL.
+  // - If config.parent is a URL, returns it as-is.
+  // - Returns '' if neither is configured.
+  // Use getParentApiUrl() for the API URL (with `api.` subdomain inserted).
+  self.getParentUrl = function() {
+    const parent = self.config.parent;
+    if (parent === 'self') {
+      return self.config.brand?.url || '';
+    }
+    return parent || '';
+  };
+
+  // Resolve the parent BEM's API URL (`https://api.{parent-host}`).
+  // ALWAYS returns the live production URL — even when THIS brand is running
+  // in dev/test mode. The parent's API is a real remote server (no localhost
+  // equivalent), so dev-mode does NOT redirect to localhost the way getApiUrl()
+  // does. Use this when you need to call the parent's API from any environment.
+  self.getParentApiUrl = function() {
+    const base = self.getParentUrl().replace(/^https?:\/\//, '');
+    return base ? `https://api.${base}` : '';
+  };
+
+  // Returns true when this BEM IS the parent (config.parent === 'self').
+  // Gates parent-only routes like /marketing/webhook/forward.
+  self.isParent = function() {
+    return self.config.parent === 'self';
+  };
+
   // Set more properties (need to wait for assistant to determine if DEV)
   self.project.functionsUrl = self.getFunctionsUrl();
 

@@ -1,4 +1,9 @@
 .DS_Store
+
+# Local scratch / experiments (uncommitted by design)
+.temp
+scripts/.temp
+
 # Logs
 logs
 *.log

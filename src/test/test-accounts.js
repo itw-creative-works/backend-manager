@@ -162,6 +162,33 @@ const STATIC_ACCOUNTS = {
       subscription: { product: { id: 'basic' }, status: 'active' },
     },
   },
+  'consent-granted': {
+    id: 'consent-granted',
+    uid: '_test-consent-granted',
+    email: '_test.consent-granted@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'basic' }, status: 'active' },
+    },
+  },
+  'consent-declined': {
+    id: 'consent-declined',
+    uid: '_test-consent-declined',
+    email: '_test.consent-declined@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'basic' }, status: 'active' },
+    },
+  },
+  'consent-missing': {
+    id: 'consent-missing',
+    uid: '_test-consent-missing',
+    email: '_test.consent-missing@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'basic' }, status: 'active' },
+    },
+  },
 };
 
 /**
@@ -652,15 +679,53 @@ async function deleteTestUsers(admin) {
     })
   );
 
-  // Clean up payment-related collections for test accounts
+  // Clean up payment-related collections for test accounts.
+  // Two passes per collection:
+  //   1. owner-keyed: query by owner ∈ test uids (Firestore `in` caps at 30; batch).
+  //   2. id-keyed:    delete any doc whose id starts with the `_test-` prefix.
+  // Pass 2 catches docs that have no owner field (e.g. dispute alerts, raw test webhooks).
+  // All test-fixture IDs MUST start with `_test-` — that's the cleanup contract.
   const testUids = Object.values(TEST_ACCOUNTS).map(a => a.uid);
-  const paymentCollections = ['payments-orders', 'payments-webhooks', 'payments-intents'];
+  // Collections that may carry test data tied to a test user (owner-keyed) or
+  // identified solely by an `_test-` doc id prefix (id-keyed). All must be wiped
+  // at the start of every run so a test that died mid-execution leaves no
+  // ghosts. New collections that participate in tests MUST be added here too.
+  const testDataCollections = ['payments-orders', 'payments-webhooks', 'payments-intents', 'payments-disputes', 'marketing-webhooks'];
+  // Collections that exist solely for tests — wipe in full. All docs in these
+  // collections come from tests, so a single recursive delete handles cleanup.
+  const testOnlyCollections = ['_test', '_test_query'];
+  const UID_BATCH_SIZE = 30;
+  const TEST_ID_PREFIX = '_test-';
 
-  await Promise.all(
-    paymentCollections.map(async (collection) => {
+  const uidBatches = [];
+  for (let i = 0; i < testUids.length; i += UID_BATCH_SIZE) {
+    uidBatches.push(testUids.slice(i, i + UID_BATCH_SIZE));
+  }
+
+  await Promise.all([
+    // Mixed collections: scoped delete of test data only.
+    ...testDataCollections.map(async (collection) => {
+      // Pass 1 — owner-keyed
+      for (const batch of uidBatches) {
+        try {
+          const snapshot = await admin.firestore().collection(collection)
+            .where('owner', 'in', batch)
+            .get();
+
+          await Promise.all(
+            snapshot.docs.map(doc => doc.ref.delete())
+          );
+        } catch (e) {
+          // Collection may not exist yet, or doesn't carry an owner field — ignore
+        }
+      }
+
+      // Pass 2 — id-keyed (catches ownerless test docs)
+      // documentId() range scan: `_test-` ≤ id < `_test.` (the next ASCII char after `-` is `.`)
       try {
         const snapshot = await admin.firestore().collection(collection)
-          .where('owner', 'in', testUids)
+          .where(admin.firestore.FieldPath.documentId(), '>=', TEST_ID_PREFIX)
+          .where(admin.firestore.FieldPath.documentId(), '<', '_test.')
           .get();
 
         await Promise.all(
@@ -669,8 +734,25 @@ async function deleteTestUsers(admin) {
       } catch (e) {
         // Collection may not exist yet — ignore
       }
-    })
-  );
+    }),
+    // Test-only Firestore collections: wipe in full.
+    ...testOnlyCollections.map(async (collection) => {
+      try {
+        const snapshot = await admin.firestore().collection(collection).get();
+        await Promise.all(snapshot.docs.map(doc => doc.ref.delete()));
+      } catch (e) {
+        // Collection may not exist yet — ignore
+      }
+    }),
+    // Realtime Database: wipe the `_test` namespace in full.
+    (async () => {
+      try {
+        await admin.database().ref('_test').remove();
+      } catch (e) {
+        // RTDB may not be configured for this project — ignore
+      }
+    })(),
+  ]);
 
   return {
     success: results.failed.length === 0,
@@ -728,16 +810,16 @@ const TEST_DATA = {
  * Called after account setup when TEST_EXTENDED_MODE is set to remove
  * contacts added by auth:on-create
  * @param {string} domain - Domain for email addresses
- * @param {object} options - Options with hostingUrl and backendManagerKey
+ * @param {object} options - Options with apiUrl and backendManagerKey
  * @returns {Promise<object>} Result with cleaned count
  */
 async function cleanupMarketingProviders(domain, options = {}) {
   const fetch = require('wonderful-fetch');
   const results = { cleaned: 0, errors: [] };
 
-  const { hostingUrl, backendManagerKey } = options;
-  if (!hostingUrl || !backendManagerKey) {
-    console.error('cleanupMarketingProviders: Missing hostingUrl or backendManagerKey');
+  const { apiUrl, backendManagerKey } = options;
+  if (!apiUrl || !backendManagerKey) {
+    console.error('cleanupMarketingProviders: Missing apiUrl or backendManagerKey');
     return results;
   }
 
@@ -749,7 +831,7 @@ async function cleanupMarketingProviders(domain, options = {}) {
   await Promise.all(
     emails.map(async (email) => {
       try {
-        const response = await fetch(`${hostingUrl}/backend-manager/marketing/contact`, {
+        const response = await fetch(`${apiUrl}/backend-manager/marketing/contact`, {
           method: 'DELETE',
           response: 'json',
           timeout: 30000,

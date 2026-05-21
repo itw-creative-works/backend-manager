@@ -26,7 +26,6 @@ module.exports = {
 
         state.uid = uid;
         state.paidProductId = paidProduct.id;
-        state.paidStripeProductId = paidProduct.stripe?.productId;
 
         // Create subscription via test intent
         const response = await http.as('journey-payments-refund-webhook').post('payments/intent', {
@@ -54,7 +53,7 @@ module.exports = {
 
     {
       name: 'send-pending-cancel-webhook',
-      async run({ http, assert, state, config }) {
+      async run({ http, assert, state, config, payments }) {
         const futureDate = new Date();
         futureDate.setMonth(futureDate.getMonth() + 1);
 
@@ -77,7 +76,7 @@ module.exports = {
               start_date: Math.floor(Date.now() / 1000) - 86400 * 30,
               trial_start: null,
               trial_end: null,
-              plan: { product: state.paidStripeProductId, interval: 'month' },
+              plan: { product: payments.stripeProductIds[state.paidProductId], interval: 'month' },
             },
           },
         });

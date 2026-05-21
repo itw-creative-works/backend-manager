@@ -50,9 +50,6 @@ module.exports = {
       async run({ http, assert, firestore }) {
         const eventId = '_test-evt-valid-webhook';
 
-        // Clean up any existing doc
-        await firestore.delete(`payments-webhooks/${eventId}`);
-
         const response = await http.as('none').post(`payments/webhook?processor=stripe&key=${process.env.BACKEND_MANAGER_KEY}`, {
           id: eventId,
           type: 'customer.subscription.updated',
@@ -76,9 +73,6 @@ module.exports = {
           doc.status === 'pending' || doc.status === 'processing' || doc.status === 'completed' || doc.status === 'failed',
           'Status should be pending, processing, completed, or failed',
         );
-
-        // Clean up
-        await firestore.delete(`payments-webhooks/${eventId}`);
       },
     },
 
@@ -88,11 +82,9 @@ module.exports = {
       async run({ http, assert, firestore }) {
         const eventId = '_test-evt-duplicate';
 
-        // Clean up any existing doc
-        await firestore.delete(`payments-webhooks/${eventId}`);
-
-        // Send first webhook
-        await http.as('none').post(`payments/webhook?processor=stripe&key=${process.env.BACKEND_MANAGER_KEY}`, {
+        // Use the test processor so the on-write trigger doesn't require STRIPE_SECRET_KEY
+        // (a failed first webhook would let the dedup-retry branch fire instead of returning duplicate=true)
+        const send = () => http.as('none').post(`payments/webhook?processor=test&key=${process.env.BACKEND_MANAGER_KEY}`, {
           id: eventId,
           type: 'customer.subscription.updated',
           data: {
@@ -104,24 +96,11 @@ module.exports = {
           },
         });
 
-        // Send duplicate
-        const response = await http.as('none').post(`payments/webhook?processor=stripe&key=${process.env.BACKEND_MANAGER_KEY}`, {
-          id: eventId,
-          type: 'customer.subscription.updated',
-          data: {
-            object: {
-              id: 'sub_test_dup',
-              metadata: { uid: TEST_ACCOUNTS.basic.uid },
-              status: 'active',
-            },
-          },
-        });
+        await send();
+        const response = await send();
 
         assert.isSuccess(response, 'Duplicate should still return 200');
         assert.equal(response.data.duplicate, true, 'Should indicate duplicate');
-
-        // Clean up
-        await firestore.delete(`payments-webhooks/${eventId}`);
       },
     },
   ],

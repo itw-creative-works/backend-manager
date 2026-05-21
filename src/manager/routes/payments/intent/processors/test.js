@@ -57,14 +57,18 @@ async function createSubscriptionIntent({ uid, orderId, product, frequency, tria
   const now = Math.floor(timestamp / 1000);
   const periodEnd = now + (FREQUENCY_TO_PERIOD[frequency] || 30 * 86400);
 
-  // Build Stripe-shaped subscription object
-  // Uses product's Stripe product ID so resolveProduct() can match it
+  // Build Stripe-shaped subscription object.
+  // Prefer the real Stripe product ID if configured; otherwise use a sentinel of the
+  // form "_test_<id>" that the Stripe resolver recognizes and maps back to product.id.
+  // This lets the test processor work in brands that haven't wired up Stripe yet.
+  const planProductId = product.stripe?.productId || `_test_${product.id}`;
+
   const subscription = {
     id: subscriptionId,
     object: 'subscription',
     status: trial && product.trial?.days ? 'trialing' : 'active',
     metadata: { uid, orderId },
-    plan: { product: product.stripe?.productId || null, interval },
+    plan: { product: planProductId, interval },
     current_period_end: periodEnd,
     current_period_start: now,
     start_date: now,

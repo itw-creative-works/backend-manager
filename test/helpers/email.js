@@ -64,7 +64,7 @@ module.exports = {
 
         assert.isSuccess(response, 'Should succeed with default template');
         assert.equal(response.data.status, 'sent', 'Status should be sent');
-        assert.equal(response.data.options.templateId, 'd-b7f8da3c98ad49a2ad1e187f3a67b546', 'Should use default template');
+        assert.equal(response.data.options.templateId, 'd-1cd2eee44b6340268c964cd7971d49b9', 'Should use default template (core/card)');
       },
     },
 

@@ -29,7 +29,6 @@ module.exports = {
 
         state.uid = uid;
         state.paidProductId = paidProduct.id;
-        state.paidStripeProductId = paidProduct.stripe?.productId;
 
         // Create subscription via test intent
         const response = await http.as('journey-payments-uid-resolution').post('payments/intent', {
@@ -56,7 +55,7 @@ module.exports = {
 
     {
       name: 'send-webhook-without-uid',
-      async run({ http, assert, state, config }) {
+      async run({ http, assert, state, config, payments }) {
         // Send a subscription update webhook WITHOUT uid in metadata
         // The test processor's fetchResource() will look up payments-orders by resourceId
         // and reconstruct a Stripe-shaped subscription that includes metadata.uid
@@ -84,7 +83,7 @@ module.exports = {
               start_date: Math.floor(Date.now() / 1000) - 86400 * 30,
               trial_start: null,
               trial_end: null,
-              plan: { product: state.paidStripeProductId, interval: 'month' },
+              plan: { product: payments.stripeProductIds[state.paidProductId], interval: 'month' },
             },
           },
         });

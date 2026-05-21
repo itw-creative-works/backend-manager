@@ -22,6 +22,7 @@ module.exports = {
 
     // Look up the Stripe product ID from the existing order so resolveProduct() can match
     const orderId = subscription?.payment?.orderId;
+    // Falls back to the "_test_<id>" sentinel when no real Stripe product is configured.
     let stripeProductId = null;
 
     if (orderId) {
@@ -31,7 +32,9 @@ module.exports = {
         const productId = orderData.unified?.product?.id;
         const products = assistant.Manager.config.payment?.products || [];
         const product = products.find(p => p.id === productId);
-        stripeProductId = product?.stripe?.productId || null;
+        if (product) {
+          stripeProductId = product.stripe?.productId || `_test_${product.id}`;
+        }
       }
     }
 

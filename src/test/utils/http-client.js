@@ -11,9 +11,10 @@ class HttpClient {
   constructor(options) {
     options = options || {};
 
-    // Use hosting URL (port 5002) for all requests, not functions URL (port 5001)
-    // All requests go through /backend-manager which rewrites to bm_api function
-    this.baseUrl = options.hostingUrl || '';
+    // Use API URL (port 5002, the hosting emulator) for all requests, not the
+    // functions URL (port 5001). All requests go through /backend-manager which
+    // rewrites to the bm_api function.
+    this.baseUrl = options.apiUrl || '';
     this.defaultHeaders = {};
     this.defaultAuthParams = {};
     this.timeout = options.timeout || 30000;

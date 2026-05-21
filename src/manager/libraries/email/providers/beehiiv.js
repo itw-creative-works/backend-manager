@@ -415,6 +415,7 @@ async function createPost(options) {
 module.exports = {
   // Resolution
   resolveSegmentIds,
+  getPublicationId,
 
   // Contacts
   addContact,

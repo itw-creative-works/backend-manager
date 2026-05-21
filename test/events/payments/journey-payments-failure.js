@@ -26,7 +26,6 @@ module.exports = {
         state.uid = uid;
         state.paidProductId = paidProduct.id;
         state.paidProductName = paidProduct.name;
-        state.paidStripeProductId = paidProduct.stripe?.productId;
 
         // Create subscription via test intent
         const response = await http.as('journey-payments-failure').post('payments/intent', {

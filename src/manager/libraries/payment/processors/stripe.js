@@ -452,6 +452,18 @@ function resolveProduct(raw, config) {
     return { id: 'basic', name: 'Basic' };
   }
 
+  // Test-mode sentinel: the test processor synthesizes "_test_<id>" when no real
+  // Stripe product is configured. Map it back to the matching BEM product so the
+  // pipeline can be exercised end-to-end without real Stripe credentials.
+  if (typeof stripeProductId === 'string' && stripeProductId.startsWith('_test_')) {
+    const bemId = stripeProductId.slice('_test_'.length);
+    const product = config.payment.products.find((p) => p.id === bemId);
+    if (product) {
+      return { id: product.id, name: product.name || product.id };
+    }
+    return { id: 'basic', name: 'Basic' };
+  }
+
   for (const product of config.payment.products) {
     // Match current product ID
     if (product.stripe?.productId === stripeProductId) {

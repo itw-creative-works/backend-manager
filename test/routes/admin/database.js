@@ -127,18 +127,5 @@ module.exports = {
       },
     },
 
-    // Test 7: Cleanup
-    {
-      name: 'cleanup',
-      auth: 'admin',
-      timeout: 15000,
-
-      async run({ http }) {
-        await http.post('admin/database', {
-          path: TEST_PATH,
-          document: null,
-        });
-      },
-    },
   ],
 };

@@ -82,15 +82,47 @@ class EmulatorCommand extends BaseCommand {
       : 'BEM_TESTING=true';
     const emulatorCommand = `${envPrefix} firebase emulators:exec --only functions,firestore,auth,database,hosting,pubsub --ui "${command}"`;
 
-    // Set up log file in the project directory
+    // Set up log file in the project directory.
+    // We use a mutable `currentStream` so the test command can request a fresh log
+    // by touching emulator.log.reset — the watcher below detects it, closes the
+    // current stream, reopens with flags: 'w' (truncating cleanly from our process'
+    // perspective, no sparse-file issue), and deletes the sentinel.
     const logPath = path.join(projectDir, 'functions', 'emulator.log');
-    const logStream = fs.createWriteStream(logPath, { flags: 'w' });
+    const resetSentinelPath = `${logPath}.reset`;
     const stripAnsi = (str) => str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
+
+    let currentStream = fs.createWriteStream(logPath, { flags: 'w' });
+
+    function writeToLog(data) {
+      if (currentStream && !currentStream.destroyed) {
+        currentStream.write(stripAnsi(data.toString()));
+      }
+    }
+
+    // Clean up any stale sentinel from a prior crashed emulator run
+    try { fs.unlinkSync(resetSentinelPath); } catch (e) { /* not present, ok */ }
+
+    // Watch for the test command's request to roll the log.
+    // Poll every 500ms — cheap, no fs.watch quirks across platforms.
+    const resetWatcher = setInterval(() => {
+      if (!fs.existsSync(resetSentinelPath)) {
+        return;
+      }
+
+      try {
+        const oldStream = currentStream;
+        currentStream = fs.createWriteStream(logPath, { flags: 'w' });
+        oldStream.end();
+        fs.unlinkSync(resetSentinelPath);
+      } catch (e) {
+        // Best-effort. If reset fails the test still runs, the log just won't be fresh.
+      }
+    }, 500);
 
     // Write pre-emulator info to log file
     if (process.env.TEST_EXTENDED_MODE) {
-      EXTENDED_MODE_WARNING.forEach((line) => logStream.write(`${line}\n`));
-      logStream.write('\n');
+      EXTENDED_MODE_WARNING.forEach((line) => writeToLog(`${line}\n`));
+      writeToLog('\n');
     }
 
     this.log(chalk.gray(`  Logs saving to: ${logPath}\n`));
@@ -106,18 +138,22 @@ class EmulatorCommand extends BaseCommand {
       // Tee stdout to both console and log file (strip ANSI codes for clean log)
       child.stdout.on('data', (data) => {
         process.stdout.write(data);
-        logStream.write(stripAnsi(data.toString()));
+        writeToLog(data);
       });
 
       // Tee stderr to both console and log file (strip ANSI codes for clean log)
       child.stderr.on('data', (data) => {
         process.stderr.write(data);
-        logStream.write(stripAnsi(data.toString()));
+        writeToLog(data);
       });
 
-      // Clean up log stream when child exits
+      // Clean up log stream + watcher when child exits
       child.on('close', () => {
-        logStream.end();
+        clearInterval(resetWatcher);
+        if (currentStream && !currentStream.destroyed) {
+          currentStream.end();
+        }
+        try { fs.unlinkSync(resetSentinelPath); } catch (e) { /* ok */ }
       });
     });
   }

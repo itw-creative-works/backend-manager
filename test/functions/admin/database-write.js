@@ -155,19 +155,5 @@ module.exports = {
       },
     },
 
-    // Test 7: Cleanup
-    {
-      name: 'cleanup',
-      auth: 'admin',
-      timeout: 15000,
-
-      async run({ http }) {
-        // Clean up test data by writing null
-        await http.command('admin:database-write', {
-          path: TEST_PATH,
-          document: null,
-        });
-      },
-    },
   ],
 };

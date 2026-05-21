@@ -406,7 +406,7 @@ module.exports = {
         const user = createUser({});
         const expectedKeys = [
           'auth', 'subscription', 'roles', 'flags', 'affiliate',
-          'activity', 'api', 'usage', 'personal', 'oauth2', 'attribution', 'metadata',
+          'activity', 'api', 'usage', 'personal', 'oauth2', 'attribution', 'consent', 'metadata',
         ];
 
         for (const key of expectedKeys) {
@@ -421,12 +421,251 @@ module.exports = {
         const user = createUser({});
         const expectedKeys = [
           'auth', 'subscription', 'roles', 'flags', 'affiliate',
-          'activity', 'api', 'usage', 'personal', 'oauth2', 'attribution', 'metadata',
+          'activity', 'api', 'usage', 'personal', 'oauth2', 'attribution', 'consent', 'metadata',
         ];
 
         for (const key of Object.keys(user)) {
           assert.ok(expectedKeys.includes(key), `Unexpected top-level key "${key}"`);
         }
+      },
+    },
+
+    // ─── Consent (legal + marketing) ───
+
+    {
+      name: 'consent-defaults-revoked-with-null-leaves',
+      async run({ assert }) {
+        const user = createUser({});
+
+        // Legal
+        assert.equal(user.consent.legal.status, 'revoked', 'consent.legal.status defaults to revoked');
+        assert.equal(user.consent.legal.grantedAt.timestamp, null, 'legal.grantedAt.timestamp defaults to null');
+        assert.equal(user.consent.legal.grantedAt.timestampUNIX, null, 'legal.grantedAt.timestampUNIX defaults to null');
+        assert.equal(user.consent.legal.grantedAt.source, null, 'legal.grantedAt.source defaults to null');
+        assert.equal(user.consent.legal.grantedAt.ip, null, 'legal.grantedAt.ip defaults to null');
+        assert.equal(user.consent.legal.grantedAt.text, null, 'legal.grantedAt.text defaults to null');
+
+        // Marketing
+        assert.equal(user.consent.marketing.status, 'revoked', 'consent.marketing.status defaults to revoked');
+        assert.equal(user.consent.marketing.grantedAt.timestamp, null, 'marketing.grantedAt.timestamp defaults to null');
+        assert.equal(user.consent.marketing.grantedAt.timestampUNIX, null, 'marketing.grantedAt.timestampUNIX defaults to null');
+        assert.equal(user.consent.marketing.grantedAt.source, null, 'marketing.grantedAt.source defaults to null');
+        assert.equal(user.consent.marketing.grantedAt.ip, null, 'marketing.grantedAt.ip defaults to null');
+        assert.equal(user.consent.marketing.grantedAt.text, null, 'marketing.grantedAt.text defaults to null');
+        assert.equal(user.consent.marketing.revokedAt.timestamp, null, 'marketing.revokedAt.timestamp defaults to null');
+        assert.equal(user.consent.marketing.revokedAt.timestampUNIX, null, 'marketing.revokedAt.timestampUNIX defaults to null');
+        assert.equal(user.consent.marketing.revokedAt.source, null, 'marketing.revokedAt.source defaults to null');
+        assert.equal(user.consent.marketing.revokedAt.ip, null, 'marketing.revokedAt.ip defaults to null');
+        assert.equal(user.consent.marketing.revokedAt.text, null, 'marketing.revokedAt.text defaults to null');
+      },
+    },
+
+    {
+      name: 'consent-objects-always-present-even-on-empty-input',
+      async run({ assert }) {
+        const user = createUser({});
+
+        assert.ok(user.consent, 'consent object exists');
+        assert.ok(user.consent.legal, 'consent.legal exists');
+        assert.ok(user.consent.legal.grantedAt, 'consent.legal.grantedAt object exists (not null)');
+        assert.ok(user.consent.marketing, 'consent.marketing exists');
+        assert.ok(user.consent.marketing.grantedAt, 'consent.marketing.grantedAt object exists (not null)');
+        assert.ok(user.consent.marketing.revokedAt, 'consent.marketing.revokedAt object exists (not null)');
+      },
+    },
+
+    {
+      name: 'consent-granted-marketing-preserves-fields',
+      async run({ assert }) {
+        const user = createUser({
+          consent: {
+            legal: {
+              status: 'granted',
+              grantedAt: {
+                timestamp: '2026-05-15T12:00:00.000Z',
+                timestampUNIX: 1779235200,
+                source: 'signup',
+                ip: '1.2.3.4',
+                text: 'I agree to the Terms of Service and Privacy Policy.',
+              },
+            },
+            marketing: {
+              status: 'granted',
+              grantedAt: {
+                timestamp: '2026-05-15T12:00:00.000Z',
+                timestampUNIX: 1779235200,
+                source: 'signup',
+                ip: '1.2.3.4',
+                text: 'Send me product updates and newsletters.',
+              },
+            },
+          },
+        });
+
+        assert.equal(user.consent.legal.status, 'granted', 'legal.status preserved');
+        assert.equal(user.consent.legal.grantedAt.timestamp, '2026-05-15T12:00:00.000Z', 'legal grantedAt.timestamp preserved');
+        assert.equal(user.consent.legal.grantedAt.timestampUNIX, 1779235200, 'legal grantedAt.timestampUNIX preserved');
+        assert.equal(user.consent.legal.grantedAt.source, 'signup', 'legal grantedAt.source preserved');
+        assert.equal(user.consent.legal.grantedAt.ip, '1.2.3.4', 'legal grantedAt.ip preserved');
+        assert.equal(
+          user.consent.legal.grantedAt.text,
+          'I agree to the Terms of Service and Privacy Policy.',
+          'legal grantedAt.text preserved'
+        );
+
+        assert.equal(user.consent.marketing.status, 'granted', 'marketing.status preserved');
+        assert.equal(user.consent.marketing.grantedAt.source, 'signup', 'marketing grantedAt.source preserved');
+        assert.equal(user.consent.marketing.grantedAt.text, 'Send me product updates and newsletters.', 'marketing grantedAt.text preserved');
+
+        // revokedAt still defaults to all nulls (not touched by input)
+        assert.equal(user.consent.marketing.revokedAt.timestamp, null, 'marketing revokedAt.timestamp defaults to null');
+        assert.equal(user.consent.marketing.revokedAt.source, null, 'marketing revokedAt.source defaults to null');
+      },
+    },
+
+    {
+      name: 'consent-marketing-declined-at-signup',
+      async run({ assert }) {
+        const user = createUser({
+          consent: {
+            legal: {
+              status: 'granted',
+              grantedAt: {
+                timestamp: '2026-05-15T12:00:00.000Z',
+                timestampUNIX: 1779235200,
+                source: 'signup',
+                ip: '1.2.3.4',
+                text: 'I agree to the Terms of Service and Privacy Policy.',
+              },
+            },
+            marketing: {
+              status: 'revoked',
+              revokedAt: {
+                timestamp: '2026-05-15T12:00:00.000Z',
+                timestampUNIX: 1779235200,
+                source: 'signup',
+                ip: '1.2.3.4',
+                text: null,
+              },
+            },
+          },
+        });
+
+        assert.equal(user.consent.legal.status, 'granted', 'legal.status granted');
+        assert.equal(user.consent.marketing.status, 'revoked', 'marketing.status revoked');
+        assert.equal(user.consent.marketing.grantedAt.timestamp, null, 'marketing grantedAt.timestamp is null (never granted)');
+        assert.equal(user.consent.marketing.grantedAt.source, null, 'marketing grantedAt.source is null');
+        assert.equal(user.consent.marketing.revokedAt.timestamp, '2026-05-15T12:00:00.000Z', 'marketing revokedAt.timestamp preserved');
+        assert.equal(user.consent.marketing.revokedAt.source, 'signup', 'marketing revokedAt.source preserved');
+        assert.equal(user.consent.marketing.revokedAt.ip, '1.2.3.4', 'marketing revokedAt.ip preserved');
+        assert.equal(user.consent.marketing.revokedAt.text, null, 'marketing revokedAt.text is null for decline');
+      },
+    },
+
+    {
+      name: 'consent-revoked-then-regranted-keeps-prior-revokedAt',
+      async run({ assert }) {
+        const user = createUser({
+          consent: {
+            marketing: {
+              status: 'granted',
+              grantedAt: {
+                timestamp: '2026-07-01T00:00:00.000Z',
+                timestampUNIX: 1783785600,
+                source: 'account-page',
+                ip: '5.6.7.8',
+                text: 'Send me product updates and newsletters.',
+              },
+              revokedAt: {
+                timestamp: '2026-06-12T00:00:00.000Z',
+                timestampUNIX: 1781251200,
+                source: 'sendgrid-webhook',
+                ip: null,
+                text: null,
+              },
+            },
+          },
+        });
+
+        assert.equal(user.consent.marketing.status, 'granted', 'status is granted (latest action)');
+        assert.equal(user.consent.marketing.grantedAt.timestamp, '2026-07-01T00:00:00.000Z', 'grantedAt reflects most recent grant');
+        assert.equal(user.consent.marketing.grantedAt.source, 'account-page', 'grantedAt.source is account-page');
+        // revokedAt still reflects the prior revoke — informational
+        assert.equal(user.consent.marketing.revokedAt.timestamp, '2026-06-12T00:00:00.000Z', 'revokedAt preserves prior revoke');
+        assert.equal(user.consent.marketing.revokedAt.source, 'sendgrid-webhook', 'revokedAt.source preserves prior source');
+      },
+    },
+
+    {
+      name: 'consent-partial-input-fills-missing-leaves-with-null',
+      async run({ assert }) {
+        const user = createUser({
+          consent: {
+            marketing: {
+              status: 'granted',
+              grantedAt: {
+                timestamp: '2026-05-15T12:00:00.000Z',
+                source: 'signup',
+              },
+            },
+          },
+        });
+
+        assert.equal(user.consent.marketing.status, 'granted', 'marketing.status preserved');
+        assert.equal(user.consent.marketing.grantedAt.timestamp, '2026-05-15T12:00:00.000Z', 'grantedAt.timestamp preserved');
+        assert.equal(user.consent.marketing.grantedAt.source, 'signup', 'grantedAt.source preserved');
+        // Missing leaves default to null
+        assert.equal(user.consent.marketing.grantedAt.timestampUNIX, null, 'missing grantedAt.timestampUNIX defaults to null');
+        assert.equal(user.consent.marketing.grantedAt.ip, null, 'missing grantedAt.ip defaults to null');
+        assert.equal(user.consent.marketing.grantedAt.text, null, 'missing grantedAt.text defaults to null');
+        // Legal not provided — gets full defaults
+        assert.equal(user.consent.legal.status, 'revoked', 'untouched legal defaults to revoked');
+        assert.equal(user.consent.legal.grantedAt.timestamp, null, 'untouched legal grantedAt.timestamp is null');
+      },
+    },
+
+    {
+      name: 'consent-round-trip-preserves-shape',
+      async run({ assert }) {
+        const grantedDoc = {
+          consent: {
+            legal: {
+              status: 'granted',
+              grantedAt: {
+                timestamp: '2026-05-15T12:00:00.000Z',
+                timestampUNIX: 1779235200,
+                source: 'signup',
+                ip: '1.2.3.4',
+                text: 'I agree to the Terms of Service.',
+              },
+            },
+            marketing: {
+              status: 'granted',
+              grantedAt: {
+                timestamp: '2026-05-15T12:00:00.000Z',
+                timestampUNIX: 1779235200,
+                source: 'signup',
+                ip: '1.2.3.4',
+                text: 'Send me updates.',
+              },
+              revokedAt: {
+                timestamp: null,
+                timestampUNIX: null,
+                source: null,
+                ip: null,
+                text: null,
+              },
+            },
+          },
+        };
+
+        // First pass — resolve from raw input
+        const user1 = createUser(grantedDoc);
+
+        // Second pass — resolve from the resolved doc (simulates Firestore read-back)
+        const user2 = createUser(user1);
+
+        assert.deepEqual(user1.consent, user2.consent, 'consent round-trips identically');
       },
     },
 

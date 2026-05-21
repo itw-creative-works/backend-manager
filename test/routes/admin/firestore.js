@@ -123,19 +123,5 @@ module.exports = {
       },
     },
 
-    // Test 7: Cleanup
-    {
-      name: 'cleanup',
-      auth: 'admin',
-      timeout: 15000,
-
-      async run({ firestore }) {
-        try {
-          await firestore.delete(TEST_PATH);
-        } catch (error) {
-          // Ignore cleanup errors
-        }
-      },
-    },
   ],
 };

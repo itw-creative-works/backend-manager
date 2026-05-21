@@ -23,7 +23,8 @@ module.exports = {
     const now = Math.floor(timestamp / 1000);
     const periodEnd = now + (30 * 86400);
 
-    // Look up the Stripe product ID from the existing order so resolveProduct() can match
+    // Look up the Stripe product ID from the existing order so resolveProduct() can match.
+    // Falls back to the "_test_<id>" sentinel when no real Stripe product is configured.
     const orderId = subscription?.payment?.orderId;
     let stripeProductId = null;
 
@@ -34,7 +35,9 @@ module.exports = {
         const productId = orderData.unified?.product?.id;
         const products = assistant.Manager.config.payment?.products || [];
         const product = products.find(p => p.id === productId);
-        stripeProductId = product?.stripe?.productId || null;
+        if (product) {
+          stripeProductId = product.stripe?.productId || `_test_${product.id}`;
+        }
       }
     }
 

@@ -133,10 +133,12 @@ module.exports = {
             && userDoc?.subscription?.status === 'active';
         }, 15000, 500);
 
-        // Step 2: Cancel the subscription first (refund requires cancellation)
+        // Step 2: Cancel the subscription first (refund requires cancellation).
+        // skipGuards bypasses the 24-hour subscription-age guard on the cancel route.
         const cancelResponse = await http.as('route-refund-success').post('payments/cancel', {
           confirmed: true,
           reason: 'Too expensive',
+          skipGuards: true,
         });
 
         assert.isSuccess(cancelResponse, 'Cancel should succeed');

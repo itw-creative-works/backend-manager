@@ -16,8 +16,9 @@ module.exports = async ({ assistant, user, settings }) => {
     return assistant.respond('Admin required.', { code: 403 });
   }
 
-  // Accept single email or array of emails
-  const emails = Array.isArray(settings.emails)
+  // Accept single email or array of emails. Schema defaults `emails` to [], so check length:
+  // an empty default should NOT shadow a provided single `email`.
+  const emails = Array.isArray(settings.emails) && settings.emails.length > 0
     ? settings.emails
     : [settings.email];
 

@@ -105,9 +105,6 @@ module.exports = {
       async run({ http, assert, firestore }) {
         const alertId = '_test-dispute-valid';
 
-        // Clean up any existing doc
-        await firestore.delete(`payments-disputes/${alertId}`);
-
         const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_KEY}`, {
           id: alertId,
           card: '4242424242424242',
@@ -157,9 +154,6 @@ module.exports = {
         // Verify raw payload is preserved
         assert.ok(doc.raw, 'Raw payload should be preserved');
         assert.equal(doc.raw.id, alertId, 'Raw id should match');
-
-        // Clean up
-        await firestore.delete(`payments-disputes/${alertId}`);
       },
     },
 
@@ -168,9 +162,6 @@ module.exports = {
       auth: 'none',
       async run({ http, assert, firestore }) {
         const alertId = '_test-dispute-alertid-field';
-
-        // Clean up any existing doc
-        await firestore.delete(`payments-disputes/${alertId}`);
 
         // Chargeblast alert.created events use alertId instead of id
         const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_KEY}`, {
@@ -188,9 +179,6 @@ module.exports = {
         assert.equal(doc.id, alertId, 'Doc ID should match alertId');
         assert.equal(doc.alert.id, alertId, 'Alert id should be set from alertId');
         assert.equal(doc.alert.card.last4, '5805', 'Should extract last4 from masked card');
-
-        // Clean up
-        await firestore.delete(`payments-disputes/${alertId}`);
       },
     },
 
@@ -199,9 +187,6 @@ module.exports = {
       auth: 'none',
       async run({ http, assert, firestore }) {
         const alertId = '_test-dispute-minimal';
-
-        // Clean up any existing doc
-        await firestore.delete(`payments-disputes/${alertId}`);
 
         // Send minimal alert (alert.created shape — no externalOrder, metadata, etc.)
         const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_KEY}`, {
@@ -224,9 +209,6 @@ module.exports = {
         assert.equal(doc.alert.reasonCode, null, 'Reason code should be null when not provided');
         assert.equal(doc.alert.subprovider, null, 'Subprovider should be null when not provided');
         assert.equal(doc.alert.isRefunded, false, 'isRefunded should default to false');
-
-        // Clean up
-        await firestore.delete(`payments-disputes/${alertId}`);
       },
     },
 
@@ -235,9 +217,6 @@ module.exports = {
       auth: 'none',
       async run({ http, assert, firestore }) {
         const alertId = '_test-dispute-last4';
-
-        // Clean up any existing doc
-        await firestore.delete(`payments-disputes/${alertId}`);
 
         const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_KEY}`, {
           id: alertId,
@@ -251,9 +230,6 @@ module.exports = {
         const doc = await firestore.get(`payments-disputes/${alertId}`);
         assert.equal(doc.alert.card.last4, '1234', 'Should use card value as last4 when already 4 digits');
         assert.equal(doc.alert.processor, 'stripe', 'Processor should default to stripe');
-
-        // Clean up
-        await firestore.delete(`payments-disputes/${alertId}`);
       },
     },
 
@@ -262,9 +238,6 @@ module.exports = {
       auth: 'none',
       async run({ http, assert, firestore }) {
         const alertId = '_test-dispute-duplicate';
-
-        // Clean up any existing doc
-        await firestore.delete(`payments-disputes/${alertId}`);
 
         // Send first alert
         await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_KEY}`, {
@@ -284,9 +257,6 @@ module.exports = {
 
         assert.isSuccess(response, 'Duplicate should still return 200');
         assert.equal(response.data.duplicate, true, 'Should indicate duplicate');
-
-        // Clean up
-        await firestore.delete(`payments-disputes/${alertId}`);
       },
     },
 
@@ -320,9 +290,6 @@ module.exports = {
           doc.status === 'pending' || doc.status === 'processing',
           'Status should be pending or processing after retry',
         );
-
-        // Clean up
-        await firestore.delete(`payments-disputes/${alertId}`);
       },
     },
 
@@ -331,9 +298,6 @@ module.exports = {
       auth: 'none',
       async run({ http, assert, firestore }) {
         const alertId = '_test-dispute-default-provider';
-
-        // Clean up any existing doc
-        await firestore.delete(`payments-disputes/${alertId}`);
 
         // Send without provider query param
         const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_KEY}`, {
@@ -347,9 +311,6 @@ module.exports = {
 
         const doc = await firestore.get(`payments-disputes/${alertId}`);
         assert.equal(doc.provider, 'chargeblast', 'Provider should default to chargeblast');
-
-        // Clean up
-        await firestore.delete(`payments-disputes/${alertId}`);
       },
     },
   ],

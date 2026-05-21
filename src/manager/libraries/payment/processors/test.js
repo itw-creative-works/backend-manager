@@ -174,5 +174,12 @@ function resolveStripeProductId(productId, config) {
 
   const product = config.payment.products.find(p => p.id === productId);
 
-  return product?.stripe?.productId || null;
+  if (!product) {
+    return null;
+  }
+
+  // Real Stripe product ID if configured, otherwise the "_test_<id>" sentinel that the
+  // Stripe resolver recognizes and maps back to the BEM product. Lets reconstruction
+  // work in brands without real Stripe (Somiibo uses PayPal, Chargebee, etc.).
+  return product.stripe?.productId || `_test_${product.id}`;
 }
