@@ -16,6 +16,73 @@ class BaseCommand {
     throw new Error('Execute method must be implemented');
   }
 
+  /**
+   * Resolve a path inside the consumer project's `.temp/` directory. Used for
+   * TRULY internal artifacts that have no debugging value: reset sentinels
+   * (*.log.reset), the watch command's reload trigger, and `test-mode.json`.
+   *
+   * For human-readable log files, use `getLogsPath()` instead — those live in
+   * `functions/` next to firebase-tools' own *-debug.log files so all log
+   * output can be grepped from one directory.
+   *
+   * Ensures the directory exists.
+   * @param {string} [filename] - File name to append (omit to get the dir path).
+   * @returns {string} Absolute path.
+   */
+  getTempPath(filename) {
+    const projectDir = this.main.firebaseProjectPath;
+    const tempDir = path.join(projectDir, '.temp');
+    jetpack.dir(tempDir);
+    return filename ? path.join(tempDir, filename) : tempDir;
+  }
+
+  /**
+   * Resolve a path for a human-readable log file. BEM-owned logs (serve.log,
+   * emulator.log, test.log, logs.log) live in `functions/` alongside
+   * firebase-tools' own *-debug.log files so all log output is grep-able from
+   * one place. Reset sentinels and other internal-only artifacts use
+   * `getTempPath()` instead.
+   *
+   * @param {string} [filename] - File name to append (omit to get the dir path).
+   * @returns {string} Absolute path.
+   */
+  getLogsPath(filename) {
+    const projectDir = this.main.firebaseProjectPath;
+    const logsDir = path.join(projectDir, 'functions');
+    return filename ? path.join(logsDir, filename) : logsDir;
+  }
+
+  /**
+   * Sweep stale BEM-owned logs out of `functions/`. Catches `.log` files
+   * from previous runs so each emulator/serve/test boot starts with a clean
+   * slate. Also catches stale `.reset` sentinels in `.temp/` that a crashed
+   * process may have left behind.
+   *
+   * Firebase-tools writes its own debug logs (firestore-debug.log,
+   * database-debug.log, pubsub-debug.log, firebase-debug.log, ui-debug.log) to
+   * cwd and we can't redirect them — we deliberately do NOT touch those, so
+   * users can grep them after a crash.
+   */
+  sweepStaleLogs() {
+    const logFiles = [
+      'serve.log',
+      'emulator.log',
+      'test.log',
+      'logs.log',
+    ];
+    const resetSentinels = [
+      'serve.log.reset',
+      'emulator.log.reset',
+    ];
+
+    for (const name of logFiles) {
+      try { jetpack.remove(this.getLogsPath(name)); } catch (e) { /* best-effort */ }
+    }
+    for (const name of resetSentinels) {
+      try { jetpack.remove(this.getTempPath(name)); } catch (e) { /* best-effort */ }
+    }
+  }
+
   log(...args) {
     console.log(...args);
   }

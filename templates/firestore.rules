@@ -69,7 +69,8 @@ service cloud.firestore {
         || isWritingField('affiliate')
         || isWritingField('api')
         || isWritingField('metadata')
-        || isWritingField('usage');
+        || isWritingField('usage')
+        || isWritingField('consent');
     }
 
     function isCreatingField(field) {

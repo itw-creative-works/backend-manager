@@ -6,7 +6,7 @@
  * - Users can read their own document
  * - Users can write to their own document (non-protected fields only)
  * - Users cannot read/write other users' documents
- * - Protected fields (auth, roles, flags, subscription, affiliate, api, usage) cannot be written by users
+ * - Protected fields (auth, roles, flags, subscription, affiliate, api, metadata, usage, consent) cannot be written by users
  *
  * @see templates/firestore.rules
  */
@@ -228,6 +228,28 @@ module.exports = {
             affiliate: {
               code: 'STOLEN',
               referrals: [],
+            },
+          }, { merge: true })
+        );
+      },
+    },
+
+    // Test 11.5: User cannot write 'consent' field (protected - server-only)
+    {
+      name: 'user-cannot-write-consent-field',
+      auth: 'none',
+
+      async run({ rules, accounts }) {
+        const uid = accounts.basic.uid;
+        const db = rules.asAccount('basic');
+
+        // Should fail - consent is protected (only signup route + webhook
+        // processors can mutate it server-side; a client write would let a
+        // user retroactively forge their own consent record).
+        await rules.expectFailure(
+          db.doc(`users/${uid}`).set({
+            consent: {
+              marketing: { status: 'granted' },
             },
           }, { merge: true })
         );

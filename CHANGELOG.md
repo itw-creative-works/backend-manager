@@ -14,6 +14,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.2.2] - 2026-05-21
+
+### Added
+
+- **`consent` is now a protected user field.** `templates/firestore.rules` includes `consent` in `isWritingProtectedUserField()` so a logged-in user cannot retroactively forge their own consent record from the client — only the signup route + webhook processors can mutate it server-side. New rule test in `test/rules/user.js`.
+- **`BaseCommand.getLogsPath(name)` / `getTempPath(name)`** in `src/cli/commands/base-command.js`. Two explicit helpers so the folder convention is the SSOT and easy to change later. `getLogsPath()` writes human-readable logs (`serve.log`, `emulator.log`, `test.log`, `logs.log`) to `<projectDir>/functions/` alongside firebase-tools' own `*-debug.log` files. `getTempPath()` writes transient internal-only stuff (`*.log.reset` sentinels, `bem-reload-trigger.js`, `test-mode.json`) to `<projectDir>/.temp/`.
+- **`BaseCommand.sweepStaleLogs()`** wipes BEM's own `.log` files in `functions/` and `.reset` sentinels in `.temp/` on every emulator/serve boot and on `npx mgr setup`. Deliberately does NOT touch firebase-tools' debug logs (`firestore-debug.log`, `database-debug.log`, etc.) so users can grep them after a crash.
+- **`npx mgr setup` cleanup step.** `cleanupGeneratedArtifacts()` now removes the watch trigger file (existing behavior) plus calls `sweepStaleLogs()` to clean up old BEM-owned logs/sentinels from previous runs.
+
 # [5.2.1] - 2026-05-21
 
 ### Added

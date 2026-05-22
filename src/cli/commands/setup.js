@@ -104,8 +104,8 @@ class SetupCommand extends BaseCommand {
       throw new Error('Missing <engines.node> in package.json');
     }
 
-    // Clean up leftover trigger files from watch command
-    this.cleanupTriggerFiles();
+    // Clean up leftover trigger files + stale log files from older BEM versions
+    this.cleanupGeneratedArtifacts();
 
     // Copy / merge defaults into consumer project root (matches EM/BXM/UJM pattern).
     // Runs BEFORE tests so any test that inspects scaffolded files sees the merged state.
@@ -219,13 +219,19 @@ class SetupCommand extends BaseCommand {
     }
   }
 
-  cleanupTriggerFiles() {
+  cleanupGeneratedArtifacts() {
     const self = this.main;
-    const triggerFile = `${self.firebaseProjectPath}/functions/bem-reload-trigger.js`;
 
+    // Remove the BEM reload-trigger file (transient artifact from `npx mgr watch`)
+    const triggerFile = `${self.firebaseProjectPath}/functions/bem-reload-trigger.js`;
     if (jetpack.exists(triggerFile)) {
       jetpack.remove(triggerFile);
     }
+
+    // Sweep stale firebase-tools debug logs + leftover BEM logs from older
+    // versions (pre-5.2.2 they lived in functions/; now in .temp/). Shared
+    // implementation in base-command.js so emulator/serve boot also runs it.
+    this.sweepStaleLogs();
   }
 
   async runTests() {

@@ -18,6 +18,10 @@ class ServeCommand extends BaseCommand {
       throw new Error('Port conflicts could not be resolved');
     }
 
+    // Wipe stale firebase-tools debug logs + any leftover BEM logs from older
+    // versions. Keeps the project tree clean across runs.
+    this.sweepStaleLogs();
+
     // Start BEM watcher in background
     const watcher = new WatchCommand(self);
     watcher.startBackground();
@@ -40,8 +44,8 @@ class ServeCommand extends BaseCommand {
     //      lines on the first cycle (subsequent cycles route those elsewhere), so
     //      we'd end up with a near-empty log. Rolling at the START of the cycle
     //      lets us capture whatever firebase-tools does emit, complete-or-not.
-    const logPath = path.join(projectDir, 'functions', 'serve.log');
-    const resetSentinelPath = `${logPath}.reset`;
+    const logPath = this.getLogsPath('serve.log');
+    const resetSentinelPath = this.getTempPath('serve.log.reset');
     // Match any node version: "Using node@22 from host.", "Using node@20 from host.", etc.
     const RELOAD_MARKER = /Using node@\d+ from host\./;
     const stripAnsi = (str) => str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');

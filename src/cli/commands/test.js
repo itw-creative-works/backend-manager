@@ -199,8 +199,7 @@ class TestCommand extends BaseCommand {
    * log just won't be reset for this run.
    */
   async requestEmulatorLogReset(projectDir) {
-    const logPath = path.join(projectDir, 'functions', 'emulator.log');
-    const sentinelPath = `${logPath}.reset`;
+    const sentinelPath = this.getTempPath('emulator.log.reset');
 
     try {
       fs.writeFileSync(sentinelPath, '');
@@ -242,8 +241,8 @@ class TestCommand extends BaseCommand {
     this.log(chalk.gray(`  Auth: 127.0.0.1:${emulatorPorts.auth}`));
     this.log(chalk.gray(`  UI: http://127.0.0.1:${emulatorPorts.ui}`));
 
-    // Set up log file in the project directory
-    const logPath = path.join(projectDir, 'functions', 'test.log');
+    // Set up log file in the project's functions/ directory (alongside firebase-tools logs)
+    const logPath = this.getLogsPath('test.log');
     const logStream = fs.createWriteStream(logPath, { flags: 'w' });
     const stripAnsi = (str) => str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
 

@@ -73,6 +73,10 @@ class EmulatorCommand extends BaseCommand {
       throw new Error('Port conflicts could not be resolved');
     }
 
+    // Wipe stale firebase-tools debug logs + any leftover BEM logs from older
+    // versions. Keeps the project tree clean across runs.
+    this.sweepStaleLogs();
+
     // BEM_TESTING=true is passed so Functions skip external API calls (emails, SendGrid)
     // hosting is included so localhost:5002 rewrites work (e.g., /backend-manager -> bm_api)
     // pubsub is included so scheduled functions (bm_cronDaily) can be triggered in tests
@@ -87,8 +91,8 @@ class EmulatorCommand extends BaseCommand {
     // by touching emulator.log.reset — the watcher below detects it, closes the
     // current stream, reopens with flags: 'w' (truncating cleanly from our process'
     // perspective, no sparse-file issue), and deletes the sentinel.
-    const logPath = path.join(projectDir, 'functions', 'emulator.log');
-    const resetSentinelPath = `${logPath}.reset`;
+    const logPath = this.getLogsPath('emulator.log');
+    const resetSentinelPath = this.getTempPath('emulator.log.reset');
     const stripAnsi = (str) => str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
 
     let currentStream = fs.createWriteStream(logPath, { flags: 'w' });

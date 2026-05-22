@@ -850,12 +850,13 @@ npx mgr test user/ admin/       # Multiple paths
 
 ### Log Files
 
-BEM CLI commands automatically save output to log files in the project directory:
-- **`emulator.log`** — Full emulator + Cloud Functions output (`npx mgr emulator`)
-- **`test.log`** — Test runner output (`npx mgr test`, when running against an existing emulator)
-- **`logs.log`** — Cloud Function logs (`npx mgr logs:read` or `npx mgr logs:tail`)
+BEM CLI commands automatically save output to log files in the project's `functions/` directory (alongside firebase-tools' own `*-debug.log` files so everything is grep-able from one place):
+- **`functions/serve.log`** — Output from `npx mgr serve`
+- **`functions/emulator.log`** — Full emulator + Cloud Functions output (`npx mgr emulator`)
+- **`functions/test.log`** — Test runner output (`npx mgr test`, when running against an existing emulator)
+- **`functions/logs.log`** — Cloud Function logs (`npx mgr logs:read` or `npx mgr logs:tail`)
 
-Logs are overwritten on each run. Use them to debug failing tests or review function output.
+Logs are overwritten on each run and gitignored via `*.log`. Use them to debug failing tests or review function output. Transient internal artifacts (reset sentinels, watch trigger, `test-mode.json`) live separately in `<projectDir>/.temp/`.
 
 ### Test Locations
 
