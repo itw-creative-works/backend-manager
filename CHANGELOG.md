@@ -14,6 +14,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.2.3] - 2026-05-22
+
+### Added
+
+- **`marketing.sendgrid.listId` in `templates/backend-manager-config.json`.** Empty-string placeholder for OMEGA's `sendgrid/ensure/list.js` to populate at brand-onboarding time. Mirrors the existing `marketing.beehiiv.publicationId` convention.
+- **`_test.*` local-part block** in `src/manager/libraries/email/data/blocked-local-patterns.js`. Test-suite accounts (`_test.<scenario>@somiibo.com`) are now blocked from reaching SendGrid + Beehiiv. The carved-out exception is `_test.allow_*` — used for live-provider integration tests that intentionally need to round-trip a real contact.
+
+### Changed
+
+- **`Marketing.add()` and `Marketing.sync()` now use the full `validate()` pipeline** instead of just `isCorporate()`. Single SSOT for "is this a valid marketing email" — runs format → disposable → corporate → localPart in one call. Stricter behavior: disposable-domain emails (mailinator etc.) and junk local-parts (`noreply`, `test*`, `_test.*`) are now blocked from marketing lists. They were previously waved through because the gate only checked corporate domains.
+- **SendGrid list-ID lookup is now config-only.** `src/manager/libraries/email/providers/sendgrid.js#getListId()` reads `Manager.config.marketing.sendgrid.listId` and returns null if missing — no more runtime API call, no more fuzzy-match-by-brand-name. Old fuzzy logic kept commented out as `getListIdByFuzzyMatch()` backstop. **Brands must run OMEGA's sendgrid service to populate `listId` before this version sees their list assignments work** (without it, contacts land in SendGrid's global "All Contacts" pool, not the brand list).
+- **Beehiiv publication-ID lookup is now config-only.** `src/manager/libraries/email/providers/beehiiv.js#getPublicationId()` reads `Manager.config.marketing.beehiiv.publicationId` and returns null if missing — same shape as SendGrid above. Old fuzzy logic kept commented out as backstop. Beehiiv side already preferred config when set, but now there's no API fallback.
+- **`marketing.beehiiv.publicationId` is now an always-present empty string in the config template** (was a commented-out hint). Matches the SendGrid `listId` shape and means `Manager.config.marketing.beehiiv.publicationId` always returns `""` (never `undefined`) for legacy brands.
+- **SendGrid API timeouts bumped from 10s → 60s** via a new top-level `SENDGRID_TIMEOUT_MS` constant in `sendgrid.js`. All 9 fetch sites updated. Catches the intermittent SendGrid backend hiccups that were dropping signups silently with "Request timed out".
+
 # [5.2.2] - 2026-05-21
 
 ### Added

@@ -138,10 +138,11 @@
   marketing: {
     sendgrid: {
       enabled: true,
+      listId: '',  // SendGrid Marketing list UUID. Populated by OMEGA's sendgrid/ensure/list.js. Skips runtime list-discovery API call.
     },
     beehiiv: {
       enabled: false,
-      // publicationId: 'pub_xxxxx',  // Set to skip fuzzy-match API call
+      publicationId: '',  // Beehiiv publication ID (e.g., 'pub_xxxxx'). Populated by OMEGA's beehiiv/ensure/publication.js. Required for marketing sync to Beehiiv.
       // Content pipeline. Lives under the provider that publishes the result —
       // Beehiiv for newsletters, eventually SendGrid for promo blasts. The
       // shape is the same regardless of provider: sources, tone, template,

@@ -131,79 +131,95 @@ async function removeSubscriber(email, publicationId) {
 }
 
 /**
- * Get a Beehiiv publication ID by brand name (fuzzy match).
+ * Get this brand's Beehiiv publication ID.
  *
- * @param {string} brandName
- * @returns {string|null} Publication ID or null
+ * Reads `Manager.config.marketing.beehiiv.publicationId` — populated by
+ * OMEGA's `beehiiv/ensure/publication.js` at brand-onboarding time. No
+ * runtime API call, no fuzzy-match fragility.
+ *
+ * If the brand hasn't been onboarded yet (publicationId missing/empty), logs
+ * a warning and returns null — the marketing sync will skip Beehiiv for this
+ * brand. Fix: run OMEGA's beehiiv service to populate.
+ *
+ * @returns {string|null} Publication ID or null if not configured
  */
-let _publicationIdCache = null;
+function getPublicationId() {
+  const publicationId = Manager.config?.marketing?.beehiiv?.publicationId;
 
-async function getPublicationId() {
-  if (_publicationIdCache) {
-    return _publicationIdCache;
-  }
-
-  // Use publicationId from config if set (skips API call)
-  const configPubId = Manager.config?.marketing?.beehiiv?.publicationId;
-
-  if (configPubId) {
-    _publicationIdCache = configPubId;
-    return configPubId;
-  }
-
-  // Fuzzy-match by brand name (guard against uninitialized Manager singleton —
-  // happens in test stubs that build their own Manager without init()).
-  const brandName = Manager.config?.brand?.name;
-
-  if (!brandName) {
-    console.error('Beehiiv: Brand name is required to find publication');
+  if (!publicationId) {
+    console.warn(
+      'Beehiiv: marketing.beehiiv.publicationId is not set in config. '
+      + 'Subscriber will NOT be added to a publication. '
+      + 'Run OMEGA to populate.',
+    );
     return null;
   }
 
-  const brandNameLower = brandName.toLowerCase();
-  const allPublications = [];
-  let page = 1;
-  const limit = 100;
-
-  try {
-    while (true) {
-      const data = await fetch(`${BASE_URL}/publications?limit=${limit}&page=${page}`, {
-        response: 'json',
-        headers: headers(),
-        timeout: 10000,
-      });
-
-      if (!data.data || data.data.length === 0) {
-        break;
-      }
-
-      const matchedPub = data.data.find(pub =>
-        pub.name.toLowerCase() === brandNameLower
-        || pub.name.toLowerCase().includes(brandNameLower)
-        || brandNameLower.includes(pub.name.toLowerCase())
-      );
-
-      if (matchedPub) {
-        _publicationIdCache = matchedPub.id;
-        return matchedPub.id;
-      }
-
-      allPublications.push(...data.data);
-
-      if (data.data.length < limit) {
-        break;
-      }
-
-      page++;
-    }
-
-    console.error(`Beehiiv: No publication matched brand "${brandName}". Available: ${allPublications.map(p => p.name).join(', ')}`);
-  } catch (e) {
-    console.error('Beehiiv publication lookup error:', e);
-  }
-
-  return null;
+  return publicationId;
 }
+
+// LEGACY: Fuzzy-match-by-brand-name fallback. Kept commented out as a backstop
+// in case the config-based approach has an edge case we haven't seen yet.
+// Delete once we've verified the config-based approach works across all brands.
+//
+// let _publicationIdCache = null;
+//
+// async function getPublicationIdByFuzzyMatch() {
+//   if (_publicationIdCache) {
+//     return _publicationIdCache;
+//   }
+//
+//   const brandName = Manager.config?.brand?.name;
+//
+//   if (!brandName) {
+//     console.error('Beehiiv: Brand name is required to find publication');
+//     return null;
+//   }
+//
+//   const brandNameLower = brandName.toLowerCase();
+//   const allPublications = [];
+//   let page = 1;
+//   const limit = 100;
+//
+//   try {
+//     while (true) {
+//       const data = await fetch(`${BASE_URL}/publications?limit=${limit}&page=${page}`, {
+//         response: 'json',
+//         headers: headers(),
+//         timeout: 10000,
+//       });
+//
+//       if (!data.data || data.data.length === 0) {
+//         break;
+//       }
+//
+//       const matchedPub = data.data.find(pub =>
+//         pub.name.toLowerCase() === brandNameLower
+//         || pub.name.toLowerCase().includes(brandNameLower)
+//         || brandNameLower.includes(pub.name.toLowerCase())
+//       );
+//
+//       if (matchedPub) {
+//         _publicationIdCache = matchedPub.id;
+//         return matchedPub.id;
+//       }
+//
+//       allPublications.push(...data.data);
+//
+//       if (data.data.length < limit) {
+//         break;
+//       }
+//
+//       page++;
+//     }
+//
+//     console.error(`Beehiiv: No publication matched brand "${brandName}". Available: ${allPublications.map(p => p.name).join(', ')}`);
+//   } catch (e) {
+//     console.error('Beehiiv publication lookup error:', e);
+//   }
+//
+//   return null;
+// }
 
 /**
  * Add a contact to Beehiiv — resolves publication, adds subscriber with optional custom fields.
@@ -217,7 +233,7 @@ async function getPublicationId() {
  * @returns {{ success: boolean, id?: string, error?: string }}
  */
 async function addContact({ email, firstName, lastName, company, source, customFields }) {
-  const publicationId = await getPublicationId();
+  const publicationId = getPublicationId();
 
   if (!publicationId) {
     return { success: false, error: 'Publication not found' };
@@ -245,7 +261,7 @@ async function addContact({ email, firstName, lastName, company, source, customF
  * @returns {{ success: boolean, deleted?: boolean, skipped?: boolean, error?: string }}
  */
 async function removeContact(email) {
-  const publicationId = await getPublicationId();
+  const publicationId = getPublicationId();
 
   if (!publicationId) {
     return { success: false, error: 'Publication not found' };
@@ -290,7 +306,7 @@ async function resolveSegmentIds() {
     return _segmentIdCache;
   }
 
-  const publicationId = await getPublicationId();
+  const publicationId = getPublicationId();
 
   if (!publicationId) {
     return {};
@@ -337,7 +353,7 @@ async function resolveSegmentIds() {
  * @returns {{ success: boolean, id?: string, scheduled?: boolean, error?: string }}
  */
 async function createPost(options) {
-  const publicationId = options.publicationId || await getPublicationId();
+  const publicationId = options.publicationId || getPublicationId();
 
   if (!publicationId) {
     return { success: false, error: 'Publication not found' };

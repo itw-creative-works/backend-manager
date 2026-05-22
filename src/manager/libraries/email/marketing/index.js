@@ -29,7 +29,7 @@ const md = new MarkdownIt({ html: true, breaks: true, linkify: true });
 
 const { TEMPLATES, GROUPS, SENDERS } = require('../constants.js');
 const { tagLinks } = require('../utm.js');
-const { isCorporate } = require('../validation.js');
+const { validate } = require('../validation.js');
 const sendgridProvider = require('../providers/sendgrid.js');
 const beehiivProvider = require('../providers/beehiiv.js');
 
@@ -73,9 +73,13 @@ Marketing.prototype.add = async function (options) {
     return {};
   }
 
-  if (isCorporate(email)) {
-    assistant.warn(`Marketing.add(): Blocked corporate/social-media domain, skipping: ${email}`);
-    return { blocked: 'corporate', email };
+  // SSOT for what "valid marketing email" means — format, disposable, corporate,
+  // localPart junk (incl. _test.* test-suite accounts). Single validate() call
+  // catches all of these before we hit SendGrid/Beehiiv.
+  const validation = await validate(email);
+  if (!validation.valid) {
+    assistant.warn(`Marketing.add(): Validation failed, skipping: ${email}`, validation.checks);
+    return { blocked: 'validation', email, checks: validation.checks };
   }
 
   if (assistant.isTesting() && !process.env.TEST_EXTENDED_MODE) {
@@ -157,9 +161,13 @@ Marketing.prototype.sync = async function (userDocOrUid) {
     return {};
   }
 
-  if (isCorporate(email)) {
-    assistant.warn(`Marketing.sync(): Blocked corporate/social-media domain, skipping: ${email}`);
-    return { blocked: 'corporate', email };
+  // SSOT for what "valid marketing email" means — format, disposable, corporate,
+  // localPart junk (incl. _test.* test-suite accounts). Single validate() call
+  // catches all of these before we hit SendGrid/Beehiiv.
+  const validation = await validate(email);
+  if (!validation.valid) {
+    assistant.warn(`Marketing.sync(): Validation failed, skipping: ${email}`, validation.checks);
+    return { blocked: 'validation', email, checks: validation.checks };
   }
 
   if (assistant.isTesting() && !process.env.TEST_EXTENDED_MODE) {

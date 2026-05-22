@@ -9,6 +9,12 @@ const { resolveFieldValues } = require('../constants.js');
 
 const BASE_URL = 'https://api.sendgrid.com/v3';
 
+// SendGrid's API is normally fast (<2s) but spikes past 10s during their
+// hiccups, dropping signups silently. 60s is generous but harmless — the
+// metadata calls (resolveFieldIds, getListId) are cached for the process
+// lifetime so a slow first call costs nothing in steady state.
+const SENDGRID_TIMEOUT_MS = 60000;
+
 // --- Internal helpers ---
 
 function headers() {
@@ -35,7 +41,7 @@ async function resolveFieldIds() {
     const data = await fetch(`${BASE_URL}/marketing/field_definitions`, {
       response: 'json',
       headers: headers(),
-      timeout: 10000,
+      timeout: SENDGRID_TIMEOUT_MS,
     });
 
     _fieldIdCache = {};
@@ -70,7 +76,7 @@ async function resolveSegmentIds() {
     const data = await fetch(`${BASE_URL}/marketing/segments/2.0`, {
       response: 'json',
       headers: headers(),
-      timeout: 10000,
+      timeout: SENDGRID_TIMEOUT_MS,
     });
 
     _segmentIdCache = {};
@@ -137,7 +143,7 @@ async function removeContact(email) {
       method: 'post',
       response: 'json',
       headers: headers(),
-      timeout: 10000,
+      timeout: SENDGRID_TIMEOUT_MS,
       body: { emails: [email] },
     });
 
@@ -152,7 +158,7 @@ async function removeContact(email) {
       method: 'delete',
       response: 'json',
       headers: headers(),
-      timeout: 10000,
+      timeout: SENDGRID_TIMEOUT_MS,
     });
 
     if (deleteData.job_id) {
@@ -167,68 +173,95 @@ async function removeContact(email) {
 }
 
 /**
- * Get a SendGrid list ID by brand name (fuzzy match).
+ * Get this brand's SendGrid Marketing list ID.
  *
- * @param {string} brandName
- * @returns {string|null} List ID or null
+ * Reads `Manager.config.marketing.sendgrid.listId` — populated by OMEGA's
+ * `sendgrid/ensure/list.js` at brand-onboarding time, same as how Beehiiv's
+ * `publicationId` works. No runtime API call, no fuzzy-match fragility.
+ *
+ * If the brand hasn't been onboarded yet (listId missing/empty), logs a
+ * warning and returns null — the marketing sync will still succeed, but the
+ * contact lands in SendGrid's global pool instead of the brand's list. Fix:
+ * run OMEGA's sendgrid service to populate the config.
+ *
+ * @returns {string|null} List ID or null if not configured
  */
-async function getListId() {
-  const brandName = Manager.config.brand?.name;
-  const brandNameLower = (brandName || '').toLowerCase();
-  const allLists = [];
-  let pageToken = '';
-  const pageSize = 1000;
+function getListId() {
+  const listId = Manager.config.marketing?.sendgrid?.listId;
 
-  try {
-    while (true) {
-      const url = `${BASE_URL}/marketing/lists?page_size=${pageSize}${pageToken ? `&page_token=${pageToken}` : ''}`;
-      const data = await fetch(url, {
-        response: 'json',
-        headers: headers(),
-        timeout: 10000,
-      });
-
-      if (!data.result || data.result.length === 0) {
-        break;
-      }
-
-      const matchedList = data.result.find(list =>
-        list.name.toLowerCase() === brandNameLower
-        || list.name.toLowerCase().includes(brandNameLower)
-        || brandNameLower.includes(list.name.toLowerCase())
-      );
-
-      if (matchedList) {
-        return matchedList.id;
-      }
-
-      allLists.push(...data.result);
-
-      if (!data._metadata?.next) {
-        break;
-      }
-
-      const nextUrl = new URL(data._metadata.next);
-      pageToken = nextUrl.searchParams.get('page_token');
-
-      if (!pageToken) {
-        break;
-      }
-    }
-
-    if (allLists.length === 1) {
-      return allLists[0].id;
-    }
-
-    if (allLists.length > 0) {
-      console.error(`SendGrid: No list matched brand "${brandName}". Available: ${allLists.map(l => l.name).join(', ')}`);
-    }
-  } catch (e) {
-    console.error('SendGrid list lookup error:', e);
+  if (!listId) {
+    console.warn(
+      'SendGrid: marketing.sendgrid.listId is not set in config. '
+      + 'Contact will be added to All Contacts only, not the brand list. '
+      + 'Run OMEGA to populate.',
+    );
+    return null;
   }
 
-  return null;
+  return listId;
 }
+
+// LEGACY: Fuzzy-match-by-brand-name fallback. Kept commented out as a backstop
+// in case the config-based approach has an edge case we haven't seen yet.
+// Delete once we've verified the config-based approach works across all brands.
+//
+// async function getListIdByFuzzyMatch() {
+//   const brandName = Manager.config.brand?.name;
+//   const brandNameLower = (brandName || '').toLowerCase();
+//   const allLists = [];
+//   let pageToken = '';
+//   const pageSize = 1000;
+//
+//   try {
+//     while (true) {
+//       const url = `${BASE_URL}/marketing/lists?page_size=${pageSize}${pageToken ? `&page_token=${pageToken}` : ''}`;
+//       const data = await fetch(url, {
+//         response: 'json',
+//         headers: headers(),
+//         timeout: SENDGRID_TIMEOUT_MS,
+//       });
+//
+//       if (!data.result || data.result.length === 0) {
+//         break;
+//       }
+//
+//       const matchedList = data.result.find(list =>
+//         list.name.toLowerCase() === brandNameLower
+//         || list.name.toLowerCase().includes(brandNameLower)
+//         || brandNameLower.includes(list.name.toLowerCase())
+//       );
+//
+//       if (matchedList) {
+//         return matchedList.id;
+//       }
+//
+//       allLists.push(...data.result);
+//
+//       if (!data._metadata?.next) {
+//         break;
+//       }
+//
+//       const nextUrl = new URL(data._metadata.next);
+//       pageToken = nextUrl.searchParams.get('page_token');
+//
+//       if (!pageToken) {
+//         break;
+//       }
+//     }
+//
+//     if (allLists.length === 1) {
+//       return allLists[0].id;
+//     }
+//
+//     if (allLists.length > 0) {
+//       console.error(`SendGrid: No list matched brand "${brandName}". Available: ${allLists.map(l => l.name).join(', ')}`);
+//     }
+//   } catch (e) {
+//     console.error('SendGrid list lookup error:', e);
+//   }
+//
+//   return null;
+// }
 
 // --- Single Sends (Campaigns) ---
 
@@ -354,7 +387,7 @@ async function cancelSingleSend(singleSendId) {
       method: 'delete',
       response: 'json',
       headers: headers(),
-      timeout: 10000,
+      timeout: SENDGRID_TIMEOUT_MS,
     });
 
     return { success: true };
@@ -375,7 +408,7 @@ async function getSingleSend(singleSendId) {
     const data = await fetch(`${BASE_URL}/marketing/singlesends/${singleSendId}`, {
       response: 'json',
       headers: headers(),
-      timeout: 10000,
+      timeout: SENDGRID_TIMEOUT_MS,
     });
 
     return data.id ? data : null;
@@ -400,7 +433,7 @@ async function listSingleSends(options) {
     const data = await fetch(url, {
       response: 'json',
       headers: headers(),
-      timeout: 10000,
+      timeout: SENDGRID_TIMEOUT_MS,
     });
 
     return data.result || [];
@@ -437,7 +470,7 @@ async function addContact({ email, firstName, lastName, company, customFields })
     }
   }
 
-  const listId = await getListId();
+  const listId = getListId();
   const result = await upsertContacts({
     contacts: [contact],
     listIds: listId ? [listId] : [],
@@ -508,7 +541,7 @@ async function getSegmentContacts(segmentId, maxWaitMs = 60000) {
       const statusData = await fetch(`${BASE_URL}/marketing/contacts/exports/${exportData.id}`, {
         response: 'json',
         headers: headers(),
-        timeout: 10000,
+        timeout: SENDGRID_TIMEOUT_MS,
       });
 
       console.log(`SendGrid getSegmentContacts: Poll #${pollCount} — ${statusData.status} (${Date.now() - startTime}ms)`);
