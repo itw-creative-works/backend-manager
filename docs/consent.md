@@ -138,7 +138,7 @@ Each processor's `handleEvent` does the same shape of work:
 | SendGrid | `unsubscribe`, `group_unsubscribe`, `spamreport`, `bounce`, `dropped` |
 | Beehiiv | `subscription.unsubscribed`, `subscription.deleted`, `subscription.paused` |
 
-**Beehiiv publication filter.** Each Beehiiv event includes a `publication_id`. The processor compares this against the result of `beehiivProvider.getPublicationId()` (which reads `Manager.config.marketing.beehiiv.publicationId` or fuzzy-matches against the Beehiiv API by brand name). Mismatch → silent skip. This is how shared-publication events (e.g. devbeans shared by 6 brands) get routed correctly — each brand processes only events matching its own publication.
+**Beehiiv publication filter.** Each Beehiiv event includes a `publication_id`. The processor compares this against `beehiivProvider.getPublicationId()`, which reads `Manager.config.marketing.beehiiv.publicationId` (populated at brand-onboarding time by OMEGA's `beehiiv/ensure/publication.js`). Mismatch → silent skip. This is how shared-publication events (e.g. devbeans shared by 6 brands) get routed correctly — each brand processes only events matching its own publication. Brands without `publicationId` in config silently skip all Beehiiv webhook events. The same convention applies to SendGrid: `marketing.sendgrid.listId` is populated by OMEGA's `sendgrid/ensure/list.js`.
 
 ## Parent forwarder (Phase E)
 
@@ -304,18 +304,13 @@ After the migration: optionally run a re-opt-in drip campaign to legally recover
 
 Run with `npx mgr test` (full suite) or `npx mgr test routes/marketing/webhook` (just the webhook tests).
 
-### Provider-side cleanup (extended mode only)
+### Live-provider tests (extended mode only)
 
-Normally BEM test runs are self-contained because all data lives in the local emulator. Marketing tests are the exception — when `TEST_EXTENDED_MODE=true` is set, the routes make real API calls to SendGrid + Beehiiv and leave real contacts behind.
+Most BEM tests are self-contained against the local emulator. The marketing-consent system has one test that's an exception — [test/marketing/consent-lifecycle.js](../test/marketing/consent-lifecycle.js) — which makes real API calls to SendGrid + Beehiiv to verify the full round-trip works end-to-end.
 
-To keep this self-contained, the runner calls [`cleanupMarketingProviders`](../src/test/test-accounts.js) **twice** per run:
+The validation pipeline (`src/manager/libraries/email/validation.js`) blocks all `_test.*` emails from reaching providers via the `/^_test\.(?!allow_)/` pattern in `blocked-local-patterns.js`. The two `_test.allow_*` sentinels (`_test.allow_consent-granted` and `_test.allow_consent-declined`) used by the lifecycle test bypass that gate intentionally, and the test cleans up after itself (phase-3 removes the granted contact via `Manager.Email().remove()`).
 
-1. **Pre-run** — scrubs leftovers from any previous run that crashed mid-suite.
-2. **Post-run** — scrubs everything this run created. Best-effort (wrapped in try/catch — cleanup failures don't change the test result).
-
-Both fire ONLY when `TEST_EXTENDED_MODE=true`. In normal mode (the default), no provider calls happen and no cleanup is needed.
-
-This is the one exception to the "Firestore cleanup runs at start only" rule documented in [docs/testing.md](testing.md) — we can't wipe SendGrid/Beehiiv state in our own Firestore wipe, so we have to ask the providers to do it for us, twice for defense in depth.
+The "all cleanup runs at start, never at the end" rule documented in [docs/testing.md](testing.md) applies to all test data, including third-party providers.
 
 ## Frontend pieces (cross-references)
 

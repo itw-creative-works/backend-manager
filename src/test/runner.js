@@ -119,25 +119,6 @@ class TestRunner {
       await this.runTestsInDir(projectTestsDir, 'project');
     }
 
-    // Post-run cleanup: scrub test accounts from third-party marketing providers
-    // (SendGrid/Beehiiv) so each test run leaves the contact list in the same
-    // state it found it. Pairs with the pre-run cleanup as defense in depth —
-    // pre-run handles crashed previous runs, post-run handles the current run.
-    // Only fires in extended mode (normal mode never touches real providers).
-    if (process.env.TEST_EXTENDED_MODE) {
-      process.stdout.write(chalk.gray('\n  Cleaning up test accounts from marketing providers... '));
-      try {
-        const cleanupResult = await testAccounts.cleanupMarketingProviders(this.options.domain, {
-          apiUrl: this.options.apiUrl,
-          backendManagerKey: this.options.backendManagerKey,
-        });
-        console.log(chalk.green(`✓ (${cleanupResult.cleaned} cleaned)`));
-      } catch (e) {
-        // Post-run cleanup is best-effort — failures shouldn't change the test result
-        console.log(chalk.yellow(`⚠ cleanup error: ${e.message}`));
-      }
-    }
-
     // Cleanup rules context
     if (this.rulesContext) {
       await this.rulesContext.cleanup();
@@ -228,18 +209,6 @@ class TestRunner {
     process.stdout.write(chalk.gray('  Deleting existing test users... '));
     const deleteResult = await testAccounts.deleteTestUsers(this.options.admin);
     console.log(chalk.green(`✓ (${deleteResult.deleted} deleted, ${deleteResult.skipped} skipped)`));
-
-    // Clean any leftover test accounts from third-party marketing providers
-    // (SendGrid/Beehiiv). Runs BEFORE we create fresh users so a previously
-    // killed run doesn't leave the contact list polluted.
-    if (process.env.TEST_EXTENDED_MODE) {
-      process.stdout.write(chalk.gray('  Cleaning test accounts from marketing providers... '));
-      const cleanupResult = await testAccounts.cleanupMarketingProviders(this.options.domain, {
-        apiUrl: this.options.apiUrl,
-        backendManagerKey: this.options.backendManagerKey,
-      });
-      console.log(chalk.green(`✓ (${cleanupResult.cleaned} cleaned)`));
-    }
 
     process.stdout.write(chalk.gray('  Creating test accounts... '));
 

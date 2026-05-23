@@ -14,6 +14,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.2.5] - 2026-05-22
+
+### Added
+
+- **`utilities.trim(input)`** in `src/manager/helpers/utilities.js`. Walks objects/arrays recursively and trims whitespace on every string. Does NOT strip HTML. Middleware uses it to clean up incoming request data without mangling URLs, Markdown, or any payload with `<`/`>`/`&`.
+- **`findContact(email)`** on the SendGrid + Beehiiv providers, and **`findSubscriber(email, publicationId)`** on Beehiiv. Both extracted from the existing `removeContact`/`removeSubscriber` search-by-email logic so tests (and other call sites) can verify provider state without forcing a delete.
+- **`test/marketing/consent-lifecycle.js`** — 5-phase live integration test (gated on `TEST_EXTENDED_MODE=true`) that walks two long-lived sentinel accounts through pre-check → sync → declined-stays-out → unsubscribe → validation-gate, asserting actual SendGrid + Beehiiv state at every step. Uses `pollProvider()` to handle SendGrid's async background jobs (upsert/delete can take 10-60s+ to surface).
+
+### Changed
+
+- **Middleware no longer strips HTML by default.** The auto-`sanitize-html` pass on incoming request data was mangling legitimate input — URL query strings (`?a=1&b=2` → `?a=1&amp;b=2`), Markdown, and any payload containing `<`/`>`/`&`. The middleware now only trims whitespace by default. HTML sanitization is opt-in per route via `Manager.Middleware(req, res).run('route', { sanitize: true })`. Sanitize at the HTML-insertion site (`utilities.sanitize()` in your template/email render) rather than at the request boundary. The existing schema-level `sanitize: false` opt-out still works when route-level sanitize is on.
+- **Test sentinel accounts `consent-granted` and `consent-declined` now use the `_test.allow_*` prefix** (`_test.allow_consent-granted@...`, `_test.allow_consent-declined@...`). The `_test.*` validation block from v5.2.3 also blocks the previous `_test.consent-*` names from reaching providers — `_test.allow_*` is the carved-out exception specifically for live-provider integration tests.
+- **Beehiiv API timeouts bumped to 60s** on the two remaining stragglers (`findSubscriber`, `resolveSegmentIds`) to match the SendGrid+Beehiiv 60s convention from v5.2.3.
+
+### Removed
+
+- **`cleanupMarketingProviders()` function and its pre-run/post-run hooks** in `src/test/test-accounts.js` + `src/test/runner.js`. No longer needed — the validation gate added in v5.2.3 blocks `_test.*` emails from reaching SendGrid + Beehiiv upstream, so there's nothing to clean up. The new `consent-lifecycle.js` test (which intentionally round-trips real contacts via `_test.allow_*`) manages its own pre-check force-clean inline.
+
 # [5.2.3] - 2026-05-22
 
 ### Added

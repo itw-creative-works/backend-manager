@@ -1,16 +1,25 @@
 # Sanitization (XSS Prevention)
 
-BEM automatically sanitizes all incoming request data — stripping HTML tags and trimming whitespace from every string field. This happens in the middleware pipeline before route handlers execute, so **routes receive clean data by default**.
+BEM middleware always **trims** whitespace on incoming string fields (via `utilities.trim()`). HTML sanitization is **opt-in** — it's not run by default because it mangles legitimate input like URL query strings (`&` → `&amp;`) and Markdown.
+
+The expectation is that you sanitize at the **HTML-insertion site** (in the template, in the email body, etc.) — not at the request boundary.
 
 ## How It Works
 
-1. **Schema fields**: Sanitized per-field during the middleware pipeline. Fields can opt out with `sanitize: false` in the schema.
-2. **Non-schema fields** (when `setupSettings: false` or `includeNonSchemaSettings: true`): All strings are sanitized with no opt-out.
-3. The middleware uses `Manager.Utilities().sanitize()` under the hood.
+1. **Trimming**: Every string in `settings` is whitespace-trimmed by the middleware (objects + arrays walked recursively). Always on.
+2. **HTML sanitization**: Off by default. Opt in per-route with `{ sanitize: true }` on `Manager.Middleware(...).run(...)`.
+3. **Schemas** can mark individual fields with `sanitize: false` to skip the HTML strip for that field when route-level sanitize is enabled (used for fields that legitimately need raw HTML — rich-text editors, email templates).
 
-## Schema Opt-Out
+## Route-Level Opt-In
 
-For fields that legitimately need HTML (rich text, email templates, etc.), set `sanitize: false` in the schema:
+```javascript
+// In functions/index.js — enable HTML strip for a specific route
+Manager.Middleware(req, res).run('my-route', { sanitize: true });
+```
+
+When enabled, every string in `settings` is run through `sanitize-html` (strip all tags) unless the schema marks the field with `sanitize: false`.
+
+## Schema Field Opt-Out (when route-level sanitize is on)
 
 ```javascript
 // This field will NOT be sanitized — raw HTML is preserved
@@ -19,43 +28,42 @@ htmlContent: {
   default: '',
   sanitize: false,
 },
-// This field IS sanitized (default behavior, no flag needed)
+// This field IS sanitized when route-level sanitize is enabled
 name: {
   types: ['string'],
   default: '',
 },
 ```
 
-## Route-Level Opt-Out
+## Manual Sanitization (Recommended)
 
-Disable sanitization entirely for a route (rare — only for routes that handle raw HTML everywhere):
-
-```javascript
-// In functions/index.js
-Manager.Middleware(req, res).run('my-route', { sanitize: false });
-```
-
-## Manual Sanitization (Outside Middleware)
-
-For cron jobs, event handlers, or anywhere outside the request pipeline, use `utilities.sanitize()` directly:
+For most use cases — particularly anywhere you're inserting user-supplied content into HTML — call `utilities.sanitize()` directly at the insertion site:
 
 ```javascript
 // Available in route context
-const clean = utilities.sanitize(untrustedData);
+const safeHtml = utilities.sanitize(untrustedData);
 
 // Or via Manager
-const clean = Manager.Utilities().sanitize(untrustedData);
+const safeHtml = Manager.Utilities().sanitize(untrustedData);
 ```
 
 Accepts any data type — strings, objects, arrays, primitives. Walks objects/arrays recursively, strips HTML from strings, passes everything else through unchanged.
 
-## Route Handler Context
+## Why HTML Sanitization Is Not the Middleware Default
 
-The middleware injects these into every route handler:
+Stripping HTML from every incoming string at the request boundary is too aggressive — it corrupts legitimate input:
+
+- URL query strings: `https://example.com/?a=1&b=2` becomes `https://example.com/?a=1&amp;b=2`
+- Markdown / code snippets with `<`, `>`, `&` characters get mangled
+- API payloads round-tripped through the system get silently rewritten
+
+Stored XSS comes from rendering, not from receiving. Sanitize at the render site (where you know the output context — HTML body, attribute, URL, JSON) instead of at the front door.
+
+## Route Handler Context
 
 ```javascript
 module.exports = async ({ Manager, assistant, analytics, usage, user, settings, libraries, utilities }) => {
-  // settings    — already sanitized by middleware
-  // utilities   — Manager.Utilities() instance for manual sanitization
+  // settings    — whitespace-trimmed by middleware; HTML preserved unless route opts in via { sanitize: true }
+  // utilities   — Manager.Utilities() instance for manual sanitize()/trim()
 };
 ```

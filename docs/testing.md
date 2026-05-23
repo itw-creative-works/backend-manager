@@ -19,18 +19,19 @@ What the runner wipes pre-test (in [src/test/test-accounts.js](../src/test/test-
 
 1. **`meta/stats`** doc ensured (required for on-create batch writes).
 2. **`users/_test-*`** Firebase Auth users + Firestore docs (delete).
-3. **Marketing providers** (SendGrid + Beehiiv) — leftover test contacts removed. Runs only under `TEST_EXTENDED_MODE`. Runs **before** test users are recreated so a killed run can't leave a contact pinned to an about-to-be-recreated uid.
-4. **Mixed Firestore collections** — `payments-orders`, `payments-webhooks`, `payments-intents`, `payments-disputes`, `marketing-webhooks`. Two-pass cleanup per collection:
+3. **Mixed Firestore collections** — `payments-orders`, `payments-webhooks`, `payments-intents`, `payments-disputes`, `marketing-webhooks`. Two-pass cleanup per collection:
    - Pass 1 — owner-keyed: `where('owner', 'in', [...testUids])` (batched at 30 uids per `in` query).
    - Pass 2 — id-keyed: any doc whose ID starts with `_test-` (catches ownerless test docs like dispute alerts and raw test webhooks).
-5. **Test-only Firestore collections** — `_test`, `_test_query` — wiped in full.
-6. **Realtime Database** — the `_test` namespace removed in full (`admin.database().ref('_test').remove()`).
+4. **Test-only Firestore collections** — `_test`, `_test_query` — wiped in full.
+5. **Realtime Database** — the `_test` namespace removed in full (`admin.database().ref('_test').remove()`).
 
-### The one exception: third-party provider cleanup runs at start AND end
+### Marketing-provider cleanup
 
-The `cleanupMarketingProviders` call also fires **after** the suite completes (extended mode only). Reason: pre-run cleanup catches what a crashed previous run left behind, but during a normal-completion run we'd still leak real SendGrid/Beehiiv contacts until the NEXT run cleaned them up. By running cleanup post-suite too, each extended-mode run leaves the provider lists in the same state it found them.
+Test signups never reach SendGrid + Beehiiv. The validation pipeline (`src/manager/libraries/email/validation.js`) blocks all `_test.*` emails at the marketing-library layer via the `/^_test\.(?!allow_)/` pattern in `blocked-local-patterns.js`.
 
-This is **specifically** for third-party state that lives outside the local emulator. **Do not use trailing cleanup for Firestore or Auth data** — those follow the start-only rule because we control the local state and pre-run cleanup is enough.
+The single exception is the `_test.allow_*` prefix. Two long-lived test accounts (`_test.allow_consent-granted@...` and `_test.allow_consent-declined@...`) intentionally round-trip through SendGrid + Beehiiv as the live-provider integration sentinels. They are exercised by `test/marketing/consent-lifecycle.js`, which manages its own setup, assertions, and teardown.
+
+All cleanup follows the start-only rule. No trailing-cleanup exception.
 
 ### When adding a new test that writes data
 

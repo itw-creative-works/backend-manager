@@ -131,14 +131,17 @@ async function upsertContacts({ contacts, listIds }) {
 }
 
 /**
- * Remove a contact from SendGrid by email address.
+ * Look up a SendGrid contact by email. Returns the contact object (id, email,
+ * list_ids, custom_fields, ...) or null if not found.
+ *
+ * Useful for tests that need to verify whether a contact landed in the list
+ * after a marketing sync.
  *
  * @param {string} email
- * @returns {{ success: boolean, jobId?: string, skipped?: boolean, error?: string }}
+ * @returns {Promise<object|null>}
  */
-async function removeContact(email) {
+async function findContact(email) {
   try {
-    // Step 1: Get contact ID by email
     const searchData = await fetch(`${BASE_URL}/marketing/contacts/search/emails`, {
       method: 'post',
       response: 'json',
@@ -147,11 +150,33 @@ async function removeContact(email) {
       body: { emails: [email] },
     });
 
-    if (!searchData.result?.[email]?.contact?.id) {
+    return searchData.result?.[email]?.contact || null;
+  } catch (e) {
+    // 404 is the normal "not in contacts" response — return null silently.
+    if (e.status === 404) {
+      return null;
+    }
+    console.error('SendGrid findContact error:', e);
+    return null;
+  }
+}
+
+/**
+ * Remove a contact from SendGrid by email address.
+ *
+ * @param {string} email
+ * @returns {{ success: boolean, jobId?: string, skipped?: boolean, error?: string }}
+ */
+async function removeContact(email) {
+  try {
+    // Step 1: Get contact ID by email
+    const contact = await findContact(email);
+
+    if (!contact?.id) {
       return { success: true, skipped: true, reason: 'Contact not found' };
     }
 
-    const contactId = searchData.result[email].contact.id;
+    const contactId = contact.id;
 
     // Step 2: Delete contact by ID
     const deleteData = await fetch(`${BASE_URL}/marketing/contacts?ids=${contactId}`, {
@@ -635,6 +660,7 @@ module.exports = {
 
   // Contacts
   addContact,
+  findContact,
   removeContact,
   getSegmentContacts,
   bulkDeleteContacts,

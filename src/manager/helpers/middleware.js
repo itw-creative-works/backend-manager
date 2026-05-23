@@ -35,7 +35,7 @@ Middleware.prototype.run = function (libPath, options) {
     options.setupAnalytics = typeof options.setupAnalytics === 'boolean' ? options.setupAnalytics : true;
     options.setupUsage = typeof options.setupUsage === 'boolean' ? options.setupUsage : true;
     options.setupSettings = typeof options.setupSettings === 'undefined' ? true : options.setupSettings;
-    options.sanitize = typeof options.sanitize === 'undefined' ? true : options.sanitize;
+    options.sanitize = typeof options.sanitize === 'undefined' ? false : options.sanitize;
     options.includeNonSchemaSettings = typeof options.includeNonSchemaSettings === 'undefined' ? false : options.includeNonSchemaSettings;
     options.schema = typeof options.schema === 'undefined' ? libPath : options.schema;
     options.parseMultipartFormData = typeof options.parseMultipartFormData === 'undefined' ? true : options.parseMultipartFormData;
@@ -177,13 +177,16 @@ Middleware.prototype.run = function (libPath, options) {
       assistant.settings = data;
     }
 
-    // Sanitize settings — trim whitespace and strip HTML from all strings
-    // Respects sanitize: false on individual schema fields
+    // Trim whitespace on all string settings (always on — harmless and useful).
+    assistant.settings = Manager.Utilities().trim(assistant.settings);
+
+    // Optional HTML strip (off by default — opt in with `{ sanitize: true }`).
+    // Sanitize at the HTML-insertion site instead unless you need a belt-and-suspenders pass here.
+    // Respects sanitize: false on individual schema fields.
     if (options.sanitize) {
       const schema = options.setupSettings ? Manager.Settings().schema : null;
       const utilities = Manager.Utilities();
 
-      // Walk settings, skipping fields the schema marks as sanitize: false
       assistant.settings = sanitizeWithSchema(utilities, assistant.settings, schema);
     }
 

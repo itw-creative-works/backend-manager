@@ -36,4 +36,4 @@ module.exports = function (assistant, settings, options) {
 
 ## Field Sanitization
 
-By default, every string field in a schema is sanitized (HTML tags stripped, whitespace trimmed) during the middleware pipeline. To preserve raw HTML (rich text, email templates), set `sanitize: false` on the field. See [docs/sanitization.md](sanitization.md).
+Middleware always trims whitespace on string fields. HTML sanitization is **opt-in per route** — `Manager.Middleware(req, res).run('my-route', { sanitize: true })`. When opted in, fields can individually opt back out with `sanitize: false`. See [docs/sanitization.md](sanitization.md).

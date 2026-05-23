@@ -528,4 +528,35 @@ Utilities.prototype.sanitize = function (input) {
   return input;
 };
 
+/**
+ * Trim whitespace from all strings in input. Walks objects/arrays recursively.
+ * Does NOT strip HTML — use sanitize() for that.
+ *
+ * @param {*} input - The data to trim (string, object, array, or primitive)
+ * @returns {*} Trimmed copy (objects/arrays) or trimmed value (strings)
+ */
+Utilities.prototype.trim = function (input) {
+  if (input == null) {
+    return input;
+  }
+
+  if (typeof input === 'string') {
+    return input.trim();
+  }
+
+  if (Array.isArray(input)) {
+    return input.map(item => this.trim(item));
+  }
+
+  if (typeof input === 'object') {
+    const result = {};
+    for (const [key, value] of Object.entries(input)) {
+      result[key] = this.trim(value);
+    }
+    return result;
+  }
+
+  return input;
+};
+
 module.exports = Utilities;

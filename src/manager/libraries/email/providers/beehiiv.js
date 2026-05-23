@@ -79,6 +79,39 @@ async function addSubscriber({ email, firstName, lastName, source, publicationId
 }
 
 /**
+ * Look up a Beehiiv subscriber by email. Returns the subscription object
+ * (id, email, status, custom_fields, ...) or null if not found.
+ *
+ * Useful for tests that need to verify whether a subscriber landed in the
+ * publication after a marketing sync.
+ *
+ * @param {string} email
+ * @param {string} publicationId
+ * @returns {Promise<object|null>}
+ */
+async function findSubscriber(email, publicationId) {
+  try {
+    const encodedEmail = encodeURIComponent(email);
+    const searchData = await fetch(
+      `${BASE_URL}/publications/${publicationId}/subscriptions/by_email/${encodedEmail}`,
+      {
+        response: 'json',
+        headers: headers(),
+        timeout: 60000,
+      }
+    );
+
+    return searchData.data || null;
+  } catch (e) {
+    if (e.status === 404) {
+      return null;
+    }
+    console.error('Beehiiv findSubscriber error:', e);
+    return null;
+  }
+}
+
+/**
  * Remove a subscriber from a Beehiiv publication by email.
  *
  * @param {string} email
@@ -87,31 +120,14 @@ async function addSubscriber({ email, firstName, lastName, source, publicationId
  */
 async function removeSubscriber(email, publicationId) {
   try {
-    const encodedEmail = encodeURIComponent(email);
+    // Step 1: Look up the subscription
+    const subscription = await findSubscriber(email, publicationId);
 
-    // Step 1: Get subscription by email
-    let searchData;
-    try {
-      searchData = await fetch(
-        `${BASE_URL}/publications/${publicationId}/subscriptions/by_email/${encodedEmail}`,
-        {
-          response: 'json',
-          headers: headers(),
-          timeout: 10000,
-        }
-      );
-    } catch (e) {
-      if (e.status === 404) {
-        return { success: true, skipped: true, reason: 'Subscriber not found' };
-      }
-      throw e;
+    if (!subscription?.id) {
+      return { success: true, skipped: true, reason: 'Subscriber not found' };
     }
 
-    if (!searchData.data?.id) {
-      return { success: true, skipped: true, reason: 'Subscription not found' };
-    }
-
-    const subscriptionId = searchData.data.id;
+    const subscriptionId = subscription.id;
 
     // Step 2: Permanently delete the subscription
     await fetch(
@@ -119,7 +135,7 @@ async function removeSubscriber(email, publicationId) {
       {
         method: 'delete',
         headers: headers(),
-        timeout: 10000,
+        timeout: 60000,
       }
     );
 
@@ -186,7 +202,7 @@ function getPublicationId() {
 //       const data = await fetch(`${BASE_URL}/publications?limit=${limit}&page=${page}`, {
 //         response: 'json',
 //         headers: headers(),
-//         timeout: 10000,
+//         timeout: 60000,
 //       });
 //
 //       if (!data.data || data.data.length === 0) {
@@ -271,6 +287,25 @@ async function removeContact(email) {
 }
 
 /**
+ * Look up a contact in this brand's Beehiiv publication. Resolves the
+ * publicationId from config and calls findSubscriber. Mirrors SendGrid's
+ * findContact() surface so tests can use the same pattern across both
+ * providers.
+ *
+ * @param {string} email
+ * @returns {Promise<object|null>}
+ */
+async function findContact(email) {
+  const publicationId = getPublicationId();
+
+  if (!publicationId) {
+    return null;
+  }
+
+  return findSubscriber(email, publicationId);
+}
+
+/**
  * Build Beehiiv custom_fields array from a user doc.
  * Resolves all field values, then maps to display names for Beehiiv.
  * Beehiiv matches custom fields by their display name.
@@ -316,7 +351,7 @@ async function resolveSegmentIds() {
     const data = await fetch(`${BASE_URL}/publications/${publicationId}/segments?limit=100`, {
       response: 'json',
       headers: headers(),
-      timeout: 10000,
+      timeout: 60000,
     });
 
     _segmentIdCache = {};
@@ -435,6 +470,8 @@ module.exports = {
 
   // Contacts
   addContact,
+  findContact,
+  findSubscriber,
   removeContact,
   buildFields,
 
