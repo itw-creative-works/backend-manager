@@ -147,6 +147,12 @@ class TestRunner {
       return false;
     }
 
+    if (!this.options.backendManagerWebhookKey) {
+      console.log(chalk.red('  ✗ Missing backendManagerWebhookKey'));
+      console.log(chalk.gray('    Set BEM_BACKEND_MANAGER_WEBHOOK_KEY environment variable or pass --webhook-key flag'));
+      return false;
+    }
+
     if (!this.options.brand?.id) {
       console.log(chalk.red('  ✗ Missing brand.id'));
       console.log(chalk.gray('    Could not determine brand ID from configuration'));
@@ -661,6 +667,7 @@ class TestRunner {
       timeout: this.options.timeout,
       accounts: this.accounts,
       backendManagerKey: this.options.backendManagerKey,
+      backendManagerWebhookKey: this.options.backendManagerWebhookKey,
     });
 
     // Set default auth

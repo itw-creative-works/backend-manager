@@ -32,7 +32,7 @@ module.exports = {
       name: 'rejects-unknown-provider',
       auth: 'none',
       async run({ http, assert }) {
-        const response = await http.as('none').post(`payments/dispute-alert?provider=unknown&key=${process.env.BACKEND_MANAGER_KEY}`, {
+        const response = await http.as('none').post(`payments/dispute-alert?provider=unknown&key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`, {
           id: '_test-dispute-unknown-provider',
           card: '4242',
           amount: 9.99,
@@ -47,7 +47,7 @@ module.exports = {
       name: 'rejects-missing-id',
       auth: 'none',
       async run({ http, assert }) {
-        const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_KEY}`, {
+        const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`, {
           card: '4242',
           amount: 9.99,
           transactionDate: '2026-01-15',
@@ -61,7 +61,7 @@ module.exports = {
       name: 'rejects-missing-card',
       auth: 'none',
       async run({ http, assert }) {
-        const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_KEY}`, {
+        const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`, {
           id: '_test-dispute-no-card',
           amount: 9.99,
           transactionDate: '2026-01-15',
@@ -75,7 +75,7 @@ module.exports = {
       name: 'rejects-missing-amount',
       auth: 'none',
       async run({ http, assert }) {
-        const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_KEY}`, {
+        const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`, {
           id: '_test-dispute-no-amount',
           card: '4242',
           transactionDate: '2026-01-15',
@@ -89,7 +89,7 @@ module.exports = {
       name: 'rejects-missing-transaction-date',
       auth: 'none',
       async run({ http, assert }) {
-        const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_KEY}`, {
+        const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`, {
           id: '_test-dispute-no-date',
           card: '4242',
           amount: 9.99,
@@ -105,7 +105,7 @@ module.exports = {
       async run({ http, assert, firestore }) {
         const alertId = '_test-dispute-valid';
 
-        const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_KEY}`, {
+        const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`, {
           id: alertId,
           card: '4242424242424242',
           cardBrand: 'Visa',
@@ -164,7 +164,7 @@ module.exports = {
         const alertId = '_test-dispute-alertid-field';
 
         // Chargeblast alert.created events use alertId instead of id
-        const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_KEY}`, {
+        const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`, {
           alertId: alertId,
           card: '546616******5805',
           cardBrand: 'Mastercard',
@@ -189,7 +189,7 @@ module.exports = {
         const alertId = '_test-dispute-minimal';
 
         // Send minimal alert (alert.created shape — no externalOrder, metadata, etc.)
-        const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_KEY}`, {
+        const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`, {
           id: alertId,
           card: '9124',
           amount: 10,
@@ -218,7 +218,7 @@ module.exports = {
       async run({ http, assert, firestore }) {
         const alertId = '_test-dispute-last4';
 
-        const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_KEY}`, {
+        const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`, {
           id: alertId,
           card: '1234',
           amount: 9.99,
@@ -240,7 +240,7 @@ module.exports = {
         const alertId = '_test-dispute-duplicate';
 
         // Send first alert
-        await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_KEY}`, {
+        await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`, {
           id: alertId,
           card: '4242',
           amount: 29.99,
@@ -248,7 +248,7 @@ module.exports = {
         });
 
         // Send duplicate
-        const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_KEY}`, {
+        const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`, {
           id: alertId,
           card: '4242',
           amount: 29.99,
@@ -274,7 +274,7 @@ module.exports = {
         });
 
         // Send alert with same ID — should retry since previous status was 'failed'
-        const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_KEY}`, {
+        const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`, {
           id: alertId,
           card: '4242',
           amount: 29.99,
@@ -300,7 +300,7 @@ module.exports = {
         const alertId = '_test-dispute-default-provider';
 
         // Send without provider query param
-        const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_KEY}`, {
+        const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`, {
           id: alertId,
           card: '4242',
           amount: 9.99,

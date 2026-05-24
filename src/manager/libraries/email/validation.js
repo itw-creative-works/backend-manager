@@ -133,7 +133,7 @@ async function validate(email, options = {}) {
     try {
       const data = await fetch(
         `https://api.zerobounce.net/v2/validate?api_key=${process.env.ZEROBOUNCE_API_KEY}&email=${encodeURIComponent(email)}`,
-        { response: 'json', timeout: 10000 }
+        { response: 'json', timeout: 60000 }
       );
 
       if (data.error) {

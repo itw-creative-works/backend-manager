@@ -22,10 +22,12 @@ module.exports = async ({ assistant, Manager, settings }) => {
     payload: {},
   };
 
-  // Load email template
+  // Load email template — colons in id are converted to nested folders
+  // (e.g. "general:download-app-link" → templates/general/download-app-link.js)
+  const templatePath = settings.id.split(':').join('/');
   let emailPayload;
   try {
-    const script = require(path.join(__dirname, 'templates', `${settings.id}.js`));
+    const script = require(path.join(__dirname, 'templates', `${templatePath}.js`));
     emailPayload = merge(
       {},
       DEFAULT,

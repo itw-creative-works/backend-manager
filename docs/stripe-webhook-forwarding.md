@@ -4,7 +4,7 @@ BEM auto-starts Stripe CLI webhook forwarding when running `npx mgr serve` or `n
 
 **Requirements:**
 - `STRIPE_SECRET_KEY` set in `functions/.env`
-- `BACKEND_MANAGER_KEY` set in `functions/.env`
+- `BACKEND_MANAGER_WEBHOOK_KEY` set in `functions/.env` (`BACKEND_MANAGER_KEY` also accepted as a legacy fallback)
 - [Stripe CLI](https://stripe.com/docs/stripe-cli) installed
 
 **Standalone usage:**
@@ -15,4 +15,4 @@ npx mgr stripe
 
 If any prerequisite is missing, webhook forwarding is silently skipped with an info message.
 
-The forwarding URL is: `http://localhost:{hostingPort}/backend-manager/payments/webhook?processor=stripe&key={BACKEND_MANAGER_KEY}`
+The forwarding URL is: `http://localhost:{hostingPort}/backend-manager/payments/webhook?processor=stripe&key={BACKEND_MANAGER_WEBHOOK_KEY}`

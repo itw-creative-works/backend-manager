@@ -9,6 +9,11 @@ const { FIELDS, resolveFieldValues } = require('../constants.js');
 
 const BASE_URL = 'https://api.beehiiv.com/v2';
 
+// Beehiiv API spikes past 10s during their hiccups, dropping signups silently.
+// 60s is generous but harmless — caches are in place for metadata calls so a
+// slow first call costs nothing in steady state.
+const BEEHIIV_TIMEOUT_MS = 60000;
+
 // --- Internal helpers ---
 
 function headers() {
@@ -63,7 +68,7 @@ async function addSubscriber({ email, firstName, lastName, source, publicationId
       method: 'post',
       response: 'json',
       headers: headers(),
-      timeout: 15000,
+      timeout: BEEHIIV_TIMEOUT_MS,
       body,
     });
 
@@ -97,7 +102,7 @@ async function findSubscriber(email, publicationId) {
       {
         response: 'json',
         headers: headers(),
-        timeout: 60000,
+        timeout: BEEHIIV_TIMEOUT_MS,
       }
     );
 
@@ -135,7 +140,7 @@ async function removeSubscriber(email, publicationId) {
       {
         method: 'delete',
         headers: headers(),
-        timeout: 60000,
+        timeout: BEEHIIV_TIMEOUT_MS,
       }
     );
 
@@ -202,7 +207,7 @@ function getPublicationId() {
 //       const data = await fetch(`${BASE_URL}/publications?limit=${limit}&page=${page}`, {
 //         response: 'json',
 //         headers: headers(),
-//         timeout: 60000,
+//         timeout: BEEHIIV_TIMEOUT_MS,
 //       });
 //
 //       if (!data.data || data.data.length === 0) {
@@ -351,7 +356,7 @@ async function resolveSegmentIds() {
     const data = await fetch(`${BASE_URL}/publications/${publicationId}/segments?limit=100`, {
       response: 'json',
       headers: headers(),
-      timeout: 60000,
+      timeout: BEEHIIV_TIMEOUT_MS,
     });
 
     _segmentIdCache = {};
@@ -447,7 +452,7 @@ async function createPost(options) {
       method: 'post',
       response: 'json',
       headers: headers(),
-      timeout: 15000,
+      timeout: BEEHIIV_TIMEOUT_MS,
       body,
     });
 

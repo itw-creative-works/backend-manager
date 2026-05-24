@@ -1,6 +1,7 @@
 const BaseCommand = require('./base-command');
 const path = require('path');
 const fs = require('fs');
+const { spawn } = require('child_process');
 const chalk = require('chalk').default;
 const jetpack = require('fs-jetpack');
 const JSON5 = require('json5');
@@ -69,7 +70,7 @@ class TestCommand extends BaseCommand {
       await this.runTestsDirectly(testCommand, functionsDir, emulatorPorts);
     } else {
       this.log(chalk.cyan('Starting emulator and running tests...'));
-      await this.runEmulatorTests(testCommand);
+      await this.runEmulatorTests(testCommand, functionsDir);
     }
   }
 
@@ -123,6 +124,7 @@ class TestCommand extends BaseCommand {
 
     // Derive computed values (not in config file)
     const backendManagerKey = argv.key || process.env.BACKEND_MANAGER_KEY;
+    const backendManagerWebhookKey = argv.webhookKey || process.env.BACKEND_MANAGER_WEBHOOK_KEY;
     const contactEmail = config.brand?.contact?.email || '';
     const domain = contactEmail.includes('@') ? contactEmail.split('@')[1] : '';
 
@@ -135,6 +137,12 @@ class TestCommand extends BaseCommand {
     if (!backendManagerKey) {
       this.logError('Error: Missing backend manager key');
       this.log(chalk.gray('  Set BACKEND_MANAGER_KEY in your .env file or pass --key flag'));
+      return null;
+    }
+
+    if (!backendManagerWebhookKey) {
+      this.logError('Error: Missing backend manager webhook key');
+      this.log(chalk.gray('  Set BACKEND_MANAGER_WEBHOOK_KEY in your .env file or pass --webhook-key flag'));
       return null;
     }
 
@@ -152,6 +160,7 @@ class TestCommand extends BaseCommand {
     return {
       ...config,
       backendManagerKey,
+      backendManagerWebhookKey,
       domain,
     };
   }
@@ -280,23 +289,85 @@ class TestCommand extends BaseCommand {
   }
 
   /**
-   * Run tests with Firebase emulator (starts emulator, runs tests, shuts down)
+   * Run tests with Firebase emulator (starts emulator, runs tests, shuts down).
+   *
+   * Two real child processes are used so emulator output and test-runner output
+   * land in separate log files:
+   *   - `emulator.log` — `firebase emulators:start` stdout/stderr (managed by EmulatorCommand)
+   *   - `test.log`     — the test-runner subprocess stdout/stderr (managed here)
    */
-  async runEmulatorTests(testCommand) {
+  async runEmulatorTests(testCommand, functionsDir) {
     this.log(chalk.gray('  Starting Firebase emulator...\n'));
 
-    // Use EmulatorCommand to run tests with emulator
     const emulatorCmd = new EmulatorCommand(this.main);
+    let started;
 
     try {
-      await emulatorCmd.runWithEmulator(testCommand);
+      started = await emulatorCmd.startEmulators();
     } catch (error) {
-      // Only exit with error if it wasn't a user-initiated exit
-      if (error.code !== 0) {
-        this.logError(`Emulator error: ${error.message || error}`);
-      }
+      this.logError(`Emulator error: ${error.message || error}`);
       process.exit(1);
     }
+
+    const { shutdown, exitPromise, emulatorPorts } = started;
+
+    // Forward Ctrl+C to a clean emulator shutdown
+    const onSigint = async () => {
+      this.log(chalk.gray('\n  Shutting down emulator...'));
+      await shutdown();
+      process.exit(130);
+    };
+    process.once('SIGINT', onSigint);
+
+    // Print the same connection summary the existing-emulator path shows
+    this.log('');
+    this.log(chalk.gray(`  Hosting: http://127.0.0.1:${emulatorPorts.hosting}`));
+    this.log(chalk.gray(`  Firestore: 127.0.0.1:${emulatorPorts.firestore}`));
+    this.log(chalk.gray(`  Auth: 127.0.0.1:${emulatorPorts.auth}`));
+    this.log(chalk.gray(`  UI: http://127.0.0.1:${emulatorPorts.ui}`));
+
+    // Spawn the test runner as its own child so its stdout/stderr can be teed to test.log
+    const logPath = this.getLogsPath('test.log');
+    const logStream = fs.createWriteStream(logPath, { flags: 'w' });
+    const stripAnsi = (str) => str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
+
+    this.log(chalk.gray(`  Logs saving to: ${logPath}\n`));
+
+    let testExitCode = 0;
+
+    try {
+      const testChild = spawn('sh', ['-c', testCommand], {
+        cwd: functionsDir,
+        env: { ...process.env, FORCE_COLOR: '1' },
+        stdio: ['inherit', 'pipe', 'pipe'],
+      });
+
+      testChild.stdout.on('data', (data) => {
+        process.stdout.write(data);
+        if (!logStream.destroyed) logStream.write(stripAnsi(data.toString()));
+      });
+
+      testChild.stderr.on('data', (data) => {
+        process.stderr.write(data);
+        if (!logStream.destroyed) logStream.write(stripAnsi(data.toString()));
+      });
+
+      testExitCode = await new Promise((resolve) => {
+        testChild.on('close', (code) => {
+          if (!logStream.destroyed) logStream.end();
+          resolve(code ?? 1);
+        });
+      });
+    } catch (error) {
+      this.logError(`Test runner error: ${error.message || error}`);
+      testExitCode = 1;
+    } finally {
+      process.removeListener('SIGINT', onSigint);
+      await shutdown();
+      await exitPromise;
+    }
+
+    process.exit(testExitCode);
   }
 }
 

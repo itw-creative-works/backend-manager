@@ -48,7 +48,7 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
 
   await fetch(`${Manager.project.apiUrl}/backend-manager/user/sessions`, {
     method: 'delete',
-    timeout: 30000,
+    timeout: 60000,
     response: 'json',
     tries: 2,
     log: true,

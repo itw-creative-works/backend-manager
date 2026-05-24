@@ -166,7 +166,7 @@ async function handleAnonymous({ assistant, Manager, settings, analytics }) {
         method: 'POST',
         response: 'json',
         headers: { 'Authorization': `Bearer ${process.env.SENDGRID_API_KEY}` },
-        timeout: 10000,
+        timeout: 60000,
         body: { recipient_emails: [email] },
       });
     } else {
@@ -176,7 +176,7 @@ async function handleAnonymous({ assistant, Manager, settings, analytics }) {
         method: 'DELETE',
         response: 'text',
         headers: { 'Authorization': `Bearer ${process.env.SENDGRID_API_KEY}` },
-        timeout: 10000,
+        timeout: 60000,
       });
     }
   } catch (e) {

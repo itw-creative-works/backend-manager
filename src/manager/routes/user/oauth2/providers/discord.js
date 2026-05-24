@@ -22,7 +22,7 @@ module.exports = {
 
     const response = await fetch(this.urls.revoke, {
       method: 'POST',
-      timeout: 30000,
+      timeout: 60000,
       body: new URLSearchParams({
         token,
         client_id: clientId,

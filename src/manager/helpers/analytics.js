@@ -328,7 +328,7 @@ Analytics.prototype.event = function (payload, params) {
     method: 'post',
     response: 'text',
     tries: 2,
-    timeout: 30000,
+    timeout: 60000,
     // headers: {
     //   "Content-Type": "application/json"
     // },

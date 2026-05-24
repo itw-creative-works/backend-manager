@@ -14,6 +14,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.2.6] - 2026-05-24
+
+### Added
+
+- **`scripts/test-helper-providers.js`** — small CLI for live-test verification. Run from any consumer's `functions/` dir: `node <bem>/scripts/test-helper-providers.js find <email>` (check SendGrid + Beehiiv state without dashboards) or `purge <email>` (remove from both providers). Used during end-to-end consent-pipeline testing.
+- **Email-template namespacing.** `general/email` route now translates `:` in `settings.id` to a folder separator, so `general:download-app-link` resolves to `templates/general/download-app-link.js`. Existing `templates/download-app-link.js` moved into `templates/general/` to match.
+
+### Changed
+
+- **Payment webhook + dispute-alert routes now accept either `BACKEND_MANAGER_WEBHOOK_KEY` (preferred) or `BACKEND_MANAGER_KEY` (legacy).** Phase 1 of the webhook-key migration plan in `TODO-WEBHOOK-KEY-UPGRADE.md` — non-breaking dual-acceptance so consumers can roll over at their own pace. `src/manager/routes/payments/webhook/post.js:28` + `src/manager/routes/payments/dispute-alert/post.js:20` validate against either env var. Test-processor self-fire in `src/manager/routes/payments/intent/processors/test.js:158` now uses `BACKEND_MANAGER_WEBHOOK_KEY` directly. All 13 payment test files (`test/routes/payments/*.js`, `test/events/payments/journey-*.js`) updated to use `BACKEND_MANAGER_WEBHOOK_KEY` for webhook URLs. `src/test/utils/http-client.js` + `src/test/runner.js` thread the new env var through the test context. `docs/stripe-webhook-forwarding.md` reflects the dual-key acceptance. Phase 2 (drop the legacy fallback) is tracked in `TODO-WEBHOOK-KEY-LEGACY-REMOVAL.md`.
+- **`npx mgr emulator` no longer wraps the emulator in a keep-alive subprocess.** Previously spawned a sleep-86400 wrapper via `runWithEmulator`; now spawns the emulator child directly and uses a clean SIGINT handler. Cleaner shutdown, no orphaned subprocesses, no `node-powertools` dep on the boot path. `npx mgr test`'s auto-start path uses the same helper.
+
+### Fixed
+
+- **Finished the v5.2.3 SendGrid timeout bump that missed 5 sites.** v5.2.3's CHANGELOG claimed "All 9 fetch sites updated" but actually 5 sites in `sendgrid.js` (including `upsertContacts:118` — the hot path used by `Marketing.sync()`) were still using `timeout: 15000`. Confirmed live on Somiibo: a signup with marketing consent granted silently dropped both SendGrid and Beehiiv with `Request timed out` after ~18s. Now every API call in `sendgrid.js` goes through the `SENDGRID_TIMEOUT_MS` (60s) constant. The only remaining literal is the S3 CSV download in `getSegmentContacts:578` (30s — not a SendGrid API call).
+- **`beehiiv.js` timeouts unified under a new `BEEHIIV_TIMEOUT_MS` (60s) constant.** Two hot-path sites (`addSubscriber:71` and the unsub endpoint at `:455`) were still on `timeout: 15000`. Same silent-drop failure mode as SendGrid above. Every Beehiiv API call now uses the constant.
+- **Audited entire BEM codebase for short timeouts. Zero prod-path timeouts under 60s remain.**
+  - **Bumped 6 sites from 10-15s → 60s:**
+    - `src/manager/libraries/email/validation.js:136` — ZeroBounce mailbox check
+    - `src/manager/libraries/email/generators/newsletter.js:520, 549` — parent-server `/newsletter-sources` GET + PUT
+    - `src/manager/routes/payments/intent/processors/test.js:163` — test-processor self-fire webhook
+    - `src/manager/routes/marketing/email-preferences/post.js:169, 179` — SendGrid ASM suppression POST + DELETE
+  - **Bumped 9 sites from 30s → 60s:**
+    - `src/manager/libraries/infer-contact.js:46` — PeopleDataLabs AI enrichment
+    - `src/manager/libraries/email/providers/sendgrid.js:578` — S3 CSV download for segment exports
+    - `src/manager/functions/core/actions/api/user/delete.js:34` + `src/manager/routes/user/delete.js:51` — internal sign-out fan-out
+    - `src/manager/events/firestore/payments-webhooks/analytics.js:228, 301` — Facebook + Reddit Conversions API
+    - `src/manager/routes/user/oauth2/providers/discord.js:25` + `…/google.js:30` — OAuth token-revoke
+    - `src/manager/helpers/analytics.js:331` — itwcw-package-analytics event fire
+  - **Bumped 2 sites from 30s → 120s:**
+    - `src/manager/events/cron/daily/ghostii-auto-publisher.js:106` — gpt-image-1 hero image generation (regularly 30-60s)
+    - `src/manager/events/cron/daily/ghostii-auto-publisher.js:177` — gpt-5+web-search blog post generation (regularly 60-90s)
+- **Audit rule going forward:** any external-API call in BEM prod paths uses **60s minimum** (120s+ for LLM/image generation). Short timeouts are silent-failure machines in serverless code where Cloud Function timeouts already give us a generous outer bound. `_legacy/` files, `src/test/` infra, and `src/cli/` commands keep their existing timeouts — they're not on the request hot path.
+
 # [5.2.5] - 2026-05-22
 
 ### Added

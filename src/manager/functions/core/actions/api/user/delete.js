@@ -31,7 +31,7 @@ Module.prototype.main = function () {
       assistant.log(`Signout of all sessions...`);
       await fetch(`${self.Manager.project.apiUrl}/backend-manager`, {
         method: 'post',
-        timeout: 30000,
+        timeout: 60000,
         response: 'json',
         tries: 2,
         log: true,

@@ -27,7 +27,7 @@ module.exports = {
 
     const response = await fetch(this.urls.revoke, {
       method: 'POST',
-      timeout: 30000,
+      timeout: 60000,
       body: new URLSearchParams({ token }),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     }).catch(e => e);

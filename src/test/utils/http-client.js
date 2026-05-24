@@ -22,6 +22,7 @@ class HttpClient {
     // Store accounts reference for as() method
     this.accounts = options.accounts || null;
     this.backendManagerKey = options.backendManagerKey || '';
+    this.backendManagerWebhookKey = options.backendManagerWebhookKey || '';
   }
 
   /**

@@ -59,7 +59,7 @@ module.exports = {
 
         state.cancelEventId = `_test-evt-journey-refund-cancel-${Date.now()}`;
 
-        const response = await http.as('none').post(`payments/webhook?processor=test&key=${config.backendManagerKey}`, {
+        const response = await http.as('none').post(`payments/webhook?processor=test&key=${config.backendManagerWebhookKey}`, {
           id: state.cancelEventId,
           type: 'customer.subscription.updated',
           data: {
@@ -67,7 +67,7 @@ module.exports = {
               id: state.subscriptionId,
               object: 'subscription',
               status: 'active',
-              metadata: { uid: state.uid },
+              metadata: { uid: state.uid, orderId: state.orderId },
               cancel_at_period_end: true,
               cancel_at: Math.floor(futureDate.getTime() / 1000),
               canceled_at: null,
@@ -110,7 +110,7 @@ module.exports = {
         state.refundEventId = `_test-evt-journey-refund-charge-${Date.now()}`;
         state.refundAmountCents = 2800; // $28.00
 
-        const response = await http.as('none').post(`payments/webhook?processor=test&key=${config.backendManagerKey}`, {
+        const response = await http.as('none').post(`payments/webhook?processor=test&key=${config.backendManagerWebhookKey}`, {
           id: state.refundEventId,
           type: 'charge.refunded',
           data: {
@@ -121,7 +121,7 @@ module.exports = {
               amount_refunded: state.refundAmountCents,
               currency: 'usd',
               subscription: state.subscriptionId,
-              metadata: { uid: state.uid },
+              metadata: { uid: state.uid, orderId: state.orderId },
               refunds: {
                 data: [
                   {

@@ -517,7 +517,7 @@ async function fetchSources(parentUrl, categories, brandId, assistant) {
       const data = await fetch(`${parentUrl}/newsletter-sources`, {
         method: 'get',
         response: 'json',
-        timeout: 15000,
+        timeout: 60000,
         query: {
           category,
           limit: 3,
@@ -546,7 +546,7 @@ async function claimSources(parentUrl, sources, brandId, assistant) {
       await fetch(`${parentUrl}/newsletter-sources`, {
         method: 'put',
         response: 'json',
-        timeout: 10000,
+        timeout: 60000,
         body: {
           id: source.id,
           usedBy: brandId || 'unknown',

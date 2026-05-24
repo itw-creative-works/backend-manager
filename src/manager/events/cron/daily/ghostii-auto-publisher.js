@@ -103,7 +103,7 @@ function buildBrandConfig(config) {
  */
 function fetchRemoteBrand(brandUrl) {
   return fetch(`${brandUrl}/backend-manager/brand`, {
-    timeout: 30000,
+    timeout: 120000,
     tries: 3,
     response: 'json',
   });
@@ -174,7 +174,7 @@ async function harvest(assistant, settings) {
 
 function getURLContent(url) {
   return fetch(url, {
-    timeout: 30000,
+    timeout: 120000,
     tries: 3,
     response: 'raw',
     headers: {

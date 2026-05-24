@@ -66,7 +66,7 @@ module.exports = {
         // Send a subscription created webhook with the LEGACY product ID
         // This simulates an existing subscriber whose Stripe subscription still
         // references the old product ID from before migration
-        const response = await http.as('none').post(`payments/webhook?processor=test&key=${config.backendManagerKey}`, {
+        const response = await http.as('none').post(`payments/webhook?processor=test&key=${config.backendManagerWebhookKey}`, {
           id: state.legacyEventId,
           type: 'customer.subscription.created',
           data: {

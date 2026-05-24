@@ -155,12 +155,12 @@ async function createOneTimeIntent({ uid, orderId, product, productId, confirmat
  * Fire-and-forget webhook to trigger the full pipeline
  */
 function fireWebhook({ event, assistant }) {
-  const webhookUrl = `${assistant.Manager.project.apiUrl}/backend-manager/payments/webhook?processor=test&key=${process.env.BACKEND_MANAGER_KEY}`;
+  const webhookUrl = `${assistant.Manager.project.apiUrl}/backend-manager/payments/webhook?processor=test&key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`;
   fetch(webhookUrl, {
     method: 'POST',
     response: 'json',
     body: event,
-    timeout: 15000,
+    timeout: 60000,
   }).catch((e) => {
     assistant.log(`Test processor auto-webhook failed: ${e.message}`);
   });

@@ -225,7 +225,7 @@ function fireMeta({ resolved, currency, uid, processor, assistant, config }) {
       method: 'post',
       response: 'json',
       body: payload,
-      timeout: 30000,
+      timeout: 60000,
       tries: 2,
     })
     .then(() => {
@@ -298,7 +298,7 @@ function fireTikTok({ resolved, currency, uid, processor, assistant, config }) {
         'Access-Token': accessToken,
       },
       body: { data: [payload] },
-      timeout: 30000,
+      timeout: 60000,
       tries: 2,
     })
     .then(() => {

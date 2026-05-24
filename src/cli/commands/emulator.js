@@ -1,14 +1,19 @@
 const BaseCommand = require('./base-command');
 const path = require('path');
 const fs = require('fs');
+const { spawn } = require('child_process');
 const chalk = require('chalk').default;
 const jetpack = require('fs-jetpack');
 const JSON5 = require('json5');
-const powertools = require('node-powertools');
 const WatchCommand = require('./watch');
 const { DEFAULT_EMULATOR_PORTS } = require('./setup-tests/emulator-config');
 const { EXTENDED_MODE_WARNING } = require('../../test/utils/extended-mode-warning');
 const { writeTestMode, captureSyncedEnv } = require('../../test/utils/test-mode-file');
+
+// Used by both `npx mgr emulator` and `npx mgr test` auto-start path.
+// Note: `emulators:start` enables the UI by default (controlled by firebase.json's
+// `emulators.ui.enabled`), so no `--ui` flag here — that flag only exists on `:exec`.
+const EMULATOR_FLAGS = '--only functions,firestore,auth,database,hosting,pubsub';
 
 class EmulatorCommand extends BaseCommand {
   async execute() {
@@ -45,23 +50,40 @@ class EmulatorCommand extends BaseCommand {
     // Start Stripe webhook forwarding in background
     this.startStripeWebhookForwarding();
 
-    // Run emulator with keep-alive command (use single quotes since runWithEmulator wraps in double quotes)
-    const keepAliveCommand = "echo ''; echo 'Emulator ready. Press Ctrl+C to shut down...'; sleep 86400";
-
+    // Keep-alive: boot emulators and wait for Ctrl+C. No "command" subprocess —
+    // the emulator child IS the foreground process from the user's perspective.
     try {
-      await this.runWithEmulator(keepAliveCommand);
-    } catch (error) {
-      // User pressed Ctrl+C - this is expected
+      const { shutdown, exitPromise } = await this.startEmulators();
+
+      this.log(chalk.gray('\n  Emulator ready. Press Ctrl+C to shut down...\n'));
+
+      const onSigint = async () => {
+        this.log(chalk.gray('\n  Shutting down emulator...'));
+        await shutdown();
+        this.log(chalk.gray('  Emulator stopped.\n'));
+        process.exit(0);
+      };
+      process.once('SIGINT', onSigint);
+
+      // Resolve if the emulator dies on its own (crash, port conflict, etc.)
+      await exitPromise;
+      process.removeListener('SIGINT', onSigint);
       this.log(chalk.gray('\n  Emulator stopped.\n'));
+    } catch (error) {
+      this.logError(`Emulator error: ${error.message || error}`);
+      process.exit(1);
     }
   }
 
   /**
-   * Run a command with Firebase emulator
-   * @param {string} command - The command to execute inside the Firebase emulator
-   * @returns {Promise<void>}
+   * Boot Firebase emulators as a long-running child process.
+   * Stdout/stderr are teed to console + emulator.log.
+   * Resolves once the emulator hub is listening (i.e., emulators are ready).
+   * Caller is responsible for calling shutdown() to send SIGTERM and wait for exit.
+   *
+   * @returns {Promise<{ child: ChildProcess, shutdown: () => Promise<void>, emulatorPorts: object }>}
    */
-  async runWithEmulator(command) {
+  async startEmulators() {
     const projectDir = this.main.firebaseProjectPath;
 
     // Load emulator ports from firebase.json
@@ -73,24 +95,13 @@ class EmulatorCommand extends BaseCommand {
       throw new Error('Port conflicts could not be resolved');
     }
 
-    // Wipe stale firebase-tools debug logs + any leftover BEM logs from older
-    // versions. Keeps the project tree clean across runs.
+    // Wipe stale firebase-tools debug logs + any leftover BEM logs from older versions.
     this.sweepStaleLogs();
 
-    // BEM_TESTING=true is passed so Functions skip external API calls (emails, SendGrid)
-    // hosting is included so localhost:5002 rewrites work (e.g., /backend-manager -> bm_api)
-    // pubsub is included so scheduled functions (bm_cronDaily) can be triggered in tests
-    // Use double quotes for command wrapper since the command may contain single quotes (JSON strings)
-    const envPrefix = process.env.TEST_EXTENDED_MODE
-      ? 'BEM_TESTING=true TEST_EXTENDED_MODE=true'
-      : 'BEM_TESTING=true';
-    const emulatorCommand = `${envPrefix} firebase emulators:exec --only functions,firestore,auth,database,hosting,pubsub --ui "${command}"`;
-
-    // Set up log file in the project directory.
-    // We use a mutable `currentStream` so the test command can request a fresh log
-    // by touching emulator.log.reset — the watcher below detects it, closes the
-    // current stream, reopens with flags: 'w' (truncating cleanly from our process'
-    // perspective, no sparse-file issue), and deletes the sentinel.
+    // Set up log file + reset-sentinel watcher.
+    // Mutable `currentStream` so the test command can request a fresh log by touching
+    // emulator.log.reset — the watcher detects it, closes the current stream, and
+    // reopens with flags: 'w' (truncating cleanly from our process' perspective).
     const logPath = this.getLogsPath('emulator.log');
     const resetSentinelPath = this.getTempPath('emulator.log.reset');
     const stripAnsi = (str) => str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
@@ -103,11 +114,9 @@ class EmulatorCommand extends BaseCommand {
       }
     }
 
-    // Clean up any stale sentinel from a prior crashed emulator run
+    // Clean up any stale sentinel from a prior crashed run
     try { fs.unlinkSync(resetSentinelPath); } catch (e) { /* not present, ok */ }
 
-    // Watch for the test command's request to roll the log.
-    // Poll every 500ms — cheap, no fs.watch quirks across platforms.
     const resetWatcher = setInterval(() => {
       if (!fs.existsSync(resetSentinelPath)) {
         return;
@@ -129,37 +138,175 @@ class EmulatorCommand extends BaseCommand {
       writeToLog('\n');
     }
 
-    this.log(chalk.gray(`  Logs saving to: ${logPath}\n`));
+    this.log(chalk.gray(`  Logs saving to: ${logPath}`));
 
-    await powertools.execute(emulatorCommand, {
-      log: false,
+    // BEM_TESTING=true is passed so Functions skip external API calls (emails, SendGrid)
+    // hosting is included so localhost:5002 rewrites work (e.g., /backend-manager -> bm_api)
+    // pubsub is included so scheduled functions (bm_cronDaily) can be triggered in tests
+    const env = {
+      ...process.env,
+      FORCE_COLOR: '1',
+      BEM_TESTING: 'true',
+    };
+
+    // Spawn `firebase emulators:start` as a background child. Use `sh -c` so the
+    // user's shell PATH resolves `firebase` consistently with the interactive shell.
+    //
+    // `detached: true` puts the child into its own process group. We need this so that
+    // shutdown() can kill the entire group (sh → firebase → java emulators) by
+    // signalling the negative pgid. Without it, SIGTERM to the shell doesn't propagate
+    // to firebase or its java grandchildren, leaving orphan firestore/pubsub processes.
+    const child = spawn('sh', ['-c', `firebase emulators:start ${EMULATOR_FLAGS}`], {
       cwd: projectDir,
-      config: {
-        stdio: ['inherit', 'pipe', 'pipe'],
-        env: { ...process.env, FORCE_COLOR: '1' },
-      },
-    }, (child) => {
-      // Tee stdout to both console and log file (strip ANSI codes for clean log)
-      child.stdout.on('data', (data) => {
-        process.stdout.write(data);
-        writeToLog(data);
-      });
-
-      // Tee stderr to both console and log file (strip ANSI codes for clean log)
-      child.stderr.on('data', (data) => {
-        process.stderr.write(data);
-        writeToLog(data);
-      });
-
-      // Clean up log stream + watcher when child exits
-      child.on('close', () => {
-        clearInterval(resetWatcher);
-        if (currentStream && !currentStream.destroyed) {
-          currentStream.end();
-        }
-        try { fs.unlinkSync(resetSentinelPath); } catch (e) { /* ok */ }
-      });
+      env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      detached: true,
     });
+
+    // Wire readiness detection into the stdout/stderr handlers.
+    //
+    // We watch for firebase-tools' explicit "All emulators ready!" line — that's the
+    // signal that function discovery + load is complete and the runtime can serve HTTP.
+    // Port-listening alone isn't enough: firebase-tools binds the functions socket
+    // ~5-10s before user functions are actually loadable, so HTTP requests fail with
+    // ECONNREFUSED / "fetch failed" if we proceed when only the port is open.
+    let readyResolve;
+    let readyReject;
+    const readyPromise = new Promise((resolve, reject) => {
+      readyResolve = resolve;
+      readyReject = reject;
+    });
+    let ready = false;
+    const READY_MARKER = /All emulators ready/i;
+
+    child.stdout.on('data', (data) => {
+      process.stdout.write(data);
+      writeToLog(data);
+      if (!ready && READY_MARKER.test(data.toString())) {
+        ready = true;
+        readyResolve();
+      }
+    });
+
+    child.stderr.on('data', (data) => {
+      process.stderr.write(data);
+      writeToLog(data);
+      // firebase-tools prints the ready line to stderr sometimes — watch both.
+      if (!ready && READY_MARKER.test(data.toString())) {
+        ready = true;
+        readyResolve();
+      }
+    });
+
+    // Track exit state so shutdown() can resolve when the process is gone
+    let exitPromiseResolve;
+    const exitPromise = new Promise((resolve) => {
+      exitPromiseResolve = resolve;
+    });
+
+    child.on('close', (code, signal) => {
+      clearInterval(resetWatcher);
+      if (currentStream && !currentStream.destroyed) {
+        currentStream.end();
+      }
+      try { fs.unlinkSync(resetSentinelPath); } catch (e) { /* ok */ }
+      exitPromiseResolve({ code, signal });
+      // If we exited before becoming ready, fail the readiness wait too
+      if (!ready) {
+        readyReject(new Error(`Emulator child exited before ready (code=${code}, signal=${signal})`));
+      }
+    });
+
+    // Race the readiness marker against a 60s timeout
+    const readyTimeoutMs = 60000;
+    await Promise.race([
+      readyPromise,
+      new Promise((_, reject) => setTimeout(
+        () => reject(new Error(`Emulator did not print "All emulators ready" within ${readyTimeoutMs}ms`)),
+        readyTimeoutMs,
+      )),
+    ]);
+
+    // shutdown() signals the entire emulator process group (sh + firebase + java
+    // grandchildren), waits up to 10s for clean exit, then escalates to SIGKILL.
+    //
+    // We use `process.kill(-pgid, ...)` instead of `child.kill(...)` because firebase
+    // tools spawns several Java subprocesses (firestore + pubsub) that survive if
+    // only the sh wrapper is killed. The negative PID targets the whole process group
+    // (made possible by `detached: true` above).
+    const killGroup = (signal) => {
+      try {
+        process.kill(-child.pid, signal);
+      } catch (e) {
+        // ESRCH = group already dead, that's fine
+        if (e.code !== 'ESRCH') throw e;
+      }
+    };
+
+    const shutdown = async () => {
+      if (child.exitCode !== null || child.signalCode !== null) {
+        return; // already gone
+      }
+
+      killGroup('SIGTERM');
+
+      const killTimer = setTimeout(() => {
+        if (child.exitCode === null && child.signalCode === null) {
+          killGroup('SIGKILL');
+        }
+      }, 10000);
+
+      await exitPromise;
+      clearTimeout(killTimer);
+    };
+
+    return { child, shutdown, emulatorPorts, exitPromise };
+  }
+
+  /**
+   * Boot emulators and run a single command against them. Sends SIGTERM to the emulator
+   * when the command exits (or this process is interrupted) and waits for clean shutdown.
+   *
+   * Used by `npx mgr emulator` for the keep-alive flow (command is a no-op sleep).
+   * `npx mgr test`'s auto-start path uses startEmulators() directly so it can tee the
+   * test command's output to its own log (test.log) separate from emulator.log.
+   *
+   * @param {string} command - shell command to run while emulators are up
+   */
+  async runWithEmulator(command) {
+    const { shutdown, exitPromise } = await this.startEmulators();
+
+    // SIGINT (Ctrl+C) → graceful shutdown
+    const onSigint = async () => {
+      await shutdown();
+      process.exit(0);
+    };
+    process.once('SIGINT', onSigint);
+
+    try {
+      // Run the user command; when it exits we tear down the emulator.
+      const cmdChild = spawn('sh', ['-c', command], {
+        cwd: this.main.firebaseProjectPath,
+        env: { ...process.env, FORCE_COLOR: '1' },
+        stdio: 'inherit',
+      });
+
+      const cmdExit = await new Promise((resolve) => {
+        cmdChild.on('close', (code, signal) => resolve({ code, signal }));
+      });
+
+      process.removeListener('SIGINT', onSigint);
+      await shutdown();
+      await exitPromise;
+
+      if (cmdExit.code !== 0) {
+        throw Object.assign(new Error(`Command exited with code ${cmdExit.code}`), { code: cmdExit.code });
+      }
+    } catch (e) {
+      process.removeListener('SIGINT', onSigint);
+      await shutdown();
+      throw e;
+    }
   }
 
   /**

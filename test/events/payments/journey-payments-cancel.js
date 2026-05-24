@@ -56,7 +56,7 @@ module.exports = {
 
         state.eventId1 = `_test-evt-journey-cancel-pending-${Date.now()}`;
 
-        const response = await http.as('none').post(`payments/webhook?processor=test&key=${config.backendManagerKey}`, {
+        const response = await http.as('none').post(`payments/webhook?processor=test&key=${config.backendManagerWebhookKey}`, {
           id: state.eventId1,
           type: 'customer.subscription.updated',
           data: {
@@ -64,7 +64,7 @@ module.exports = {
               id: state.subscriptionId,
               object: 'subscription',
               status: 'active',
-              metadata: { uid: state.uid },
+              metadata: { uid: state.uid, orderId: state.orderId },
               cancel_at_period_end: true,
               cancel_at: Math.floor(futureDate.getTime() / 1000),
               canceled_at: null,
@@ -105,7 +105,7 @@ module.exports = {
       async run({ http, assert, state, config, payments }) {
         state.eventId2 = `_test-evt-journey-cancel-final-${Date.now()}`;
 
-        const response = await http.as('none').post(`payments/webhook?processor=test&key=${config.backendManagerKey}`, {
+        const response = await http.as('none').post(`payments/webhook?processor=test&key=${config.backendManagerWebhookKey}`, {
           id: state.eventId2,
           type: 'customer.subscription.deleted',
           data: {
@@ -113,7 +113,7 @@ module.exports = {
               id: state.subscriptionId,
               object: 'subscription',
               status: 'canceled',
-              metadata: { uid: state.uid },
+              metadata: { uid: state.uid, orderId: state.orderId },
               cancel_at_period_end: false,
               canceled_at: Math.floor(Date.now() / 1000),
               current_period_end: Math.floor(Date.now() / 1000),

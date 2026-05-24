@@ -115,7 +115,7 @@ async function upsertContacts({ contacts, listIds }) {
       method: 'put',
       response: 'json',
       headers: headers(),
-      timeout: 15000,
+      timeout: SENDGRID_TIMEOUT_MS,
       body,
     });
 
@@ -357,7 +357,7 @@ async function createSingleSend({ name, subject, preheader, templateId, from, se
       method: 'post',
       response: 'json',
       headers: headers(),
-      timeout: 15000,
+      timeout: SENDGRID_TIMEOUT_MS,
       body,
     });
 
@@ -385,7 +385,7 @@ async function scheduleSingleSend(singleSendId, sendAt) {
       method: 'put',
       response: 'json',
       headers: headers(),
-      timeout: 15000,
+      timeout: SENDGRID_TIMEOUT_MS,
       body: { send_at: sendAt },
     });
 
@@ -545,7 +545,7 @@ async function getSegmentContacts(segmentId, maxWaitMs = 60000) {
       method: 'post',
       response: 'json',
       headers: headers(),
-      timeout: 15000,
+      timeout: SENDGRID_TIMEOUT_MS,
       body: { segment_ids: [segmentId] },
     });
 
@@ -575,7 +575,7 @@ async function getSegmentContacts(segmentId, maxWaitMs = 60000) {
         // Download CSV — disable cacheBreaker to preserve presigned S3 URL signature
         const csvText = await fetch(statusData.urls[0], {
           response: 'text',
-          timeout: 30000,
+          timeout: 60000,
           cacheBreaker: false,
         });
 
@@ -639,7 +639,7 @@ async function bulkDeleteContacts(contactIds) {
       method: 'delete',
       response: 'json',
       headers: headers(),
-      timeout: 15000,
+      timeout: SENDGRID_TIMEOUT_MS,
     });
 
     if (data.job_id) {
