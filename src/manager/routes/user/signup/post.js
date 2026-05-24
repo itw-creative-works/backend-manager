@@ -229,6 +229,7 @@ async function inferUserContact(assistant, email) {
     const inferred = await inferContact(email, assistant);
 
     if (!inferred?.firstName && !inferred?.lastName && !inferred?.company) {
+      assistant.log(`signup(): inferUserContact returned empty result for ${email} (method=${inferred?.method || 'unknown'})`);
       return null;
     }
 

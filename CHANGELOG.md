@@ -14,6 +14,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.2.7] - 2026-05-24
+
+### Fixed
+
+- **`inferContact` silent-failure logging.** When the AI inference returned an empty result (either the AI call failed and returned null, or `gpt-5-mini` returned a parsed response with all-empty fields, or the response shape was missing `firstName`), the whole flow silently swallowed the failure and the signup's `user.personal.name` got written as `null`/`null`. Confirmed live on Somiibo: signed up `ian.wiedenman.business@gmail.com` twice on the same backend — first signup inferred nothing (empty name written), second signup correctly inferred "Ian Wiedenman". Same email, same code, transient AI hiccup, zero log trail. Added three unconditional diagnostic logs to `src/manager/libraries/infer-contact.js` (AI returned null, AI parsed response had all fields empty, AI response missing firstName) plus a log in `src/manager/routes/user/signup/post.js#inferUserContact` when the helper returns null. Next silent failure will at least leave a breadcrumb.
+
 # [5.2.6] - 2026-05-24
 
 ### Added

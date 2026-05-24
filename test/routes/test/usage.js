@@ -239,6 +239,10 @@ module.exports = {
     // Test 9: Cron resets daily counters for authenticated users
     {
       name: 'cron-resets-daily-counters',
+      // bm_cronDaily runs all daily jobs serially; reset-usage is at the end of
+      // the alphabetical sequence. In EXTENDED mode the real-API jobs ahead of
+      // it can take ~50s combined — override the suite's 30s default.
+      timeout: 75000,
       async run({ assert, firestore, state, accounts, waitFor, pubsub }) {
         // Verify daily counter is > 0 before cron
         const beforeDoc = await firestore.get(`users/${accounts.basic.uid}`);
@@ -251,19 +255,24 @@ module.exports = {
         // Trigger cron via PubSub
         await pubsub.trigger('bm_cronDaily');
 
-        // Wait for cron to reset daily counter
+        // Wait for cron to reset daily counter.
+        // bm_cronDaily executes every registered daily job sequentially. In EXTENDED
+        // mode the real-API jobs (marketing-newsletter-generate, expire-paypal-cancellations,
+        // ghostii-auto-publisher, etc.) can take 40-50s combined before reset-usage
+        // (alphabetical tail) gets its turn. 70s gives that the headroom it needs;
+        // the per-test `timeout` below matches.
         try {
           await waitFor(
             async () => {
               const doc = await firestore.get(`users/${accounts.basic.uid}`);
               return doc?.usage?.requests?.daily === 0;
             },
-            15000,
+            70000,
             500
           );
           assert.ok(true, 'Daily counter was reset to 0 by cron');
         } catch (error) {
-          assert.fail('Daily counter should be reset to 0 within 15s');
+          assert.fail('Daily counter should be reset to 0 within 70s');
         }
       },
     },
