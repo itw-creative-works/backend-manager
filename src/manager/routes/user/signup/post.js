@@ -137,8 +137,8 @@ function buildUserRecord(assistant, settings, inferred) {
         ...assistant.request.geolocation,
       },
       client: {
-        ...(settings.context?.client || {}),
         ...assistant.request.client,
+        ...(settings.context?.client || {}),
       },
     },
     attribution: attribution || {},

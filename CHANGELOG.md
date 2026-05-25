@@ -14,6 +14,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.2.8] - 2026-05-25
+
+### Changed
+
+- **`/user/signup` precedence flip for `activity.client`.** `routes/user/signup/post.js` now spreads `assistant.request.client` FIRST and `settings.context.client` (the browser's `getContext()` payload) LAST, so the browser-supplied values win for the `client` block. `activity.client.language` is now `navigator.language` (e.g. `en-US`) instead of the raw `Accept-Language` header list (e.g. `en-US,en;q=0.9,fr;q=0.8`); falls back to the header when no browser context was sent (bots, non-browser clients). `activity.geolocation` precedence is unchanged — Cloudflare headers (`cf-ipcountry`, etc.) still win, since the browser doesn't know its own geo. Final shape mirrors `assistant.request`: geolocation is header-authoritative, client is browser-authoritative.
+
 # [5.2.7] - 2026-05-24
 
 ### Fixed
