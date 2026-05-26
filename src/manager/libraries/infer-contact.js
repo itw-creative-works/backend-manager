@@ -45,9 +45,9 @@ async function inferContactWithAI(email, assistant) {
   try {
     const ai = assistant.Manager.AI(assistant, process.env.BACKEND_MANAGER_OPENAI_API_KEY);
     const result = await ai.request({
-      model: 'gpt-5-mini',
+      model: 'gpt-5.4-mini',
       timeout: 60000,
-      maxTokens: 1024,
+      maxTokens: 1024 * 2,
       moderate: false,
       response: 'json',
       prompt: {

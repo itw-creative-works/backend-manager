@@ -7,7 +7,7 @@ const path = require('path');
 const mimeTypes = require('mime-types');
 
 // Constants
-const DEFAULT_MODEL = 'gpt-5-mini';
+const DEFAULT_MODEL = 'gpt-5.4-mini';
 const MODERATION_MODEL = 'omni-moderation-latest';
 
 // OpenAI model pricing table (per 1M tokens)
@@ -396,10 +396,25 @@ OpenAI.prototype.request = function (options) {
     options.reasoning = options.reasoning || undefined;
 
     // Format prompt
-    options.prompt = options.prompt || {};
-    options.prompt.path = options.prompt.path || '';
-    options.prompt.content = options.prompt.content || options.prompt.content || '';
-    options.prompt.settings = options.prompt.settings || {};
+    //
+    // Accepts two forms:
+    //
+    //   1) Object form (legacy / single-role):
+    //        prompt: { path|content, settings }
+    //      Auto-wrapped to a single 'system'-role segment per the OpenAI Model
+    //      Spec — unlabeled prompts represent the platform's authoritative
+    //      instruction.
+    //
+    //   2) Array form (multi-role):
+    //        prompt: [
+    //          { role: 'system',    path|content, settings },
+    //          { role: 'developer', path|content, settings },
+    //          ...
+    //        ]
+    //      Each segment becomes its own message with the declared role. Order
+    //      is preserved. Valid roles: 'system', 'developer', 'user',
+    //      'assistant'. Segments default to 'system' if role is omitted.
+    options.prompt = normalizePrompt(options.prompt);
 
     // Format message
     options.message = options.message || {};
@@ -428,19 +443,26 @@ OpenAI.prototype.request = function (options) {
     _log('Starting', options);
 
 
-    // Load prompt
-    const prompt = loadContent(options.prompt, _log);
+    // Load prompt segments (one entry per role) and the user message
+    const promptSegments = options.prompt.map((segment) => ({
+      role: segment.role,
+      content: loadContent(segment, _log),
+    }));
     const message = loadContent(options.message, _log);
     const user = options.user?.auth?.uid || assistant.request.geolocation.ip || 'unknown';
 
     // Log
-    _log('Prompt', prompt);
+    for (const segment of promptSegments) {
+      _log(`Prompt[${segment.role}]`, segment.content);
+    }
     _log('Message', message);
     _log('User', user);
 
     // Check for errors
-    if (prompt instanceof Error) {
-      return reject(assistant.errorify(`Error loading prompt: ${prompt}`, {code: 400}));
+    for (const segment of promptSegments) {
+      if (segment.content instanceof Error) {
+        return reject(assistant.errorify(`Error loading prompt[${segment.role}]: ${segment.content}`, {code: 400}));
+      }
     }
 
     if (message instanceof Error) {
@@ -450,7 +472,7 @@ OpenAI.prototype.request = function (options) {
     // Moderate if needed
     let moderation = null;
     if (options.moderate) {
-      moderation = await makeRequest('moderations', options, self, prompt, message, user, _log)
+      moderation = await makeRequest('moderations', options, self, promptSegments, message, user, _log)
       .then(async (r) => {
         // {
         //   id: 'modr-8205',
@@ -481,7 +503,7 @@ OpenAI.prototype.request = function (options) {
 
 
     // Make attempt
-    attemptRequest(options, self, prompt, message, user, moderation, attempt, assistant, resolve, reject, _log);
+    attemptRequest(options, self, promptSegments, message, user, moderation, attempt, assistant, resolve, reject, _log);
   });
 }
 
@@ -491,6 +513,39 @@ function tryParse(content) {
   } catch (e) {
     return content;
   }
+}
+
+// Roles permitted in the `options.prompt` array. Order is canonical per the
+// OpenAI Model Spec authority hierarchy (system > developer > user > assistant).
+const VALID_PROMPT_ROLES = new Set(['system', 'developer', 'user', 'assistant']);
+
+// Normalize the `options.prompt` input into a canonical array of segments:
+//   [{ role, path, content, settings }, ...]
+//
+// Accepts:
+//   - undefined/null/empty → []
+//   - object: { path|content, settings } → wrapped as a single 'system' segment
+//   - array: [{ role, path|content, settings }, ...] → role defaults to 'system'
+//     if omitted; invalid roles throw.
+function normalizePrompt(input) {
+  const segments = Array.isArray(input)
+    ? input
+    : (input && (input.path || input.content || input.settings)) ? [input] : [];
+
+  return segments.map((segment) => {
+    const role = segment.role || 'system';
+
+    if (!VALID_PROMPT_ROLES.has(role)) {
+      throw new Error(`Invalid prompt role: ${role}. Valid roles: ${[...VALID_PROMPT_ROLES].join(', ')}`);
+    }
+
+    return {
+      role: role,
+      path: segment.path || '',
+      content: segment.content || '',
+      settings: segment.settings || {},
+    };
+  });
 }
 
 function loadContent(input, _log) {
@@ -674,16 +729,20 @@ function formatMessageContent(content, attachments, _log, mode = 'responses', ro
 }
 
 
-function formatHistory(options, prompt, message, _log) {
+function formatHistory(options, promptSegments, message, _log) {
   // Get history with respect to the message limit
   const history = options.history.messages.slice(-options.history.limit);
 
-  // Add prompt to beginning of history
-  history.unshift({
-    role: 'developer',
-    content: prompt,
-    attachments: [],
-  });
+  // Add prompt segments to the beginning of history, in the order provided
+  // (each segment becomes its own message with the declared role)
+  for (let i = promptSegments.length - 1; i >= 0; i--) {
+    const segment = promptSegments[i];
+    history.unshift({
+      role: segment.role,
+      content: segment.content,
+      attachments: [],
+    });
+  }
 
   // Get last history item
   const lastHistory = history[history.length - 1];
@@ -722,7 +781,7 @@ function formatHistory(options, prompt, message, _log) {
   return formatted;
 }
 
-function attemptRequest(options, self, prompt, message, user, moderation, attempt, assistant, resolve, reject, _log) {
+function attemptRequest(options, self, promptSegments, message, user, moderation, attempt, assistant, resolve, reject, _log) {
   const retries = options.retries;
   const triggers = options.retryTriggers;
 
@@ -733,7 +792,7 @@ function attemptRequest(options, self, prompt, message, user, moderation, attemp
   _log(`Request ${attempt.count}/${retries}`);
 
   // Request
-  makeRequest('responses', options, self, prompt, message, user, _log)
+  makeRequest('responses', options, self, promptSegments, message, user, _log)
   .then((r) => {
     // Example
     // {
@@ -834,7 +893,7 @@ function attemptRequest(options, self, prompt, message, user, moderation, attemp
 
       // Retry
       if (attempt.count < retries && triggers.includes('parse')) {
-        return attemptRequest(options, self, prompt, message, user, moderation, attempt, assistant, resolve, reject, _log);
+        return attemptRequest(options, self, promptSegments, message, user, moderation, attempt, assistant, resolve, reject, _log);
       }
 
       // Return
@@ -856,7 +915,7 @@ function attemptRequest(options, self, prompt, message, user, moderation, attemp
 
     // Retry
     if (attempt.count < retries && triggers.includes('network')) {
-      return attemptRequest(options, self, prompt, message, user, moderation, attempt, assistant, resolve, reject, _log);
+      return attemptRequest(options, self, promptSegments, message, user, moderation, attempt, assistant, resolve, reject, _log);
     }
 
     // Return
@@ -864,7 +923,7 @@ function attemptRequest(options, self, prompt, message, user, moderation, attemp
   });
 }
 
-function makeRequest(mode, options, self, prompt, message, user, _log) {
+function makeRequest(mode, options, self, promptSegments, message, user, _log) {
   return new Promise(async function(resolve, reject) {
     const request = {
       url: '',
@@ -895,7 +954,7 @@ function makeRequest(mode, options, self, prompt, message, user, _log) {
       }
     } else if (mode === 'responses') {
       // Format history for responses API
-      const history = formatHistory(options, prompt, message, _log);
+      const history = formatHistory(options, promptSegments, message, _log);
 
       // Set request
       request.url = 'https://api.openai.com/v1/responses';
@@ -1007,3 +1066,11 @@ function resolveReasoning(options) {
 }
 
 module.exports = OpenAI;
+
+// Exposed for unit tests. Not part of the public API — do not rely on these
+// from consumer code.
+module.exports._internals = {
+  normalizePrompt,
+  formatHistory,
+  VALID_PROMPT_ROLES,
+};

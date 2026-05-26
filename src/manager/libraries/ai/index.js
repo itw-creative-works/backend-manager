@@ -3,7 +3,7 @@
  *
  * Usage:
  *   const ai = Manager.AI(assistant);
- *   const result = await ai.request({ provider: 'openai', model: 'gpt-5-mini', ... });
+ *   const result = await ai.request({ provider: 'openai', model: 'gpt-5.4-mini', ... });
  *   const result = await ai.request({ provider: 'anthropic', model: 'claude-sonnet-4-6', ... });
  *
  * Each provider returns { content, output, tokens, raw } with a consistent shape.

@@ -14,6 +14,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.2.9] - 2026-05-25
+
+### Added
+
+- **OpenAI provider: multi-role prompt array support.** `options.prompt` now accepts either the legacy object form (`{ path|content, settings }`, auto-wrapped as a single `system`-role segment per the OpenAI Model Spec) OR an array form (`[{ role, path|content, settings }, ...]`) where each segment becomes its own message with its declared role. Valid roles: `system`, `developer`, `user`, `assistant`; order is preserved; role defaults to `system` if omitted; invalid roles throw. New internal helpers `normalizePrompt()` + `VALID_PROMPT_ROLES` canonicalize input; the request pipeline threads `promptSegments` end-to-end (per-segment load, per-role logging, per-segment error surfacing, `formatHistory` unshifts segments in declared order). `module.exports._internals` exposes `normalizePrompt`, `formatHistory`, `VALID_PROMPT_ROLES` for unit tests — not part of the public API. Backwards compatible: existing callers passing `prompt: { content: '...' }` are auto-wrapped as a single `system` segment with no consumer changes.
+- **`test/helpers/ai-request-payload.js`** — 16 standalone tests covering the BEM → OpenAI payload transformation with no network and no assistant. Exercises `normalizePrompt` (undefined/null/empty handling, legacy object → single system segment, array-form role preservation, role-defaulting, invalid-role throw, full OpenAI Model Spec role coverage) and `formatHistory` (single-system emit, multi-segment order, empty-array → user-only, prompt+history+new-user interleaving, assistant `output_text` typing, history limit, `dedupeConsecutiveRoles` trailing-user drop, content trim/strip).
+
+### Changed
+
+- **Default OpenAI model bumped to `gpt-5.4-mini`** (was `gpt-5-mini`). Updated in `src/manager/libraries/ai/providers/openai.js` (`DEFAULT_MODEL`), `src/manager/libraries/ai/index.js` (usage example in JSDoc), and `src/manager/libraries/infer-contact.js` (`inferContactWithAI`). The pricing table in the OpenAI provider already includes `gpt-5.4-mini`, so no further config changes are required.
+- **`inferContactWithAI` maxTokens doubled to 2048** (was 1024). Gives the model headroom for the richer multi-field contact response without truncation.
+
 # [5.2.8] - 2026-05-25
 
 ### Changed
