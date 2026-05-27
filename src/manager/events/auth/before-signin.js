@@ -46,10 +46,10 @@ module.exports = async ({ Manager, assistant, user, context, libraries }) => {
       activity: {
         geolocation: {
           ip: context.ipAddress,
-          language: context.locale,
         },
         client: {
           userAgent: context.userAgent,
+          language: context.locale,
         },
       },
     }, { merge: true })

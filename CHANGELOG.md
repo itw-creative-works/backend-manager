@@ -14,6 +14,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.2.12] - 2026-05-27
+
+### Changed
+
+- **`before-signin`: move `activity.language` from `geolocation` to `client`.** In `src/manager/events/auth/before-signin.js`, the `language` field (sourced from `context.locale`) now lives under `activity.client` alongside `userAgent`, instead of under `activity.geolocation` alongside `ip`. Language is a client-side property (browser/locale) rather than an IP-derived geolocation property, so this aligns the before-signin write shape with the rest of the activity schema.
+
 # [5.2.11] - 2026-05-27
 
 ### Added
