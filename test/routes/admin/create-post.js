@@ -5,6 +5,9 @@
  * Requires admin/blogger role, GitHub API key, and repo_website config
  */
 const { Octokit } = require('@octokit/rest');
+const sharp = require('sharp');
+
+const { IMAGE_MAX_DIMENSION } = require('../../../src/manager/routes/admin/post/post');
 
 module.exports = {
   description: 'Admin create post on GitHub',
@@ -130,12 +133,15 @@ module.exports = {
 
         // Use a real public .jpg for the inline image
         const inlineImageURL = 'https://picsum.photos/id/10/200/200.jpg';
+        // Oversized header image (long edge 5000px > IMAGE_MAX_DIMENSION 4096px) to
+        // verify the resize step runs end-to-end and the committed file is clamped.
+        const headerImageURL = 'https://picsum.photos/id/1/5000/3000.jpg';
 
         const response = await http.post('admin/post', {
           title: 'BEM Test Create Post',
           url: 'bem-test-create-post',
           description: 'Test post created by BEM test suite to verify @post/ body rewriting.',
-          headerImageURL: 'https://picsum.photos/id/1/400/300.jpg',
+          headerImageURL: headerImageURL,
           body: `# BEM Test Create Post\n\nSome intro text.\n\n![Test inline image](${inlineImageURL})\n\nMore text after the image.`,
           postPath: 'guest',
         });
@@ -183,6 +189,53 @@ module.exports = {
           !content.includes('picsum.photos/id/10'),
           'Post body should NOT contain the original external inline image URL',
         );
+      },
+    },
+
+    {
+      name: 'verify-oversized-header-image-was-resized',
+      auth: 'admin',
+      timeout: 30000,
+      skip: !process.env.TEST_EXTENDED_MODE ? 'TEST_EXTENDED_MODE env var not set' : false,
+
+      async run({ assert, state }) {
+        if (!state.postId) {
+          return; // Previous test didn't run
+        }
+
+        const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+        const imageDir = `src/assets/images/blog/post-${state.postId}/`;
+
+        // List committed images and pick the header (matches the slugified URL "bem-test-create-post")
+        const { data: dirData } = await octokit.rest.repos.getContent({
+          owner: state.owner,
+          repo: state.repo,
+          path: imageDir,
+        });
+
+        const headerFile = dirData.find((f) => f.name === 'bem-test-create-post.jpg');
+        assert.ok(headerFile, 'Header image should be committed at expected slug');
+
+        // Fetch the raw bytes and read dimensions
+        const { data: blob } = await octokit.rest.git.getBlob({
+          owner: state.owner,
+          repo: state.repo,
+          file_sha: headerFile.sha,
+        });
+
+        const buffer = Buffer.from(blob.content, 'base64');
+        const meta = await sharp(buffer).metadata();
+
+        // The source we requested was 5000x3000 (over the 4096 limit).
+        // After resize, the long edge should be clamped to IMAGE_MAX_DIMENSION.
+        const longEdge = Math.max(meta.width, meta.height);
+        assert.ok(
+          longEdge <= IMAGE_MAX_DIMENSION,
+          `Committed header image long edge (${meta.width}x${meta.height}) should be <= IMAGE_MAX_DIMENSION (${IMAGE_MAX_DIMENSION})`,
+        );
+
+        // And the resize should actually have happened (source was 5000x3000 → expect width=4096)
+        assert.equal(meta.width, IMAGE_MAX_DIMENSION, 'Resized width should equal IMAGE_MAX_DIMENSION');
       },
     },
 

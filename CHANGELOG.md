@@ -14,6 +14,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.2.10] - 2026-05-26
+
+### Added
+
+- **`POST /admin/post`: resize images at ingest.** Downloaded post images are now checked against `IMAGE_MAX_DIMENSION` (4096px on the long edge) in `src/manager/routes/admin/post/post.js` and re-encoded as progressive JPEG at `IMAGE_JPEG_QUALITY` (80) when oversized. Prevents downstream Jekyll/imagemin pipelines from stalling on huge sources (a real 16384×10576 source decoded to ~520MB raw and silently broke 4 StudyMonkey posts on production). `resizeImage`, `IMAGE_MAX_DIMENSION`, and `IMAGE_JPEG_QUALITY` are exported for tests. Adds `sharp` as a dependency.
+- **`test/routes/admin/post-resize-image.js`** — 7 unit tests covering the resize contract (pass-through under the limit, boundary at exact limit, landscape/portrait/square scaling, the 16384×10576 case, on-disk overwrite). No network, no auth, no GitHub.
+- **`test/routes/admin/create-post.js`**: extended `create-post-rewrites-body-images` to submit a 5000×3000 header image, plus new `verify-oversized-header-image-was-resized` step that fetches the committed image back from GitHub and asserts long edge ≤ 4096px.
+
+### Changed
+
+- **Dependency bumps**: `sharp` ^0.34.4 → ^0.34.5, `sanitize-html` ^2.17.3 → ^2.17.4 (auto-bumped at install).
+
 # [5.2.9] - 2026-05-25
 
 ### Added

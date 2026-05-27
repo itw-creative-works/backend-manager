@@ -17,6 +17,13 @@ const POST_TEMPLATE = jetpack.read(`${__dirname}/templates/post.html`);
 const IMAGE_PATH_SRC = `src/assets/images/blog/post-{id}/`;
 const IMAGE_REGEX = /(?:!\[(.*?)\]\((.*?)\))/img;
 
+// Max dimension (px) for downloaded post images on the long edge, and JPEG
+// re-encode quality. Sources above the max cause downstream Jekyll/imagemin
+// pipelines to stall on huge decodes (e.g. a 16384×10576 source decodes to
+// ~520MB raw), so resize at ingest time.
+const IMAGE_MAX_DIMENSION = 4096;
+const IMAGE_JPEG_QUALITY = 80;
+
 module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
 
   // Require authentication
@@ -218,7 +225,45 @@ async function downloadImage(assistant, src, alt) {
     throw new Error(`Images must be .jpg (not ${result.ext})`);
   }
 
+  // Resize in place if the long edge exceeds IMAGE_MAX_DIMENSION
+  await resizeImage(assistant, result.path);
+
   return result;
+}
+
+// Helper: Resize image in place if the long edge exceeds IMAGE_MAX_DIMENSION.
+// Re-encodes as progressive JPEG at IMAGE_JPEG_QUALITY. Short-circuits when the
+// source is already within the limit.
+async function resizeImage(assistant, filepath) {
+  const sharp = assistant.Manager.require('sharp');
+
+  const meta = await sharp(filepath).metadata();
+  const longEdge = Math.max(meta.width, meta.height);
+
+  if (longEdge <= IMAGE_MAX_DIMENSION) {
+    assistant.log(`resizeImage(): No resize needed (${meta.width}x${meta.height})`);
+    return { resized: false, width: meta.width, height: meta.height };
+  }
+
+  // Resize to a buffer (cannot read+write the same path in one sharp pipeline)
+  const buffer = await sharp(filepath)
+    .resize({
+      width: IMAGE_MAX_DIMENSION,
+      height: IMAGE_MAX_DIMENSION,
+      fit: 'inside',
+      withoutEnlargement: true,
+    })
+    .jpeg({ quality: IMAGE_JPEG_QUALITY, progressive: true })
+    .toBuffer();
+
+  // Overwrite the file on disk
+  jetpack.write(filepath, buffer);
+
+  // Read the resized dimensions back for the log
+  const resizedMeta = await sharp(filepath).metadata();
+  assistant.log(`resizeImage(): Resized ${meta.width}x${meta.height} -> ${resizedMeta.width}x${resizedMeta.height} (max ${IMAGE_MAX_DIMENSION}px, q${IMAGE_JPEG_QUALITY})`);
+
+  return { resized: true, width: resizedMeta.width, height: resizedMeta.height };
 }
 
 // Helper: Commit all files (images + post) in a single commit using Git Trees API
@@ -325,4 +370,9 @@ function formatClone(payload) {
 
   return payload;
 }
+
+// Expose helpers + constants for tests
+module.exports.resizeImage = resizeImage;
+module.exports.IMAGE_MAX_DIMENSION = IMAGE_MAX_DIMENSION;
+module.exports.IMAGE_JPEG_QUALITY = IMAGE_JPEG_QUALITY;
 

@@ -119,7 +119,7 @@ Deep references live in `docs/`. **Whenever you make a behavioral change, update
 
 ### Built-in Routes
 
-- [docs/admin-post-route.md](docs/admin-post-route.md) — `POST/PUT /admin/post` blog creation via GitHub (image extraction + `@post/` rewriting)
+- [docs/admin-post-route.md](docs/admin-post-route.md) — `POST/PUT /admin/post` blog creation via GitHub (image extraction + resize at ingest + `@post/` rewriting)
 - [docs/payment-system.md](docs/payment-system.md) — full payment pipeline: Intent → Webhook → On-Write → Transition; subscription model, statuses, `resolveSubscription()`, transition handlers, processor interface, product config, test processor
 - [docs/marketing-campaigns.md](docs/marketing-campaigns.md) — campaign CRUD routes, recurring campaigns, generator pipeline (newsletter), template-owned schemas, asset hosting, seed campaigns
 - [docs/consent.md](docs/consent.md) — marketing consent capture: canonical `consent.{legal,marketing}` user-doc shape, signup-form capture, account-page toggle, HMAC unsub link, SendGrid+Beehiiv webhook receivers, parent forwarder (`/marketing/webhook/forward`), migration script template
