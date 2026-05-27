@@ -22,8 +22,8 @@ class LogsCommand extends BaseCommand {
   async execute() {
     const argv = this.main.argv;
     const args = argv._ || [];
-    const subcommand = args[0]; // e.g., 'logs:read'
-    const action = subcommand.split(':')[1];
+    const subcommand = args[0]; // e.g., 'logs:read' (bare `logs` aliases to `logs:read`)
+    const action = subcommand === 'logs' ? 'read' : subcommand.split(':')[1];
 
     // Check gcloud is installed
     if (!this.isGcloudInstalled()) {

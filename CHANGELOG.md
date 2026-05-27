@@ -14,6 +14,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.2.11] - 2026-05-27
+
+### Added
+
+- **CLI: bare `logs` is now an alias for `logs:read`.** `npx mgr logs [...flags]` now dispatches to the same handler as `npx mgr logs:read`, so callers (humans and AI assistants alike) no longer error out when they omit the `:read` suffix. Routing in `src/cli/index.js` accepts the bare `logs` option, and `src/cli/commands/logs.js` maps the bare subcommand to the `read` action. `logs:tail` and `logs:stream` are unchanged.
+
 # [5.2.10] - 2026-05-26
 
 ### Added

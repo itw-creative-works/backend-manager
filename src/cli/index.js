@@ -148,8 +148,8 @@ Main.prototype.process = async function (args) {
     return await cmd.execute();
   }
 
-  // Logs utility commands
-  if (self.options['logs:read'] || self.options['logs:tail'] || self.options['logs:stream']) {
+  // Logs utility commands (`logs` is an alias for `logs:read`)
+  if (self.options['logs'] || self.options['logs:read'] || self.options['logs:tail'] || self.options['logs:stream']) {
     const cmd = new LogsCommand(self);
     return await cmd.execute();
   }
