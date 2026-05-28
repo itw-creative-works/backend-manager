@@ -130,10 +130,25 @@ class BaseCommand {
       }
     }
 
-    const shouldKill = await confirm({
-      message: 'Kill these processes to free the ports?',
-      default: true,
-    });
+    // Auto-confirm (Y) after a few seconds of no input so unattended test/dev loops don't
+    // hang. When the timeout fires the prompt is aborted via AbortSignal and we fall back to
+    // the default (true). inquirer owns the cursor and can't live-update its own message, so
+    // the countdown is shown statically in the prompt.
+    const AUTO_CONFIRM_SECONDS = 5;
+    let shouldKill;
+    try {
+      shouldKill = await confirm(
+        { message: `Kill these processes to free the ports? (auto-Y in ${AUTO_CONFIRM_SECONDS}s)`, default: true },
+        { signal: AbortSignal.timeout(AUTO_CONFIRM_SECONDS * 1000) },
+      );
+    } catch (error) {
+      // AbortPromptError (timeout reached) → take the default (true). Re-throw anything else.
+      if (error?.name !== 'AbortPromptError') {
+        throw error;
+      }
+      this.log(chalk.gray('  No input — auto-confirming (Y).'));
+      shouldKill = true;
+    }
 
     if (!shouldKill) {
       this.log(chalk.gray('\n  Aborting. Free the ports and try again.\n'));

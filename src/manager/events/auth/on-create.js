@@ -72,6 +72,18 @@ module.exports = async ({ Manager, assistant, user, context, libraries }) => {
   const meta = Manager.Metadata().set({ tag: 'auth:on-create' });
   userRecord.metadata = { ...userRecord.metadata, ...meta };
 
+  // Stamp metadata.created from Firebase Auth's creationTime (the canonical account-creation
+  // moment) rather than the User schema's "now" — otherwise the doc lands a beat after Auth,
+  // and the OMEGA user migration reconciles every new signup against Auth on its next run.
+  const creationTime = user.metadata?.creationTime;
+  if (creationTime) {
+    const createdDate = new Date(creationTime);
+    userRecord.metadata.created = {
+      timestamp: createdDate.toISOString(),
+      timestampUNIX: Math.round(createdDate.getTime() / 1000),
+    };
+  }
+
   assistant.log(`onCreate: Creating user doc for ${user.uid}`, userRecord);
 
   // Write user doc with retry

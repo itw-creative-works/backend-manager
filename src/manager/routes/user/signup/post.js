@@ -4,14 +4,13 @@ const { validate: validateEmail, isDisposable } = require('../../../libraries/em
 
 const MAX_POLL_TIME_MS = 30000;
 const POLL_INTERVAL_MS = 500;
-const MAX_ACCOUNT_AGE_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
  * POST /user/signup - Complete user signup
  *
  * Called by client after account creation to:
  * 1. Poll for user doc to exist (waits for onCreate to complete)
- * 2. Validate (already processed, account age)
+ * 2. Validate (reject only if flags.signupProcessed is already true)
  * 3. Gather all data (client details, inferred contact)
  * 4. Write everything to user doc in one merge
  * 5. Process affiliate referral (writes to referrer's doc)
@@ -49,23 +48,20 @@ module.exports = async ({ assistant, user, settings, libraries }) => {
     return assistant.respond('Signup has already been processed', { code: 400 });
   }
 
-  // 3. Backup check: reject if account is older than 5 minutes
+  // 3. Fetch the Auth user — needed for the canonical creationTime used to stamp
+  //    metadata.created and consent timestamps. flags.signupProcessed (checked above) is
+  //    the sole idempotency gate; there is intentionally no account-age window, so a
+  //    legitimately-unprocessed account can complete signup whenever it retries.
   const authUser = await admin.auth().getUser(uid).catch((e) => e);
 
   if (authUser instanceof Error) {
     return assistant.respond(`Failed to get auth user: ${authUser.message}`, { code: 500 });
   }
 
-  const accountAgeMs = Date.now() - new Date(authUser.metadata.creationTime).getTime();
-
-  if (accountAgeMs > MAX_ACCOUNT_AGE_MS) {
-    return assistant.respond('Account is too old to process signup', { code: 400 });
-  }
-
   // 4. Gather all data, then write once
   const email = user.auth.email;
   const inferred = await inferUserContact(assistant, email);
-  const userRecord = buildUserRecord(assistant, settings, inferred);
+  const userRecord = buildUserRecord(assistant, settings, inferred, authUser.metadata.creationTime);
 
   assistant.log(`signup(): Writing user record for ${uid}`, userRecord);
 
@@ -117,7 +113,7 @@ async function pollForUserDoc(assistant, uid) {
 /**
  * Build the full user record: client details, attribution, and inferred contact
  */
-function buildUserRecord(assistant, settings, inferred) {
+function buildUserRecord(assistant, settings, inferred, creationTime) {
   const Manager = assistant.Manager;
   const attribution = settings.attribution;
 
@@ -142,9 +138,21 @@ function buildUserRecord(assistant, settings, inferred) {
       },
     },
     attribution: attribution || {},
-    consent: buildConsentRecord(assistant, settings.consent),
+    consent: buildConsentRecord(assistant, settings.consent, creationTime),
     metadata: Manager.Metadata().set({ tag: 'user/signup' }),
   };
+
+  // Stamp metadata.created from Firebase Auth's creationTime so it matches Auth's canonical
+  // value. Normally onCreate sets this, but if onCreate didn't fire this merge write is the
+  // doc's first creation — without this the doc lands with no created date and the OMEGA
+  // migration has to backfill it. Idempotent: when onCreate already wrote it, this matches.
+  if (creationTime) {
+    const createdDate = new Date(creationTime);
+    record.metadata.created = {
+      timestamp: createdDate.toISOString(),
+      timestampUNIX: Math.round(createdDate.getTime() / 1000),
+    };
+  }
 
   // Add inferred name/company if available
   if (inferred) {
@@ -168,18 +176,24 @@ function buildUserRecord(assistant, settings, inferred) {
  * Client sends: { legal: { granted, text }, marketing: { granted, text } }
  * Server writes: { legal: { status, grantedAt: {...} }, marketing: { status, grantedAt: {...}, revokedAt: {...} } }
  *
- * Server time (not client-supplied) is authoritative — defends against clock manipulation.
+ * Server-derived time (not client-supplied) is authoritative — defends against clock
+ * manipulation. Uses Auth's creationTime so consent timestamps match metadata.created.
  * IP is captured from request geolocation.
  *
  * Legal is REQUIRED — the client must send legal.granted=true. If missing/false we still
  * record what the client sent, but the route will not have reached this point in practice
  * (the signup-form HTML5-requires the legal checkbox).
  */
-function buildConsentRecord(assistant, clientConsent) {
+function buildConsentRecord(assistant, clientConsent, creationTime) {
   const consent = clientConsent || {};
   const ip = assistant.request.geolocation?.ip || null;
-  const timestamp = assistant.meta.startTime.timestamp;
-  const timestampUNIX = assistant.meta.startTime.timestampUNIX;
+
+  // Stamp grantedAt/revokedAt from Auth's creationTime so consent timestamps match
+  // metadata.created (the OMEGA migration treats metadata.created as the SSOT and reconciles
+  // consent.grantedAt against it). Fall back to request start time if creationTime is absent.
+  const createdDate = creationTime ? new Date(creationTime) : null;
+  const timestamp = createdDate ? createdDate.toISOString() : assistant.meta.startTime.timestamp;
+  const timestampUNIX = createdDate ? Math.round(createdDate.getTime() / 1000) : assistant.meta.startTime.timestampUNIX;
 
   // Build empty leaf shape — used wherever grantedAt or revokedAt is "not set"
   const emptyMeta = { timestamp: null, timestampUNIX: null, source: null, ip: null, text: null };

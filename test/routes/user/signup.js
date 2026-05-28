@@ -244,8 +244,6 @@ module.exports = {
         };
 
         // Use absurdly-old client timestamp to prove server time wins (defense vs clock skew)
-        const beforeMs = Date.now();
-
         const signupResponse = await http.as('consent-granted').post('user/signup', {
           consent: {
             legal: { granted: true, text: consentText.legal, timestamp: '2000-01-01T00:00:00.000Z' },
@@ -255,7 +253,6 @@ module.exports = {
 
         assert.isSuccess(signupResponse, `Signup should succeed: ${JSON.stringify(signupResponse, null, 2)}`);
 
-        const afterMs = Date.now();
         const userDoc = await firestore.get(`users/${accounts['consent-granted'].uid}`);
 
         // Legal
@@ -265,14 +262,16 @@ module.exports = {
         assert.ok(userDoc?.consent?.legal?.grantedAt?.timestamp, 'legal grantedAt.timestamp should be set');
         assert.equal(typeof userDoc?.consent?.legal?.grantedAt?.timestampUNIX, 'number', 'legal grantedAt.timestampUNIX should be number');
 
-        // Server time MUST be used (the client-supplied 2000-01-01 should NOT appear)
+        // Server-derived time MUST be used (the client-supplied 2000-01-01 should NOT appear).
+        // grantedAt is stamped from Auth's creationTime, the same source as metadata.created,
+        // so the two must be equal — and the client's 2000-01-01 (UNIX 946684800) is rejected.
         const legalUNIX = userDoc.consent.legal.grantedAt.timestampUNIX;
-        const beforeUNIX = Math.floor(beforeMs / 1000);
-        const afterUNIX = Math.floor(afterMs / 1000);
-        assert.ok(
-          legalUNIX >= beforeUNIX && legalUNIX <= afterUNIX,
-          `legal grantedAt.timestampUNIX (${legalUNIX}) must be server time, not client time. expected between ${beforeUNIX} and ${afterUNIX}`
+        const createdUNIX = userDoc.metadata.created.timestampUNIX;
+        assert.equal(
+          legalUNIX, createdUNIX,
+          `legal grantedAt.timestampUNIX (${legalUNIX}) should match metadata.created (${createdUNIX}) — both from Auth creationTime`
         );
+        assert.notEqual(legalUNIX, 946684800, 'legal grantedAt must NOT be the client-supplied 2000-01-01 time');
 
         // Marketing
         assert.equal(userDoc?.consent?.marketing?.status, 'granted', 'consent.marketing.status should be granted');

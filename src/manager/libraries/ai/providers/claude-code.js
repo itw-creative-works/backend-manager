@@ -1,30 +1,40 @@
 /**
- * Claude Code provider — uses @anthropic-ai/claude-agent-sdk to call Claude via
- * the local user's Claude Code subscription (no API key, no Anthropic credits).
+ * Claude Code provider — calls Claude over plain HTTPS using a Claude Code /
+ * Claude Pro/Max OAuth token (NOT API credits).
  *
- * Pass `forceLoginMethod: 'claudeai'` so the SDK auths via the OS keychain
- * OAuth session that the user already logged into via the `claude` CLI.
+ * Unlike the Anthropic provider (which authenticates with an x-api-key and bills
+ * API credits), this provider sends the OAuth token as `Authorization: Bearer ...`
+ * plus the `anthropic-beta: oauth-2025-04-20` header, so usage bills against the
+ * Claude subscription tied to the token.
  *
- * This is strictly a local-development provider:
- *   - Requires a logged-in Claude Code session on the host machine
- *   - Will not work in Cloud Functions / CI / production
- *   - Subject to your Claude Pro/Max rate limits (not API-tier limits)
+ * Token resolution (first match wins):
+ *   1. explicit key passed to the constructor / options.apiKey
+ *   2. Manager config: config.claude_code.oauth_token
+ *   3. process.env.CLAUDE_CODE_OAUTH_TOKEN  (from `claude setup-token`)
  *
- * Returns the same { content, output, tokens, raw } shape as the other providers
- * so callers don't care which is in use.
+ * This is pure HTTPS — no `claude` binary, no subprocess — so it runs in Cloud
+ * Functions / CI / anywhere Node runs. It is subject to the token's subscription
+ * rate limits (not API-tier limits).
+ *
+ * The OAuth token is minted with `claude setup-token` (valid ~1 year). When it
+ * expires (requests 401), re-mint and update the CLAUDE_CODE_OAUTH_TOKEN secret.
+ * NOTE: the Bearer/beta subscription path is undocumented and may change.
+ *
+ * Returns the same { content, output, tokens, raw } shape as the other providers.
  */
+const _ = require('lodash');
+const JSON5 = require('json5');
+
 const DEFAULT_MODEL = 'claude-opus-4-7';
+const OAUTH_BETA = 'oauth-2025-04-20';
 
-// Lazy import — only load the SDK if this provider is actually used
-let _query;
-
-function loadQuery() {
-  if (!_query) {
-    _query = require('@anthropic-ai/claude-agent-sdk').query;
-  }
-
-  return _query;
-}
+// Pricing per 1M tokens (USD) — informational only; subscription billing is flat.
+const MODEL_TABLE = {
+  'claude-opus-4-7':   { input: 15.00, output: 75.00 },
+  'claude-opus-4-6':   { input: 15.00, output: 75.00 },
+  'claude-sonnet-4-6': { input: 3.00,  output: 15.00 },
+  'claude-haiku-4-5':  { input: 1.00,  output: 5.00  },
+};
 
 function ClaudeCode(assistant, key) {
   const self = this;
@@ -32,7 +42,9 @@ function ClaudeCode(assistant, key) {
   self.assistant = assistant;
   self.Manager = assistant?.Manager;
   self.user = assistant?.user;
-  // key is ignored — claude-code uses OS keychain OAuth via forceLoginMethod: 'claudeai'
+  self.token = key
+    || self.Manager?.config?.claude_code?.oauth_token
+    || process.env.CLAUDE_CODE_OAUTH_TOKEN;
 
   self.tokens = {
     total:  { count: 0, price: 0 },
@@ -47,121 +59,110 @@ ClaudeCode.prototype.request = async function (options) {
   const self = this;
   const assistant = self.assistant;
 
-  options = options || {};
-  const model = options.model || DEFAULT_MODEL;
+  options = _.merge({}, options);
+  options.model = options.model || DEFAULT_MODEL;
+  options.maxTokens = options.maxTokens || 2048;
+  options.temperature = typeof options.temperature === 'undefined' ? 0.7 : options.temperature;
 
-  // Build prompt + system from the unified options shape
-  const { system, prompt } = extractPromptAndSystem(options);
+  const token = options.apiKey || self.token;
 
-  if (!prompt) {
-    throw new Error('claude-code provider requires options.message.content or options.messages with a user turn');
+  if (!token) {
+    throw new Error('claude-code provider requires a Claude OAuth token (set CLAUDE_CODE_OAUTH_TOKEN via `claude setup-token`)');
   }
 
-  const query = loadQuery();
-  const startTime = Date.now();
+  // Lazy-require the SDK so projects that don't use this provider don't need it.
+  // We use the SDK purely as an HTTP client — `authToken` makes it send
+  // `Authorization: Bearer <token>` instead of `x-api-key`, and the beta header
+  // selects the subscription (OAuth) billing path. No `claude` binary involved.
+  const SDK = require('@anthropic-ai/sdk');
+  const client = new SDK({
+    authToken: token,
+    defaultHeaders: { 'anthropic-beta': OAUTH_BETA },
+  });
 
-  // Build SDK options
-  const sdkOptions = {
-    model,
-    forceLoginMethod: 'claudeai',  // Use Claude Pro/Max subscription, not API key
-    allowedTools: [],               // Disable all built-in tools — we just want text/JSON in/out
-    settingSources: [],             // Don't load .claude/ or ~/.claude/ settings
-    includePartialMessages: false,
+  const { system, messages } = buildMessages(options);
+
+  let systemFinal = system;
+
+  if (options.response === 'json') {
+    systemFinal = `${systemFinal || ''}\n\nYou MUST respond with valid JSON only. No prose, no markdown fences, no explanation — just the JSON object.${options.schema ? `\n\nThe JSON must conform to this schema:\n${JSON.stringify(options.schema)}` : ''}`.trim();
+  }
+
+  const requestBody = {
+    model: options.model,
+    max_tokens: options.maxTokens,
+    messages,
   };
 
-  if (system) {
-    sdkOptions.systemPrompt = system;
+  if (systemFinal) {
+    requestBody.system = systemFinal;
   }
 
-  if (options.response === 'json' && options.schema) {
-    sdkOptions.outputFormat = {
-      type: 'json_schema',
-      schema: options.schema,
-    };
+  if (options.temperature !== undefined) {
+    requestBody.temperature = options.temperature;
   }
 
-  let resultText = '';
-  let structuredOutput = null;
-  let usage = null;
-  let totalCostUSD = 0;
+  let raw;
 
   try {
-    for await (const message of query({ prompt, options: sdkOptions })) {
-      // Collect text from assistant messages
-      if (message.type === 'assistant') {
-        for (const block of message.message?.content || []) {
-          if (block.type === 'text') {
-            resultText += block.text;
-          }
-        }
-      }
-
-      // Capture final result + usage from the result message
-      if (message.type === 'result') {
-        if (message.subtype === 'success') {
-          structuredOutput = message.structured_output || null;
-          resultText = message.result || resultText;
-        }
-
-        usage = message.usage;
-        totalCostUSD = message.total_cost_usd || 0;
-
-        if (message.is_error) {
-          throw new Error(`claude-code: ${resultText || 'unknown error'}`);
-        }
-      }
-    }
+    raw = await client.messages.create(requestBody);
   } catch (e) {
-    assistant?.error?.(`claude-code request failed: ${e.message}`);
+    assistant?.error?.(`claude-code request failed: ${e.message}`, e);
     throw e;
   }
 
-  // Update token counters
-  if (usage) {
-    self.tokens.input.count  += usage.input_tokens  || 0;
-    self.tokens.output.count += usage.output_tokens || 0;
-    self.tokens.total.count   = self.tokens.input.count + self.tokens.output.count;
-    self.tokens.total.price   = totalCostUSD;
+  const outputText = (raw.content || [])
+    .filter((c) => c.type === 'text')
+    .map((c) => c.text.trim())
+    .join('\n')
+    .trim();
+
+  const modelConfig = MODEL_TABLE[options.model] || MODEL_TABLE[DEFAULT_MODEL];
+
+  self.tokens.input.count  += raw.usage?.input_tokens || 0;
+  self.tokens.output.count += raw.usage?.output_tokens || 0;
+  self.tokens.total.count   = self.tokens.input.count + self.tokens.output.count;
+  self.tokens.input.price   = (self.tokens.input.count * modelConfig.input) / 1_000_000;
+  self.tokens.output.price  = (self.tokens.output.count * modelConfig.output) / 1_000_000;
+  self.tokens.total.price   = self.tokens.input.price + self.tokens.output.price;
+
+  let parsed = outputText;
+
+  if (options.response === 'json') {
+    parsed = parseJsonLoose(outputText);
   }
-
-  // Resolve content — prefer structured_output (validated against schema)
-  let content;
-
-  if (structuredOutput != null) {
-    content = structuredOutput;
-  } else if (options.response === 'json') {
-    content = parseJsonLoose(resultText);
-  } else {
-    content = resultText;
-  }
-
-  assistant?.log?.(`claude-code: ${Date.now() - startTime}ms, ${usage?.output_tokens || 0} output tokens, $${totalCostUSD?.toFixed(4) || '0.0000'}`);
 
   return {
-    output: [{ type: 'output_text', text: resultText }],
-    content,
+    output: raw.content || [],
+    content: parsed,
     tokens: self.tokens,
-    raw: { usage, totalCostUSD },
+    raw,
   };
 };
 
 /**
- * Map unified options into a system prompt + a single user prompt string.
+ * Build Anthropic system + messages from the unified option shape.
+ *
+ * Accepts either:
+ *   - options.messages: [{ role: 'system'|'user'|'assistant', content: string }]
+ *   - options.prompt.content (system) + options.message.content (user)
  */
-function extractPromptAndSystem(options) {
+function buildMessages(options) {
   if (Array.isArray(options.messages) && options.messages.length) {
     const system = options.messages.find((m) => m.role === 'system')?.content;
-    const lastUser = [...options.messages].reverse().find((m) => m.role !== 'system');
+    const messages = options.messages
+      .filter((m) => m.role !== 'system')
+      .map((m) => ({ role: m.role, content: stringifyContent(m.content) }));
 
-    return {
-      system: stringifyContent(system),
-      prompt: stringifyContent(lastUser?.content),
-    };
+    return { system: stringifyContent(system), messages };
   }
 
+  const system = stringifyContent(options.prompt?.content || '');
+  const userContent = stringifyContent(options.message?.content || '');
+
   return {
-    system: stringifyContent(options.prompt?.content),
-    prompt: stringifyContent(options.message?.content),
+    system,
+    messages: [{ role: 'user', content: userContent }],
   };
 }
 
@@ -185,19 +186,22 @@ function stringifyContent(content) {
 }
 
 function parseJsonLoose(text) {
-  if (!text) return text;
+  let cleaned = (text || '').trim();
 
-  let cleaned = text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
-  const firstObj = cleaned.indexOf('{');
-  const firstArr = cleaned.indexOf('[');
-  const start = [firstObj, firstArr].filter((i) => i >= 0).sort((a, b) => a - b)[0];
+  cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
 
-  if (start > 0) {
-    cleaned = cleaned.slice(start);
+  const candidates = [cleaned.indexOf('{'), cleaned.indexOf('[')].filter((i) => i >= 0);
+
+  if (candidates.length) {
+    const firstBrace = Math.min(...candidates);
+
+    if (firstBrace > 0) {
+      cleaned = cleaned.slice(firstBrace);
+    }
   }
 
   try {
-    return JSON.parse(cleaned);
+    return JSON5.parse(cleaned);
   } catch {
     return text;
   }

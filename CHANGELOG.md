@@ -14,7 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
-# [5.2.13] - 2026-05-28
+# [5.2.14] - 2026-05-28
 
 ### Removed
 
@@ -27,6 +27,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Changed
 
+- **Signup timestamps stamped from Firebase Auth `creationTime`.** Both write paths — the `onCreate` auth event (`src/manager/events/auth/on-create.js`) and the `user/signup` fallback route (`src/manager/routes/user/signup/post.js`) — now set `metadata.created` and `consent.{legal,marketing}.grantedAt`/`revokedAt` from `user.metadata.creationTime` instead of "now"/request-time. The OMEGA user migration treats Auth's `creationTime` as the SSOT and reconciles every doc against it; the prior few-seconds drift meant every new signup got re-fixed on the next migration run. Stamping from `creationTime` makes new docs match the migration's expected value exactly, ending the recurring churn.
+- **`user/signup`: `flags.signupProcessed` is the sole idempotency gate.** Removed the 5-minute account-age reject (`MAX_ACCOUNT_AGE_MS`). A genuinely-unprocessed account can now complete signup whenever it retries — fixes the failure where a slow/missing `onCreate` plus a retry after 5 minutes caused a legitimate signup to be rejected. The frontend (UJM) gate is being moved to the same doc flag in a parallel change.
+- **CLI: port-conflict prompt auto-confirms after 5s.** The "Kill these processes to free the ports?" prompt in `src/cli/commands/base-command.js` now auto-confirms `Y` after 5 seconds of no input (via `AbortSignal.timeout` → `AbortPromptError` → default `true`), so unattended test/dev loops (`emulator`, `serve`, `test`) no longer hang waiting for input. Manual `y`/`n` and Ctrl+C still work.
+- **`AI` `claude-code` provider rewritten for serverside use** (`src/manager/libraries/ai/providers/claude-code.js`). Was a local-only wrapper around `@anthropic-ai/claude-agent-sdk` that spawned the `claude` binary (`forceLoginMethod: 'claudeai'`, keychain OAuth) — would not run in Cloud Functions. Now calls the Claude Messages API over plain HTTPS via `@anthropic-ai/sdk` using the OAuth token as `Authorization: Bearer` + `anthropic-beta: oauth-2025-04-20`, so it bills the Claude Pro/Max subscription (not API credits) and runs anywhere Node runs. Token resolution: `options.apiKey` → `config.claude_code.oauth_token` → `process.env.CLAUDE_CODE_OAUTH_TOKEN`. Renewal is a manual yearly `claude setup-token` (no auto-refresh). Verified live (text + JSON-schema paths). See `docs/ai-library.md`.
 - **Dependency bumps**: `@anthropic-ai/claude-agent-sdk` ^0.3.152 → ^0.3.153, `stripe` ^22.1.1 → ^22.2.0.
 - **`templates/_.env`**: consolidate OpenAI/Anthropic keys under an "AI" section and add `CLAUDE_CODE_OAUTH_TOKEN`.
 - **Marketing webhook tests** (`test/routes/marketing/webhook.js`): renamed `*-duplicate-event-skipped` → `*-reprocessed-idempotently` (assert re-delivery reprocesses and the user stays revoked); `sendgrid-event-without-eventId-*` now asserts the event is processed; beehiiv idempotency variant skips when no publication is configured. Updated `docs/consent.md` and `docs/testing.md` to describe the no-ledger design.
