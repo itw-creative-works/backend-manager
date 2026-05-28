@@ -19,7 +19,8 @@
  * GROUPS.marketing (25928) is account-global across all brands, an unsub from group 25928
  * legitimately removes the user from marketing across the entire SendGrid account.
  *
- * Idempotency is enforced by the dispatcher via marketing-webhooks/{eventId} doc.
+ * No idempotency ledger — the revoke + cross-provider remove are idempotent, so a
+ * provider retry re-runs safely with the same end state.
  */
 
 const REVOKE_EVENT_TYPES = new Set([
@@ -61,7 +62,7 @@ function parseWebhook(req) {
   }
 
   return events.map((event) => {
-    // sg_event_id is SendGrid's per-event unique ID, used for idempotency.
+    // sg_event_id is SendGrid's per-event unique ID, retained for log context.
     // smtp-id is another stable identifier we fall back to.
     const eventId = event.sg_event_id || event['smtp-id'] || event.smtpId || null;
     const eventType = event.event;
@@ -88,7 +89,7 @@ function isSupported(eventType) {
 }
 
 /**
- * Process a single parsed event. Called by the dispatcher AFTER idempotency check passes.
+ * Process a single parsed event. Called by the dispatcher for each supported event.
  *
  * Returns a result object summarizing what happened (for logging/response).
  */

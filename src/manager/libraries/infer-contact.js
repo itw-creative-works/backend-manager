@@ -26,9 +26,9 @@ async function inferContact(email, assistant) {
     if (aiResult) {
       return aiResult;
     }
-    assistant.log(`inferContact: AI returned null for ${email} — falling back to empty result`);
+    assistant?.log(`inferContact: AI returned null for ${email} — falling back to empty result`);
   } else {
-    assistant.log(`inferContact: BACKEND_MANAGER_OPENAI_API_KEY not set — skipping AI inference for ${email}`);
+    assistant?.log(`inferContact: BACKEND_MANAGER_OPENAI_API_KEY not set — skipping AI inference for ${email}`);
   }
 
   return { firstName: '', lastName: '', company: '', confidence: 0, method: 'none' };
@@ -68,14 +68,14 @@ async function inferContactWithAI(email, assistant) {
         method: 'ai',
       };
       if (!inferred.firstName && !inferred.lastName && !inferred.company) {
-        assistant.log(`inferContactWithAI: AI parsed response had ALL fields empty for ${email}. Raw:`, parsed);
+        assistant?.log(`inferContactWithAI: AI parsed response had ALL fields empty for ${email}. Raw:`, parsed);
       }
       return inferred;
     }
 
-    assistant.log(`inferContactWithAI: AI response missing firstName for ${email}. Raw result:`, result);
+    assistant?.log(`inferContactWithAI: AI response missing firstName for ${email}. Raw result:`, result);
   } catch (e) {
-    assistant.error('inferContactWithAI: Failed:', e);
+    assistant?.error('inferContactWithAI: Failed:', e);
   }
 
   return null;

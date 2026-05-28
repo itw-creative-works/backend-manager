@@ -19,7 +19,8 @@
  *   - getPublicationId() reads from config.marketing.beehiiv.publicationId
  *     or fuzzy-matches by brand name against the Beehiiv API.
  *
- * Idempotency is enforced by the dispatcher via marketing-webhooks/{eventId} doc.
+ * No idempotency ledger — the revoke + cross-provider remove are idempotent, so a
+ * provider retry re-runs safely with the same end state.
  */
 
 const REVOKE_EVENT_TYPES = new Set([
@@ -85,7 +86,7 @@ function isSupported(eventType) {
 }
 
 /**
- * Process a single parsed event. Called by the dispatcher AFTER idempotency check passes.
+ * Process a single parsed event. Called by the dispatcher for each supported event.
  * Returns a result object summarizing what happened.
  */
 async function handleEvent({ Manager, assistant, parsed }) {

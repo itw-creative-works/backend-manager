@@ -694,7 +694,7 @@ async function deleteTestUsers(admin) {
   // identified solely by an `_test-` doc id prefix (id-keyed). All must be wiped
   // at the start of every run so a test that died mid-execution leaves no
   // ghosts. New collections that participate in tests MUST be added here too.
-  const testDataCollections = ['payments-orders', 'payments-webhooks', 'payments-intents', 'payments-disputes', 'marketing-webhooks'];
+  const testDataCollections = ['payments-orders', 'payments-webhooks', 'payments-intents', 'payments-disputes'];
   // Collections that exist solely for tests — wipe in full. All docs in these
   // collections come from tests, so a single recursive delete handles cleanup.
   const testOnlyCollections = ['_test', '_test_query'];

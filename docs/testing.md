@@ -19,7 +19,7 @@ What the runner wipes pre-test (in [src/test/test-accounts.js](../src/test/test-
 
 1. **`meta/stats`** doc ensured (required for on-create batch writes).
 2. **`users/_test-*`** Firebase Auth users + Firestore docs (delete).
-3. **Mixed Firestore collections** — `payments-orders`, `payments-webhooks`, `payments-intents`, `payments-disputes`, `marketing-webhooks`. Two-pass cleanup per collection:
+3. **Mixed Firestore collections** — `payments-orders`, `payments-webhooks`, `payments-intents`, `payments-disputes`. Two-pass cleanup per collection:
    - Pass 1 — owner-keyed: `where('owner', 'in', [...testUids])` (batched at 30 uids per `in` query).
    - Pass 2 — id-keyed: any doc whose ID starts with `_test-` (catches ownerless test docs like dispute alerts and raw test webhooks).
 4. **Test-only Firestore collections** — `_test`, `_test_query` — wiped in full.
@@ -51,6 +51,8 @@ The rule: **never put cleanup at the END of a test file or suite for the purpose
 ## Extended Mode (`TEST_EXTENDED_MODE`)
 
 Several routes/handlers skip external API calls (SendGrid, Beehiiv, Stripe webhooks, dispute handlers, marketing libraries) when `process.env.TEST_EXTENDED_MODE` is unset, so unit tests don't fire real emails or webhook side effects. Set the flag to opt **in** to those side effects for a full end-to-end run.
+
+The marketing library gates at the SSOT level: `Marketing.add()`, `Marketing.sync()`, and `Marketing.remove()` each short-circuit with `if (assistant.isTesting() && !process.env.TEST_EXTENDED_MODE) return {}` before touching any provider. Callers (auth `onDelete`, webhook processors, contact-delete route) inherit the gate for free — do NOT rely on a per-caller guard for provider safety; add the gate to the library method itself when introducing a new provider-touching method.
 
 **Live sync — no env coordination across terminals.** The flag flows automatically from the test command to the running emulator via a small shared state file at `<projectRoot>/.temp/test-mode.json`. The test command writes the file pre-flight; the emulator's function workers watch it via `fs.watch` and mutate their own `process.env.TEST_EXTENDED_MODE` in place. Effect: you only need to set the flag on **the test command**. The emulator follows.
 

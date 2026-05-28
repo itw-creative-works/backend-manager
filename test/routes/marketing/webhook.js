@@ -8,7 +8,7 @@
  *   - Auth via ?key= query param
  *   - Provider validation
  *   - Brand filter (ignore mismatched brand)
- *   - Idempotency via marketing-webhooks/{eventId} doc
+ *   - Idempotent re-delivery (handlers re-run safely; no dedup ledger)
  *
  * SendGrid processor tests:
  *   - Various event types (group_unsubscribe, unsubscribe, spamreport, bounce, dropped)
@@ -120,12 +120,6 @@ module.exports = {
         assert.equal(userDoc?.consent?.marketing?.status, 'revoked', 'marketing.status should be revoked');
         assert.equal(userDoc?.consent?.marketing?.revokedAt?.source, 'sendgrid', 'revokedAt.source should be sendgrid');
         assert.equal(userDoc?.consent?.marketing?.revokedAt?.timestampUNIX, eventTimestamp, 'revokedAt.timestampUNIX should match event timestamp');
-
-        // Idempotency doc should exist with status=completed
-        const webhookDoc = await firestore.get(`marketing-webhooks/${eventId}`);
-        assert.ok(webhookDoc, 'Idempotency doc should exist');
-        assert.equal(webhookDoc?.status, 'completed', 'Idempotency doc should be marked completed');
-        assert.equal(webhookDoc?.provider, 'sendgrid', 'Idempotency doc should record provider');
       },
     },
 
@@ -244,9 +238,9 @@ module.exports = {
           [sgEvent({ id: eventId, type: 'group_unsubscribe', email: '_test.never-existed@example.com' })]
         );
 
-        // Dispatcher still processes the event (idempotency doc written, handler runs and returns
-        // handled:false). From the dispatcher's POV this counts as 'processed=1' since the handler
-        // didn't throw. The handler's internal "user-not-found" branch is silent by design.
+        // Dispatcher still runs the handler (which returns handled:false). From the
+        // dispatcher's POV this counts as 'processed=1' since the handler didn't throw.
+        // The handler's internal "user-not-found" branch is silent by design.
         assert.isSuccess(response, 'Should accept unknown-email gracefully');
         assert.propertyEquals(response, 'data.failed', 0, 'No failures for unknown email');
       },
@@ -277,28 +271,19 @@ module.exports = {
         assert.propertyEquals(response, 'data.processed', 2, '2 supported events should be processed');
         assert.propertyEquals(response, 'data.skipped', 1, '1 unsupported event should be skipped');
 
-        // Each processed event gets its own idempotency doc
-        const doc1 = await firestore.get(`marketing-webhooks/${e1}`);
-        const doc3 = await firestore.get(`marketing-webhooks/${e3}`);
-        assert.ok(doc1 && doc1.status === 'completed', 'First event idempotency doc completed');
-        assert.ok(doc3 && doc3.status === 'completed', 'Third event idempotency doc completed');
-
-        // The skipped event should NOT have an idempotency doc (we filter by isSupported before writing)
-        const doc2 = await firestore.get(`marketing-webhooks/${e2}`);
-        assert.ok(!doc2, 'Unsupported event should NOT have an idempotency doc');
-
         // User doc should be revoked
         const userDoc = await firestore.get(`users/${uid}`);
         assert.equal(userDoc?.consent?.marketing?.status, 'revoked');
       },
     },
 
-    // ─── Idempotency ───
+    // ─── Idempotent re-delivery (no dedup ledger) ───
 
     {
-      name: 'sendgrid-duplicate-event-skipped',
+      name: 'sendgrid-duplicate-event-reprocessed-idempotently',
       auth: 'none',
       async run({ http, firestore, assert, accounts }) {
+        const uid = accounts.basic.uid;
         const email = accounts.basic.email;
         const eventId = sgEventId('duplicate');
 
@@ -310,27 +295,27 @@ module.exports = {
         assert.isSuccess(response1);
         assert.propertyEquals(response1, 'data.processed', 1, 'First delivery should process');
 
-        // Second delivery — same eventId
+        // Second delivery — same eventId. With no dedup ledger the handler runs
+        // again, but the revoke is idempotent so the end state is unchanged.
         const response2 = await http.as('none').post(
           `marketing/webhook?provider=sendgrid&key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`,
           [sgEvent({ id: eventId, type: 'group_unsubscribe', email })]
         );
         assert.isSuccess(response2);
-        assert.propertyEquals(response2, 'data.processed', 0, 'Duplicate should NOT reprocess');
-        assert.propertyEquals(response2, 'data.skipped', 1, 'Duplicate should be skipped');
+        assert.propertyEquals(response2, 'data.processed', 1, 'Re-delivery reprocesses (idempotent), not skipped');
 
-        // Idempotency doc should still be there and completed
-        const webhookDoc = await firestore.get(`marketing-webhooks/${eventId}`);
-        assert.equal(webhookDoc?.status, 'completed');
+        const userDoc = await firestore.get(`users/${uid}`);
+        assert.equal(userDoc?.consent?.marketing?.status, 'revoked', 'User remains revoked after re-delivery');
       },
     },
 
-    // ─── Missing event ID ───
+    // ─── Missing event ID — still processed (no dedup requirement) ───
 
     {
-      name: 'sendgrid-event-without-eventId-skipped',
+      name: 'sendgrid-event-without-eventId-processed',
       auth: 'none',
-      async run({ http, assert, accounts }) {
+      async run({ http, firestore, assert, accounts }) {
+        const uid = accounts.basic.uid;
         const email = accounts.basic.email;
 
         const response = await http.as('none').post(
@@ -339,8 +324,10 @@ module.exports = {
         );
 
         assert.isSuccess(response, 'Should accept the request');
-        assert.propertyEquals(response, 'data.processed', 0, 'Event without eventId cannot be deduped, so it is skipped');
-        assert.propertyEquals(response, 'data.skipped', 1, 'Event should be skipped');
+        assert.propertyEquals(response, 'data.processed', 1, 'Event without eventId is still processed (no dedup needed)');
+
+        const userDoc = await firestore.get(`users/${uid}`);
+        assert.equal(userDoc?.consent?.marketing?.status, 'revoked', 'User should be revoked');
       },
     },
 
@@ -351,14 +338,16 @@ module.exports = {
     {
       name: 'beehiiv-subscription-unsubscribed-writes-consent',
       auth: 'none',
-      async run({ http, firestore, assert, accounts, config }) {
+      async run({ http, firestore, assert, accounts, config, skip }) {
         const uid = accounts.basic.uid;
         const email = accounts.basic.email;
         const eventId = `_test-bh-unsub-${Date.now()}`;
         const eventISO = new Date().toISOString();
         const publicationId = config.marketing?.beehiiv?.publicationId;
 
-        assert.ok(publicationId, 'Test brand must have a Beehiiv publication ID configured');
+        if (!publicationId) {
+          return skip('No Beehiiv publication ID configured for this brand');
+        }
 
         const response = await http.as('none').post(
           `marketing/webhook?provider=beehiiv&key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`,
@@ -378,12 +367,6 @@ module.exports = {
         assert.equal(userDoc?.consent?.marketing?.status, 'revoked', 'marketing.status should be revoked');
         assert.equal(userDoc?.consent?.marketing?.revokedAt?.source, 'beehiiv', 'revokedAt.source should be beehiiv');
         assert.ok(userDoc?.consent?.marketing?.revokedAt?.timestamp, 'revokedAt.timestamp should be set');
-
-        // Idempotency doc should exist
-        const webhookDoc = await firestore.get(`marketing-webhooks/${eventId}`);
-        assert.ok(webhookDoc, 'Idempotency doc should exist');
-        assert.equal(webhookDoc?.status, 'completed');
-        assert.equal(webhookDoc?.provider, 'beehiiv');
       },
     },
 
@@ -472,8 +455,8 @@ module.exports = {
         );
 
         // The dispatcher counts this as 'processed' from its POV (the handler
-        // ran without error and the idempotency doc was written), but the
-        // handler returned { handled: false, reason: 'publication-mismatch' }.
+        // ran without error), but the handler returned
+        // { handled: false, reason: 'publication-mismatch' }.
         // What matters: the user doc should NOT have been mutated.
         assert.isSuccess(response, 'Pub-mismatch event should be accepted gracefully');
 
@@ -542,12 +525,17 @@ module.exports = {
     },
 
     {
-      name: 'beehiiv-duplicate-event-skipped',
+      name: 'beehiiv-duplicate-event-reprocessed-idempotently',
       auth: 'none',
-      async run({ http, firestore, assert, accounts, config }) {
+      async run({ http, firestore, assert, accounts, config, skip }) {
+        const uid = accounts.basic.uid;
         const email = accounts.basic.email;
         const publicationId = config.marketing?.beehiiv?.publicationId;
         const eventId = `_test-bh-dup-${Date.now()}`;
+
+        if (!publicationId) {
+          return skip('No Beehiiv publication ID configured for this brand');
+        }
 
         const payload = {
           id: eventId,
@@ -565,17 +553,17 @@ module.exports = {
         assert.isSuccess(r1);
         assert.propertyEquals(r1, 'data.processed', 1, 'First delivery should process');
 
-        // Second delivery — same id
+        // Second delivery — same id. No dedup ledger, so it reprocesses; the
+        // revoke is idempotent so the end state is unchanged.
         const r2 = await http.as('none').post(
           `marketing/webhook?provider=beehiiv&key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`,
           payload
         );
         assert.isSuccess(r2);
-        assert.propertyEquals(r2, 'data.processed', 0, 'Duplicate should NOT reprocess');
-        assert.propertyEquals(r2, 'data.skipped', 1, 'Duplicate should be skipped');
+        assert.propertyEquals(r2, 'data.processed', 1, 'Re-delivery reprocesses (idempotent), not skipped');
 
-        const webhookDoc = await firestore.get(`marketing-webhooks/${eventId}`);
-        assert.equal(webhookDoc?.status, 'completed');
+        const userDoc = await firestore.get(`users/${uid}`);
+        assert.equal(userDoc?.consent?.marketing?.status, 'revoked', 'User remains revoked after re-delivery');
       },
     },
   ],

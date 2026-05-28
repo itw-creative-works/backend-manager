@@ -230,6 +230,11 @@ Marketing.prototype.remove = async function (email) {
     return {};
   }
 
+  if (assistant.isTesting() && !process.env.TEST_EXTENDED_MODE) {
+    assistant.log('Marketing.remove(): Skipping providers (testing mode)');
+    return {};
+  }
+
   assistant.log('Marketing.remove():', { email });
 
   const results = {};

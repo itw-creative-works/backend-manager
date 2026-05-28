@@ -121,9 +121,9 @@ POST /backend-manager/marketing/webhook?provider=beehiiv&key=<BACKEND_MANAGER_WE
 The dispatcher loads `processors/{provider}.js`, parses the event(s), and for each event:
 
 1. Checks `isSupported(eventType)` — filters out non-revoke events like `delivered` / `open`.
-2. Idempotency lookup in `marketing-webhooks/{eventId}` — skips if already processed.
-3. Calls `handleEvent({ Manager, assistant, parsed })` on the processor.
-4. Marks the idempotency doc `status: 'completed'` (or `'failed'` with error details).
+2. Calls `handleEvent({ Manager, assistant, parsed })` on the processor.
+
+There is **no idempotency ledger**. Both handler side effects — writing `consent.marketing.status = 'revoked'` and calling `mailer.remove()` — are idempotent, so a provider retry (or a duplicate fan-out from the parent) re-runs to the same end state with no extra side effects. This is the key difference from `payments-webhooks`, where dedup is load-bearing because payment side effects are not idempotent.
 
 Each processor's `handleEvent` does the same shape of work:
 
@@ -159,7 +159,7 @@ The parent forwarder:
 2. Reads the `brands` collection from the parent's own Firestore.
 3. For each brand: derives the child API URL by inserting `api.` into the brand's URL (`https://somiibo.com` → `https://api.somiibo.com/backend-manager/marketing/webhook?provider=X&key=Y`).
 4. POSTs the raw provider body to every child in parallel via `Promise.allSettled`.
-5. Returns 200 even if some children fail — child idempotency makes provider retries safe.
+5. Returns 200 even if some children fail — idempotent child handlers make provider retries (and re-fans) safe.
 
 ### Why fan-out instead of central processing
 
@@ -167,7 +167,7 @@ Each brand has its own Firebase project, so its `users` collection is separate. 
 
 - **Correct per-brand updates** — only brands where the user actually has an account update their user docs.
 - **Failure isolation** — one child being down doesn't block updates on the others.
-- **Local idempotency** — each child tracks `marketing-webhooks/{eventId}` in its own Firestore.
+- **Idempotent handlers** — re-processing the same event (provider retry or re-fan) produces the same end state, so no dedup ledger is needed.
 - **No new schema** — no need for the parent to maintain a brand → publication map; each child filters on its own.
 
 ### Why self IS in the fan-out

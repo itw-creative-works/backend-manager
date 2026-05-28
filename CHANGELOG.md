@@ -14,6 +14,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.2.13] - 2026-05-28
+
+### Removed
+
+- **Dropped the `marketing-webhooks` Firestore idempotency ledger.** The marketing-webhook dispatcher (`src/manager/routes/marketing/webhook/post.js`) no longer reads/writes `marketing-webhooks/{eventId}` docs for dedup. Both handler side effects — writing `consent.marketing.status = 'revoked'` and the cross-provider `mailer.remove()` — are naturally idempotent, so a provider retry or duplicate parent fan-out re-runs to the same end state with no extra side effects. (This is the key difference from `payments-webhooks`, where dedup is load-bearing because payment side effects are NOT idempotent.) Events with no `eventId` are now processed instead of skipped, since dedup is no longer required. Removed `marketing-webhooks` from the test runner's pre-test cleanup list (`src/test/test-accounts.js`). Consumers with an existing `marketing-webhooks` collection can safely delete it — nothing reads or writes it anymore.
+
+### Fixed
+
+- **`libraries/infer-contact.js`: guard the optional `assistant` arg.** All log/error calls now use `assistant?.` so `inferContact(email)` works without an assistant. Previously threw a `TypeError` when `BACKEND_MANAGER_OPENAI_API_KEY` was unset and no assistant was passed.
+- **`libraries/email/marketing/index.js`: gate `Marketing.remove()` behind test mode.** `remove()` now short-circuits with `if (assistant.isTesting() && !process.env.TEST_EXTENDED_MODE) return {}`, matching `add()` and `sync()`. Closes a gap where auth `onDelete` (fired ~44× at test startup during user cleanup) could hit the live SendGrid/Beehiiv remove APIs during a normal test run. The gate lives at the library SSOT so every caller (onDelete, webhook processors, contact-delete route) inherits it.
+
+### Changed
+
+- **Dependency bumps**: `@anthropic-ai/claude-agent-sdk` ^0.3.152 → ^0.3.153, `stripe` ^22.1.1 → ^22.2.0.
+- **`templates/_.env`**: consolidate OpenAI/Anthropic keys under an "AI" section and add `CLAUDE_CODE_OAUTH_TOKEN`.
+- **Marketing webhook tests** (`test/routes/marketing/webhook.js`): renamed `*-duplicate-event-skipped` → `*-reprocessed-idempotently` (assert re-delivery reprocesses and the user stays revoked); `sendgrid-event-without-eventId-*` now asserts the event is processed; beehiiv idempotency variant skips when no publication is configured. Updated `docs/consent.md` and `docs/testing.md` to describe the no-ledger design.
+
 # [5.2.12] - 2026-05-27
 
 ### Changed
