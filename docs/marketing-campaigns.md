@@ -208,7 +208,7 @@ Templates add their own fields on top (e.g. classic adds `intro` + `sections`; f
 
 This means the newsletter is never "stuck" — even with Beehiiv disabled or failing, you get an actionable email pointing to ready-to-paste assets. The alert is best-effort; failure to send is logged but does not block the Firestore campaign-doc write.
 
-Requires `GITHUB_TOKEN` env var (org-scoped, write access to `newsletter-assets`). Without it, the cron's HTML/image upload calls throw and the run aborts.
+Requires `GH_TOKEN` env var (org-scoped, write access to `newsletter-assets`). Without it, the cron's HTML/image upload calls throw and the run aborts.
 
 ## Iteration test asset story
 

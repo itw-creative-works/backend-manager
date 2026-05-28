@@ -4,7 +4,7 @@
  * Writes arbitrary content to a GitHub repository
  * Requires admin/blogger role, GitHub API key, and repo_website config
  *
- * IMPORTANT: These tests require GITHUB_TOKEN and github.repo_website to be configured.
+ * IMPORTANT: These tests require GH_TOKEN and github.repo_website to be configured.
  * If GitHub is not configured, the tests will fail.
  *
  * This is a suite because we need to clean up created files and cancel workflows after tests.
@@ -155,11 +155,11 @@ module.exports = {
       timeout: 60000,
 
       async run({ state, config }) {
-        if (!process.env.GITHUB_TOKEN || !config.github?.repo_website) {
+        if (!process.env.GH_TOKEN || !config.github?.repo_website) {
           return;
         }
 
-        const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+        const octokit = new Octokit({ auth: process.env.GH_TOKEN });
 
         // Parse owner/repo from githubRepoWebsite (e.g., 'https://github.com/owner/repo')
         const repoMatch = config.github?.repo_website.match(/github\.com\/([^/]+)\/([^/]+)/);

@@ -111,8 +111,8 @@ module.exports = {
       skip: !process.env.TEST_EXTENDED_MODE ? 'TEST_EXTENDED_MODE env var not set' : false,
 
       async run({ http, assert, state, config }) {
-        if (!process.env.GITHUB_TOKEN) {
-          assert.fail('GITHUB_TOKEN env var not set');
+        if (!process.env.GH_TOKEN) {
+          assert.fail('GH_TOKEN env var not set');
           return;
         }
 
@@ -167,7 +167,7 @@ module.exports = {
           return; // Previous test didn't run
         }
 
-        const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+        const octokit = new Octokit({ auth: process.env.GH_TOKEN });
 
         // Fetch the committed post from GitHub
         const { data: fileData } = await octokit.rest.repos.getContent({
@@ -203,7 +203,7 @@ module.exports = {
           return; // Previous test didn't run
         }
 
-        const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+        const octokit = new Octokit({ auth: process.env.GH_TOKEN });
         const imageDir = `src/assets/images/blog/post-${state.postId}/`;
 
         // List committed images and pick the header (matches the slugified URL "bem-test-create-post")
@@ -285,11 +285,11 @@ module.exports = {
       timeout: 60000,
 
       async run({ state }) {
-        if (!process.env.GITHUB_TOKEN || !state.postPath) {
+        if (!process.env.GH_TOKEN || !state.postPath) {
           return;
         }
 
-        const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+        const octokit = new Octokit({ auth: process.env.GH_TOKEN });
 
         // Delete the test post
         try {

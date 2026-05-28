@@ -39,7 +39,7 @@ Module.prototype.main = function () {
 
       // Setup Octokit
       self.octokit = new Octokit({
-        auth: process.env.GITHUB_TOKEN,
+        auth: process.env.GH_TOKEN,
       });
 
       // Check for required values

@@ -25,7 +25,7 @@ Module.prototype.main = function () {
       }
 
       // Check for GitHub configuration
-      if (!process.env.GITHUB_TOKEN) {
+      if (!process.env.GH_TOKEN) {
         return reject(assistant.errorify(`GitHub API key not configured.`, {code: 500}));
       }
 
@@ -42,7 +42,7 @@ Module.prototype.main = function () {
 
       // Setup Octokit
       self.octokit = new Octokit({
-        auth: process.env.GITHUB_TOKEN,
+        auth: process.env.GH_TOKEN,
       });
 
       // Check for required values

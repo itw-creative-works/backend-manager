@@ -59,7 +59,7 @@ const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
  * @param {string} [args.subject] - Newsletter subject. Embedded in the commit message so
  *                                  `git log` reads as a human-browseable history.
  * @param {string} [args.commitMessage] - Full override of the default commit message
- * @param {string} [args.token] - GitHub token (defaults to process.env.GITHUB_TOKEN)
+ * @param {string} [args.token] - GitHub token (defaults to process.env.GH_TOKEN)
  * @param {object} [args.assistant] - logger
  * @returns {Promise<{ urls: string[], paths: string[], htmlUrl?: string, htmlPath?: string, folderUrl: string, commitSha: string }>}
  */
@@ -76,10 +76,10 @@ async function uploadAssets({ images, html, markdown, summary, brandId, campaign
   validateBrandId(brandId);
   validateCampaignId(campaignId);
 
-  const githubToken = token || process.env.GITHUB_TOKEN;
+  const githubToken = token || process.env.GH_TOKEN;
 
   if (!githubToken) {
-    throw new Error('image-host: GITHUB_TOKEN env var (or token arg) is required');
+    throw new Error('image-host: GH_TOKEN env var (or token arg) is required');
   }
 
   const log = (msg) => assistant?.log ? assistant.log(`[image-host] ${msg}`) : null;

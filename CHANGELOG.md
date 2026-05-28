@@ -14,6 +14,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.2.15] - 2026-05-28
+
+### Changed
+
+- **Standardized the GitHub token env var `GITHUB_TOKEN` → `GH_TOKEN`** across the entire repo, to match the convention used in all other ITW repos. Updated every GitHub-backed route and action (`admin/post`, `content/post`, `admin/repo/content`, `general/fetch-post`, `admin/write-repo-content`, `admin/edit-post`, `admin/create-post`, legacy `create-post`), the email image-host library (`libraries/email/generators/lib/image-host.js`), the CLI deprecated-env notice, the `templates/_.env` scaffold, the `docs/marketing-campaigns.md` reference, and all related test files. This is a hard rename with no fallback — any environment (CI, prod, local `.env`) that still sets `GITHUB_TOKEN` must switch to `GH_TOKEN` for the GitHub-backed routes to work.
+
 # [5.2.14] - 2026-05-28
 
 ### Removed

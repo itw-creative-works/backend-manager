@@ -112,7 +112,7 @@ module.exports = {
       name: 'create-test-post',
       auth: 'admin',
       timeout: 60000,
-      skip: !process.env.GITHUB_TOKEN ? 'GITHUB_TOKEN env var not set' : false,
+      skip: !process.env.GH_TOKEN ? 'GH_TOKEN env var not set' : false,
 
       async run({ assert, state, config }) {
         if (!config.github?.repo_website) {
@@ -120,7 +120,7 @@ module.exports = {
           return;
         }
 
-        const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+        const octokit = new Octokit({ auth: process.env.GH_TOKEN });
 
         // Parse owner/repo from githubRepoWebsite
         const repoMatch = config.github?.repo_website.match(/github\.com\/([^/]+)\/([^/]+)/);
@@ -181,7 +181,7 @@ module.exports = {
       name: 'verify-file-exists',
       auth: 'admin',
       timeout: 30000,
-      skip: !process.env.GITHUB_TOKEN ? 'GITHUB_TOKEN env var not set' : false,
+      skip: !process.env.GH_TOKEN ? 'GH_TOKEN env var not set' : false,
 
       async run({ assert, state, config }) {
         if (!state.postPath) {
@@ -190,7 +190,7 @@ module.exports = {
 
         state.postUrl = `https://${config.domain}/blog/${state.postSlug}`;
 
-        const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+        const octokit = new Octokit({ auth: process.env.GH_TOKEN });
 
         // Verify the file exists via direct API (not code search)
         const { data: fileData } = await octokit.rest.repos.getContent({
@@ -211,7 +211,7 @@ module.exports = {
       name: 'edit-test-post',
       auth: 'admin',
       timeout: 60000,
-      skip: !process.env.GITHUB_TOKEN ? 'GITHUB_TOKEN env var not set' : false,
+      skip: !process.env.GH_TOKEN ? 'GH_TOKEN env var not set' : false,
 
       async run({ http, assert, state }) {
         if (!state.postUrl) {
@@ -244,7 +244,7 @@ module.exports = {
       name: 'verify-edit',
       auth: 'admin',
       timeout: 30000,
-      skip: !process.env.GITHUB_TOKEN ? 'GITHUB_TOKEN env var not set' : false,
+      skip: !process.env.GH_TOKEN ? 'GH_TOKEN env var not set' : false,
 
       async run({ assert, state }) {
         if (!state.postPath || state.editSkipped) {
@@ -252,7 +252,7 @@ module.exports = {
           return;
         }
 
-        const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+        const octokit = new Octokit({ auth: process.env.GH_TOKEN });
 
         // Fetch the file directly from GitHub
         const { data: fileData } = await octokit.rest.repos.getContent({
@@ -309,11 +309,11 @@ module.exports = {
       timeout: 60000,
 
       async run({ state }) {
-        if (!process.env.GITHUB_TOKEN || !state.postPath) {
+        if (!process.env.GH_TOKEN || !state.postPath) {
           return;
         }
 
-        const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+        const octokit = new Octokit({ auth: process.env.GH_TOKEN });
 
         // Get the current SHA (may have changed after edit)
         try {

@@ -36,7 +36,7 @@ class EnvRuntimeConfigDeprecatedTest extends BaseTest {
       '  The new format uses individual environment variables:\n' +
       '    BACKEND_MANAGER_KEY=\n' +
       '    BACKEND_MANAGER_NAMESPACE=\n' +
-      '    GITHUB_TOKEN=\n' +
+      '    GH_TOKEN=\n' +
       '  Please update your .env file manually and remove RUNTIME_CONFIG.'
     );
   }

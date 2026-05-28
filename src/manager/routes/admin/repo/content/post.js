@@ -17,7 +17,7 @@ module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
   }
 
   // Check for GitHub configuration
-  if (!process.env.GITHUB_TOKEN) {
+  if (!process.env.GH_TOKEN) {
     return assistant.respond('GitHub API key not configured.', { code: 500 });
   }
 
@@ -31,7 +31,7 @@ module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
 
   // Setup Octokit
   const octokit = new Octokit({
-    auth: process.env.GITHUB_TOKEN,
+    auth: process.env.GH_TOKEN,
   });
 
   // Check for required values
