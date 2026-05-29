@@ -14,6 +14,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.2.17] - 2026-05-29
+
+### Added
+
+- **Newsletter-driven blog articles (`marketing.beehiiv.content.article`).** When enabled, the newsletter generator expands its **lead section** (`structure.sections[0]`) into a full blog article via the Ghostii engine, publishes it to the website repo through the `admin/post` route, and injects a "Read the full article" CTA (`section.cta = { label, url }`) onto that section so the newsletter links to the long-form post. The article build runs **concurrently** with SVG image generation (both are slow AI calls) and is **failure-isolated** — if it throws, no CTA is injected and the newsletter ships normally. The published URL (`{brand.url}/blog/{slug}`) is surfaced on the generator return as `assets.articleUrl` and `meta.article`. New config block: `content.article = { enabled, author }` (`enabled` default `false`). See `docs/marketing-campaigns.md`.
+- **`section.cta` rendering.** Both the MJML template (`sectionCard`, already supported) and the markdown renderer (`lib/markdown-renderer.js`, new) now render `section.cta = { label, url }` when present. `getBodySections` passes `cta` through for both classic and field-report shapes. CTAs are still never authored by the AI — they're injected by code post-publish with a real, verified URL.
+- **Generate/publish split on the linked article (`opts.publishArticle`).** When `config.article.enabled` is on, the article is always **generated** (Ghostii writes it + the public URL is computed from the title slug + the CTA is injected), but it's only **committed** to the website repo via `admin/post` when `opts.publishArticle` is true. The production cron passes `publishArticle: true`. The newsletter iteration test (`test/marketing/newsletter-generate.js`) leaves it false by default — so a full `TEST_EXTENDED_MODE=1` run exercises the Ghostii write + CTA path without committing a real post — and opts in with `NEWSLETTER_CREATE_ARTICLE=1`. The CTA URL is valid either way (derived from the same slugify `admin/post` uses). `meta.article.published` records whether the post was actually committed.
+
+### Changed
+
+- **Extracted the Ghostii article engine into `src/manager/libraries/content/ghostii.js`** (`writeArticle` + `publishArticle`) as the SSOT for the Ghostii API request shape and the `admin/post` publish payload. Both the standalone `ghostii-auto-publisher.js` daily cron and the new newsletter linked-article flow import it (DRY). No behavior change to the standalone cron.
+- **Standalone Ghostii is now disabled by default** (`ghostii[0].articles: 0` in `templates/backend-manager-config.json`). The daily `ghostii-auto-publisher.js` cron remains fully functional — set `articles >= 1` to opt back into independent article publishing. For newsletter-linked articles, use `content.article.enabled` instead.
+
 # [5.2.16] - 2026-05-28
 
 ### Removed

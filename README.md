@@ -412,6 +412,7 @@ Built-in marketing system with multi-provider support (SendGrid + Beehiiv + FCM 
 - **Campaign CRUD** — `POST/GET/PUT/DELETE /marketing/campaign` with calendar-backed scheduling
 - **Recurring campaigns** — seasonal sales, newsletters with automatic sendAt advancement
 - **Newsletter generator** — AI-assembled newsletters from parent server content sources
+- **Newsletter-driven blog articles** — `content.article.enabled` expands the newsletter's lead section into a full blog post (via Ghostii → `admin/post`) and links to it with a "Read the full article" CTA
 - **Segment SSOT** — 22 segment definitions resolved to provider IDs at runtime
 - **UTM auto-tagging** — brand domain links tagged automatically in marketing + transactional emails
 - **Contact pruning** — monthly 2-stage re-engagement + deletion of inactive contacts

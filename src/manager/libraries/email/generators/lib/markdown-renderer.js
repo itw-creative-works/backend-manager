@@ -165,6 +165,7 @@ function getBodySections(structure, template) {
       body: d.dispatch,
       dataPoints: d.dataPoints,
       image_prompt: d.image_prompt,
+      cta: d.cta,  // injected post-generation (e.g. linked-article "Read more")
     }));
   }
 
@@ -175,6 +176,7 @@ function getBodySections(structure, template) {
       title: s.title,
       body: s.body,
       image_prompt: s.image_prompt,
+      cta: s.cta,  // injected post-generation (e.g. linked-article "Read more")
     }));
   }
 
@@ -234,6 +236,13 @@ function renderSection(section, idx, imagePaths, template) {
   // Body
   if (section.body) {
     lines.push(section.body);
+  }
+
+  // CTA (e.g. "Read the full article →") — injected by code post-generation,
+  // never authored by the AI. The MJML template renders section.cta via
+  // sectionCard; this is the markdown equivalent for the Beehiiv-paste view.
+  if (section.cta?.url && section.cta?.label) {
+    lines.push(`[${section.cta.label} →](${section.cta.url})`);
   }
 
   return lines.join('\n\n');

@@ -3,6 +3,8 @@ const powertools = require('node-powertools');
 const moment = require('moment');
 const JSON5 = require('json5');
 
+const { writeArticle, publishArticle } = require('../../../libraries/content/ghostii.js');
+
 const PROMPT = `
   Company: {brand.brand.name}: {brand.brand.description}
   Date: {date}
@@ -151,7 +153,11 @@ async function harvest(assistant, settings) {
     assistant.log('harvest(): Get final content', final);
 
     // Request to Ghostii
-    const article = await requestGhostii(settings, final).catch((e) => e);
+    const article = await writeArticle({
+      brand: settings.brand,
+      description: final,
+      links: settings.links,
+    }).catch((e) => e);
     if (article instanceof Error) {
       assistant.error('harvest(): Error requesting Ghostii', article);
       break;
@@ -161,7 +167,13 @@ async function harvest(assistant, settings) {
     assistant.log('harvest(): Article', article);
 
     // Upload post to blog
-    const uploadedPost = await uploadPost(assistant, settings, article).catch((e) => e);
+    const uploadedPost = await publishArticle(assistant, {
+      brand: settings.brand,
+      article,
+      id: postId++,
+      author: settings.author,
+      postPath: 'ghostii',
+    }).catch((e) => e);
     if (uploadedPost instanceof Error) {
       assistant.error('harvest(): Error uploading post to blog', uploadedPost);
       break;
@@ -195,51 +207,6 @@ function isURL(url) {
   } catch (e) {
     return false;
   }
-}
-
-function requestGhostii(settings, content) {
-  return fetch('https://api.ghostii.ai/write/article', {
-    method: 'post',
-    timeout: 90000,
-    tries: 1,
-    response: 'json',
-    body: {
-      backendManagerKey: process.env.BACKEND_MANAGER_KEY,
-      keywords: [''],
-      description: content,
-      insertLinks: true,
-      headerImageUrl: 'unsplash',
-      url: settings.brand.brand.url,
-      sectionQuantity: powertools.random(3, 6, { mode: 'gaussian' }),
-      feedUrl: `${settings.brand.brand.url}/feeds/posts.json`,
-      links: settings.links,
-    },
-  });
-}
-
-function uploadPost(assistant, settings, article) {
-  const apiUrl = `https://api.${(settings.brand.brand.url || '').replace(/^https?:\/\//, '')}`;
-  return fetch(`${apiUrl}/backend-manager/admin/post`, {
-    method: 'POST',
-    timeout: 90000,
-    tries: 1,
-    response: 'json',
-    body: {
-      backendManagerKey: process.env.BACKEND_MANAGER_KEY,
-      title: article.title,
-      url: article.title, // This is formatted on the bm_api endpoint
-      description: article.description,
-      headerImageURL: article.headerImageUrl,
-      body: article.body,
-      id: postId++,
-      author: settings.author,
-      categories: article.categories,
-      tags: article.keywords,
-      postPath: 'ghostii',
-      githubUser: settings.brand.github.user,
-      githubRepo: settings.brand.github.repo,
-    },
-  });
 }
 
 function extractBodyContent(text, contentType, url) {

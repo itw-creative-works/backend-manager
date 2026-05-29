@@ -100,6 +100,22 @@ Pipeline:
 4. **mjml-template.js** — Resolves the template by name from `templates/index.js`, calls `template.build({structure, imagePaths, theme, ...})` for the MJML, compiles to email-safe HTML via the `mjml` package. Brand-domain links get UTM-tagged via the existing `tagLinks()` utility.
 5. Mark used: `PUT {parentUrl}/newsletter/sources` per source
 
+> **Step 3 runs concurrently with the linked-article build** (see below) when `article.enabled` is on — both are slow AI calls, so they share one `Promise.all`. The article URL is stamped onto the lead section before steps 4/5 render.
+
+## Newsletter-driven blog article (`article.enabled`)
+
+When `marketing.beehiiv.content.article.enabled: true`, the newsletter generator expands its **lead section** (`structure.sections[0]`) into a full blog article and links to it from the newsletter.
+
+Flow (runs in parallel with SVG generation, between structure and render):
+1. `buildLinkedArticle()` builds a brief from the lead section's title + body, folded with the shared `tone` + `instructions`.
+2. **Ghostii** (`libraries/content/ghostii.js` → `writeArticle()`) expands it into a full article + hero image.
+3. `publishArticle()` POSTs to the `admin/post` route (commits markdown + images to the website repo). Public URL = `{brand.url}/blog/{slug}`.
+4. The URL is injected as `structure.sections[0].cta = { label: 'Read the full article', url }`. The MJML `sectionCard` and the markdown renderer both render `section.cta` automatically.
+
+**Failure is isolated** — if the article build throws, it resolves to `null`, no CTA is injected, and the newsletter ships normally. The newsletter never depends on the article succeeding.
+
+The published URL is surfaced on the return as `assets.articleUrl` and `meta.article`. Config block: `marketing.beehiiv.content.article = { enabled, author }` (`enabled` default `false`; `author` is the post author slug). Standalone article publishing (independent of the newsletter) still lives in the daily `ghostii-auto-publisher.js` cron, which now shares the same `libraries/content/ghostii.js` engine — see [docs/admin-post-route.md](admin-post-route.md). Standalone Ghostii is **disabled by default** (`ghostii[0].articles: 0`).
+
 ## Template-owned schemas
 
 Each template under `lib/templates/` owns its own content shape. Templates export:
@@ -199,7 +215,7 @@ marketing-campaigns/{newId}: {
 
 Templates add their own fields on top (e.g. classic adds `intro` + `sections`; field-report adds `tldr` + `dateline` + `dispatches`).
 
-**No CTAs in generated content.** The schema intentionally does NOT include section-level CTAs / outbound links. The AI cannot author URLs reliably — it has no browse access to your site and no real source URLs to reference, so any URL it produces is invented. Newsletters are self-contained reads; outbound links come from sponsorship blocks rendered by the template shell (driven by `marketing.beehiiv.content.sponsorships[]`), not from generated section bodies.
+**No AI-authored CTAs in generated content.** The schema intentionally does NOT include section-level CTAs / outbound links. The AI cannot author URLs reliably — it has no browse access to your site and no real source URLs to reference, so any URL it produces is invented. Newsletters are self-contained reads; outbound links come from sponsorship blocks rendered by the template shell (driven by `marketing.beehiiv.content.sponsorships[]`), not from generated section bodies. The **one exception** is the linked-article CTA: when `article.enabled` is on, `section.cta = { label, url }` is injected onto the lead section by code *after* the article is published (a real, verified URL) — never authored by the AI. Both `sectionCard` (MJML) and the markdown renderer render `section.cta` when present.
 
 **Beehiiv failure → fallback alert email.** When Beehiiv draft creation fails (e.g. `SEND_API_NOT_ENTERPRISE_PLAN` on the free plan), the generator sends an internal alert email via `sender: 'internal'` (resolves to `alerts@{brandDomain}`) to `brand.contact.email` with:
 - The failure reason
@@ -249,6 +265,10 @@ marketing: {
       instructions: '',                     // free-form AI instructions
       tone: 'professional',
       template: 'clean',                    // clean | editorial | field-report
+      article: {                            // expand the lead section into a linked blog post (Ghostii → admin/post)
+        enabled: false,
+        author: 'alex-raeburn',             // author slug for the linked article
+      },
       theme: { primaryColor, secondaryColor, accentColor, font },
       sponsorships: [ ... ],
     },
@@ -270,6 +290,8 @@ marketing: {
 | Newsletter MJML → HTML | `src/manager/libraries/email/generators/lib/mjml-template.js` |
 | Newsletter asset host (GitHub upload — PNGs + newsletter.html + newsletter.md + summary.md) | `src/manager/libraries/email/generators/lib/image-host.js` |
 | Newsletter markdown renderer (programmatic, no AI) | `src/manager/libraries/email/generators/lib/markdown-renderer.js` |
+| Ghostii article engine (writeArticle + publishArticle) | `src/manager/libraries/content/ghostii.js` |
+| Standalone Ghostii article cron (off by default) | `src/manager/events/cron/daily/ghostii-auto-publisher.js` |
 | Unified AI library | `src/manager/libraries/ai/index.js` (OpenAI + Anthropic via `Manager.AI(assistant).request({ provider, ... })`) |
 | Notification library | `src/manager/libraries/notification.js` |
 | SendGrid provider | `src/manager/libraries/email/providers/sendgrid.js` |

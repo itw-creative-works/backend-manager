@@ -80,10 +80,12 @@ module.exports = async ({ Manager, assistant, libraries }) => {
     // Run the generator with imageHost forced to 'github' (production cron
     // path always uploads — that's what "production" means here) and the
     // campaignId pinned so all assets land in marketing-campaigns/{newId}/'s
-    // matching folder.
+    // matching folder. publishArticle: true so the linked blog post (when
+    // config.article.enabled is on) is actually committed to the website repo.
     const generated = await generators[generator].generate(Manager, assistant, settings, {
       campaignId: newId,
       imageHost: 'github',
+      publishArticle: true,
     });
 
     if (!generated) {

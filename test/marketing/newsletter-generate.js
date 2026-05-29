@@ -44,8 +44,16 @@
  *   NEWSLETTER_PEEK=1                  Fetch + list ready sources, do not claim, exit.
  *   NEWSLETTER_SOURCE_ID=<id>          Generate from one specific source WITHOUT claiming it.
  *   NEWSLETTER_LIMIT=10                Sources per category for PEEK (default 10).
+ *   NEWSLETTER_CLAIM=1               CLAIM the fetched sources (claimFor=brandId), consuming them so the
+ *                                       real newsletter won't reuse them. OFF by default — the test fetches
+ *                                       without claiming so runs are repeatable and non-destructive.
  *   NEWSLETTER_RELEASE=1               Reset locally-tracked claimed sources back to 'ready'.
  *   NEWSLETTER_NO_IMAGES=1             Skip SVG/PNG generation (fast iteration on copy only).
+ *   NEWSLETTER_CREATE_ARTICLE=1       PUBLISH the linked blog article to the website repo (Ghostii → admin/post → GitHub).
+ *                                       The article is always GENERATED when the brand's
+ *                                       marketing.beehiiv.content.article.enabled is on (exercises the Ghostii write +
+ *                                       URL/CTA path); this flag only controls whether it's actually committed.
+ *                                       OFF by default — a newsletter test run never commits a real post.
  *   NEWSLETTER_PROVIDER_STRUCTURE=X    Override structure provider (openai|anthropic).
  *   NEWSLETTER_PROVIDER_SVG=X          Override SVG provider (openai|anthropic).
  *   NEWSLETTER_CAMPAIGN_ID=<id>        Override the auto-generated campaign ID (folder name in newsletter-assets).
@@ -345,13 +353,20 @@ module.exports = {
       return;
     }
 
-    // --- Fetch sources (real claim) ---
+    // --- Fetch sources ---
+    // By DEFAULT the test does NOT claim sources — it fetches them without
+    // claimFor, so they stay 'ready' and available for the real newsletter.
+    // This keeps test runs repeatable and non-destructive (a test should never
+    // silently consume production resources). Set NEWSLETTER_CLAIM=1 to exercise
+    // the real claim/consume path (then use NEWSLETTER_RELEASE=1 to put them back).
+    const claim = !!env.NEWSLETTER_CLAIM;
     const sources = await fetchSourcesForRun({
       parentUrl,
       newsletterConfig,
       brandId: config.brand?.id,
       sourceId: env.NEWSLETTER_SOURCE_ID,
       key: env.BACKEND_MANAGER_KEY,
+      claim,
     });
 
     // Environmental precondition: the parent server must have ready sources in
@@ -361,8 +376,10 @@ module.exports = {
       return skip('No ready newsletter sources available on parent server (environmental)');
     }
 
-    // Track claimed IDs for later --release-all
-    appendClaimed(claimedFile, sources.map((s) => s.id));
+    // Track claimed IDs for later --release-all (only when we actually claimed)
+    if (claim && !env.NEWSLETTER_SOURCE_ID) {
+      appendClaimed(claimedFile, sources.map((s) => s.id));
+    }
 
     // Force `beehiiv.enabled: true` and inject the per-run newsletter config
     // overrides onto Manager.config. The iteration test IS the explicit trigger
@@ -382,11 +399,17 @@ module.exports = {
     // --- Run the production generator with the local-persist image hook ---
     const generator = require('../../src/manager/libraries/email/generators/newsletter.js');
 
-    // EXTENDED mode is a MIRROR of the production cron — no escape hatches.
+    // EXTENDED mode mirrors the production cron's newsletter side effects:
     // GH upload always happens (PNGs + newsletter.html), Beehiiv draft upload
     // always happens (governed inside newsletter.js by beehiiv.enabled, which
     // we force true above). If you don't want the side effects, run fixture
     // mode instead.
+    //
+    // The ONE deliberate exception is PUBLISHING the linked blog article: the
+    // article is still generated (so the test exercises the Ghostii write + CTA
+    // path), but it's NOT committed to the website repo unless you opt in with
+    // NEWSLETTER_CREATE_ARTICLE=1 (publishArticle below). Committing a real post
+    // is out of scope for a routine newsletter test.
     //
     // persistImage is a side-effect callback that writes PNG+SVG to runDir for
     // local preview / debug. Its return value is ignored when imageHost: 'github'
@@ -416,6 +439,11 @@ module.exports = {
         sources,
         skipClaim: true, // We manage the claim/release lifecycle ourselves
         skipImages: !!env.NEWSLETTER_NO_IMAGES,
+        // The article is GENERATED whenever the brand's config.article.enabled is on
+        // (exercises the Ghostii write + URL/CTA path), but only PUBLISHED to the
+        // website repo when you opt in with NEWSLETTER_CREATE_ARTICLE=1. Default
+        // test run generates but does not commit a real post.
+        publishArticle: !!env.NEWSLETTER_CREATE_ARTICLE,
         // Local disk persistence runs unconditionally (for preview/debug)
         persistImage,
         // EXTENDED always uploads to GitHub — mirrors production cron exactly
@@ -444,10 +472,37 @@ module.exports = {
       assets: result.assets || null,
     }, null, 2));
 
+    // Linked blog article (when content.article.enabled). Save the full Ghostii
+    // output + the computed URL so you can review what would be published — both
+    // the raw JSON and a readable markdown view of the article body.
+    if (result.article?.article) {
+      const a = result.article.article;
+      jetpack.write(path.join(runDir, 'article.json'), JSON.stringify(result.article, null, 2));
+      jetpack.write(path.join(runDir, 'article.md'), [
+        `# ${a.title || ''}`,
+        '',
+        `> ${a.description || ''}`,
+        '',
+        `**URL:** ${result.article.url || '(none)'}`,
+        `**Published:** ${result.article.published ? 'yes' : 'no (generate-only)'}`,
+        a.headerImageUrl ? `**Header image:** ${a.headerImageUrl}` : '',
+        a.categories?.length ? `**Categories:** ${a.categories.join(', ')}` : '',
+        a.keywords?.length ? `**Keywords:** ${a.keywords.join(', ')}` : '',
+        '',
+        '---',
+        '',
+        a.body || '',
+      ].filter(line => line !== undefined).join('\n'));
+    }
+
     console.log(`\nNewsletter preview written: ${previewPath}`);
     console.log(`Subject:   ${result.subject}`);
     console.log(`Preheader: ${result.preheader}`);
     console.log(`Sections:  ${result.structure.sections.length}`);
+    if (result.article?.article) {
+      console.log(`Article:   "${result.article.article.title}" → ${result.article.url} (${result.article.published ? 'published' : 'generate-only'})`);
+      console.log(`           ${path.join(runDir, 'article.md')}`);
+    }
     if (result.meta?.totals) {
       const t = result.meta.totals;
       console.log(`\nRun summary:`);
@@ -606,13 +661,14 @@ async function peekSources({ parentUrl, categories, limit, key }) {
 /**
  * Fetch sources for an actual generation run. Either:
  *   - A specific source by id — preview only, NO claim (iterate repeatedly on the same source)
- *   - Or N per category (claims them atomically for the brand)
+ *   - Or N per category. Fetches WITHOUT claiming by default (claim=false), so runs are
+ *     repeatable; pass claim=true (NEWSLETTER_CLAIM=1) to atomically claim/consume them.
  *
  * When NEWSLETTER_SOURCE_ID is set, we look the source up in any status
  * (ready, claimed, used) so you can keep iterating on it across runs without
  * the parent server's claim mechanism marking it consumed.
  */
-async function fetchSourcesForRun({ parentUrl, newsletterConfig, brandId, sourceId, key }) {
+async function fetchSourcesForRun({ parentUrl, newsletterConfig, brandId, sourceId, key, claim = false }) {
   if (sourceId) {
     // Peek across ALL ready sources (no claim). Search broadly first, then
     // fall back to any-status if needed. We never call claimFor with sourceId
@@ -657,11 +713,18 @@ async function fetchSourcesForRun({ parentUrl, newsletterConfig, brandId, source
 
   const all = [];
   for (const category of categories) {
+    // claimFor is what tells the parent server to mark sources consumed. Omit it
+    // (claim=false) to fetch the same sources without claiming them.
+    const query = { category, limit: 3, backendManagerKey: key };
+    if (claim) {
+      query.claimFor = brandId;
+    }
+
     const data = await fetch(`${parentUrl}/newsletter-sources`, {
       method: 'get',
       response: 'json',
       timeout: 15000,
-      query: { category, limit: 3, claimFor: brandId, backendManagerKey: key },
+      query,
     });
     all.push(...(data.sources || []));
   }

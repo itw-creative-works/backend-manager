@@ -34,7 +34,7 @@ All `npx mgr <cmd>` aliases work: `npx bm <cmd>`, `npx bem <cmd>`, `npx backend-
 1. `npm install` — install BEM's own deps
 2. `npm run prepare` — build once: copies `src/` → `dist/` via prepare-package
 3. `npm run prepare:watch` — watch mode
-4. Test in a consumer project: from inside the consumer's `functions/` dir, run `npx mgr install local` (swaps BEM to the local repo via the `install` CLI). Reverse with `npx mgr install prod`.
+4. Test in a consumer project: from inside the consumer, run `npx mgr install dev` to swap BEM to this local repo — required whenever you edit the framework source and want the consumer to pick up the changes (the consumer otherwise keeps its installed `node_modules/backend-manager`). Reverse with `npx mgr install prod`. If `npx mgr` then errors with "could not determine executable to run", the local install skipped bin-linking — re-run `npm install` to relink, or call `node node_modules/backend-manager/bin/backend-manager <cmd>` directly.
 
 ## Architecture
 
@@ -119,9 +119,9 @@ Deep references live in `docs/`. **Whenever you make a behavioral change, update
 
 ### Built-in Routes
 
-- [docs/admin-post-route.md](docs/admin-post-route.md) — `POST/PUT /admin/post` blog creation via GitHub (image extraction + resize at ingest + `@post/` rewriting)
+- [docs/admin-post-route.md](docs/admin-post-route.md) — `POST/PUT /admin/post` blog creation via GitHub (image extraction + resize at ingest + `@post/` rewriting). Also the publish target for the Ghostii article engine (`libraries/content/ghostii.js`).
 - [docs/payment-system.md](docs/payment-system.md) — full payment pipeline: Intent → Webhook → On-Write → Transition; subscription model, statuses, `resolveSubscription()`, transition handlers, processor interface, product config, test processor
-- [docs/marketing-campaigns.md](docs/marketing-campaigns.md) — campaign CRUD routes, recurring campaigns, generator pipeline (newsletter), template-owned schemas, asset hosting, seed campaigns
+- [docs/marketing-campaigns.md](docs/marketing-campaigns.md) — campaign CRUD routes, recurring campaigns, generator pipeline (newsletter), newsletter-driven blog article (`content.article.enabled`), template-owned schemas, asset hosting, seed campaigns
 - [docs/consent.md](docs/consent.md) — marketing consent capture: canonical `consent.{legal,marketing}` user-doc shape, signup-form capture, account-page toggle, HMAC unsub link, SendGrid+Beehiiv webhook receivers, parent forwarder (`/marketing/webhook/forward`), migration script template
 - [docs/mcp.md](docs/mcp.md) — Model Context Protocol server: 19 tools, stdio + HTTP transports, OAuth, Claude Chat/Code configuration
 

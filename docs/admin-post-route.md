@@ -2,6 +2,8 @@
 
 The `POST /admin/post` route creates blog posts via GitHub's API. It handles image extraction, resize, upload, and body rewriting.
 
+**Consumers.** Besides direct admin/blogger HTTP calls, this route is the publish target for the **Ghostii article engine** (`src/manager/libraries/content/ghostii.js` → `publishArticle()`), which is used by two paths: the standalone daily `ghostii-auto-publisher.js` cron (off by default), and the newsletter generator's linked-article flow (`marketing.beehiiv.content.article.enabled`). Both POST `title`/`url`/`description`/`headerImageURL`/`body`/`author`/`categories`/`tags`/`postPath`/`githubUser`/`githubRepo` with a `backendManagerKey`. Note: `headerImageURL` MUST resolve to a `.jpg` (the downloader rejects non-`.jpg` headers); Ghostii's `unsplash` hero satisfies this. See [docs/marketing-campaigns.md](marketing-campaigns.md).
+
 ## Image Processing Flow
 
 1. Receives markdown body with external image URLs (e.g., `![alt](https://images.unsplash.com/...)`)

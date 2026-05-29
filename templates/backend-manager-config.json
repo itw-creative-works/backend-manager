@@ -153,6 +153,10 @@
         instructions: '',  // free-form text passed to the AI ("focus on X", "avoid Y", brand voice notes)
         tone: 'professional',  // 'professional', 'casual', 'actionable', 'witty', etc. — passed to AI prompt
         template: 'clean',   // 'clean' | 'editorial' | 'field-report' — layout template (each owns its own content shape and aesthetic)
+        article: {
+          enabled: false,  // when true, the newsletter's lead section is expanded into a full blog post via Ghostii, published to the website repo, and linked from the newsletter with a "Read the full article" CTA
+          author: null,  // author slug for the linked article (Ghostii/admin-post picks a default if unset)
+        },
         theme: {
           primaryColor: '#5B5BFF',   // accent color: buttons, links, brand text
           secondaryColor: '#1E1E2A', // body text color
@@ -192,9 +196,12 @@
     appId: '1:123:web:456',
     measurementId: 'G-0123456789',
   },
+  // Standalone Ghostii article publisher (daily cron). OPT-IN: disabled by
+  // default (articles: 0). Set articles >= 1 to auto-publish independent blog
+  // posts. For newsletter-linked articles, use marketing.beehiiv.content.article.enabled instead.
   ghostii: [
     {
-      articles: 1,
+      articles: 0,
       sources: [
         '$app',
         // Add more sources here
@@ -204,7 +211,7 @@
       ],
       prompt: '',
       chance: 1.0,
-      author: 'alex-raeburn',
+      author: null,
       // app: 'other-app-id',              // Optional: target a different app
       // appUrl: 'https://api.otherapp.com', // Required if app is set (fetches /backend-manager/app)
     }

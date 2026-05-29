@@ -26,6 +26,8 @@ const { generateSectionImage } = require('./lib/svg-illustrator.js');
 const { renderNewsletter } = require('./lib/mjml-template.js');
 const { renderMarkdown } = require('./lib/markdown-renderer.js');
 const { uploadAssets, RAW_BASE } = require('./lib/image-host.js');
+const { buildPublicConfig } = require('../../../routes/brand/get.js');
+const { writeArticle, publishArticle } = require('../../../libraries/content/ghostii.js');
 
 /**
  * Generate newsletter content from parent server sources.
@@ -45,6 +47,11 @@ const { uploadAssets, RAW_BASE } = require('./lib/image-host.js');
  * @param {object[]} [opts.sources] - Pre-fetched sources (bypasses parent server claim)
  * @param {boolean} [opts.skipClaim] - Don't call PUT to mark sources as used
  * @param {boolean} [opts.skipImages] - Skip SVG/PNG generation (use placeholders)
+ * @param {boolean} [opts.publishArticle] - When the linked-article build runs (config.article.enabled),
+ *                                          actually COMMIT the post to the website repo via admin/post.
+ *                                          When false (default), the article is still generated and its
+ *                                          URL computed + injected as the CTA, but nothing is committed.
+ *                                          Production cron passes true; the iteration test leaves it false.
  * @returns {object|null} Updated settings with content filled in, or null if unavailable
  */
 async function generate(Manager, assistant, settings, opts = {}) {
@@ -147,11 +154,17 @@ async function generate(Manager, assistant, settings, opts = {}) {
     || (sources.length === 1 ? sources[0].id : null)
     || generatePushId();
 
-  // 2. SVG illustrations (parallel) + upload PNGs first so we have URLs
-  //    available to embed in the HTML render below.
+  // 2. SVG illustrations + (optional) linked blog article — run CONCURRENTLY.
+  //    Both are slow AI calls. The image build produces the section image URLs;
+  //    the article build expands the lead section into a full blog post and
+  //    returns its public URL, which we inject as a "Read more" CTA before render.
   let imagePaths = [];
 
-  if (!opts.skipImages) {
+  const buildImages = async () => {
+    if (opts.skipImages) {
+      return;
+    }
+
     const images = await Promise.all(
       structure.sections.map((s) => generateSectionImage({
         imagePrompt: s.image_prompt,
@@ -191,6 +204,54 @@ async function generate(Manager, assistant, settings, opts = {}) {
 
     // Stash images on the return for callers that want to access raw buffers
     opts._lastImages = images;
+  };
+
+  // The linked-article build is gated by config.article.enabled and needs a lead
+  // section to expand. Wrapped so a failure here NEVER blocks the newsletter —
+  // it resolves to null and the CTA simply isn't injected.
+  //
+  // Two phases, independently controllable:
+  //   - GENERATE: always runs when article.enabled is on. Calls Ghostii to write
+  //     the article + hero image and computes the public URL it WOULD live at.
+  //   - PUBLISH:  commits the post to the website repo via admin/post. Only when
+  //     opts.publishArticle is true. The production cron passes true; the
+  //     iteration test leaves it false (so it exercises generation without
+  //     committing a real post) unless NEWSLETTER_CREATE_ARTICLE=1 is set.
+  //
+  // The CTA URL is derived from the article title (same slugify admin/post uses),
+  // so the newsletter links correctly even in generate-only mode.
+  const wantArticle = !!config.article?.enabled
+    && Array.isArray(structure.sections)
+    && structure.sections.length > 0;
+
+  const buildArticle = async () => {
+    if (!wantArticle) {
+      return null;
+    }
+
+    return buildLinkedArticle({
+      Manager,
+      assistant,
+      brand,
+      config,
+      structure,
+      publish: !!opts.publishArticle,
+    }).catch((e) => {
+      assistant.error(`Newsletter generator: linked article failed — ${e.message}`);
+      return null;
+    });
+  };
+
+  const [, articleResult] = await Promise.all([buildImages(), buildArticle()]);
+
+  // Inject the "Read the full article" CTA onto the lead section BEFORE render.
+  // sectionCard (MJML) renders section.cta = { label, url } automatically; the
+  // markdown renderer emits it too. The URL is the post's public blog URL —
+  // present whether the article was actually published or only generated
+  // (derived from the title slug), so the newsletter links correctly either way.
+  if (articleResult?.url) {
+    structure.sections[0].cta = { label: 'Read the full article', url: articleResult.url };
+    assistant.log(`Newsletter generator: linked article ${articleResult.published ? 'published' : 'generated (not published)'} — ${articleResult.url}`);
   }
 
   // 3. MJML → HTML
@@ -342,6 +403,11 @@ async function generate(Manager, assistant, settings, opts = {}) {
       })),
     },
     totals: aggregateTotals(filterMeta, structure._meta, opts._lastImages),
+    // Linked blog article (when config.article.enabled is on). null if disabled or failed.
+    // `published` is false when the article was generated but not committed (e.g. test mode).
+    article: articleResult
+      ? { url: articleResult.url, slug: articleResult.slug, path: articleResult.path, published: !!articleResult.published }
+      : null,
   };
 
   // Public asset URLs — stamped onto the generated campaign doc by the cron
@@ -358,6 +424,7 @@ async function generate(Manager, assistant, settings, opts = {}) {
     summaryUrl,
     imageUrls: imagePaths,
     beehiivPostId,
+    articleUrl: articleResult?.url || null,  // linked blog post (config.article.enabled), null otherwise
     tags: Array.isArray(structure.tags) ? structure.tags : [],
   } : null;
 
@@ -375,7 +442,85 @@ async function generate(Manager, assistant, settings, opts = {}) {
     images: opts._lastImages || [],  // image buffers for the iteration test to persist locally
     assets,               // GitHub asset URLs (folder, html, md, summary, images) — null in local mode
     meta,                 // per-step provider/model/cost/timing telemetry
+    article: articleResult || null,  // full linked-article result { url, slug, path, published, article: {title, body, headerImageUrl, ...} } — null when disabled/failed
   };
+}
+
+/**
+ * Expand the newsletter's lead section into a full blog article via Ghostii and
+ * (optionally) publish it to the brand's website repo. Returns the post's public
+ * URL so the newsletter can link to it via a "Read the full article" CTA.
+ *
+ * The lead section (structure.sections[0]) is the same topic the newsletter
+ * leads with, so the resulting article is the long-form version.
+ *
+ * Two phases:
+ *   - GENERATE (always): Ghostii writes the article + hero image. We then compute
+ *     the public URL the post WOULD live at, using the same title→slug rule
+ *     admin/post applies. This URL is valid for the CTA whether or not we publish.
+ *   - PUBLISH (only when `publish`): commit the post to the website repo via
+ *     admin/post (GitHub). When `publish` is false, nothing is committed.
+ *
+ * Gated upstream by config.article.enabled. Any failure is caught by the caller
+ * and the CTA is simply omitted — the newsletter never depends on this.
+ *
+ * @param {object} args
+ * @param {object} args.Manager
+ * @param {object} args.assistant
+ * @param {object} args.brand - { id, name, url, ... }
+ * @param {object} args.config - marketing.beehiiv.content (tone, instructions, article.author)
+ * @param {object} args.structure - newsletter structure (sections[0] is the lead)
+ * @param {boolean} [args.publish] - Commit the post to GitHub via admin/post. Default false.
+ * @returns {Promise<{url, slug, path, published}|null>}
+ */
+async function buildLinkedArticle({ Manager, assistant, brand, config, structure, publish }) {
+  const lead = structure.sections[0] || {};
+  const publicConfig = buildPublicConfig(Manager.config);
+
+  // Build the article brief from the lead section, folded with the shared
+  // editorial steer (tone + instructions) so the blog post matches the
+  // newsletter's voice. Ghostii expands this into a full article + hero image.
+  const briefLines = [
+    `Company: ${brand?.name || ''}: ${brand?.description || ''}`,
+    config?.tone ? `Tone: ${config.tone}` : '',
+    config?.instructions ? `Instructions: ${config.instructions}` : '',
+    '',
+    `Write a full blog article expanding on this topic:`,
+    `Title: ${lead.title || ''}`,
+    `Summary: ${lead.body || ''}`,
+  ].filter(Boolean).join('\n');
+
+  assistant.log(`Newsletter generator: building linked article for "${lead.title}"`);
+
+  // Phase 1 — GENERATE (always)
+  const article = await writeArticle({
+    brand: publicConfig,
+    description: briefLines,
+  });
+
+  // Compute the public URL the post WOULD live at. admin/post slugifies the
+  // title (after stripping a `blog/` prefix that titles never have), so we
+  // mirror that here to derive the same slug without needing to publish.
+  const slug = Manager.Utilities().slugify(article.title || '');
+  const url = slug
+    ? `${(publicConfig.brand?.url || '').replace(/\/$/, '')}/blog/${slug}`
+    : null;
+
+  // Phase 2 — PUBLISH (gated). Commit to the website repo only when asked.
+  if (!publish) {
+    assistant.log(`Newsletter generator: article generated but NOT published (publish=false) — would live at ${url}`);
+    return { url, slug, path: null, published: false, article };
+  }
+
+  const result = await publishArticle(assistant, {
+    brand: publicConfig,
+    article,
+    id: Math.round(Date.now() / 1000),
+    author: config?.article?.author,
+    postPath: 'ghostii',
+  });
+
+  return { url: result.url || url, slug: result.slug || slug, path: result.path, published: true, article };
 }
 
 /**
