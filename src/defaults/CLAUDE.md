@@ -23,9 +23,13 @@ npx mgr deploy            # deploy to Firebase
 npx mgr logs:read         # read Cloud Functions logs (also: logs:tail to stream)
 npx mgr firestore:get     # read a doc from Firestore (also: firestore:set / :query / :delete)
 npx mgr auth:get          # read an Auth user (also: auth:list / :delete / :set-claims)
+npx mgr install dev       # use LOCAL backend-manager source (to test framework edits)
+npx mgr install prod      # restore the published backend-manager from npm
 ```
 
 All `npx mgr <cmd>` aliases — `npx bm <cmd>`, `npx bem <cmd>`, `npx backend-manager <cmd>` work too.
+
+> Editing the BEM framework source while working here? Run `npx mgr install dev` so this project picks up your uncommitted framework changes (it otherwise uses its installed `node_modules/backend-manager`). Run `npx mgr install prod` to switch back.
 
 ## Where things live
 

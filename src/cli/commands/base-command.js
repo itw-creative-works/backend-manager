@@ -130,6 +130,14 @@ class BaseCommand {
       }
     }
 
+    // Non-interactive environments (CI, agents, piped stdin) have no TTY, so inquirer
+    // can't read a keypress — prompting would error or hang. Skip the prompt entirely
+    // and auto-confirm the kill so unattended `mgr test` / `mgr emulator` runs proceed.
+    if (!process.stdin.isTTY) {
+      this.log(chalk.gray('  Non-interactive shell — auto-confirming port cleanup (Y).'));
+      return this.killBlockingProcesses(blockedPorts);
+    }
+
     // Auto-confirm (Y) after a few seconds of no input so unattended test/dev loops don't
     // hang. When the timeout fires the prompt is aborted via AbortSignal and we fall back to
     // the default (true). inquirer owns the cursor and can't live-update its own message, so
@@ -142,11 +150,20 @@ class BaseCommand {
         { signal: AbortSignal.timeout(AUTO_CONFIRM_SECONDS * 1000) },
       );
     } catch (error) {
-      // AbortPromptError (timeout reached) → take the default (true). Re-throw anything else.
-      if (error?.name !== 'AbortPromptError') {
-        throw error;
+      // Any prompt failure → fall back to the safe default (auto-confirm Y) instead of
+      // crashing. This covers:
+      //   - AbortPromptError: the 5s timeout fired (no input).
+      //   - ExitPromptError / force-close: stdin is present but closed/EOF'd (the
+      //     case under `mgr test`, agents, and other wrappers that pipe a non-readable
+      //     stdin). inquirer throws "User force closed the prompt with 0 null" here.
+      // Anything unexpected is logged but still defaults to Y so unattended runs proceed.
+      const name = error?.name || '';
+      const known = name === 'AbortPromptError' || name === 'ExitPromptError';
+      if (!known) {
+        this.log(chalk.gray(`  Prompt unavailable (${name || 'unknown'}) — auto-confirming (Y).`));
+      } else {
+        this.log(chalk.gray('  No input — auto-confirming (Y).'));
       }
-      this.log(chalk.gray('  No input — auto-confirming (Y).'));
       shouldKill = true;
     }
 
@@ -155,6 +172,15 @@ class BaseCommand {
       return false;
     }
 
+    return this.killBlockingProcesses(blockedPorts);
+  }
+
+  /**
+   * Kill every process on the given blocked ports, then wait for release.
+   * @param {object[]} blockedPorts - [{ name, port, processes: [{ pid }] }]
+   * @returns {Promise<boolean>} - true if all killed (or already dead), false on failure
+   */
+  async killBlockingProcesses(blockedPorts) {
     // Kill ALL processes on each blocked port
     for (const { name, port, processes } of blockedPorts) {
       for (const { pid } of processes) {

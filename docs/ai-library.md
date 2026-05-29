@@ -14,6 +14,23 @@ Return shape (same for all providers): `{ content, output, tokens, raw }`.
 
 API keys: `BACKEND_MANAGER_OPENAI_API_KEY`, `BACKEND_MANAGER_ANTHROPIC_API_KEY` (process.env or config).
 
+## Tools / web search (OpenAI)
+
+`options.tools` (and optional `options.toolChoice`) are passed through to the OpenAI Responses API verbatim. Opt-in — when omitted, no tools are sent and behavior is identical to a plain request. Use this to enable OpenAI's built-in **web search** so the model finds and cites real, currently-live URLs instead of hallucinating them:
+
+```js
+const r = await ai.request({
+  model: 'gpt-5.4',
+  response: 'json',
+  reasoning: { effort: 'medium' },
+  tools: [{ type: 'web_search' }],
+  prompt: { path: '.../research/system.md', settings },
+  message: { path: '.../research/user.md', settings },
+});
+```
+
+When tools are active, the response `output` array may contain tool-call items (e.g. `web_search_call`) alongside the `message`; the message-text extractor ignores non-message items, so `r.content` is unaffected. URL citations live in the returned `output` (message content) as `annotations` of type `url_citation`.
+
 ## `claude-code` provider — subscription billing
 
 The `claude-code` provider hits the same Claude Messages API as `anthropic`, but authenticates with a **Claude Code OAuth token** (`Authorization: Bearer ...` + `anthropic-beta: oauth-2025-04-20`) so usage bills the Claude Pro/Max subscription tied to the token rather than API credits.

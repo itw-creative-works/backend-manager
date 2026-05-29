@@ -395,6 +395,11 @@ OpenAI.prototype.request = function (options) {
     // Reasons
     options.reasoning = options.reasoning || undefined;
 
+    // Tools (e.g. built-in web_search). Opt-in — when omitted, no tools are sent
+    // and behavior is identical to a plain request.
+    options.tools = options.tools || undefined;
+    options.toolChoice = options.toolChoice || undefined;
+
     // Format prompt
     //
     // Accepts two forms:
@@ -976,6 +981,18 @@ function makeRequest(mode, options, self, promptSegments, message, user, _log) {
       const reasoning = resolveReasoning(options);
       if (reasoning) {
         request.body.reasoning = reasoning;
+      }
+
+      // Only include tools (e.g. web_search) if provided. When present, the
+      // response output may contain tool-call items (e.g. web_search_call)
+      // alongside the message — the message extractor below already ignores
+      // non-message items, so this is purely additive.
+      if (Array.isArray(options.tools) && options.tools.length) {
+        request.body.tools = options.tools;
+
+        if (options.toolChoice) {
+          request.body.tool_choice = options.toolChoice;
+        }
       }
     }
 

@@ -436,6 +436,94 @@ module.exports = {
       },
     },
 
+    // --- buildUserRecord layered deep-merge tests ---
+    // The signup write must: (a) fill every schema leaf so the doc is complete (no migration
+    // churn), (b) PRESERVE existing real values (api keys, subscription, roles, affiliate.code,
+    // custom non-schema fields), and (c) apply the signup data on top — without Firestore's
+    // map-replace wiping nested data. These tests seed adversarial existing state and verify.
+    {
+      name: 'merge-preserves-existing-and-fills-schema',
+      async run({ http, firestore, assert, accounts }) {
+        const uid = accounts['signup-merge'].uid;
+
+        // Capture the REAL api keys onCreate generated — the signup write must preserve these
+        // exactly (regenerating them would break the user's API access AND this test's auth,
+        // since http.as() authenticates with api.privateKey). We assert against the real values,
+        // NOT a seeded fake (seeding a fake privateKey would 401 the request).
+        const before = await firestore.get(`users/${uid}`);
+        const realClientId = before?.api?.clientId;
+        const realPrivateKey = before?.api?.privateKey;
+        const realAffiliateCode = before?.affiliate?.code;
+
+        // Seed adversarial NON-auth state the signup write must NOT clobber: a paid subscription,
+        // admin role, a custom non-schema field, and a deliberately PARTIAL attribution (only
+        // affiliate.code) to prove leaves get filled, not replaced-away. We do NOT touch api.* —
+        // that's the auth credential and is asserted-preserved via the captured real values.
+        await firestore.set(`users/${uid}`, {
+          subscription: { product: { id: 'pro', name: 'Pro' }, status: 'active' },
+          roles: { admin: true, betaTester: false, developer: false },
+          attribution: { affiliate: { code: 'PARTIALONLY' } },
+          myCustomIntegration: { slackWebhook: 'https://hooks.slack.com/services/XXX' },
+        }, { merge: true });
+
+        const signupResponse = await http.as('signup-merge').post('user/signup', {
+          consent: { legal: { granted: true, text: 'I agree.' }, marketing: { granted: true, text: 'Updates please.' } },
+          attribution: { utm: { tags: { utm_source: 'newsletter' } } },
+        });
+        assert.isSuccess(signupResponse, `Signup should succeed: ${JSON.stringify(signupResponse, null, 2)}`);
+
+        const doc = await firestore.get(`users/${uid}`);
+
+        // (b) Existing real values must survive untouched — NOT regenerated/reset by the schema layer.
+        assert.equal(doc?.api?.clientId, realClientId, 'api.clientId must be preserved (not regenerated)');
+        assert.equal(doc?.api?.privateKey, realPrivateKey, 'api.privateKey must be preserved (not regenerated)');
+        assert.equal(doc?.affiliate?.code, realAffiliateCode, 'affiliate.code must be preserved (not regenerated)');
+        assert.equal(doc?.subscription?.product?.id, 'pro', 'subscription must be preserved (not reset to basic)');
+        assert.equal(doc?.roles?.admin, true, 'roles.admin must be preserved (not reset to false)');
+
+        // (b) Custom non-schema field must survive the merge.
+        assert.equal(doc?.myCustomIntegration?.slackWebhook, 'https://hooks.slack.com/services/XXX', 'custom non-schema field must survive');
+
+        // (a) Every attribution leaf must be present (the bug: partial write flattened the map).
+        assert.hasProperty(doc, 'attribution.affiliate.code', 'attribution.affiliate.code must exist');
+        assert.hasProperty(doc, 'attribution.affiliate.url', 'attribution.affiliate.url must exist (filled)');
+        assert.hasProperty(doc, 'attribution.affiliate.page', 'attribution.affiliate.page must exist (filled)');
+        assert.hasProperty(doc, 'attribution.affiliate.timestamp', 'attribution.affiliate.timestamp must exist (filled)');
+        assert.hasProperty(doc, 'attribution.utm.url', 'attribution.utm.url must exist (filled)');
+        assert.hasProperty(doc, 'attribution.utm.page', 'attribution.utm.page must exist (filled)');
+        assert.hasProperty(doc, 'attribution.utm.timestamp', 'attribution.utm.timestamp must exist (filled)');
+        // filled leaves should be null, not undefined/missing
+        assert.equal(doc?.attribution?.affiliate?.url, null, 'unset attribution leaf should be null');
+
+        // (c) Signup data applied on top.
+        assert.equal(doc?.attribution?.affiliate?.code, 'PARTIALONLY', 'pre-existing affiliate.code preserved (signup did not send one)');
+        assert.equal(doc?.attribution?.utm?.tags?.utm_source, 'newsletter', 'signup utm tag applied');
+        assert.equal(doc?.flags?.signupProcessed, true, 'flags.signupProcessed set true');
+        assert.equal(doc?.consent?.legal?.status, 'granted', 'consent applied');
+      },
+    },
+    {
+      name: 'merge-fills-all-leaves-on-schema-complete-doc',
+      async run({ http, firestore, assert, accounts }) {
+        // Sanity: after signup, the doc must contain the full set of top-level schema sections,
+        // so a subsequent migration finds NOTHING to backfill. Reuses the signup-merge account
+        // (already processed above → re-fire is rejected, but the doc from the prior test is the
+        // artifact we assert against; this test just validates that doc's completeness).
+        const uid = accounts['signup-merge'].uid;
+        const doc = await firestore.get(`users/${uid}`);
+
+        for (const section of ['auth', 'roles', 'flags', 'affiliate', 'metadata', 'activity', 'api', 'personal', 'attribution', 'consent', 'subscription']) {
+          assert.hasProperty(doc, section, `doc must have top-level '${section}' section after signup`);
+        }
+        // Nested completeness spot-checks across the sections signup writes.
+        assert.hasProperty(doc, 'activity.geolocation.ip', 'activity.geolocation.ip must exist');
+        assert.hasProperty(doc, 'activity.client.userAgent', 'activity.client.userAgent must exist');
+        assert.hasProperty(doc, 'personal.name.first', 'personal.name.first must exist');
+        assert.hasProperty(doc, 'consent.marketing.revokedAt.source', 'consent.marketing.revokedAt.source must exist');
+        assert.hasProperty(doc, 'metadata.created.timestampUNIX', 'metadata.created.timestampUNIX must exist');
+      },
+    },
+
     // --- Auth rejection test (at end per convention) ---
     {
       name: 'unauthenticated-rejected',

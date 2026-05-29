@@ -1,4 +1,5 @@
 const moment = require('moment');
+const _ = require('lodash');
 const { inferContact } = require('../../../libraries/infer-contact.js');
 const { validate: validateEmail, isDisposable } = require('../../../libraries/email/validation.js');
 
@@ -61,7 +62,14 @@ module.exports = async ({ assistant, user, settings, libraries }) => {
   // 4. Gather all data, then write once
   const email = user.auth.email;
   const inferred = await inferUserContact(assistant, email);
-  const userRecord = buildUserRecord(assistant, settings, inferred, authUser.metadata.creationTime, userDoc);
+  const userRecord = buildUserRecord(assistant, {
+    settings,
+    inferred,
+    uid,
+    email,
+    creationTime: authUser.metadata.creationTime,
+    existingDoc: userDoc,
+  });
 
   assistant.log(`signup(): Writing user record for ${uid}`, userRecord);
 
@@ -111,16 +119,43 @@ async function pollForUserDoc(assistant, uid) {
 }
 
 /**
- * Build the full user record: client details, attribution, and inferred contact
+ * Build the complete user record to write at signup completion.
+ *
+ * Returns the WHOLE merged document (written without {merge}), layered deepest-first:
+ *   1. Manager.User() full schema shape — guarantees every leaf exists (so a doc created by a
+ *      partial path, e.g. onCreate never firing, still ends up schema-complete).
+ *   2. the existing doc — real values win over the schema defaults, so we never clobber the
+ *      user's api keys, subscription, roles, affiliate.code, or any custom/non-standard fields.
+ *   3. the signup data — attribution / activity / consent / flags / personal we own at signup
+ *      land on top.
+ *
+ * Why a full deep-merge instead of `.set(partial, {merge:true})`: Firestore's merge REPLACES a
+ * map field rather than deep-merging it, so writing a partial `attribution` flattened onCreate's
+ * full attribution object and the OMEGA migration had to re-add every leaf on every signup.
+ * Deep-merging in JS and writing the whole doc avoids that entirely.
  */
-function buildUserRecord(assistant, settings, inferred, creationTime, existingDoc) {
+function buildUserRecord(assistant, { settings, inferred, uid, email, creationTime, existingDoc }) {
   const Manager = assistant.Manager;
-  const attribution = settings.attribution;
 
-  const record = {
-    flags: {
-      signupProcessed: true,
-    },
+  // Inferred name/company (from AI/regex on the email) — only set when present.
+  const personal = {};
+  if (inferred?.firstName || inferred?.lastName) {
+    personal.name = {
+      ...(inferred.firstName ? { first: inferred.firstName } : {}),
+      ...(inferred.lastName ? { last: inferred.lastName } : {}),
+    };
+  }
+  if (inferred?.company) {
+    personal.company = { name: inferred.company };
+  }
+
+  // Layer 1: full schema shape (every leaf present with defaults).
+  const schemaShape = Manager.User({ auth: { uid, email } }).properties;
+
+  // Layer 3: the data signup owns.
+  const signupData = {
+    auth: { uid, email },
+    flags: { signupProcessed: true },
     activity: {
       ...settings.context,
       geolocation: {
@@ -132,37 +167,24 @@ function buildUserRecord(assistant, settings, inferred, creationTime, existingDo
         ...(settings.context?.client || {}),
       },
     },
-    attribution: attribution || {},
+    attribution: settings.attribution || {},
     consent: buildConsentRecord(assistant, settings.consent, creationTime, existingDoc?.consent),
     metadata: Manager.Metadata().set({ tag: 'user/signup' }),
+    ...(Object.keys(personal).length ? { personal } : {}),
   };
 
-  // Stamp metadata.created from Firebase Auth's creationTime so it matches Auth's canonical
-  // value. Normally onCreate sets this, but if onCreate didn't fire this merge write is the
-  // doc's first creation — without this the doc lands with no created date and the OMEGA
-  // migration has to backfill it. Idempotent: when onCreate already wrote it, this matches.
+  // metadata.created from Auth's creationTime (canonical), matching onCreate + the migration SSOT.
   if (creationTime) {
     const createdDate = new Date(creationTime);
-    record.metadata.created = {
+    signupData.metadata.created = {
       timestamp: createdDate.toISOString(),
       timestampUNIX: Math.round(createdDate.getTime() / 1000),
     };
   }
 
-  // Add inferred name/company if available
-  if (inferred) {
-    record.personal = {
-      ...(inferred.firstName || inferred.lastName ? {
-        name: {
-          ...(inferred.firstName ? { first: inferred.firstName } : {}),
-          ...(inferred.lastName ? { last: inferred.lastName } : {}),
-        },
-      } : {}),
-      ...(inferred.company ? { company: { name: inferred.company } } : {}),
-    };
-  }
-
-  return record;
+  // Deep-merge: schema (base) ← existing doc (real values win) ← signup data (owned fields win).
+  // _.merge mutates its first arg, so start from a fresh object.
+  return _.merge({}, schemaShape, existingDoc || {}, signupData);
 }
 
 /**
@@ -364,6 +386,7 @@ function sendWelcomeEmails(assistant, uid, firstName) {
   }
 
   sendWelcomeEmail(assistant, uid, firstName).catch(e => assistant.error('signup(): sendWelcomeEmail failed:', e));
+  sendDiscountNudgeEmail(assistant, uid, firstName).catch(e => assistant.error('signup(): sendDiscountNudgeEmail failed:', e));
   sendCheckupEmail(assistant, uid, firstName).catch(e => assistant.error('signup(): sendCheckupEmail failed:', e));
   sendFeedbackEmail(assistant, uid).catch(e => assistant.error('signup(): sendFeedbackEmail failed:', e));
 }
@@ -407,6 +430,68 @@ Thank you for choosing **${Manager.config.brand.name}**. Here's to new beginning
   })
     .then((result) => {
       assistant.log('sendWelcomeEmail(): Success', result.status);
+      return result;
+    });
+}
+
+/**
+ * Send discount-nudge email (24 hours after signup)
+ *
+ * A warm, personal check-in that offers a discount code in exchange for a reply.
+ * Scheduled fire-and-forget via sendAt (same pattern as checkup/feedback) — there is
+ * intentionally no premium check at send time, so a user who upgrades within 24h may
+ * still receive it. The copy is deliberately worded as a friendly thank-you (not "you
+ * haven't upgraded") so it reads fine regardless of the recipient's current plan.
+ *
+ * The reply itself is the goal: replies are a strong positive sender-reputation signal,
+ * and a real human check-in lands in the Primary tab rather than Promotions. Inbound
+ * reply handling (auto-issuing the code) is out of scope here — replies are handled
+ * separately.
+ *
+ * Subject is personalized with the recipient's first name when available, and uses
+ * intrigue framing ("something for you 🎁") rather than spam-trigger words ("free",
+ * "claim", "bonus") to protect deliverability.
+ */
+function sendDiscountNudgeEmail(assistant, uid, firstName) {
+  const Manager = assistant.Manager;
+  const mailer = Manager.Email(assistant);
+  const greeting = firstName ? `Hey ${firstName}` : 'Hey there';
+  const subject = firstName
+    ? `${firstName}, I've got something for you 🎁`
+    : `I've got something for you 🎁`;
+
+  return mailer.send({
+    to: uid,
+    sender: 'hello',
+    categories: ['engagement/discount-nudge'],
+    subject: subject,
+    template: 'default',
+    copy: false,
+    sendAt: moment().add(24, 'hours').unix(),
+    data: {
+      email: {
+        preview: `Just checking in from ${Manager.config.brand.name} — and I've got a little thank-you for you.`,
+      },
+      body: {
+        title: `How's it going?`,
+        message: `${greeting},
+
+It's Ian, the founder of **${Manager.config.brand.name}**.
+
+As a thank-you for giving us a try, I'd love to send you a code for a **premium upgrade**. **Just reply to this email** and I'll get one over to you.
+
+I read every reply, so if you have any questions, feedback, or there's anything I can help with, this is the place. Looking forward to hearing from you!`,
+      },
+      signoff: {
+        type: 'personal',
+        name: 'Ian Wiedenman, CEO',
+        url: `https://ianwiedenman.com?utm_source=discount-nudge-email&utm_medium=email&utm_campaign=${Manager.config.brand.id}`,
+        urlText: '@ianwieds',
+      },
+    },
+  })
+    .then((result) => {
+      assistant.log('sendDiscountNudgeEmail(): Success', result.status);
       return result;
     });
 }

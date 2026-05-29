@@ -205,6 +205,19 @@ const STATIC_ACCOUNTS = {
       subscription: { product: { id: 'basic' }, status: 'active' },
     },
   },
+  // Used to verify buildUserRecord's layered deep-merge: the test seeds this account's doc with
+  // real values (api keys, paid subscription, admin role, a custom non-schema field) + a partial
+  // attribution, fires /user/signup, and asserts the merge PRESERVES those real/custom values
+  // while still filling every schema leaf and applying the signup data on top.
+  'signup-merge': {
+    id: 'signup-merge',
+    uid: '_test-signup-merge',
+    email: '_test.signup-merge@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'basic' }, status: 'active' },
+    },
+  },
 };
 
 /**
