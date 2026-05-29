@@ -193,6 +193,18 @@ const STATIC_ACCOUNTS = {
       subscription: { product: { id: 'basic' }, status: 'active' },
     },
   },
+  // Used to verify the never-downgrade guard: the test seeds this account's doc with already-
+  // granted consent, then re-fires /user/signup with an empty consent payload and asserts the
+  // grant is preserved (not flipped to revoked). Dedicated account so the seeded state is isolated.
+  'consent-preserve': {
+    id: 'consent-preserve',
+    uid: '_test-consent-preserve',
+    email: '_test.consent-preserve@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'basic' }, status: 'active' },
+    },
+  },
 };
 
 /**

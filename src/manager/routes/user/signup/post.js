@@ -61,7 +61,7 @@ module.exports = async ({ assistant, user, settings, libraries }) => {
   // 4. Gather all data, then write once
   const email = user.auth.email;
   const inferred = await inferUserContact(assistant, email);
-  const userRecord = buildUserRecord(assistant, settings, inferred, authUser.metadata.creationTime);
+  const userRecord = buildUserRecord(assistant, settings, inferred, authUser.metadata.creationTime, userDoc);
 
   assistant.log(`signup(): Writing user record for ${uid}`, userRecord);
 
@@ -113,14 +113,9 @@ async function pollForUserDoc(assistant, uid) {
 /**
  * Build the full user record: client details, attribution, and inferred contact
  */
-function buildUserRecord(assistant, settings, inferred, creationTime) {
+function buildUserRecord(assistant, settings, inferred, creationTime, existingDoc) {
   const Manager = assistant.Manager;
   const attribution = settings.attribution;
-
-  // Legacy support: if affiliateCode exists, normalize to new format
-  if (settings.affiliateCode && !attribution.affiliate?.code) {
-    attribution.affiliate = { code: settings.affiliateCode };
-  }
 
   const record = {
     flags: {
@@ -138,7 +133,7 @@ function buildUserRecord(assistant, settings, inferred, creationTime) {
       },
     },
     attribution: attribution || {},
-    consent: buildConsentRecord(assistant, settings.consent, creationTime),
+    consent: buildConsentRecord(assistant, settings.consent, creationTime, existingDoc?.consent),
     metadata: Manager.Metadata().set({ tag: 'user/signup' }),
   };
 
@@ -184,7 +179,7 @@ function buildUserRecord(assistant, settings, inferred, creationTime) {
  * record what the client sent, but the route will not have reached this point in practice
  * (the signup-form HTML5-requires the legal checkbox).
  */
-function buildConsentRecord(assistant, clientConsent, creationTime) {
+function buildConsentRecord(assistant, clientConsent, creationTime, existingConsent) {
   const consent = clientConsent || {};
   const ip = assistant.request.geolocation?.ip || null;
 
@@ -202,7 +197,7 @@ function buildConsentRecord(assistant, clientConsent, creationTime) {
   const legalGranted = consent.legal?.granted === true;
   const legalText = typeof consent.legal?.text === 'string' ? consent.legal.text : null;
 
-  const legal = legalGranted
+  let legal = legalGranted
     ? {
       status: 'granted',
       grantedAt: { timestamp, timestampUNIX, source: 'signup', ip, text: legalText },
@@ -216,7 +211,7 @@ function buildConsentRecord(assistant, clientConsent, creationTime) {
   const marketingGranted = consent.marketing?.granted === true;
   const marketingText = typeof consent.marketing?.text === 'string' ? consent.marketing.text : null;
 
-  const marketing = marketingGranted
+  let marketing = marketingGranted
     ? {
       status: 'granted',
       grantedAt: { timestamp, timestampUNIX, source: 'signup', ip, text: marketingText },
@@ -228,6 +223,19 @@ function buildConsentRecord(assistant, clientConsent, creationTime) {
       // Record the decline with source=signup-form-declined. text=null (no message shown).
       revokedAt: { timestamp, timestampUNIX, source: 'signup', ip, text: null },
     };
+
+  // Never DOWNGRADE an existing granted consent. A legacy account (signed up before this
+  // flow, flags.signupProcessed never set) re-fires /user/signup on page load with empty
+  // consent — which would compute status 'revoked' above and, on a {merge:true} write, wipe
+  // out the consent they actually granted months ago. If the existing doc already has a
+  // consent granted and the incoming payload doesn't explicitly re-grant it, preserve the
+  // existing record. A genuine new grant or an at-signup decline (no prior grant) still applies.
+  if (existingConsent?.legal?.status === 'granted' && legal.status !== 'granted') {
+    legal = existingConsent.legal;
+  }
+  if (existingConsent?.marketing?.status === 'granted' && marketing.status !== 'granted') {
+    marketing = existingConsent.marketing;
+  }
 
   assistant.log(`buildConsentRecord: legal=${legal.status}, marketing=${marketing.status} (raw input legal.granted=${consent.legal?.granted}, marketing.granted=${consent.marketing?.granted})`);
 
@@ -262,9 +270,7 @@ async function inferUserContact(assistant, email) {
  */
 async function processAffiliate(assistant, uid, email, settings) {
   const { admin } = assistant.Manager.libraries;
-  const affiliateCode = settings.attribution?.affiliate?.code
-    || settings.affiliateCode
-    || null;
+  const affiliateCode = settings.attribution?.affiliate?.code || null;
 
   if (!affiliateCode) {
     return;

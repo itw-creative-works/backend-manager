@@ -347,6 +347,95 @@ module.exports = {
       },
     },
 
+    // --- Consent downgrade-protection tests ---
+    // Guards against data loss when a LEGACY account (signed up before the flags.signupProcessed
+    // flow existed, so flag never set) re-fires /user/signup on page load. Its localStorage
+    // consent is long gone, so the payload is empty — without the guard, buildConsentRecord
+    // would compute 'revoked' and the {merge:true} write would wipe the consent the user
+    // actually granted months ago. The guard preserves any existing 'granted' status.
+    {
+      name: 'consent-empty-payload-preserves-existing-grant',
+      async run({ http, firestore, assert, accounts }) {
+        const uid = accounts['consent-preserve'].uid;
+
+        // Seed the doc as an established account whose consent is already granted (as a real
+        // legacy signup would be after the OMEGA migration backfilled consent). flags is left
+        // at the schema default (signupProcessed: false) to mimic the legacy state exactly.
+        // merge:true — preserve the runner-provisioned auth.uid (pollForUserDoc needs it).
+        await firestore.set(`users/${uid}`, {
+          consent: {
+            legal: {
+              status: 'granted',
+              grantedAt: { timestamp: '2025-01-01T00:00:00.000Z', timestampUNIX: 1735689600, source: 'signup', ip: null, text: 'Legacy legal grant' },
+            },
+            marketing: {
+              status: 'granted',
+              grantedAt: { timestamp: '2025-01-01T00:00:00.000Z', timestampUNIX: 1735689600, source: 'signup', ip: null, text: 'Legacy marketing grant' },
+              revokedAt: { timestamp: null, timestampUNIX: null, source: null, ip: null, text: null },
+            },
+          },
+          flags: { signupProcessed: false },
+        }, { merge: true });
+
+        // Re-fire signup with NO consent payload (the legacy page-load case).
+        const signupResponse = await http.as('consent-preserve').post('user/signup', {});
+        assert.isSuccess(signupResponse, `Signup should succeed: ${JSON.stringify(signupResponse, null, 2)}`);
+
+        const userDoc = await firestore.get(`users/${uid}`);
+
+        // CRITICAL: the prior grants must survive — NOT be downgraded to revoked.
+        assert.equal(userDoc?.consent?.legal?.status, 'granted', 'legal.status must stay granted (not downgraded by empty payload)');
+        assert.equal(userDoc?.consent?.legal?.grantedAt?.text, 'Legacy legal grant', 'legal grantedAt must be the preserved original, not wiped');
+        assert.equal(userDoc?.consent?.legal?.grantedAt?.timestampUNIX, 1735689600, 'legal grantedAt timestamp must be preserved');
+
+        assert.equal(userDoc?.consent?.marketing?.status, 'granted', 'marketing.status must stay granted (not downgraded by empty payload)');
+        assert.equal(userDoc?.consent?.marketing?.grantedAt?.text, 'Legacy marketing grant', 'marketing grantedAt must be the preserved original');
+        // No spurious revokedAt should have been stamped over the preserved grant.
+        assert.equal(userDoc?.consent?.marketing?.revokedAt?.timestamp, null, 'marketing revokedAt must stay null (no decline was recorded)');
+
+        // signupProcessed should now be flipped true by this run.
+        assert.equal(userDoc?.flags?.signupProcessed, true, 'signupProcessed should be set true after the run');
+      },
+    },
+    {
+      name: 'consent-explicit-decline-does-not-downgrade-existing-grant',
+      async run({ http, firestore, assert, accounts }) {
+        const uid = accounts['consent-preserve'].uid;
+
+        // Re-seed: granted marketing + UNSET signupProcessed so the route processes this call.
+        // Then send a payload that explicitly DECLINES marketing. The guard must still preserve
+        // the existing grant — only an explicit RE-GRANT may overwrite; a decline-over-grant on
+        // the signup path is treated as a non-grant and must not wipe a prior consent.
+        // merge:true — preserve the runner-provisioned auth.uid (pollForUserDoc needs it).
+        await firestore.set(`users/${uid}`, {
+          consent: {
+            marketing: {
+              status: 'granted',
+              grantedAt: { timestamp: '2025-01-01T00:00:00.000Z', timestampUNIX: 1735689600, source: 'signup', ip: null, text: 'Prior marketing grant' },
+              revokedAt: { timestamp: null, timestampUNIX: null, source: null, ip: null, text: null },
+            },
+          },
+          flags: { signupProcessed: false },
+        }, { merge: true });
+
+        const signupResponse = await http.as('consent-preserve').post('user/signup', {
+          consent: {
+            legal: { granted: true, text: 'Legal grant on re-fire' },
+            marketing: { granted: false, text: 'Declining marketing' },
+          },
+        });
+        assert.isSuccess(signupResponse, `Signup should succeed: ${JSON.stringify(signupResponse, null, 2)}`);
+
+        const userDoc = await firestore.get(`users/${uid}`);
+
+        // Legal newly granted this call.
+        assert.equal(userDoc?.consent?.legal?.status, 'granted', 'legal.status should be granted from this call');
+        // Marketing was already granted; an explicit decline must NOT downgrade it.
+        assert.equal(userDoc?.consent?.marketing?.status, 'granted', 'marketing.status must stay granted (decline cannot downgrade an existing grant on signup path)');
+        assert.equal(userDoc?.consent?.marketing?.grantedAt?.text, 'Prior marketing grant', 'marketing grant must be the preserved original');
+      },
+    },
+
     // --- Auth rejection test (at end per convention) ---
     {
       name: 'unauthenticated-rejected',

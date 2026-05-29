@@ -14,6 +14,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.2.16] - 2026-05-28
+
+### Removed
+
+- **Dropped the legacy top-level `affiliateCode` field from `/user/signup`.** UJM and all current consumers send the referral code as `attribution.affiliate.code`; the top-level `affiliateCode` (and the normalize-to-`attribution` shim + the `processAffiliate` fallback that read it) was a dead legacy path. Removed from `src/manager/schemas/user/signup/post.js`, the `buildUserRecord` normalize block, and the `processAffiliate` lookup in `src/manager/routes/user/signup/post.js`. The route now reads referral codes exclusively from `attribution.affiliate.code`. (The legacy `bm_api` sign-up action `functions/core/actions/api/user/sign-up.js` is unchanged.)
+
+### Fixed
+
+- **Consent: never downgrade an existing granted consent on `/user/signup`** (`src/manager/routes/user/signup/post.js`). A legacy account — signed up before the `flags.signupProcessed` completion flow existed, so the flag was never set — re-fires `/user/signup` on every page load until the flag flips. Its consent payload arrives empty (the original is long gone from `localStorage`), which previously computed `'revoked'` and, on the `{ merge: true }` write, wiped the consent the user actually granted months ago. `buildConsentRecord` now reads the existing doc's consent and preserves any already-`granted` status when the incoming payload doesn't explicitly re-grant it. A genuine new grant still applies; an at-signup decline with no prior grant still records the decline. Added `consent-empty-payload-preserves-existing-grant` and `consent-explicit-decline-does-not-downgrade-existing-grant` tests (+ a dedicated `consent-preserve` test account). See `docs/consent.md`.
+
+### Changed
+
+- **`user/signup` schema: shaped the `consent` field.** `src/manager/schemas/user/signup/post.js` now declares the nested `consent.{legal,marketing}.{granted,text}` shape instead of a bare passthrough object, documenting the input contract at the schema layer (the SSOT for request shape). Each sub-object is optional — omitting it leaves existing consent untouched (see the downgrade guard above).
+
 # [5.2.15] - 2026-05-28
 
 ### Changed

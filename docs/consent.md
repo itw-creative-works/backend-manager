@@ -67,15 +67,18 @@ There are four places where consent gets recorded or updated. All four converge 
 }
 ```
 
-`buildConsentRecord(assistant, settings.consent)` translates this into the canonical user-doc shape:
+`buildConsentRecord(assistant, settings.consent, creationTime, existingConsent)` translates this into the canonical user-doc shape:
 
-- `legal.granted: true` → `legal.status = 'granted'`, `grantedAt` populated with `source: 'signup'` + **server timestamp** + server-detected IP + exact label text.
+- `legal.granted: true` → `legal.status = 'granted'`, `grantedAt` populated with `source: 'signup'` + **timestamp from Auth `creationTime`** + server-detected IP + exact label text.
 - `marketing.granted: false` → `marketing.status = 'revoked'`, `grantedAt` all-null, `revokedAt` populated with `source: 'signup'`. (Records the explicit decline.)
-- Missing `consent` block (legacy client) → both default to `'revoked'`.
 
-**Server time is authoritative.** Client-supplied timestamps are ignored — defends against clock manipulation by malicious clients.
+**Timestamps come from Firebase Auth `creationTime`,** not request time, so `consent.grantedAt` matches `metadata.created` (the OMEGA user migration treats `metadata.created` as the SSOT and reconciles `grantedAt` against it — stamping from request time made every new signup drift by a few seconds and get re-fixed on the next migration run).
+
+**Server-derived time is authoritative.** Client-supplied timestamps are ignored — defends against clock manipulation by malicious clients.
 
 **Strict boolean check.** Only `granted === true` counts as granted. `'true'`, `1`, or other truthy values are rejected.
+
+**Never downgrades an existing grant (data-loss guard).** A legacy account — one signed up before the `flags.signupProcessed` completion flow existed, so its flag was never set — re-fires `/user/signup` on every page load until the flag flips. Its consent was captured months ago and is long gone from `localStorage`, so the payload arrives empty. Without protection, `buildConsentRecord` would compute `'revoked'` and the `{ merge: true }` write would wipe the consent the user actually granted. The guard reads the existing doc's consent (`existingConsent`) and **preserves any already-`granted` status when the incoming payload does not explicitly re-grant it.** A genuine new grant still applies; an at-signup decline with no prior grant still records the decline. (The primary mitigation is OMEGA migration Fix 4f, which backfills `flags.signupProcessed: true` for established accounts so they never re-fire; this guard is the backstop for the deploy-before-migration gap.)
 
 **Marketing sync gating.** After writing the user doc, the route checks `userRecord.consent.marketing.status === 'granted'` before calling `mailer.sync(uid)`. Declining the marketing checkbox means the user is created normally, gets transactional emails, but is NEVER added to SendGrid / Beehiiv marketing lists.
 
