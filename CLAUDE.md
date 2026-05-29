@@ -106,6 +106,7 @@ Deep references live in `docs/`. **Whenever you make a behavioral change, update
 - [docs/file-naming.md](docs/file-naming.md) — naming table for routes, schemas, API commands, events, cron jobs, hooks
 - [docs/common-mistakes.md](docs/common-mistakes.md) — anti-pattern checklist (don't modify Manager internals, always await, increment-before-update, etc.)
 - [docs/key-files.md](docs/key-files.md) — quick lookup for the most-touched files (Manager, helpers, auth events, cron, payment processors, CLI commands)
+- [docs/cli-output.md](docs/cli-output.md) — shared CLI styling module (`src/cli/utils/ui.js`): OMEGA-style banner/dividers/sections/status symbols + the `Summary` block; used by `setup`, adoptable by other commands
 - [docs/environment-detection.md](docs/environment-detection.md) — `assistant.isDevelopment/isProduction/isTesting()`
 - [docs/response-headers.md](docs/response-headers.md) — automatic `bm-properties` header
 
@@ -134,6 +135,6 @@ Deep references live in `docs/`. **Whenever you make a behavioral change, update
 
 ### Testing & CLI
 
-- [docs/testing.md](docs/testing.md) — running, filtering, log files, test types (standalone/suite/group), context object, assertions, auth levels. **All cleanup runs at the START of every run, never at the end.** If you add a test that writes Firestore data, register the collection/namespace in the runner's pre-test wipe list, don't add a trailing cleanup step. Marketing providers (SendGrid/Beehiiv) don't need a special exception — `_test.*` emails are blocked at the validation layer so test signups never reach providers. The `_test.allow_*` carve-out exists only for the live-provider lifecycle test (`test/marketing/consent-lifecycle.js`), which manages its own teardown.
+- [docs/testing.md](docs/testing.md) — running, filtering, log files, test types (standalone/suite/group), context object, assertions, auth levels. **Each test file `module.exports` a `{ description, type, tests }` object — NOT raw Mocha (`describe`/`it`/`beforeEach`); those globals are not injected and the file fails to load. Split tests one-file-per-concern under `test/<area>/`, never one giant `test/test.js`.** **All cleanup runs at the START of every run, never at the end.** If you add a test that writes Firestore data, register the collection/namespace in the runner's pre-test wipe list, don't add a trailing cleanup step. Marketing providers (SendGrid/Beehiiv) don't need a special exception — `_test.*` emails are blocked at the validation layer so test signups never reach providers. The `_test.allow_*` carve-out exists only for the live-provider lifecycle test (`test/marketing/consent-lifecycle.js`), which manages its own teardown.
 - [docs/cli-firestore-auth.md](docs/cli-firestore-auth.md) — `npx mgr firestore:*` and `auth:*` commands, shared flags, examples
 - [docs/cli-logs.md](docs/cli-logs.md) — `npx mgr logs:read` / `logs:tail` with full flag reference and built-in Cloud Function names

@@ -11,6 +11,7 @@ const bem_allRulesRegex = /(\/\/\/---backend-manager---\/\/\/)(.*?)(\/\/\/------
 class SetupCommand extends BaseCommand {
   async execute() {
     const self = this.main;
+    const ui = this.ui;
 
     // Load config
     await this.loadConfig();
@@ -24,7 +25,7 @@ class SetupCommand extends BaseCommand {
       attempt++;
 
       if (maxAttempts > 1) {
-        this.logSuccess(`\n==== SETUP ATTEMPT ${attempt}/${maxAttempts} ====`);
+        ui.section(`Attempt ${attempt}/${maxAttempts}`);
       }
 
       // Reset counters so each attempt starts fresh
@@ -35,16 +36,13 @@ class SetupCommand extends BaseCommand {
 
       const allPassed = self.testCount === self.testTotal;
       if (allPassed) {
-        if (maxAttempts > 1 && attempt > 1) {
-          this.logSuccess(`\nAll checks passed on attempt ${attempt}/${maxAttempts}.`);
-        }
         return;
       }
 
       if (attempt < maxAttempts) {
-        this.logWarning(`\nAttempt ${attempt}/${maxAttempts} had failures. Retrying...`);
+        ui.status('warn', `Attempt ${attempt}/${maxAttempts} had failures — retrying…`);
       } else if (maxAttempts > 1) {
-        this.logWarning(`\nReached retry limit (${maxAttempts}). Some checks still failing.`);
+        ui.status('warn', `Reached retry limit (${maxAttempts}) — some checks still failing`);
       }
     }
   }
@@ -61,9 +59,15 @@ class SetupCommand extends BaseCommand {
 
   async runSetup() {
     const self = this.main;
+    const ui = this.ui;
     let cwd = jetpack.cwd();
 
-    this.logSuccess(`\n---- RUNNING SETUP v${self.default.version} ----`);
+    // OMEGA-style banner. Replaces the old `---- RUNNING SETUP ---- ` line.
+    ui.banner(`Backend Manager ${chalk.dim(`v${self.default.version}`)}`);
+
+    // Fresh summary collector for this run (the test runner records into it and
+    // prints it on a hard failure; we print it here on success).
+    self.setupSummary = new ui.Summary().start();
 
     // Load files
     self.package = loadJSON(`${self.firebaseProjectPath}/functions/package.json`);
@@ -76,14 +80,16 @@ class SetupCommand extends BaseCommand {
 
     // Check if package exists
     if (!hasContent(self.package)) {
-      this.logError(`Missing functions/package.json :(`);
-      return;
+      ui.status('fail', `Missing ${chalk.bold('functions/package.json')}`);
+      ui.note(`Run ${chalk.bold('npx mgr setup')} from inside the ${chalk.bold('functions')} folder of a Firebase project.`);
+      process.exit(1);
     }
 
     // Check if we're running from the functions folder
     if (!cwd.endsWith('functions') && !cwd.endsWith('functions/')) {
-      this.logError(`Please run ${chalk.bold('npx bm setup')} from the ${chalk.bold('functions')} folder. Run ${chalk.bold('cd functions')}.`);
-      return;
+      ui.status('fail', `Wrong directory`);
+      ui.note(`Run ${chalk.bold('npx mgr setup')} from the ${chalk.bold('functions')} folder. Try ${chalk.bold('cd functions')} first.`);
+      process.exit(1);
     }
 
     // Load the rules files
@@ -96,9 +102,12 @@ class SetupCommand extends BaseCommand {
     self.projectUrl = `https://console.firebase.google.com/project/${self.projectId}`;
     self.apiUrl = `https://api.${(self.bemConfigJSON.brand?.url || '').replace(/^https?:\/\//, '')}`;
 
-    // Log
-    this.log(`ID: `, chalk.bold(`${self.projectId}`));
-    this.log(`URL:`, chalk.bold(`${self.projectUrl}`));
+    // Divider-wrapped header with the project name + Firebase console link.
+    const brandName = self.bemConfigJSON.brand?.name || self.projectId;
+    ui.header(brandName, { subtitle: self.projectUrl });
+    ui.blank();
+    ui.field('Project', self.projectId, { pad: 9 });
+    ui.field('API', self.apiUrl, { pad: 9, valueColor: chalk.cyan });
 
     if (!self.package || !self.package.engines || !self.package.engines.node) {
       throw new Error('Missing <engines.node> in package.json');
@@ -109,26 +118,26 @@ class SetupCommand extends BaseCommand {
 
     // Copy / merge defaults into consumer project root (matches EM/BXM/UJM pattern).
     // Runs BEFORE tests so any test that inspects scaffolded files sees the merged state.
+    ui.section('Defaults');
     this.copyDefaults();
 
     // Run all tests
+    ui.section('Checks');
     await this.runTests();
 
-    // Log if using local backend-manager
+    // Warn if using local backend-manager
     if (self.package.dependencies['backend-manager'].includes('file:')) {
-      this.log('\n' + chalk.yellow(chalk.bold('Warning: ') + 'You are using the local ' + chalk.bold('backend-manager')));
-    } else {
-      this.log('\n');
+      ui.section('Notices');
+      ui.status('warn', `Using the local ${chalk.bold('backend-manager')} source (file: dependency)`, { level: 2 });
     }
 
     // Fetch stats
+    ui.section('Stats');
     await this.fetchStats();
 
-    // Log results
-    this.logSuccess(`Checks finished. Passed ${self.testCount}/${self.testTotal} tests.`);
-    if (self.testCount !== self.testTotal) {
-      this.logWarning(`You should continue to run ${chalk.bold('npx bm setup')} until you pass all tests and fix all errors.`);
-    }
+    // Everything passed (a hard failure would have exited via haltSetup). Print
+    // the OMEGA-style summary block.
+    self.setupSummary.print();
 
     // Notify parent if exists
     if (process.send) {
@@ -162,10 +171,12 @@ class SetupCommand extends BaseCommand {
   //   # ========== Custom Values ==========    (consumer-owned)
   copyDefaults() {
     const self = this.main;
+    const ui = this.ui;
     const defaultsDir = path.resolve(`${__dirname}/../../defaults`);
 
     if (!jetpack.exists(defaultsDir)) {
       // Defaults dir is optional — older BEM versions didn't have one. If missing, skip silently.
+      ui.note('No defaults to scaffold', 2);
       return;
     }
 
@@ -174,6 +185,9 @@ class SetupCommand extends BaseCommand {
     // .env / .gitignore aren't currently shipped by BEM but are included here so this
     // matches the EM/BXM/UJM contract if we ever add them.
     const MERGEABLE_BASENAMES = new Set(['.env', '.gitignore', 'CLAUDE.md']);
+
+    // Track whether we emitted any line so we can show an "up to date" note when nothing changed.
+    let touched = 0;
 
     const files = jetpack.find(defaultsDir, { matching: '**/*', recursive: true, files: true, directories: false });
 
@@ -201,10 +215,12 @@ class SetupCommand extends BaseCommand {
             const merged   = mergeLineBasedFiles(existing, incoming, basename);
             if (merged !== existing) {
               jetpack.write(dest, merged);
-              this.logSuccess(`Merged default → ${target}`);
+              ui.status('change', `Merged ${chalk.cyan(target)}`, { level: 2 });
+              touched++;
             }
           } catch (e) {
-            this.logWarning(`Failed to merge ${target}: ${e.message}`);
+            ui.status('warn', `Failed to merge ${chalk.cyan(target)}`, { detail: e.message, level: 2 });
+            touched++;
           }
           continue;
         }
@@ -215,7 +231,12 @@ class SetupCommand extends BaseCommand {
 
       // First time: copy as-is.
       jetpack.copy(src, dest);
-      this.logSuccess(`Copied default → ${target}`);
+      ui.status('add', `Copied ${chalk.cyan(target)}`, { level: 2 });
+      touched++;
+    }
+
+    if (touched === 0) {
+      ui.note('All defaults up to date', 2);
     }
   }
 
@@ -281,12 +302,15 @@ class SetupCommand extends BaseCommand {
     .then(json => json)
     .catch(e => e);
 
+    const ui = this.ui;
     if (statsFetchResult instanceof Error) {
-      if (!statsFetchResult.message.includes('network timeout')) {
-        this.logWarning(`Ran into error while fetching stats endpoint (${url})`, statsFetchResult);
+      if (statsFetchResult.message.includes('network timeout')) {
+        ui.status('skip', 'Skipped stats fetch', { detail: 'network timeout', level: 2 });
+      } else {
+        ui.status('warn', 'Could not fetch stats endpoint', { detail: statsFetchResult.message, level: 2 });
       }
     } else {
-      this.logSuccess(`Stats fetched/created properly.`);
+      ui.status('pass', 'Stats fetched/created', { level: 2 });
     }
   }
 }

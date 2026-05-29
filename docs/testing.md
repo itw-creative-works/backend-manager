@@ -118,12 +118,14 @@ npx mgr test user/ admin/       # Multiple paths
 
 ## Test Locations
 
-- **BEM core tests:** `test/`
-- **Project tests:** `functions/test/bem/`
+- **BEM core tests:** `test/` (in the framework repo)
+- **Project tests:** the consumer project's repo-root `test/` directory (NOT inside `functions/`)
 
-Use `bem:` or `project:` prefix to filter by source.
+Use `bem:` or `project:` prefix to filter by source. Mirror BEM's own per-area layout — **one file per concern** under `test/<area>/` (e.g. `test/article/allocation.js`, `test/article/markdown.js`, `test/article/generate.js`), never one giant `test/test.js`. The runner discovers files by directory, so the split is also what the `project:<path>` filter targets (`npx mgr test project:article`).
 
 ## Test Types
+
+> **The runner reads each file's `module.exports` object — it does NOT inject Mocha/Jest globals.** A test file that calls `describe`/`it`/`before`/`beforeEach`/`after` at top level throws `ReferenceError: beforeEach is not defined` and shows as `Failed to load`. There is no global `assert` either — use the `assert` passed into `run({ assert })`. Every test file MUST export one of the shapes below.
 
 | Type | Use When | Behavior |
 |------|----------|----------|

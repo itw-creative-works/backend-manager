@@ -38,31 +38,44 @@ class BemConfigTest extends BaseTest {
   }
 
   async fix() {
-    console.log(chalk.red(`There is no automatic fix for this check.`));
-    console.log(chalk.red(`You need to open backend-manager-config.json and set each of these keys:`));
+    const ui = require('../../utils/ui');
 
     // Write if it doesn't exist
     if (!this.context.hasContent(this.self.bemConfigJSON)) {
       jetpack.write(`${this.self.firebaseProjectPath}/functions/backend-manager-config.json`, {});
     }
 
-    // Log what keys are missing
+    // Collect the keys that are still missing (these are what the user must fill in).
+    const missing = [];
     powertools.getKeys(bemConfigTemplate).forEach((key) => {
       // Skip if an ancestor is explicitly set to a non-object value (e.g. stripe: false)
       if (this._isAncestorDisabled(key)) {
         return;
       }
-
       const userValue = _.get(this.self.bemConfigJSON, key, undefined);
-
       if (typeof userValue === 'undefined') {
-        console.log(chalk.red.bold(`${key}`));
-      } else {
-        console.log(chalk.red(`${key} (${userValue})`));
+        missing.push(key);
       }
     });
 
-    throw new Error('Missing required backend-manager-config.json keys');
+    ui.note(`Open ${chalk.bold('backend-manager-config.json')} and set the missing keys below:`, 3);
+    for (const key of missing) {
+      console.log(`${ui.indent(4)}${chalk.red('•')} ${key}`);
+    }
+
+    // Surface a compact version in the summary block (the full list printed above).
+    const preview = missing.slice(0, 8);
+    const summaryDetails = [
+      chalk.dim(`Set ${chalk.bold(missing.length)} missing key(s) in backend-manager-config.json:`),
+      ...preview.map((key) => `${chalk.red('•')} ${key}`),
+    ];
+    if (missing.length > preview.length) {
+      summaryDetails.push(chalk.dim(`…and ${missing.length - preview.length} more (see list above)`));
+    }
+
+    const error = new Error('Missing required backend-manager-config.json keys');
+    error.summaryDetails = summaryDetails;
+    throw error;
   }
   /**
    * Check if any ancestor of a dot-notation key is a non-object value (e.g. false)

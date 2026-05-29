@@ -14,6 +14,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.2.19] - 2026-05-29
+
+### Added
+
+- **Shared CLI styling module (`src/cli/utils/ui.js`)** — the SSOT for BEM console output, matching the OMEGA Manager look: a `🚀` banner, 70-char `━` dividers, indented tree output, dimmed `Label:` fields, timestamps, a consistent set of status symbols (`→ ✓ ✗ ⊘ ⚠ ✅ + ↻`), and a `Summary` block (green `✅` / yellow `⚠`). Exposed on every command as `this.ui` (wired in `base-command.js`) and adoptable incrementally by `serve`/`deploy`/`test`/`emulator`. See `docs/cli-output.md`.
+- **Regression test for the `.env`/`.gitignore` merge** (`test/helpers/merge-line-files.js`). Covers key-based alignment when key order drifts (the original scramble), Custom→Default promotion when the template adopts a key, Default→Custom migration of unknown keys, value preservation, quote normalization, idempotency, and that the setup-test helper is the same function as the canonical impl (SSOT guard).
+
+### Changed
+
+- **`npx mgr setup` now renders in the OMEGA style.** The old `---- RUNNING SETUP ----` / `[1] name: passed` / bare missing-keys dump is replaced with a banner, a divider-wrapped project header (brand name + Firebase console URL + `Project`/`API` fields), and `[DEFAULTS]` / `[CHECKS]` / `[STATS]` sections. Each check prints `[N] ✓ name`, with `⚠ … — fixing…` → `✓ fixed` on auto-fix and `✗ Could not fix: …` on hard failure. The run ends with a `Summary` block (checks count, duration, passed/failed, and any failing checks with detail lines). The `bem-config` check lists the missing `backend-manager-config.json` keys as a bulleted list and surfaces a compact version in the summary.
+
+### Fixed
+
+- **No more `UnhandledPromiseRejection` crash on setup failure.** Previously an unfixable check (e.g. missing config keys) rejected a promise with no reason, which bubbled out of the un-`catch`'d `bin/backend-manager` IIFE as Node's raw `UnhandledPromiseRejection: undefined` dump (exit non-zero, lost message). Setup now exits cleanly via `haltSetup()` → `process.exit(1)` after printing the styled summary, and `bin/backend-manager` wraps the run in a `try/catch` that prints a one-line `✗ <message>` backstop. The early-exit guards (missing `functions/package.json`, wrong directory) now print styled errors and exit `1` instead of `0`.
+- **`.env` merge no longer scrambles keys under the wrong headers.** The `has correct .env file` / `has correct .gitignore` setup checks (`env-file.js`, `gitignore.js`) imported a SECOND, **positional** merge implementation in `src/cli/commands/setup-tests/helpers/merge-line-files.js` that zipped comment lines and value lines by index — so any drift between the consumer's key order and the template shifted every value down a slot (the last key of each group landed under the next group's header), dropped newly-added template keys, and duplicated keys. That duplicate is **deleted**; the helper is now a thin SSOT shim re-exporting the canonical key-based merge in `src/utils/merge-line-files.js`. The canonical merge also now **promotes** a key from the user's Custom section up into Default (with its value) when the framework template adopts that key, instead of emitting an empty Default line and leaving the value stranded in Custom.
+
 # [5.2.17] - 2026-05-29
 
 ### Added

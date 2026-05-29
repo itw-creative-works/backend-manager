@@ -61,8 +61,10 @@ function mergeLineBasedFiles(existingContent, newContent, fileName) {
           continue;
         }
         if (existingCustomKeys.has(key)) {
-          // Key the user moved to custom — leave it in custom; emit empty default value.
-          emit(line);
+          // The framework newly adopted a key the user had in their Custom section.
+          // Promote it UP into Default with the user's value, and drop the Custom copy
+          // (handled below) so the key isn't duplicated / left empty.
+          emit(findKeyLine(existingCustom, key));
           continue;
         }
       }
@@ -97,10 +99,19 @@ function mergeLineBasedFiles(existingContent, newContent, fileName) {
     }
   }
 
-  // The user's Custom section is preserved verbatim — except .env values get
-  // normalized to double-quoted form so the file's quoting style is consistent.
+  // The user's Custom section is preserved — except (a) .env values get normalized
+  // to double-quoted form for consistent quoting, and (b) any key the framework just
+  // adopted into its Default section is dropped here, since it was promoted UP into
+  // Default above (otherwise the key would appear in both sections).
   const finalCustom = isEnvFile
-    ? existingCustom.map((line) => normalizeEnvLine(line))
+    ? existingCustom
+        .filter((line) => {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith('#')) return true;
+          const key = trimmed.split('=')[0].trim();
+          return !(key && newDefaultKeys.has(key));
+        })
+        .map((line) => normalizeEnvLine(line))
     : existingCustom;
 
   const result = [];

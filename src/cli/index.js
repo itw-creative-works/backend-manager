@@ -164,47 +164,76 @@ Main.prototype.process = async function (args) {
 // Test method for setup command
 Main.prototype.test = async function(name, fn, fix, args) {
   const self = this;
-  let status;
   const chalk = require('chalk').default;
+  const ui = require('./utils/ui');
 
-  return new Promise(async function(resolve, reject) {
-    let passed = await fn();
+  // Prints `    [N] <symbol> <name>` — the OMEGA-style per-check status line
+  // (indented one level under the `[CHECKS]` section label).
+  const printLine = (index, kind, label) => {
+    const colorByKind = { pass: chalk.green, fail: chalk.red, warn: chalk.yellow };
+    const color = colorByKind[kind] || chalk.white;
+    const suffix = label ? ` ${chalk.dim(label)}` : '';
+    console.log(`${ui.indent(2)}${chalk.dim(`[${index}]`)} ${color(ui.SYMBOLS[kind])} ${name}${suffix}`);
+  };
 
-    if (passed instanceof Error) {
-      console.log(chalk.red(passed));
-      process.exit(0);
-    } else if (passed) {
-      status = chalk.green('passed');
-      self.testCount++;
-      self.testTotal++;
-    } else {
-      status = chalk.red('failed');
-      self.testTotal++;
+  let passed = await fn();
+
+  // A check that returns an Error is a hard, unrecoverable failure (e.g. wrong
+  // Node version). Print it cleanly and stop — no auto-fix is possible.
+  if (passed instanceof Error) {
+    self.testTotal++;
+    printLine(self.testTotal, 'fail', '');
+    const message = passed.message || String(passed);
+    ui.status('fail', chalk.red(message), { level: 3 });
+    if (self.setupSummary) { self.setupSummary.fail(name, [chalk.red(message)]); }
+    self.haltSetup();
+    return;
+  }
+
+  if (passed) {
+    self.testCount++;
+    self.testTotal++;
+    if (self.setupSummary) { self.setupSummary.pass(); }
+    printLine(self.testTotal, 'pass', '');
+    return;
+  }
+
+  // Failed → attempt a fix.
+  self.testTotal++;
+  printLine(self.testTotal, 'warn', '— fixing…');
+
+  try {
+    await fix(self, args);
+    self.testCount++;
+    if (self.setupSummary) { self.setupSummary.pass(); }
+    ui.status('pass', chalk.green('fixed'), { level: 3 });
+  } catch (e) {
+    // The fix couldn't complete. `e.summaryDetails` (if present) is an array of
+    // pre-formatted detail lines the failing check wants surfaced in the summary.
+    const message = e && e.message ? e.message : String(e);
+    const details = (e && Array.isArray(e.summaryDetails)) ? e.summaryDetails : [chalk.red(message)];
+    ui.status('fail', chalk.red(`Could not fix: ${message}`), { level: 3 });
+    if (self.setupSummary) { self.setupSummary.fail(name, details); }
+
+    if (self.options['--continue']) {
+      ui.status('warn', chalk.yellow('Continuing despite error (--continue flag)'), { level: 3 });
+      return;
     }
-    console.log(chalk.bold(`[${self.testTotal}]`), `${name}:`, status);
-    if (!passed) {
-      console.log(chalk.yellow(`Fixing...`));
-      fix(self, args)
-      .then((r) => {
-        console.log(chalk.green(`...done~!`));
-        resolve();
-      })
-      .catch((e) => {
-        console.log(chalk.red(`Failed to fix: ${e}`));
-        if (self.options['--continue']) {
-          console.log(chalk.yellow('⚠️ Continuing despite error because of --continue flag\n'));
-          setTimeout(function () {
-            resolve();
-          }, 5000);
-        } else {
-          console.log(chalk.yellow('To force the setup to continue, run with the --continue flag\n'));
-          reject();
-        }
-      });
-    } else {
-      resolve();
-    }
-  });
+
+    self.haltSetup();
+  }
+};
+
+// Halt the setup run on an unfixable failure. The failing check must already be
+// recorded via `setupSummary.fail(...)` by the caller; this prints the summary
+// block + a re-run hint and exits with code 1 — instead of rejecting a promise
+// with no reason (which surfaced as an ugly `UnhandledPromiseRejection: undefined`).
+Main.prototype.haltSetup = function() {
+  if (this.setupSummary) {
+    this.setupSummary.print({ hint: `Fix the above, then run ${require('chalk').default.bold('npx mgr setup')} again.` });
+  }
+
+  process.exit(1);
 };
 
 module.exports = Main;

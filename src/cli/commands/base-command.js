@@ -3,6 +3,7 @@ const { confirm } = require('@inquirer/prompts');
 const { execSync, spawn } = require('child_process');
 const path = require('path');
 const jetpack = require('fs-jetpack');
+const ui = require('../utils/ui');
 
 class BaseCommand {
   constructor(main) {
@@ -10,6 +11,9 @@ class BaseCommand {
     this.firebaseProjectPath = main.firebaseProjectPath;
     this.argv = main.argv;
     this.options = main.options;
+    // Shared OMEGA-style CLI styling helpers (dividers, headers, status lines).
+    // See src/cli/utils/ui.js. Use `this.ui.*` in any command for consistent output.
+    this.ui = ui;
   }
 
   async execute() {
