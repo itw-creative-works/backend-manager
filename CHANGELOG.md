@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.3.1] - 2026-06-02
+
+### Fixed
+- **Leaking `wonderful-fetch` mock in the webhook-forward unit test.** `test/helpers/webhook-forward.js` installs a stub into `require.cache['wonderful-fetch']` at module load (the sanctioned cross-project fan-out exception — there's no second BEM emulator to receive the real fan-out POSTs), but never restored it. Because every test file is `require()`d into the same process, the stub leaked process-wide: every later test whose route did `require('wonderful-fetch')` got `{ received: true }` in 0ms instead of a real HTTP round-trip (observed breaking consumer sponsorship + inbound-email route tests). The helper now saves the original cache entry and restores it in a suite-level `cleanup()`, confining the mock to its own file.
+
 # [5.3.0] - 2026-06-02
 
 ### Added

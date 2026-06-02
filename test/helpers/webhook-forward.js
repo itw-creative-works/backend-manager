@@ -21,7 +21,15 @@
 
 // Mock wonderful-fetch before requiring the route — the route does
 // `require('wonderful-fetch')` at module load time.
+//
+// CRITICAL: every test file is `require()`d into the SAME Node process by the
+// runner, so the require cache is shared. We MUST save the original
+// wonderful-fetch cache entry here and restore it in the suite-level `cleanup`
+// below — otherwise this mock leaks into every test file that runs afterwards
+// (e.g. emulator route tests whose `Manager.require('wonderful-fetch')` would
+// then return our stub instead of doing a real HTTP round-trip).
 const originalFetchPath = require.resolve('wonderful-fetch');
+const originalFetchCacheEntry = require.cache[originalFetchPath];
 const fetchCalls = [];
 let fetchMockBehavior = () => ({ received: true });
 
@@ -37,6 +45,17 @@ require.cache[originalFetchPath] = {
 };
 
 const route = require('../../src/manager/routes/marketing/webhook/forward/post.js');
+
+// Restore the real wonderful-fetch in the require cache so the mock is confined
+// to this file. Without this, the stub leaks process-wide and poisons every
+// later test file's HTTP calls.
+function restoreFetch() {
+  if (originalFetchCacheEntry) {
+    require.cache[originalFetchPath] = originalFetchCacheEntry;
+  } else {
+    delete require.cache[originalFetchPath];
+  }
+}
 
 // --- Test scaffolding ---
 
@@ -114,6 +133,13 @@ function withEnv(envOverrides, fn) {
 module.exports = {
   description: 'webhook/forward unit tests (mocked admin + fetch)',
   type: 'group',
+
+  // Restore the real wonderful-fetch after this file's tests so the require-cache
+  // stub does not leak into any test file that runs later in the same process.
+  cleanup() {
+    restoreFetch();
+  },
+
   tests: [
     // ─── Gating ───
 
