@@ -56,11 +56,13 @@ function tryUrl(self) {
     const host = req.get('host');
     const forwardedHost = req.get('x-forwarded-host');
     const path = req.path;
-    const functionsUrl = Manager.project.functionsUrl;
+    const functionsUrl = Manager.getFunctionsUrl();
 
     // Like this becuse "req.originalUrl" does NOT have path for all cases (like when calling https://us-central1-{id}.cloudfunctions.net/giftImport)
     if (projectType === 'firebase') {
-      if (self.isDevelopment()) {
+      // Non-production (development OR testing) reconstructs the URL from the local
+      // functions URL; production uses the request host.
+      if (!self.isProduction()) {
         return forwardedHost
           ? `${protocol}://${forwardedHost}${path}`
           : `${functionsUrl}/${self.meta.name}`;
@@ -116,6 +118,26 @@ BackendAssistant.prototype.init = function (ref, options) {
   self.settings = null;
   self.schema = null;
 
+  // Set ref FIRST so self.Manager is available below — meta.environment forwards to the
+  // Manager's canonical getEnvironment() (the Manager is the SSOT), so the Manager ref must
+  // be wired before we resolve the environment.
+  ref = ref || {};
+
+  // An assistant has no independent identity — it's a request-scoped face for its Manager,
+  // and forwards environment/url resolution to it. A Manager ref is REQUIRED; constructing
+  // one without it is a programming error (use Manager.Assistant(), which injects it).
+  if (!ref.Manager || typeof ref.Manager.getEnvironment !== 'function') {
+    throw new Error('BackendAssistant.init(): a Manager reference is required (ref.Manager). Construct via Manager.Assistant() so it is injected automatically.');
+  }
+
+  self.ref = {};
+  self.ref.req = ref.req || {};
+  self.ref.res = ref.res || {};
+  self.ref.admin = ref.admin || {};
+  self.ref.functions = ref.functions || {};
+  self.ref.Manager = ref.Manager;
+  self.Manager = self.ref.Manager;
+
   // Set meta
   self.meta = {};
 
@@ -126,16 +148,6 @@ BackendAssistant.prototype.init = function (ref, options) {
   self.meta.name = options.functionName || process.env.FUNCTION_TARGET || 'unnamed';
   self.meta.environment = options.environment || self.getEnvironment();
   self.meta.type = options.functionType || process.env.FUNCTION_SIGNATURE_TYPE || 'unknown';
-
-  // Set ref
-  self.ref = {};
-  ref = ref || {};
-  self.ref.req = ref.req || {};
-  self.ref.res = ref.res || {};
-  self.ref.admin = ref.admin || {};
-  self.ref.functions = ref.functions || {};
-  self.ref.Manager = ref.Manager || {};
-  self.Manager = self.ref.Manager;
 
   // Set ID
   try {
@@ -274,39 +286,31 @@ BackendAssistant.prototype.init = function (ref, options) {
   return self;
 };
 
+// Environment helpers — the Manager is the SINGLE SOURCE OF TRUTH (see index.js). The
+// assistant is a request-scoped face for its Manager and FORWARDS these straight through,
+// so request handlers can call `assistant.getEnvironment()` / `assistant.isTesting()` and
+// get exactly the same answer as `Manager.getEnvironment()`. No duplicated env-var logic
+// lives here — there is one implementation, on the Manager. A Manager ref is guaranteed by
+// init() (it throws otherwise), so these never need a fallback.
+//
+// Returns exactly ONE of 'development' | 'testing' | 'production' (mutually exclusive,
+// testing wins). isDevelopment() is NOT true in testing; isProduction() is a real positive
+// check (never `!isDevelopment()`). Gate "anything non-production" with `!isProduction()`
+// or `isDevelopment() || isTesting()` intentionally.
 BackendAssistant.prototype.getEnvironment = function () {
-  // return (process.env.FUNCTIONS_EMULATOR === true || process.env.FUNCTIONS_EMULATOR === 'true' || process.env.ENVIRONMENT !== 'production' ? 'development' : 'production')
-  if (process.env.ENVIRONMENT === 'production') {
-    return 'production';
-  } else if (
-    process.env.ENVIRONMENT === 'development'
-    || process.env.FUNCTIONS_EMULATOR === true
-    || process.env.FUNCTIONS_EMULATOR === 'true'
-    || process.env.TERM_PROGRAM === 'Apple_Terminal'
-    || process.env.TERM_PROGRAM === 'vscode'
-  ) {
-    return 'development';
-  } else {
-    return 'production'
-  }
-};
+  return this.Manager.getEnvironment();
+}
 
 BackendAssistant.prototype.isDevelopment = function () {
-  const self = this;
-
-  return self.meta.environment === 'development';
+  return this.Manager.isDevelopment();
 }
 
 BackendAssistant.prototype.isProduction = function () {
-  const self = this;
-
-  return self.meta.environment === 'production';
+  return this.Manager.isProduction();
 }
 
 BackendAssistant.prototype.isTesting = function () {
-  const self = this;
-
-  return process.env.BEM_TESTING === 'true';
+  return this.Manager.isTesting();
 }
 
 BackendAssistant.prototype.logProd = function () {
@@ -330,10 +334,11 @@ BackendAssistant.prototype._log = function () {
   if (LOG_LEVELS[level]) {
     logs.splice(1, 1);
 
-    // Determine how to log
+    // Determine how to log. Console for any non-production environment (development OR
+    // testing); the Firebase Cloud logger only in production.
     if (level in console) {
       console[level].apply(console, logs);
-    } else if (self.isDevelopment()) {
+    } else if (!self.isProduction()) {
       console.log.apply(console, logs);
     } else {
       self.ref.functions.logger.write({

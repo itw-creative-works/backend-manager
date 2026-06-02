@@ -83,7 +83,7 @@ Module.prototype.main = function () {
     assistant.log('Email payload:', emailPayload);
 
     // Send the email via admin:send-email
-    await fetch(`${Manager.project.apiUrl}/backend-manager`, {
+    await fetch(`${Manager.getApiUrl()}/backend-manager`, {
       method: 'post',
       response: 'json',
       log: true,

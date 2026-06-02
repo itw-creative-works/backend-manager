@@ -51,7 +51,7 @@ let Module = {
         assistant.error(response.error)
       } else {
         mailchimp = new Mailchimp(self.Manager.config?.mailchimp?.key ?? '');
-        await fetch(`${self.Manager.project.apiUrl}/backend-manager`, {
+        await fetch(`${self.Manager.getApiUrl()}/backend-manager`, {
           method: 'POST',
           response: 'json',
           body: {

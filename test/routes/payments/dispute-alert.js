@@ -239,15 +239,18 @@ module.exports = {
       async run({ http, assert, firestore }) {
         const alertId = '_test-dispute-duplicate';
 
-        // Send first alert
-        await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`, {
+        // Pre-seed an in-flight dispute directly. We seed (rather than POST a first alert)
+        // because the route fires an async on-write trigger that, for synthetic test data
+        // with no matching charge, can transition the doc to 'failed' — at which point the
+        // dedup contract intentionally treats it as RETRYABLE, not a duplicate. Racing a
+        // live POST against that trigger made this test flaky. Seeding 'processing' (a
+        // non-failed, in-flight state) deterministically exercises the dedup path.
+        await firestore.set(`payments-disputes/${alertId}`, {
           id: alertId,
-          card: '4242',
-          amount: 29.99,
-          transactionDate: '2026-03-07',
+          status: 'processing',
         });
 
-        // Send duplicate
+        // A subsequent identical alert must be reported as a duplicate (not reprocessed).
         const response = await http.as('none').post(`payments/dispute-alert?key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`, {
           id: alertId,
           card: '4242',

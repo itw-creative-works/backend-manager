@@ -21,12 +21,13 @@ module.exports = {
     {
       name: 'forwarder-returns-404-on-non-parent-brand',
       auth: 'none',
-      async run({ http, assert, config }) {
-        // Sanity check: this brand should NOT be configured as the parent
-        assert.ok(
-          config.parent && config.parent !== 'self',
-          `Test brand should have config.parent set to a URL (got: ${config.parent})`
-        );
+      async run({ http, assert, config, skip }) {
+        // This gate only applies to CHILD brands. If this brand IS the parent
+        // (config.parent === 'self'), the forwarder route is visible by design,
+        // so there's nothing to assert here — skip rather than fail.
+        if (!config.parent || config.parent === 'self') {
+          skip('Brand is its own parent (config.parent === "self") — forwarder gate does not apply');
+        }
 
         const response = await http.as('none').post(
           `marketing/webhook/forward?provider=sendgrid&key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`,
@@ -40,7 +41,13 @@ module.exports = {
     {
       name: 'forwarder-returns-404-even-with-valid-key',
       auth: 'none',
-      async run({ http, assert }) {
+      async run({ http, assert, config, skip }) {
+        // Only meaningful on a CHILD brand. On the parent itself the forwarder is
+        // visible by design, so skip rather than fail.
+        if (!config.parent || config.parent === 'self') {
+          skip('Brand is its own parent (config.parent === "self") — forwarder gate does not apply');
+        }
+
         // A valid key shouldn't unlock the forwarder — gate is on config.parent, not key.
         const response = await http.as('none').post(
           `marketing/webhook/forward?provider=beehiiv&key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`,

@@ -168,12 +168,16 @@ Main.prototype.test = async function(name, fn, fix, args) {
   const ui = require('./utils/ui');
 
   // Prints `    [N] <symbol> <name>` — the OMEGA-style per-check status line
-  // (indented one level under the `[CHECKS]` section label).
+  // (indented one level under the `[CHECKS]` section label). The `[N]` bracket
+  // is padded to the width of the total check count so single- and double-digit
+  // numbers (`[1] ` … `[13]`) keep the symbols/names aligned.
+  const indexWidth = String(self.testTotalExpected || 99).length;
   const printLine = (index, kind, label) => {
     const colorByKind = { pass: chalk.green, fail: chalk.red, warn: chalk.yellow };
     const color = colorByKind[kind] || chalk.white;
     const suffix = label ? ` ${chalk.dim(label)}` : '';
-    console.log(`${ui.indent(2)}${chalk.dim(`[${index}]`)} ${color(ui.SYMBOLS[kind])} ${name}${suffix}`);
+    const bracket = `[${index}]`.padEnd(indexWidth + 2, ' ');
+    console.log(`${ui.indent(2)}${chalk.dim(bracket)} ${color(ui.SYMBOLS[kind])} ${name}${suffix}`);
   };
 
   let passed = await fn();

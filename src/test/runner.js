@@ -186,7 +186,7 @@ class TestRunner {
         // the health endpoint re-reads the file as a freshness guard. By
         // construction these are equal — no mismatch warning needed.
         const emulatorExtended = !!response.data?.testExtendedMode;
-        console.log(chalk.gray(`  Mode: ${emulatorExtended ? 'EXTENDED (real APIs)' : 'normal (mocked)'}`));
+        console.log(chalk.gray(`  Mode: ${emulatorExtended ? 'extended (real external APIs)' : 'normal (external APIs skipped)'}`));
 
         return true;
       }
@@ -206,23 +206,32 @@ class TestRunner {
    * Setup test accounts - deletes existing test users and recreates them fresh
    */
   async setupAccounts() {
-    // Ensure meta/stats doc exists (required for on-create batch writes)
+    // Load the optional test/_init.js hooks from BOTH test roots (BEM core +
+    // consumer project): extra `accounts` to create and `setup()` to seed fixtures.
+    const initHooks = this.loadInitHooks();
+
+    // Flush the entire emulator Firestore + delete Auth test users (clean slate).
+    process.stdout.write(chalk.gray('  Wiping emulator + deleting test users... '));
+    const deleteResult = await testAccounts.deleteTestUsers(this.options.admin, initHooks.accounts);
+    console.log(chalk.green(`✓ (${deleteResult.deleted} deleted, ${deleteResult.skipped} skipped)`));
+
+    // Ensure meta/stats doc exists (required for on-create batch writes + the
+    // admin stats route). MUST run AFTER the wipe above — the flush recursively
+    // deletes every collection (including meta/stats), so seeding before it would
+    // be clobbered. Seeding here guarantees a `users` field survives even after
+    // the notification on-write trigger merges in its `notifications` counter.
     process.stdout.write(chalk.gray('  Ensuring meta/stats doc exists... '));
     await this.ensureMetaStats();
     console.log(chalk.green('✓'));
 
-    // Delete existing test user documents to ensure clean state
-    process.stdout.write(chalk.gray('  Deleting existing test users... '));
-    const deleteResult = await testAccounts.deleteTestUsers(this.options.admin);
-    console.log(chalk.green(`✓ (${deleteResult.deleted} deleted, ${deleteResult.skipped} skipped)`));
-
     process.stdout.write(chalk.gray('  Creating test accounts... '));
 
-    // Create fresh test accounts
+    // Create fresh test accounts (built-in + any project-defined via _init.js).
     const result = await testAccounts.createTestAccounts(
       this.options.admin,
       this.options.domain,
-      this.config
+      this.config,
+      initHooks.accounts
     );
 
     if (!result.success) {
@@ -232,8 +241,28 @@ class TestRunner {
 
     console.log(chalk.green(`✓ (${result.created} created)`));
 
-    // Fetch account privateKeys
-    this.accounts = await testAccounts.fetchPrivateKeys(this.options.admin, this.options.domain, this.config);
+    // Fetch account privateKeys (built-in + project-defined).
+    this.accounts = await testAccounts.fetchPrivateKeys(this.options.admin, this.options.domain, this.config, initHooks.accounts);
+
+    // Run custom setup hooks (BEM core first, then consumer). Runs AFTER the
+    // standard test accounts exist and AFTER the clean slate, so they can seed
+    // fixtures (brands, etc.) and reference the created accounts.
+    for (const setup of initHooks.setups) {
+      process.stdout.write(chalk.gray('  Running test/_init.js setup... '));
+      try {
+        await setup({
+          admin: this.options.admin,
+          config: this.config,
+          accounts: this.accounts,
+          Manager: this.config.Manager,
+          assistant: this.config.assistant,
+        });
+        console.log(chalk.green('✓'));
+      } catch (e) {
+        console.log(chalk.red(`✗ (${e.message})`));
+        return false;
+      }
+    }
 
     // Initialize rules testing context for security rules tests
     process.stdout.write(chalk.gray('  Initializing rules testing context... '));
@@ -253,23 +282,30 @@ class TestRunner {
   }
 
   /**
-   * Ensure meta/stats document exists (required for user count increments)
-   * Creates with initial values if missing, does not overwrite existing
+   * Ensure meta/stats document has a baseline `users` counter (required for user
+   * count increments and the admin stats route).
+   *
+   * Uses a MERGE write that always runs — it does NOT early-return when the doc
+   * already exists. The reason: the preceding emulator wipe recursively deletes
+   * the `notifications` collection, which fires the notification on-write *delete*
+   * trigger for each doc. Those triggers merge `{ notifications: increment(-1) }`
+   * into meta/stats and can race ahead of this seed, re-creating the doc as
+   * `{ notifications: { total: -N } }` with NO `users` field. A plain
+   * "create-if-missing" seed would then skip (doc.exists === true) and leave
+   * `users` absent — exactly the bug that made the admin stats tests flaky.
+   *
+   * Merging `{ users: { total: 0 } }` is safe to run unconditionally: it seeds the
+   * baseline without clobbering whatever `notifications` value those triggers land,
+   * and the real user-count increments overwrite total: 0 as accounts are created.
    */
   async ensureMetaStats() {
     const admin = this.options.admin;
     const statsRef = admin.firestore().doc('meta/stats');
 
-    const doc = await statsRef.get();
-    if (doc.exists) {
-      return; // Already exists, don't overwrite
-    }
-
-    // Create initial stats document
     await statsRef.set({
       users: { total: 0 },
       brand: this.options.brand?.id,
-    });
+    }, { merge: true });
   }
 
   /**
@@ -285,6 +321,87 @@ class TestRunner {
   }
 
   /**
+   * Load a single `test/_init.js` lifecycle hook from a test root.
+   *
+   * The module MUST export a function — `module.exports = (ctx) => ({ ... })` —
+   * called with `{ config, Manager }` and returning the hook object
+   * (`{ accounts, setup }`). This lets a project compute its accounts/fixtures
+   * from config at load time.
+   *
+   * Returns `{}` if the file doesn't exist, isn't a function, or fails to resolve.
+   */
+  loadInit(testDir, label) {
+    const initPath = path.join(testDir, '_init.js');
+
+    if (!jetpack.exists(initPath)) {
+      return {};
+    }
+
+    try {
+      const fn = require(initPath);
+
+      if (typeof fn !== 'function') {
+        console.log(chalk.red(`  ✗ ${label} test/_init.js must export a function: module.exports = (ctx) => ({ ... })`));
+        return {};
+      }
+
+      const mod = fn({ config: this.config, Manager: this.config?.Manager });
+      return mod && typeof mod === 'object' ? mod : {};
+    } catch (e) {
+      console.log(chalk.red(`  ✗ Failed to load ${label} test/_init.js: ${e.message}`));
+      return {};
+    }
+  }
+
+  /**
+   * Load and merge the `test/_init.js` lifecycle hooks from BOTH test roots —
+   * BEM core (`<bem>/test/_init.js`) and the consumer project
+   * (`<projectDir>/test/_init.js`). Same contract for both, so framework and
+   * consumer authors write the identical file shape. Each exports a function
+   * (see loadInit) returning:
+   *   - `accounts` — extra test accounts to create alongside the built-in ones,
+   *     each `{ id, uid, email, properties }` (email may use the `{domain}`
+   *     placeholder). One per lifecycle this project needs to exercise.
+   *   - `async setup({ admin, config, accounts, Manager, assistant })` — seed
+   *     fixtures (brands, etc.) AFTER the clean slate + account creation.
+   *
+   * There is no `cleanup` hook: the entire emulator Firestore is flushed before
+   * every run (deleteTestUsers → flushEmulatorFirestore) and each test cleans up
+   * after itself, so there is nothing project-level to tear down.
+   *
+   * Returns the merged extra `accounts` map (BEM core then consumer; consumer
+   * wins on key collision) and the ordered `setups` runners (BEM core first).
+   */
+  loadInitHooks() {
+    const bemTestsDir = path.resolve(__dirname, '../../test');
+    const projectTestsDir = path.join(this.options.projectDir, 'test');
+
+    const hooks = [
+      this.loadInit(bemTestsDir, 'BEM core'),
+      this.loadInit(projectTestsDir, 'project'),
+    ];
+
+    // Merge extra accounts from both roots. Accept either an array of account
+    // defs or a keyed object; normalize to a keyed object on `id`.
+    const accounts = {};
+    for (const h of hooks) {
+      const list = Array.isArray(h.accounts)
+        ? h.accounts
+        : Object.values(h.accounts || {});
+      for (const account of list) {
+        if (account && account.id) {
+          accounts[account.id] = account;
+        }
+      }
+    }
+
+    return {
+      accounts,
+      setups: hooks.filter((h) => typeof h.setup === 'function').map((h) => h.setup),
+    };
+  }
+
+  /**
    * Discover test files in directory
    */
   discoverTests(dir) {
@@ -294,6 +411,11 @@ class TestRunner {
     for (const item of items) {
       // Skip _legacy directory
       if (item === '_legacy') {
+        continue;
+      }
+
+      // Skip the _init.js lifecycle hook — it's run by setupAccounts(), not as a test.
+      if (item === '_init.js') {
         continue;
       }
 

@@ -100,7 +100,7 @@ module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
   // Send notification (unless explicitly disabled)
   if (settings.sendNotification !== false) {
     // Use NEW API format
-    await fetch(`${Manager.project.apiUrl}/backend-manager/admin/notification`, {
+    await fetch(`${Manager.getApiUrl()}/backend-manager/admin/notification`, {
       method: 'POST',
       response: 'json',
       headers: {

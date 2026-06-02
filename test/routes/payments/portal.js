@@ -56,9 +56,12 @@ module.exports = {
 
     {
       name: 'succeeds-with-test-processor',
-      async run({ http, assert, config, accounts, firestore, waitFor }) {
+      async run({ http, assert, config, accounts, firestore, waitFor, skip }) {
         const uid = accounts['journey-payments-portal-route'].uid;
         const paidProduct = config.payment.products.find(p => p.id !== 'basic' && p.prices?.monthly);
+        if (!paidProduct) {
+          skip('No paid product with monthly price configured in this brand');
+        }
 
         // Set up a paid subscription with the test processor
         const intentResponse = await http.as('journey-payments-portal-route').post('payments/intent', {

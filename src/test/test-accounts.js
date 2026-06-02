@@ -525,14 +525,19 @@ const TEST_ACCOUNTS = {
  * Get all test account definitions with resolved emails and dynamic product IDs
  * @param {string} domain - Domain for email addresses (e.g., 'itwcreativeworks.com')
  * @param {object} [config] - BEM config (used to resolve first paid product)
+ * @param {object} [extraAccounts] - Project-defined accounts from test/_init.js,
+ *   keyed by id, each `{ id, uid, email, properties }`. Merged after the built-in
+ *   accounts; a project account may override a built-in one by reusing its key.
  * @returns {object} Account definitions with resolved emails
  */
-function getAccountDefinitions(domain, config) {
+function getAccountDefinitions(domain, config, extraAccounts) {
   const paidProduct = getFirstPaidProduct(config);
   const accounts = {};
 
-  for (const [key, account] of Object.entries(TEST_ACCOUNTS)) {
-    const properties = JSON.parse(JSON.stringify(account.properties));
+  const all = { ...TEST_ACCOUNTS, ...(extraAccounts || {}) };
+
+  for (const [key, account] of Object.entries(all)) {
+    const properties = JSON.parse(JSON.stringify(account.properties || {}));
 
     // Replace hardcoded 'premium' product with the actual first paid product from config
     if (properties.subscription?.product?.id === 'premium') {
@@ -543,7 +548,7 @@ function getAccountDefinitions(domain, config) {
     accounts[key] = {
       id: account.id,
       uid: account.uid,
-      email: account.email.replace('{domain}', domain),
+      email: (account.email || '').replace('{domain}', domain),
       properties,
     };
   }
@@ -556,10 +561,11 @@ function getAccountDefinitions(domain, config) {
  * @param {object} admin - Firebase admin instance
  * @param {string} domain - Domain for email addresses (e.g., 'itwcreativeworks.com')
  * @param {object} [config] - BEM config (used to resolve first paid product)
+ * @param {object} [extraAccounts] - Project-defined accounts from test/_init.js
  * @returns {Promise<object>} Account credentials with privateKeys
  */
-async function fetchPrivateKeys(admin, domain, config) {
-  const definitions = getAccountDefinitions(domain, config);
+async function fetchPrivateKeys(admin, domain, config, extraAccounts) {
+  const definitions = getAccountDefinitions(domain, config, extraAccounts);
   const accounts = {};
 
   // Fetch all in parallel
@@ -626,50 +632,165 @@ async function fetchPrivateKeys(admin, domain, config) {
 async function createAccount(admin, account) {
   const userRef = admin.firestore().doc(`users/${account.uid}`);
 
-  // Create Firebase Auth user - triggers auth:on-create
-  await admin.auth().createUser({
-    uid: account.uid,
-    email: account.email,
-    password: uuid.v4(),
-    emailVerified: true,
-  });
+  // The Auth user for this UID was just deleted (deleteTestUsers). Its auth:on-delete
+  // trigger deletes the Firestore doc ASYNCHRONOUSLY and the emulator does NOT guarantee
+  // it fires (or finishes) before our subsequent createUser()'s auth:on-create. A stale
+  // on-delete can therefore land AFTER on-create and silently wipe the freshly-written
+  // doc — leaving the account with no api.clientId/privateKey. That intermittent clobber
+  // is what made the account-structure validation (and every downstream auth/payment test)
+  // flaky. We defend with a verify-and-repair retry: create → wait for the on-create write
+  // to be COMPLETE (api keys present, not just metadata.tag) → merge props → re-verify the
+  // keys survived. If a late on-delete clobbered the doc, recreate from scratch.
+  const maxAttempts = 3;
 
-  // Wait for auth:on-create to COMPLETE
-  // We check for metadata.tag which is set at the END of on-create
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    // Create Firebase Auth user - triggers auth:on-create
+    await admin.auth().createUser({
+      uid: account.uid,
+      email: account.email,
+      password: uuid.v4(),
+      emailVerified: true,
+    }).catch(async (e) => {
+      // A retry may find the Auth user already present (its doc was clobbered, not the
+      // user). Delete it first so the fresh createUser re-fires a clean on-create.
+      if (e.code === 'auth/uid-already-exists') {
+        await admin.auth().deleteUser(account.uid).catch(() => {});
+        await waitForDocGone(userRef);
+        await admin.auth().createUser({
+          uid: account.uid,
+          email: account.email,
+          password: uuid.v4(),
+          emailVerified: true,
+        });
+      } else {
+        throw e;
+      }
+    });
+
+    // Wait for auth:on-create to COMPLETE. Poll on the api keys themselves — the fields the
+    // tests actually require — not just metadata.tag, which on its own doesn't prove the
+    // doc wasn't subsequently clobbered.
+    const ready = await waitForAccountReady(userRef);
+
+    // Merge test-specific properties (roles, subscription, etc.)
+    await userRef.set(account.properties, { merge: true });
+
+    // Re-verify after the merge: a late on-delete could have struck between the poll and
+    // here. If the api keys survived, the account is good. Otherwise loop and recreate.
+    const finalDoc = await userRef.get();
+    const data = finalDoc.data() || {};
+    if (ready && data.api?.clientId && data.api?.privateKey) {
+      return { uid: account.uid, email: account.email };
+    }
+
+    // Clobbered (or never completed). Tear down the Auth user so the next attempt starts
+    // from a clean slate, then retry.
+    if (attempt < maxAttempts) {
+      await admin.auth().deleteUser(account.uid).catch(() => {});
+      await waitForDocGone(userRef);
+    }
+  }
+
+  // Exhausted retries — return anyway so the runner reports the downstream failure with a
+  // meaningful test assertion rather than a setup throw.
+  return { uid: account.uid, email: account.email };
+}
+
+/**
+ * Poll until a user doc reflects a COMPLETE auth:on-create write (api keys present).
+ * Returns true if it became ready within the window, false on timeout.
+ */
+async function waitForAccountReady(userRef) {
   const maxWait = 15000;
   const pollInterval = 500;
   let waited = 0;
 
   while (waited < maxWait) {
     const doc = await userRef.get();
-    if (doc.exists && doc.data()?.metadata?.tag === 'auth:on-create') {
-      break;
+    const data = doc.exists ? doc.data() : null;
+    if (
+      data?.metadata?.tag === 'auth:on-create'
+      && data.api?.clientId
+      && data.api?.privateKey
+    ) {
+      return true;
     }
     await new Promise(resolve => setTimeout(resolve, pollInterval));
     waited += pollInterval;
   }
 
-  // Merge test-specific properties (roles, subscription, etc.)
-  await userRef.set(account.properties, { merge: true });
+  return false;
+}
 
-  return { uid: account.uid, email: account.email };
+/**
+ * Poll until a user doc no longer exists (on-delete settled). Bounded; best-effort.
+ */
+async function waitForDocGone(userRef) {
+  const maxWait = 10000;
+  const pollInterval = 200;
+  let waited = 0;
+
+  while (waited < maxWait) {
+    const doc = await userRef.get();
+    if (!doc.exists) {
+      return;
+    }
+    await new Promise(resolve => setTimeout(resolve, pollInterval));
+    waited += pollInterval;
+  }
+
+  // Fallback: force-delete the lingering doc so the next create starts clean.
+  await userRef.delete().catch(() => {});
+}
+
+/**
+ * Flush the ENTIRE emulator Firestore — every top-level collection, recursively.
+ *
+ * SAFETY: this is destructive, so it ONLY runs when connected to the Firestore
+ * emulator (`FIRESTORE_EMULATOR_HOST` is set — which the test command always
+ * sets). If that env var is absent, this is a no-op, so it can never wipe a real
+ * project's data. The emulator DB is entirely test data, so a full flush is the
+ * simplest correct "clean slate" — no per-collection allowlist to maintain.
+ *
+ * @param {object} admin - Firebase admin instance
+ */
+async function flushEmulatorFirestore(admin) {
+  if (!process.env.FIRESTORE_EMULATOR_HOST) {
+    // Not pointed at the emulator — refuse to mass-delete. No-op.
+    return;
+  }
+
+  const firestore = admin.firestore();
+  const collections = await firestore.listCollections().catch(() => []);
+
+  await Promise.all(
+    collections.map((collectionRef) => firestore.recursiveDelete(collectionRef).catch(() => {}))
+  );
 }
 
 /**
  * Delete all test users (both Auth and Firestore)
- * Uses TEST_ACCOUNTS as the source of truth for which UIDs to delete
- * Deleting Auth users triggers on-delete which handles Firestore doc + count decrement
- * Waits for Firestore docs to be deleted before returning to ensure clean state
- * Called before test runs to ensure clean state
+ * Uses TEST_ACCOUNTS (+ any project-defined accounts) as the source of truth for
+ * which UIDs to delete. Deleting Auth users triggers on-delete which handles
+ * Firestore doc + count decrement.
+ * Called before test runs to ensure a clean slate. Flushes the ENTIRE emulator
+ * Firestore (the emulator DB is 100% test data — there's nothing to preserve),
+ * then deletes the Auth test users. `test/_init.js`'s `setup()` reseeds fixtures
+ * afterward. Waits for Firestore docs to be deleted before returning.
  * @param {object} admin - Firebase admin instance
+ * @param {object} [extraAccounts] - Project-defined accounts from test/_init.js
  * @returns {Promise<object>} Result with deleted count
  */
-async function deleteTestUsers(admin) {
+async function deleteTestUsers(admin, extraAccounts) {
   const results = { deleted: [], skipped: [], failed: [] };
 
-  // Delete all known test accounts in parallel
+  // Wipe the entire emulator Firestore up front (guarded to emulator-only).
+  await flushEmulatorFirestore(admin);
+
+  // Delete all known test accounts in parallel (built-in + project-defined).
+  const allAccounts = { ...TEST_ACCOUNTS, ...(extraAccounts || {}) };
   await Promise.all(
-    Object.values(TEST_ACCOUNTS).map(async (account) => {
+    Object.values(allAccounts).map(async (account) => {
       try {
         // Delete Firebase Auth user (triggers on-delete which handles Firestore doc + count)
         await admin.auth().deleteUser(account.uid);
@@ -708,80 +829,15 @@ async function deleteTestUsers(admin) {
     })
   );
 
-  // Clean up payment-related collections for test accounts.
-  // Two passes per collection:
-  //   1. owner-keyed: query by owner ∈ test uids (Firestore `in` caps at 30; batch).
-  //   2. id-keyed:    delete any doc whose id starts with the `_test-` prefix.
-  // Pass 2 catches docs that have no owner field (e.g. dispute alerts, raw test webhooks).
-  // All test-fixture IDs MUST start with `_test-` — that's the cleanup contract.
-  const testUids = Object.values(TEST_ACCOUNTS).map(a => a.uid);
-  // Collections that may carry test data tied to a test user (owner-keyed) or
-  // identified solely by an `_test-` doc id prefix (id-keyed). All must be wiped
-  // at the start of every run so a test that died mid-execution leaves no
-  // ghosts. New collections that participate in tests MUST be added here too.
-  const testDataCollections = ['payments-orders', 'payments-webhooks', 'payments-intents', 'payments-disputes'];
-  // Collections that exist solely for tests — wipe in full. All docs in these
-  // collections come from tests, so a single recursive delete handles cleanup.
-  const testOnlyCollections = ['_test', '_test_query'];
-  const UID_BATCH_SIZE = 30;
-  const TEST_ID_PREFIX = '_test-';
-
-  const uidBatches = [];
-  for (let i = 0; i < testUids.length; i += UID_BATCH_SIZE) {
-    uidBatches.push(testUids.slice(i, i + UID_BATCH_SIZE));
+  // Realtime Database: wipe the `_test` namespace in full. (The Firestore-wide
+  // flush already ran in flushEmulatorFirestore() at the start of this function.)
+  // `admin.database()` throws synchronously when no Database URL is configured,
+  // so guard the whole thing — RTDB is optional for a project.
+  try {
+    await admin.database().ref('_test').remove();
+  } catch (e) {
+    // RTDB not configured / no database URL — ignore.
   }
-
-  await Promise.all([
-    // Mixed collections: scoped delete of test data only.
-    ...testDataCollections.map(async (collection) => {
-      // Pass 1 — owner-keyed
-      for (const batch of uidBatches) {
-        try {
-          const snapshot = await admin.firestore().collection(collection)
-            .where('owner', 'in', batch)
-            .get();
-
-          await Promise.all(
-            snapshot.docs.map(doc => doc.ref.delete())
-          );
-        } catch (e) {
-          // Collection may not exist yet, or doesn't carry an owner field — ignore
-        }
-      }
-
-      // Pass 2 — id-keyed (catches ownerless test docs)
-      // documentId() range scan: `_test-` ≤ id < `_test.` (the next ASCII char after `-` is `.`)
-      try {
-        const snapshot = await admin.firestore().collection(collection)
-          .where(admin.firestore.FieldPath.documentId(), '>=', TEST_ID_PREFIX)
-          .where(admin.firestore.FieldPath.documentId(), '<', '_test.')
-          .get();
-
-        await Promise.all(
-          snapshot.docs.map(doc => doc.ref.delete())
-        );
-      } catch (e) {
-        // Collection may not exist yet — ignore
-      }
-    }),
-    // Test-only Firestore collections: wipe in full.
-    ...testOnlyCollections.map(async (collection) => {
-      try {
-        const snapshot = await admin.firestore().collection(collection).get();
-        await Promise.all(snapshot.docs.map(doc => doc.ref.delete()));
-      } catch (e) {
-        // Collection may not exist yet — ignore
-      }
-    }),
-    // Realtime Database: wipe the `_test` namespace in full.
-    (async () => {
-      try {
-        await admin.database().ref('_test').remove();
-      } catch (e) {
-        // RTDB may not be configured for this project — ignore
-      }
-    })(),
-  ]);
 
   return {
     success: results.failed.length === 0,
@@ -798,10 +854,11 @@ async function deleteTestUsers(admin) {
  * @param {object} admin - Firebase admin instance
  * @param {string} domain - Domain for email addresses (e.g., 'itwcreativeworks.com')
  * @param {object} [config] - BEM config (used to resolve first paid product)
+ * @param {object} [extraAccounts] - Project-defined accounts from test/_init.js
  * @returns {Promise<object>} Result with created/failed counts
  */
-async function createTestAccounts(admin, domain, config) {
-  const definitions = getAccountDefinitions(domain, config);
+async function createTestAccounts(admin, domain, config, extraAccounts) {
+  const definitions = getAccountDefinitions(domain, config, extraAccounts);
   const results = { created: [], failed: [] };
 
   // Create all accounts in parallel

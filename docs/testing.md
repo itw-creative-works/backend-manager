@@ -1,5 +1,25 @@
 # Testing
 
+## 🚫 NEVER mock — test against the real emulator (HARD RULE)
+
+Tests run against a **real Firebase emulator** (real Firestore/Auth). **Do NOT hand-roll fake/stub/mock objects** — no `mockManager`, `mockAdmin`, `makeManager()`, fake `firestore()`/`admin`, stubbed `assistant`, or fake HTTP. Every test `run()` receives the **real** booted `Manager`, `assistant`, `firestore`, `http`, and `accounts` (see [the test context](#test-context)). Use them.
+
+- Call routes over `http.as(...)`; call handlers/helpers with the real `Manager`/`assistant` from context; read/write/verify with the real `firestore` helper.
+- **Pure functions are the only exception** — a function with zero I/O can be `require()`d and called with plain inputs (nothing to mock). The instant it touches Firestore or any external system, it must run for real against the emulator.
+- **Real external APIs (OpenAI, PayPal, GitHub, SendGrid, Beehiiv, Stripe) are gated behind `TEST_EXTENDED_MODE` in the source, NOT mocked** — see [Extended Mode](#extended-mode-test_extended_mode). Normal mode skips them; extended mode runs them for real.
+- **Anything an extended test creates in an external system must be cleaned up by the test** (delete the GitHub file, cancel the PayPal invoice, etc.) — the runner's pre-test wipe only covers local Firestore/Auth.
+
+If you're writing `const mockX = {...}` to satisfy a function under test, STOP and pass the real context object instead.
+
+### The ONLY two exceptions where a stub is allowed
+
+Mock **nothing** by default. There are exactly two narrow cases where the real dependency genuinely cannot run in the test environment — and even then, stub the *smallest possible seam*, never a whole `Manager`/`assistant`:
+
+1. **A side effect that would destroy the test run itself.** If invoking the real method would kill or corrupt the harness — e.g. a process-exit, an `app.quit()`, a destructive filesystem wipe, a recursive re-invocation of the test/build command — you may stub *that one call* to a no-op, assert the surrounding logic, then restore it. You are not faking behavior; you are preventing the harness from terminating mid-assertion.
+2. **Cross-project fan-out that needs infrastructure you can't run locally.** Some routes fan out to *other* BEM backends (parent → child brand servers). Only **one** BEM emulator runs locally, so the real cross-project call has no second backend to hit. A unit test may hand-roll the minimal inputs (`makeManager`/`makeAdminMock`/mocked `wonderful-fetch`) to exercise the *fan-out logic* in isolation — but a companion integration test MUST still verify the real route's gate/wiring against the emulator. (Example: `test/helpers/webhook-forward.js`.)
+
+**Rules for both exceptions:** stub the narrowest seam (one method / one module), restore it immediately, and add a comment stating *why the real thing can't run here*. If you can run it for real, you must.
+
 ## Running Tests
 
 ```bash
@@ -18,12 +38,11 @@ npx mgr test
 What the runner wipes pre-test (in [src/test/test-accounts.js](../src/test/test-accounts.js) `deleteTestUsers()` and [src/test/runner.js](../src/test/runner.js) `setupAccounts()`):
 
 1. **`meta/stats`** doc ensured (required for on-create batch writes).
-2. **`users/_test-*`** Firebase Auth users + Firestore docs (delete).
-3. **Mixed Firestore collections** — `payments-orders`, `payments-webhooks`, `payments-intents`, `payments-disputes`. Two-pass cleanup per collection:
-   - Pass 1 — owner-keyed: `where('owner', 'in', [...testUids])` (batched at 30 uids per `in` query).
-   - Pass 2 — id-keyed: any doc whose ID starts with `_test-` (catches ownerless test docs like dispute alerts and raw test webhooks).
-4. **Test-only Firestore collections** — `_test`, `_test_query` — wiped in full.
-5. **Realtime Database** — the `_test` namespace removed in full (`admin.database().ref('_test').remove()`).
+2. **The ENTIRE emulator Firestore** — every top-level collection, flushed recursively (`flushEmulatorFirestore()` → `listCollections()` + `recursiveDelete()`). The emulator DB is 100% test data, so a full flush is the simplest correct clean slate — no per-collection allowlist to maintain. **SAFETY: it only runs when `FIRESTORE_EMULATOR_HOST` is set** (which the test command always sets); if absent it is a no-op, so it can never wipe a real project.
+3. **Firebase Auth test users** — all `TEST_ACCOUNTS` uids deleted (Auth is a separate store from Firestore, so this still runs explicitly).
+4. **Realtime Database** — the `_test` namespace removed in full (`admin.database().ref('_test').remove()`, guarded — RTDB is optional).
+
+After the flush, `test/_init.js`'s `setup()` reseeds fixtures into the empty DB.
 
 ### Marketing-provider cleanup
 
@@ -35,18 +54,44 @@ All cleanup follows the start-only rule. No trailing-cleanup exception.
 
 ### When adding a new test that writes data
 
-| If your test writes to... | Then... |
-|---|---|
-| A new Firestore collection (mixed test + prod data) | Add the collection name to `testDataCollections` in `src/test/test-accounts.js`. |
-| A new Firestore collection (test-only data) | Add it to `testOnlyCollections` in `src/test/test-accounts.js`. |
-| Realtime Database | Use a path under `_test/...` — already wiped pre-test. |
-| Anywhere else | Use the `_test-` doc-id prefix so id-keyed pass-2 catches it. |
+Nothing to register — the **entire emulator Firestore is flushed before every run**, so any collection a test writes starts empty next run automatically. If a test needs a fixture to exist (e.g. a brand doc) before the suite runs, seed it in `test/_init.js`'s `setup()` (it runs after the flush). Realtime Database test data should live under `_test/...` (that namespace is wiped pre-run).
 
 ### Within-run state isolation is different
 
-Per-test cleanup is still appropriate when a test sets up DB state that would pollute a **later test in the same run** — e.g. trial-eligibility's `try/finally` that removes the fake `payments-orders/_test-trial-eligibility-*` doc so the next sibling test sees a clean slate. Those stay in the test. They are *intra-run* state management, not *next-run* cleanup, and the distinction matters.
+Per-test cleanup is still appropriate when a test sets up DB state that would pollute a **later test in the same run** — e.g. a `try/finally` that removes a fixture so the next sibling test sees a clean slate. Those stay in the test. They are *intra-run* state management, not *next-run* cleanup, and the distinction matters.
 
-The rule: **never put cleanup at the END of a test file or suite for the purpose of preparing the next run** — for LOCAL state. If a test cleans up local Firestore/Auth data only to "leave no trace," that cleanup belongs in the runner's pre-test phase instead. Add the collection/namespace to the runner's wipe list and remove the trailing cleanup step. The third-party provider exception (see above) lives in the runner's post-suite hook, not in individual tests.
+The rule: **never put cleanup at the END of a test file or suite for the purpose of preparing the next run** — for LOCAL state. The pre-test full flush already guarantees a clean slate. (The third-party provider exception lives in the runner's post-suite hook, not in individual tests.)
+
+## `test/_init.js` — pre-test lifecycle hook
+
+The runner loads an optional `test/_init.js` from **both** test roots — BEM core (`<bem>/test/_init.js`) and the consumer project (`<projectDir>/test/_init.js`) — and runs it before any test (it is NOT itself run as a test). Same contract for both roots, so framework and consumer authors write the identical file. Because the entire emulator Firestore is flushed each run, there are **no collection lists to declare** — `_init.js` only declares accounts and reseeds fixtures.
+
+The module **must export a function** — `module.exports = (ctx) => ({ ... })` — called with `{ config, Manager }` and returning the hook object. (The function form lets a project compute its accounts/fixtures from config.) It may declare:
+
+- `accounts` — array of extra test accounts to create alongside the built-in ones (admin/basic/premium-*/journey-*), so this project has a user for each lifecycle it exercises. Each entry is `{ id, uid, email, properties }` (email may use the `{domain}` placeholder, `properties` is merged into the user doc after `auth:on-create`). These accounts are created, fetched (privateKeys), and deleted on the same path as the built-ins, and show up in the `accounts` map that tests and `setup()` receive. A project account may override a built-in one by reusing its `id`.
+- `async setup({ admin, config, accounts, Manager, assistant })` — seed fixtures (e.g. a brand doc) into the freshly-flushed DB, AFTER the clean slate + account creation. `accounts` is available so fixtures can reference a test uid. Use real ids that mirror production shape (no `_test-` prefix needed — the whole DB is wiped each run).
+
+There is **no `cleanup` hook**: the entire emulator Firestore is flushed before every run and each test cleans up after itself, so there is nothing project-level to tear down.
+
+```javascript
+// <projectDir>/test/_init.js
+module.exports = ({ config }) => ({
+  // One account per lifecycle this project needs. Created alongside the built-ins.
+  accounts: [
+    { id: 'shop-owner', uid: '_test-shop-owner', email: '_test.shop-owner@{domain}', properties: { roles: {} } },
+  ],
+
+  // The entire emulator Firestore is flushed before each run, so just reseed.
+  async setup({ admin, accounts }) {
+    await admin.firestore().doc('brands/ultimate-jekyll').set({
+      id: 'ultimate-jekyll',
+      brand: { id: 'ultimate-jekyll', name: 'Ultimate Jekyll', url: 'https://ultimate-jekyll.itwcreativeworks.com' },
+      owner: accounts['shop-owner'].uid,
+      sponsorships: { prices: { 'guest-post': 50, 'link-insertion': 30 } },
+    });
+  },
+});
+```
 
 ## Extended Mode (`TEST_EXTENDED_MODE`)
 
@@ -121,7 +166,7 @@ npx mgr test user/ admin/       # Multiple paths
 - **BEM core tests:** `test/` (in the framework repo)
 - **Project tests:** the consumer project's repo-root `test/` directory (NOT inside `functions/`)
 
-Use `bem:` or `project:` prefix to filter by source. Mirror BEM's own per-area layout — **one file per concern** under `test/<area>/` (e.g. `test/article/allocation.js`, `test/article/markdown.js`, `test/article/generate.js`), never one giant `test/test.js`. The runner discovers files by directory, so the split is also what the `project:<path>` filter targets (`npx mgr test project:article`).
+Use `bem:` or `project:` prefix to filter by source. **Mirror the source path so a test reads like what it tests.** Route tests live under `test/routes/<route-path>/<concern>.js`, mirroring `functions/routes/<route-path>/` — e.g. `functions/routes/write/article/` → `test/routes/write/article/generate.js`, `functions/routes/sponsorship/post.js` → `test/routes/sponsorship/post.js`. Split each route into **one file per concern** under its mirrored dir (`test/routes/sponsorship/post.js`, `.../manual-validation.js`), never one giant `test/test.js`. The runner discovers files by directory, so the split also drives the `project:<path>` filter: `npx mgr test project:routes/write` runs a whole route's tests, `project:routes/write/markdown` runs one concern.
 
 ## Test Types
 

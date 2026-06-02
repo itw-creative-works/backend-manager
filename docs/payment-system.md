@@ -180,7 +180,7 @@ module.exports = async function ({ before, after, uid, userDoc, admin, assistant
 
 1. Add detection logic in `transitions/index.js` (in priority order)
 2. Create handler file in `transitions/{category}/{name}.js`
-3. Handler receives full context — use `assistant.log()` for logging, `Manager.project.apiUrl` for API calls
+3. Handler receives full context — use `assistant.log()` for logging, `Manager.getApiUrl()` for API calls
 
 ## Processor Interface
 

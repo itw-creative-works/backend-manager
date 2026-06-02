@@ -16,12 +16,15 @@ module.exports = {
   tests: [
     {
       name: 'setup-paid-subscription',
-      async run({ accounts, firestore, assert, state, config, http, waitFor }) {
+      async run({ accounts, firestore, assert, state, config, http, waitFor, skip }) {
         const uid = accounts['journey-payments-failure'].uid;
 
-        // Resolve first paid subscription product
+        // Resolve first paid subscription product. If the brand has none configured,
+        // skip the entire journey — this is a config-gap, not a code failure.
         const paidProduct = config.payment.products.find(p => p.id !== 'basic' && p.type === 'subscription' && p.prices);
-        assert.ok(paidProduct, 'Config should have at least one paid subscription product');
+        if (!paidProduct) {
+          skip('No paid subscription product configured in this brand');
+        }
 
         state.uid = uid;
         state.paidProductId = paidProduct.id;

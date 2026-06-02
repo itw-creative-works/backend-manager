@@ -9,6 +9,7 @@ const mimeTypes = require('mime-types');
 // Constants
 const DEFAULT_MODEL = 'gpt-5.4-mini';
 const MODERATION_MODEL = 'omni-moderation-latest';
+const IMAGE_DEFAULT_MODEL = 'gpt-image-2';
 
 // OpenAI model pricing table (per 1M tokens)
 // https://platform.openai.com/docs/pricing
@@ -395,10 +396,12 @@ OpenAI.prototype.request = function (options) {
     // Reasons
     options.reasoning = options.reasoning || undefined;
 
-    // Tools (e.g. built-in web_search). Opt-in — when omitted, no tools are sent
-    // and behavior is identical to a plain request.
+    // Tools — nested, opt-in. `tools.list` is an array of tool definitions (built-in
+    // hosted tools like `{ type: 'web_search' }`, OR custom function tools like
+    // `{ type: 'function', name, parameters }`); `tools.choice` maps to `tool_choice`
+    // (`auto` | `required` | `none` | a specific tool). When omitted/empty, no tools
+    // are sent and behavior is identical to a plain request.
     options.tools = options.tools || undefined;
-    options.toolChoice = options.toolChoice || undefined;
 
     // Format prompt
     //
@@ -511,6 +514,100 @@ OpenAI.prototype.request = function (options) {
     attemptRequest(options, self, promptSegments, message, user, moderation, attempt, assistant, resolve, reject, _log);
   });
 }
+
+/**
+ * Generate an image via OpenAI's image API (gpt-image-2 by default).
+ *
+ * Returns the raw bytes — caller decides what to do with them (upload to a CDN,
+ * embed as a data URL, write to disk, etc.). gpt-image-* always returns base64,
+ * so there's no URL-fetch round trip.
+ *
+ * @param {object} options
+ * @param {string}  options.prompt           - The image description (required)
+ * @param {string} [options.model]           - Image model (default gpt-image-2)
+ * @param {string} [options.size]            - 1024x1024 | 1536x1024 | 1024x1536 | auto (default 1024x1024)
+ * @param {string} [options.quality]         - low | medium | high | auto (default medium)
+ * @param {string} [options.background]      - transparent | opaque | auto
+ * @param {number} [options.n]               - How many images (default 1)
+ * @param {number} [options.timeout]         - ms (default 300000 — image gen is slow)
+ * @param {boolean}[options.log]
+ * @returns {Promise<{buffer: Buffer, b64: string, mime: string, revisedPrompt: string|null, model: string, size: string, quality: string, raw: object}>}
+ *          (or an array of those when n > 1)
+ */
+OpenAI.prototype.image = function (options) {
+  const self = this;
+  const assistant = self.assistant;
+
+  return new Promise(async function (resolve, reject) {
+    options = _.merge({}, options);
+
+    if (!options.prompt) {
+      return reject(assistant.errorify(`image(): {prompt} is required`, { code: 400 }));
+    }
+
+    options.model = options.model || IMAGE_DEFAULT_MODEL;
+    options.size = options.size || '1024x1024';
+    options.quality = options.quality || 'medium';
+    options.n = options.n || 1;
+    options.timeout = typeof options.timeout === 'undefined' ? 300000 : options.timeout;
+    options.log = typeof options.log === 'undefined' ? false : options.log;
+
+    const body = {
+      model: options.model,
+      prompt: options.prompt,
+      size: options.size,
+      quality: options.quality,
+      n: options.n,
+    };
+
+    // background is opt-in (transparent/opaque/auto)
+    if (options.background) {
+      body.background = options.background;
+    }
+
+    if (options.log) {
+      assistant.log(`OpenAI.image(): model=${options.model} size=${options.size} quality=${options.quality} n=${options.n}`);
+    }
+
+    let data;
+    try {
+      data = await fetch('https://api.openai.com/v1/images/generations', {
+        method: 'post',
+        response: 'json',
+        timeout: options.timeout,
+        tries: options.tries || 1,
+        headers: {
+          'Authorization': `Bearer ${self.key}`,
+          'Content-Type': 'application/json',
+        },
+        body: body,
+      });
+    } catch (e) {
+      return reject(assistant.errorify(`OpenAI.image() request failed: ${e.message}`, { code: e.code || 500 }));
+    }
+
+    if (!data?.data?.length) {
+      return reject(assistant.errorify(`OpenAI.image() returned no image data: ${JSON.stringify(data).slice(0, 300)}`, { code: 500 }));
+    }
+
+    const mapItem = (item) => {
+      const b64 = item.b64_json;
+      return {
+        buffer: b64 ? Buffer.from(b64, 'base64') : null,
+        b64: b64 || null,
+        mime: 'image/png',
+        revisedPrompt: item.revised_prompt || null,
+        model: options.model,
+        size: options.size,
+        quality: options.quality,
+        raw: data,
+      };
+    };
+
+    // Single image (the common case) returns one object; n > 1 returns an array.
+    return resolve(options.n === 1 ? mapItem(data.data[0]) : data.data.map(mapItem));
+  });
+};
 
 function tryParse(content) {
   try {
@@ -983,15 +1080,15 @@ function makeRequest(mode, options, self, promptSegments, message, user, _log) {
         request.body.reasoning = reasoning;
       }
 
-      // Only include tools (e.g. web_search) if provided. When present, the
+      // Only include tools if `tools.list` is a non-empty array. When present, the
       // response output may contain tool-call items (e.g. web_search_call)
       // alongside the message — the message extractor below already ignores
       // non-message items, so this is purely additive.
-      if (Array.isArray(options.tools) && options.tools.length) {
-        request.body.tools = options.tools;
+      if (Array.isArray(options.tools?.list) && options.tools.list.length) {
+        request.body.tools = options.tools.list;
 
-        if (options.toolChoice) {
-          request.body.tool_choice = options.toolChoice;
+        if (options.tools.choice) {
+          request.body.tool_choice = options.tools.choice;
         }
       }
     }

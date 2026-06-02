@@ -195,10 +195,14 @@ class SetupCommand extends BaseCommand {
       const rel = path.relative(defaultsDir, src);
       const segments = rel.split(path.sep);
 
-      // Skip "archive" directories — anything under a path segment starting with `_` and
-      // followed by a non-`.` character. Matches EM/BXM/UJM convention. The `_.env` /
-      // `_.gitignore` files are NOT skipped; their leading `_` strips on copy below.
-      if (segments.some((s) => s.startsWith('_') && !s.startsWith('_.'))) {
+      // Skip "archive" DIRECTORIES — any non-final path segment starting with `_` and
+      // followed by a non-`.` character (e.g. `_legacy/`). Matches EM/BXM/UJM convention.
+      // The check is restricted to directory segments (all but the last) so a `_`-prefixed
+      // FILENAME still ships — e.g. `test/_init.js` copies verbatim (the test runner skips
+      // it from discovery on its own). The `_.env` / `_.gitignore` files are likewise not
+      // skipped; their leading `_` strips on copy below.
+      const dirSegments = segments.slice(0, -1);
+      if (dirSegments.some((s) => s.startsWith('_') && !s.startsWith('_.'))) {
         continue;
       }
 
@@ -273,6 +277,10 @@ class SetupCommand extends BaseCommand {
 
     // Get all tests
     const tests = testRegistry.getTests(testContext);
+
+    // Expose the total count so the per-check `[N]` prefix can right-align its
+    // width (single- vs double-digit indices stay aligned).
+    self.testTotalExpected = tests.length;
 
     // Run each test
     for (const test of tests) {

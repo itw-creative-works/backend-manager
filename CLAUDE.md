@@ -34,7 +34,7 @@ All `npx mgr <cmd>` aliases work: `npx bm <cmd>`, `npx bem <cmd>`, `npx backend-
 1. `npm install` — install BEM's own deps
 2. `npm run prepare` — build once: copies `src/` → `dist/` via prepare-package
 3. `npm run prepare:watch` — watch mode
-4. Test in a consumer project: from inside the consumer, run `npx mgr install dev` to swap BEM to this local repo — required whenever you edit the framework source and want the consumer to pick up the changes (the consumer otherwise keeps its installed `node_modules/backend-manager`). Reverse with `npx mgr install prod`. If `npx mgr` then errors with "could not determine executable to run", the local install skipped bin-linking — re-run `npm install` to relink, or call `node node_modules/backend-manager/bin/backend-manager <cmd>` directly.
+4. Test in a consumer project: from inside the consumer, run `npx mgr install dev` to swap BEM to this local repo — required whenever you edit the framework source and want the consumer to pick up the changes (the consumer otherwise keeps its installed `node_modules/backend-manager`). Reverse with `npx mgr install live`. If `npx mgr` then errors with "could not determine executable to run", the local install skipped bin-linking — re-run `npm install` to relink, or call `node node_modules/backend-manager/bin/backend-manager <cmd>` directly.
 
 ## Architecture
 
@@ -79,6 +79,7 @@ See [docs/cli-firestore-auth.md](docs/cli-firestore-auth.md) and [docs/cli-logs.
 - **Routes receive whitespace-trimmed data; HTML is preserved.** Sanitize at the HTML-insertion site via `utilities.sanitize()`. Opt into middleware-level HTML strip per-route with `{ sanitize: true }`. See [docs/sanitization.md](docs/sanitization.md).
 - **Match schema names to route names** — if route is `myEndpoint`, schema is `myEndpoint`.
 - **Always use `assistant.respond()` for responses** — do NOT use `res.send()` directly.
+- **Always use `Manager.getApiUrl()` for the API URL** — never read the cached `Manager.project.apiUrl` property. The getter is the SSOT and auto-resolves to the local emulator in dev AND test (and production otherwise), so it's safe everywhere without passing an env arg. See [docs/environment-detection.md](docs/environment-detection.md).
 - **Add Firestore composite indexes** for any compound query (`where` + `orderBy`, or multiple `where`s) to `src/cli/commands/setup-tests/helpers/required-indexes.js` (the SSOT). Without the index, queries crash with `FAILED_PRECONDITION` in production.
 
 See [docs/code-patterns.md](docs/code-patterns.md) for code-pattern detail, [docs/common-mistakes.md](docs/common-mistakes.md) for the full anti-pattern checklist, and [docs/file-naming.md](docs/file-naming.md) for the naming table (routes / schemas / API commands / events / cron jobs / hooks).
@@ -107,7 +108,7 @@ Deep references live in `docs/`. **Whenever you make a behavioral change, update
 - [docs/common-mistakes.md](docs/common-mistakes.md) — anti-pattern checklist (don't modify Manager internals, always await, increment-before-update, etc.)
 - [docs/key-files.md](docs/key-files.md) — quick lookup for the most-touched files (Manager, helpers, auth events, cron, payment processors, CLI commands)
 - [docs/cli-output.md](docs/cli-output.md) — shared CLI styling module (`src/cli/utils/ui.js`): OMEGA-style banner/dividers/sections/status symbols + the `Summary` block; used by `setup`, adoptable by other commands
-- [docs/environment-detection.md](docs/environment-detection.md) — `assistant.isDevelopment/isProduction/isTesting()`
+- [docs/environment-detection.md](docs/environment-detection.md) — `getEnvironment()` returns `'development' | 'testing' | 'production'` (mutually exclusive); gate side effects on the INTENTIONAL check (`isProduction()` for prod-only, `isDevelopment() || isTesting()` for local-or-test) — never `!isDevelopment()`. Plus the URL helper convention (always `Manager.getApiUrl()` — auto-resolves local in dev+test, never read `project.apiUrl`)
 - [docs/response-headers.md](docs/response-headers.md) — automatic `bm-properties` header
 
 ### Building Routes & Components
@@ -129,12 +130,12 @@ Deep references live in `docs/`. **Whenever you make a behavioral change, update
 ### Subsystems & Libraries
 
 - [docs/usage-rate-limiting.md](docs/usage-rate-limiting.md) — usage tracking, monthly/daily caps, `setUser()` + mirrors for proxy usage, reset schedule
-- [docs/ai-library.md](docs/ai-library.md) — `Manager.AI()` unified entry for OpenAI + Anthropic
+- [docs/ai-library.md](docs/ai-library.md) — `Manager.AI()` unified entry for OpenAI + Anthropic (text via `.request()`, images via `.image()` → `gpt-image-2`)
 - [docs/marketing-fields.md](docs/marketing-fields.md) — adding custom fields to SendGrid + Beehiiv via the BEM/OMEGA SSOT pair
 - [docs/stripe-webhook-forwarding.md](docs/stripe-webhook-forwarding.md) — auto-started Stripe CLI forwarding for local dev
 
 ### Testing & CLI
 
-- [docs/testing.md](docs/testing.md) — running, filtering, log files, test types (standalone/suite/group), context object, assertions, auth levels. **Each test file `module.exports` a `{ description, type, tests }` object — NOT raw Mocha (`describe`/`it`/`beforeEach`); those globals are not injected and the file fails to load. Split tests one-file-per-concern under `test/<area>/`, never one giant `test/test.js`.** **All cleanup runs at the START of every run, never at the end.** If you add a test that writes Firestore data, register the collection/namespace in the runner's pre-test wipe list, don't add a trailing cleanup step. Marketing providers (SendGrid/Beehiiv) don't need a special exception — `_test.*` emails are blocked at the validation layer so test signups never reach providers. The `_test.allow_*` carve-out exists only for the live-provider lifecycle test (`test/marketing/consent-lifecycle.js`), which manages its own teardown.
+- [docs/testing.md](docs/testing.md) — running, filtering, log files, test types (standalone/suite/group), context object, assertions, auth levels. **NEVER mock — test against the real emulator.** No `mockManager`/`mockAdmin`/fake `firestore`/stubbed `assistant`; every `run()` gets the real `Manager`/`assistant`/`firestore`/`http`/`accounts` — use them. Pure functions (zero I/O) are the only thing you call directly; anything touching Firestore or an external API runs for real. Real external APIs (OpenAI/PayPal/GitHub/SendGrid/Stripe) are gated behind `TEST_EXTENDED_MODE` in-source (not mocked), and anything an extended test creates externally must be cleaned up by the test. **Each test file `module.exports` a `{ description, type, tests }` object — NOT raw Mocha (`describe`/`it`/`beforeEach`); those globals are not injected and the file fails to load. Split tests one-file-per-concern under `test/<area>/`, never one giant `test/test.js`.** **All cleanup runs at the START of every run, never at the end** — the runner flushes the ENTIRE emulator Firestore before every run, so there's nothing to register; seed any needed fixtures in `test/_init.js`'s `setup()`, and never add a trailing cleanup step. Marketing providers (SendGrid/Beehiiv) don't need a special exception — `_test.*` emails are blocked at the validation layer so test signups never reach providers. The `_test.allow_*` carve-out exists only for the live-provider lifecycle test (`test/marketing/consent-lifecycle.js`), which manages its own teardown.
 - [docs/cli-firestore-auth.md](docs/cli-firestore-auth.md) — `npx mgr firestore:*` and `auth:*` commands, shared flags, examples
 - [docs/cli-logs.md](docs/cli-logs.md) — `npx mgr logs:read` / `logs:tail` with full flag reference and built-in Cloud Function names

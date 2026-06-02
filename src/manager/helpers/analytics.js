@@ -43,7 +43,9 @@ function Analytics(Manager, options) {
   // Fix options
   options.dataSource = options.dataSource || 'server';
   options.uuid = options.uuid || self.request.ip || Manager.SERVER_UUID;
-  options.isDevelopment = typeof options.isDevelopment === 'undefined' ? self.assistant.isDevelopment() : options.isDevelopment;
+  // Skip real analytics in ANY non-production environment (development OR testing) so
+  // test/dev runs never pollute GA4. Intentional `!isProduction()` check.
+  options.isDevelopment = typeof options.isDevelopment === 'undefined' ? !self.assistant.isProduction() : options.isDevelopment;
   options.pageview = typeof options.pageview === 'undefined' ? true : options.pageview;
   options.version = options.version || Manager.package.version;
   options.userProperties = options.userProperties || {};

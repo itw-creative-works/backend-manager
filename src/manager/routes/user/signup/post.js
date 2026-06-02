@@ -478,9 +478,11 @@ function sendDiscountNudgeEmail(assistant, uid, firstName) {
 
 It's Ian, the founder of **${Manager.config.brand.name}**.
 
-As a thank-you for giving us a try, I'd love to send you a code for a **premium upgrade**. **Just reply to this email** and I'll get one over to you.
+As a thank-you for giving us a try, I'd love to send you a code for a **premium upgrade**.
 
-I read every reply, so if you have any questions, feedback, or there's anything I can help with, this is the place. Looking forward to hearing from you!`,
+**Just reply to this email** and I'll get one over to you.
+
+I read every reply and I'm looking forward to hearing from you!`,
       },
       signoff: {
         type: 'personal',

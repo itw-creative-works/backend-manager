@@ -8,9 +8,9 @@ const wonderfulVersion = require('wonderful-version');
 
 class InstallCommand extends BaseCommand {
   async execute(type) {
-    if (type === 'local' || type === 'dev' || type === 'development') {
+    if (['local', 'l', 'dev', 'd', 'development'].includes(type)) {
       await this.installLocal();
-    } else if (type === 'live' || type === 'prod' || type === 'production') {
+    } else if (['live', 'prod', 'p', 'production'].includes(type)) {
       await this.installLive();
     }
   }

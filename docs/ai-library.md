@@ -14,16 +14,43 @@ Return shape (same for all providers): `{ content, output, tokens, raw }`.
 
 API keys: `BACKEND_MANAGER_OPENAI_API_KEY`, `BACKEND_MANAGER_ANTHROPIC_API_KEY` (process.env or config).
 
+## Image generation (OpenAI)
+
+`Manager.AI(assistant).image({ prompt, ... })` generates an image via OpenAI's image model (`gpt-image-2` by default). Separate from `request()` because the return type is bytes, not text — it bypasses moderation, token accounting, schema, and prompt-normalization (none apply to image gen).
+
+```js
+const ai = Manager.AI(assistant);
+const { buffer, b64, mime, revisedPrompt } = await ai.image({
+  prompt: 'Minimal flat vector illustration of a rocket, undraw.co style, blue + white, no text.',
+  size: '1024x1024',   // 1024x1024 | 1536x1024 | 1024x1536 | auto (default 1024x1024)
+  quality: 'medium',   // low | medium | high | auto (default medium)
+  background: 'opaque', // transparent | opaque | auto (opt-in)
+  n: 1,                // default 1; n > 1 returns an array
+});
+// buffer is a PNG Buffer; b64 is the same data base64-encoded.
+```
+
+Return shape (single image): `{ buffer, b64, mime, revisedPrompt, model, size, quality, raw }`. With `n > 1` it returns an array of those.
+
+`gpt-image-2` always returns base64 (no URL round-trip). Generation is slow — `medium`/`1024²` ≈ 40-50s; the default request timeout is 5 minutes. Only `openai` implements `image()`; calling it on another provider throws.
+
+API key resolution is the same as `request()` — `BACKEND_MANAGER_OPENAI_API_KEY` / `OPENAI_API_KEY` (process.env or config).
+
 ## Tools / web search (OpenAI)
 
-`options.tools` (and optional `options.toolChoice`) are passed through to the OpenAI Responses API verbatim. Opt-in — when omitted, no tools are sent and behavior is identical to a plain request. Use this to enable OpenAI's built-in **web search** so the model finds and cites real, currently-live URLs instead of hallucinating them:
+Tools are nested under `options.tools` and opt-in — when omitted, no tools are sent and behavior is identical to a plain request:
+
+- `tools.list` — array of tool definitions passed to the OpenAI Responses API verbatim. Built-in hosted tools (e.g. `{ type: 'web_search' }`, `{ type: 'code_interpreter' }`) OR custom function tools (`{ type: 'function', name, parameters }`).
+- `tools.choice` *(optional)* — maps to `tool_choice` (`'auto'` | `'required'` | `'none'`, or a specific tool). Omit to let OpenAI default to `auto`.
+
+The most common use is OpenAI's built-in **web search** so the model finds and cites real, currently-live URLs instead of hallucinating them:
 
 ```js
 const r = await ai.request({
   model: 'gpt-5.4',
   response: 'json',
   reasoning: { effort: 'medium' },
-  tools: [{ type: 'web_search' }],
+  tools: { list: [{ type: 'web_search' }] },
   prompt: { path: '.../research/system.md', settings },
   message: { path: '.../research/user.md', settings },
 });

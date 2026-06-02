@@ -36,7 +36,7 @@ class TestCommand extends BaseCommand {
       const envSubset = captureSyncedEnv(process.env);
       writeTestMode(projectDir, envSubset);
       const extended = !!process.env.TEST_EXTENDED_MODE;
-      this.log(chalk.gray(`  Test mode: ${extended ? 'EXTENDED (real APIs)' : 'normal (mocked)'}`));
+      this.log(chalk.gray(`  Test mode: ${extended ? 'extended (real external APIs)' : 'normal (external APIs skipped)'}`));
     }
 
     // Load emulator ports from firebase.json

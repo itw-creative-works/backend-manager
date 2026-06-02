@@ -112,9 +112,12 @@ module.exports = {
 
     {
       name: 'succeeds-with-test-processor',
-      async run({ http, assert, config, accounts, firestore, waitFor }) {
+      async run({ http, assert, config, accounts, firestore, waitFor, skip }) {
         const uid = accounts['route-refund-success'].uid;
         const paidProduct = config.payment.products.find(p => p.id !== 'basic' && p.prices?.monthly);
+        if (!paidProduct) {
+          skip('No paid product with monthly price configured in this brand');
+        }
 
         // Step 1: Create a test subscription intent to set up a proper paid subscription
         const intentResponse = await http.as('route-refund-success').post('payments/intent', {

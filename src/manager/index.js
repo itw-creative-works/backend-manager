@@ -179,6 +179,54 @@ Manager.prototype.init = function (exporter, options) {
     });
   }
 
+  // Environment helpers — the Manager is the SINGLE SOURCE OF TRUTH (mirrors EM/UJM/BXM,
+  // where the Manager owns these). getEnvironment() is the ONLY place that reads the raw
+  // env vars (BEM_TESTING / ENVIRONMENT / FUNCTIONS_EMULATOR / TERM_PROGRAM); the three
+  // is*() checks derive from it live on every call. They return exactly ONE of three
+  // mutually-exclusive values — testing wins, then production, else development.
+  // The assistant exposes the same methods but FORWARDS to these (assistant.isTesting()
+  // → Manager.isTesting()), so request handlers can keep calling `assistant.*`.
+  // Defined BEFORE the assistant is constructed so the assistant's own init() can call back.
+  self.getEnvironment = function() {
+    // Testing takes precedence — set by the test runner / emulator (BEM_TESTING=true).
+    if (process.env.BEM_TESTING === 'true') {
+      return 'testing';
+    }
+    if (process.env.ENVIRONMENT === 'production') {
+      return 'production';
+    } else if (
+      process.env.ENVIRONMENT === 'development'
+      || process.env.FUNCTIONS_EMULATOR === true
+      || process.env.FUNCTIONS_EMULATOR === 'true'
+      || process.env.TERM_PROGRAM === 'Apple_Terminal'
+      || process.env.TERM_PROGRAM === 'vscode'
+    ) {
+      return 'development';
+    } else {
+      // Default: production. BEM's deployed RUNTIME can legitimately lack a dev signal — a
+      // live Cloud Function has no FUNCTIONS_EMULATOR and often no ENVIRONMENT var, so
+      // "no signal" IS the normal production state. Defaulting to development here would make
+      // every deployed function skip real side effects (emails/analytics/webhooks).
+      // (Contrast UJM/BXM, whose deployed artifacts always carry their signal, so they default
+      // to development — a bare context there is just build tooling.)
+      return 'production';
+    }
+  };
+
+  // The three checks are mutually exclusive — each true for ONLY its own environment.
+  // isDevelopment() is NOT true in testing; isProduction() is a real positive check
+  // (never `!isDevelopment()`). Gate "anything non-production" with `!isProduction()`
+  // or `isDevelopment() || isTesting()` intentionally.
+  self.isDevelopment = function() {
+    return self.getEnvironment() === 'development';
+  };
+  self.isProduction = function() {
+    return self.getEnvironment() === 'production';
+  };
+  self.isTesting = function() {
+    return self.getEnvironment() === 'testing';
+  };
+
   // Init assistant
   self.assistant = self.Assistant().init({
     req: null,
@@ -190,21 +238,33 @@ Manager.prototype.init = function (exporter, options) {
 
   // Helper functions for URLs based on environment
   self.getFunctionsUrl = function(env) {
-    const isDev = env === 'development' || (!env && self.assistant.isDevelopment());
+    // Auto-detect (no explicit env): development OR testing → local URLs. Test runs
+    // hit the local emulator, so getApiUrl/getFunctionsUrl/getWebsiteUrl must resolve
+    // to localhost. NOTE: getParentApiUrl/getParentUrl are intentionally NOT changed —
+    // the parent is a real remote server with no localhost equivalent.
+    const isDev = env === 'development' || (!env && (self.isDevelopment() || self.isTesting()));
     return isDev
       ? `http://localhost:5001/${self.project.projectId}/${self.project.resourceZone}`
       : `https://${self.project.resourceZone}-${self.project.projectId}.cloudfunctions.net`;
   };
 
   self.getApiUrl = function(env) {
-    const isDev = env === 'development' || (!env && self.assistant.isDevelopment());
+    // Auto-detect (no explicit env): development OR testing → local URLs. Test runs
+    // hit the local emulator, so getApiUrl/getFunctionsUrl/getWebsiteUrl must resolve
+    // to localhost. NOTE: getParentApiUrl/getParentUrl are intentionally NOT changed —
+    // the parent is a real remote server with no localhost equivalent.
+    const isDev = env === 'development' || (!env && (self.isDevelopment() || self.isTesting()));
     return isDev
       ? 'http://localhost:5002'
       : `https://api.${(self.config.brand?.url || '').replace(/^https?:\/\//, '')}`;
   };
 
   self.getWebsiteUrl = function(env) {
-    const isDev = env === 'development' || (!env && self.assistant.isDevelopment());
+    // Auto-detect (no explicit env): development OR testing → local URLs. Test runs
+    // hit the local emulator, so getApiUrl/getFunctionsUrl/getWebsiteUrl must resolve
+    // to localhost. NOTE: getParentApiUrl/getParentUrl are intentionally NOT changed —
+    // the parent is a real remote server with no localhost equivalent.
+    const isDev = env === 'development' || (!env && (self.isDevelopment() || self.isTesting()));
     return isDev
       ? 'https://localhost:4000'
       : self.config.brand?.url || '';
@@ -254,7 +314,7 @@ Manager.prototype.init = function (exporter, options) {
   self.project.websiteUrl = self.getWebsiteUrl();
 
   // Set environment
-  process.env.ENVIRONMENT = process.env.ENVIRONMENT || self.assistant.meta.environment;
+  process.env.ENVIRONMENT = process.env.ENVIRONMENT || self.getEnvironment();
 
   // Set BEM env variables
   process.env.BEM_FUNCTIONS_URL = self.project.functionsUrl;
@@ -262,9 +322,10 @@ Manager.prototype.init = function (exporter, options) {
   process.env.BEM_WEBSITE_URL = self.project.websiteUrl;
 
   // Use the working Firebase logger that they disabled for whatever reason
+  // Load the Firebase logger compat shim only in production (NOT development or testing).
   if (
     process.env.GCLOUD_PROJECT
-    && self.assistant.meta.environment !== 'development'
+    && self.isProduction()
     && options.useFirebaseLogger
   ) {
     // require('firebase-functions/lib/logger/compat'); // Old way
@@ -272,7 +333,7 @@ Manager.prototype.init = function (exporter, options) {
   }
 
   // Handle test environment
-  if (self.assistant.isTesting()) {
+  if (self.isTesting()) {
     self.assistant.log('⚠️⚠️⚠️ Running in TEST environment, some features may be disabled ⚠️⚠️⚠️');
 
     // Install the test-mode-file watcher exactly once. Lets the test command
@@ -283,7 +344,7 @@ Manager.prototype.init = function (exporter, options) {
   }
 
   // Handle dev environments
-  if (self.assistant.isDevelopment()) {
+  if (self.isDevelopment()) {
     const version = require('wonderful-version');
     const nodeUsing = version.major(process.versions.node);
     const nodeRequired = version.major(self.package?.engines?.node || '0.0.0');
@@ -331,14 +392,17 @@ Manager.prototype.init = function (exporter, options) {
       dsn: sentryDSN,
       release: sentryRelease,
       beforeSend(event, hint) {
-        if (self.assistant.isDevelopment() && !self.options.reportErrorsInDev) {
-          self.assistant.error(new Error('[Sentry] Skipping Sentry because we\'re in development'), hint)
+        // Skip Sentry in any non-production environment (development OR testing) unless
+        // explicitly opted in. Intentional positive check — we never want test-run errors
+        // polluting production Sentry.
+        if (!self.isProduction() && !self.options.reportErrorsInDev) {
+          self.assistant.error(new Error('[Sentry] Skipping Sentry because we\'re not in production'), hint)
           return null;
         }
         event.tags = event.tags || {};
         event.tags['function.name'] = self.assistant.meta.name;
         event.tags['function.type'] = self.assistant.meta.type;
-        event.tags['environment'] = self.assistant.meta.environment;
+        event.tags['environment'] = self.getEnvironment();
         return event;
       },
     });
@@ -381,7 +445,7 @@ Manager.prototype.init = function (exporter, options) {
   }
 
   // Fetch stats
-  if (self.assistant.isDevelopment() && options.fetchStats) {
+  if (self.isDevelopment() && options.fetchStats) {
     setTimeout(function () {
       self.assistant.log('Fetching meta/stats...');
       self.libraries.admin
@@ -677,7 +741,7 @@ Manager.prototype.storage = function (options) {
     // Clear temporary storage
     if (
       options.temporary
-      && self.assistant.isDevelopment()
+      && self.isDevelopment()
       && options.clear
     ) {
       self.assistant.log('Removed temporary file @', location);

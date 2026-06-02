@@ -15,6 +15,7 @@ const DISCOUNT_CODES = {
   'WELCOME15': { percent: 15, duration: 'once' },
   'SAVE10': { percent: 10, duration: 'once' },
   'FLASH20': { percent: 20, duration: 'once' },
+  'GIFT15': { percent: 15, duration: 'once' },
 
   // Email campaigns (used by recurring sale seeds — restricted by audience)
   'UPGRADE15': {

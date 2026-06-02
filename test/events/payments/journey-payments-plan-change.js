@@ -13,12 +13,15 @@ module.exports = {
   tests: [
     {
       name: 'setup-paid-subscription',
-      async run({ accounts, firestore, assert, state, config, http, waitFor }) {
+      async run({ accounts, firestore, assert, state, config, http, waitFor, skip }) {
         const uid = accounts['journey-payments-plan-change'].uid;
 
-        // Resolve two distinct paid subscription products from config
+        // Resolve two distinct paid subscription products from config. If the brand
+        // has fewer than two, skip the journey — this is a config-gap, not a code failure.
         const paidProducts = config.payment.products.filter(p => p.id !== 'basic' && p.type === 'subscription' && p.prices);
-        assert.ok(paidProducts.length >= 2, 'Config should have at least two paid subscription products');
+        if (paidProducts.length < 2) {
+          skip('Fewer than two paid subscription products configured in this brand');
+        }
 
         const productA = paidProducts[0];
         const productB = paidProducts[1];

@@ -92,6 +92,39 @@ AI.prototype.request = async function (options) {
   return result;
 };
 
+/**
+ * Generate an image. Dispatches to the provider's image() method.
+ *
+ * Currently only OpenAI (gpt-image-2) implements image generation.
+ *
+ *   const ai = Manager.AI(assistant);
+ *   const { buffer } = await ai.image({ prompt: 'a flat vector rocket', size: '1024x1024' });
+ *
+ * @param {object} options
+ * @param {string}  options.prompt        - Image description (required)
+ * @param {'openai'} [options.provider='openai']
+ * @param {string} [options.model]        - default gpt-image-2
+ * @param {string} [options.size]         - 1024x1024 | 1536x1024 | 1024x1536 | auto
+ * @param {string} [options.quality]      - low | medium | high | auto
+ * @param {string} [options.background]   - transparent | opaque | auto
+ * @param {number} [options.n]            - how many images (default 1)
+ * @param {string} [options.apiKey]
+ * @returns {Promise<{buffer, b64, mime, revisedPrompt, model, size, quality, raw}>}
+ */
+AI.prototype.image = async function (options) {
+  const self = this;
+  const opts = options || {};
+  const provider = opts.provider || DEFAULT_PROVIDER;
+
+  const client = self._getProvider(provider, opts.apiKey);
+
+  if (typeof client.image !== 'function') {
+    throw new Error(`AI provider "${provider}" does not support image generation`);
+  }
+
+  return client.image(opts);
+};
+
 AI.prototype._getProvider = function (provider, apiKey) {
   const self = this;
 

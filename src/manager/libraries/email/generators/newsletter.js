@@ -9,7 +9,9 @@
  *   1. Read newsletter categories from Manager.config.marketing.beehiiv.content.categories
  *   2. Fetch ready sources from parent server (atomic claim via claimFor=brandId)
  *   3. structure.js → AI authors subject, preheader, intro, sections, signoff
- *   4. svg-illustrator.js → AI authors one SVG per section, rasterize to PNG
+ *   4. image-illustrator.js → AI generates one flat-vector PNG per section via
+ *      gpt-image-2 (default). Set content.method.image = 'svg' to use the legacy
+ *      svg-illustrator.js (AI writes an <svg>, resvg rasterizes it) instead.
  *   5. mjml-template.js → compile MJML → email-safe HTML
  *   6. Persist PNGs (caller-provided via opts.persistImage or default no-op)
  *   7. Mark sources as used on parent server
@@ -22,8 +24,19 @@ const fetch = require('wonderful-fetch');
 
 const { filterSources } = require('./lib/filter.js');
 const { generateStructure } = require('./lib/structure.js');
-const { generateSectionImage } = require('./lib/svg-illustrator.js');
+const { generateSectionImage: generateImageSection } = require('./lib/image-illustrator.js');
+const { generateSectionImage: generateSvgSection } = require('./lib/svg-illustrator.js');
 const { renderNewsletter } = require('./lib/mjml-template.js');
+
+// Default illustration method. 'image' = gpt-image-2 flat-vector PNGs (default).
+// 'svg' = legacy AI-authored SVG rasterized via resvg. Selected per-brand via
+// marketing.beehiiv.content.method.image.
+const DEFAULT_IMAGE_METHOD = 'image';
+
+function resolveSectionImageFn(newsletterConfig) {
+  const method = newsletterConfig?.method?.image || DEFAULT_IMAGE_METHOD;
+  return method === 'svg' ? generateSvgSection : generateImageSection;
+}
 const { renderMarkdown } = require('./lib/markdown-renderer.js');
 const { uploadAssets, RAW_BASE } = require('./lib/image-host.js');
 const { buildPublicConfig } = require('../../../routes/brand/get.js');
@@ -165,6 +178,7 @@ async function generate(Manager, assistant, settings, opts = {}) {
       return;
     }
 
+    const generateSectionImage = resolveSectionImageFn(config);
     const images = await Promise.all(
       structure.sections.map((s) => generateSectionImage({
         imagePrompt: s.image_prompt,

@@ -46,7 +46,7 @@ module.exports = async ({ assistant, Manager, user, settings, libraries }) => {
   // Sign out of all sessions first
   assistant.log(`Signing out of all sessions for ${uid}...`);
 
-  await fetch(`${Manager.project.apiUrl}/backend-manager/user/sessions`, {
+  await fetch(`${Manager.getApiUrl()}/backend-manager/user/sessions`, {
     method: 'delete',
     timeout: 60000,
     response: 'json',

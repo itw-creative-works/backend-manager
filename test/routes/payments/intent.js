@@ -5,7 +5,9 @@
  * Validation tests use processor=stripe (fail at SDK step, proving validation logic)
  * Success tests use processor=test (full intent→webhook→trigger pipeline)
  *
- * Product-agnostic: resolves the first paid product from config.payment.products
+ * Product-agnostic: resolves the first paid product from config.payment.products.
+ * If the brand has no paid product configured, each test skips — this is a
+ * config-gap, not a code failure.
  */
 module.exports = {
   description: 'Payment intent creation',
@@ -16,8 +18,11 @@ module.exports = {
     {
       name: 'rejects-unauthenticated',
       auth: 'none',
-      async run({ http, assert, config }) {
+      async run({ http, assert, config, skip }) {
         const paidProduct = config.payment.products.find(p => p.id !== 'basic' && p.prices);
+        if (!paidProduct) {
+          skip('No paid product configured in this brand');
+        }
 
         const response = await http.as('none').post('payments/intent', {
           processor: 'stripe',
@@ -31,8 +36,11 @@ module.exports = {
 
     {
       name: 'rejects-missing-processor',
-      async run({ http, assert, config }) {
+      async run({ http, assert, config, skip }) {
         const paidProduct = config.payment.products.find(p => p.id !== 'basic' && p.prices);
+        if (!paidProduct) {
+          skip('No paid product configured in this brand');
+        }
 
         const response = await http.as('basic').post('payments/intent', {
           productId: paidProduct.id,
@@ -57,8 +65,11 @@ module.exports = {
 
     {
       name: 'rejects-missing-frequency-for-subscription',
-      async run({ http, assert, config }) {
+      async run({ http, assert, config, skip }) {
         const paidProduct = config.payment.products.find(p => p.id !== 'basic' && p.type === 'subscription' && p.prices);
+        if (!paidProduct) {
+          skip('No paid subscription product configured in this brand');
+        }
 
         const response = await http.as('basic').post('payments/intent', {
           processor: 'stripe',
@@ -72,8 +83,11 @@ module.exports = {
     {
       name: 'rejects-active-paid-user',
       auth: 'premium-active',
-      async run({ http, assert, config }) {
+      async run({ http, assert, config, skip }) {
         const paidProduct = config.payment.products.find(p => p.id !== 'basic' && p.prices);
+        if (!paidProduct) {
+          skip('No paid product configured in this brand');
+        }
 
         const response = await http.as('premium-active').post('payments/intent', {
           processor: 'stripe',
@@ -88,8 +102,11 @@ module.exports = {
     {
       name: 'rejects-suspended-user',
       auth: 'premium-suspended',
-      async run({ http, assert, config }) {
+      async run({ http, assert, config, skip }) {
         const paidProduct = config.payment.products.find(p => p.id !== 'basic' && p.prices);
+        if (!paidProduct) {
+          skip('No paid product configured in this brand');
+        }
 
         const response = await http.as('premium-suspended').post('payments/intent', {
           processor: 'stripe',
@@ -104,8 +121,11 @@ module.exports = {
     {
       name: 'rejects-cancelling-user',
       auth: 'premium-cancelling',
-      async run({ http, assert, config }) {
+      async run({ http, assert, config, skip }) {
         const paidProduct = config.payment.products.find(p => p.id !== 'basic' && p.prices);
+        if (!paidProduct) {
+          skip('No paid product configured in this brand');
+        }
 
         const response = await http.as('premium-cancelling').post('payments/intent', {
           processor: 'stripe',
@@ -120,8 +140,11 @@ module.exports = {
     {
       name: 'allows-cancelled-user',
       auth: 'premium-expired',
-      async run({ http, assert, config }) {
+      async run({ http, assert, config, skip }) {
         const paidProduct = config.payment.products.find(p => p.id !== 'basic' && p.prices);
+        if (!paidProduct) {
+          skip('No paid product configured in this brand');
+        }
 
         const response = await http.as('premium-expired').post('payments/intent', {
           processor: 'test',
@@ -148,8 +171,11 @@ module.exports = {
 
     {
       name: 'rejects-unknown-processor',
-      async run({ http, assert, config }) {
+      async run({ http, assert, config, skip }) {
         const paidProduct = config.payment.products.find(p => p.id !== 'basic' && p.prices);
+        if (!paidProduct) {
+          skip('No paid product configured in this brand');
+        }
 
         const response = await http.as('basic').post('payments/intent', {
           processor: 'unknown-processor',
@@ -163,8 +189,11 @@ module.exports = {
 
     {
       name: 'rejects-invalid-discount-code',
-      async run({ http, assert, config }) {
+      async run({ http, assert, config, skip }) {
         const paidProduct = config.payment.products.find(p => p.id !== 'basic' && p.prices);
+        if (!paidProduct) {
+          skip('No paid product configured in this brand');
+        }
 
         const response = await http.as('basic').post('payments/intent', {
           processor: 'stripe',
@@ -179,8 +208,11 @@ module.exports = {
 
     {
       name: 'saves-discount-to-intent-doc',
-      async run({ http, assert, config, firestore }) {
+      async run({ http, assert, config, firestore, skip }) {
         const paidProduct = config.payment.products.find(p => p.id !== 'basic' && p.prices);
+        if (!paidProduct) {
+          skip('No paid product configured in this brand');
+        }
 
         const response = await http.as('journey-payments-intent-discount').post('payments/intent', {
           processor: 'test',
@@ -202,8 +234,11 @@ module.exports = {
 
     {
       name: 'saves-attribution-and-supplemental-to-intent-doc',
-      async run({ http, assert, config, firestore }) {
+      async run({ http, assert, config, firestore, skip }) {
         const paidProduct = config.payment.products.find(p => p.id !== 'basic' && p.prices);
+        if (!paidProduct) {
+          skip('No paid product configured in this brand');
+        }
 
         const response = await http.as('journey-payments-intent-attribution').post('payments/intent', {
           processor: 'test',
@@ -223,9 +258,12 @@ module.exports = {
 
     {
       name: 'succeeds-with-test-processor',
-      async run({ http, assert, config, firestore, accounts, waitFor }) {
+      async run({ http, assert, config, firestore, accounts, waitFor, skip }) {
         const uid = accounts['journey-payments-intent'].uid;
         const paidProduct = config.payment.products.find(p => p.id !== 'basic' && p.prices);
+        if (!paidProduct) {
+          skip('No paid product configured in this brand');
+        }
 
         const response = await http.as('journey-payments-intent').post('payments/intent', {
           processor: 'test',
@@ -256,9 +294,12 @@ module.exports = {
 
     {
       name: 'downgrades-trial-for-user-with-history',
-      async run({ http, assert, config, accounts, firestore, waitFor }) {
+      async run({ http, assert, config, accounts, firestore, waitFor, skip }) {
         const uid = accounts['journey-payments-intent-trial'].uid;
         const paidProduct = config.payment.products.find(p => p.id !== 'basic' && p.prices);
+        if (!paidProduct) {
+          skip('No paid product configured in this brand');
+        }
         const orderDocPath = `payments-orders/_test-order-history-${uid}`;
 
         // Create fake subscription history so user is ineligible for trial

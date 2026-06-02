@@ -40,7 +40,7 @@ Module.prototype.main = function () {
         : payload.data.payload.referrer
 
       payload.data.payload.serverUrl = typeof payload.data.payload.serverUrl === 'undefined'
-        ? `${Manager.project.apiUrl}/backend-manager`
+        ? `${Manager.getApiUrl()}/backend-manager`
         : payload.data.payload.serverUrl
 
       payload.data.payload.provider = payload.data.payload.provider || '';
