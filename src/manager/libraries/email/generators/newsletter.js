@@ -303,6 +303,7 @@ async function generate(Manager, assistant, settings, opts = {}) {
   //     The folder URL becomes the canonical archive of the issue.
   let assetsFolderUrl = null;
   let htmlUrl = null;
+  let previewUrl = null;
   let markdownUrl = null;
   let summaryUrl = null;
 
@@ -319,6 +320,7 @@ async function generate(Manager, assistant, settings, opts = {}) {
       });
       assetsFolderUrl = upload.folderUrl;
       htmlUrl = upload.htmlUrl;
+      previewUrl = upload.previewUrl || null;
       markdownUrl = upload.markdownUrl || null;
       summaryUrl = upload.summaryUrl || null;
     } catch (e) {
@@ -377,6 +379,7 @@ async function generate(Manager, assistant, settings, opts = {}) {
       preheader: structure.preheader,
       tags: Array.isArray(structure.tags) ? structure.tags : [],
       htmlUrl,
+      previewUrl,
       markdownUrl,
       summaryUrl,
       folderUrl: assetsFolderUrl,
@@ -434,6 +437,7 @@ async function generate(Manager, assistant, settings, opts = {}) {
     campaignId,
     folderUrl: assetsFolderUrl,
     htmlUrl,
+    previewUrl,
     markdownUrl,
     summaryUrl,
     imageUrls: imagePaths,
@@ -557,6 +561,7 @@ async function buildLinkedArticle({ Manager, assistant, brand, config, structure
  * @param {string[]} args.tags
  * @param {string} args.htmlUrl - GitHub raw URL to the fully-rendered HTML
  * @param {string} [args.markdownUrl] - GitHub raw URL to the per-section markdown
+ * @param {string} [args.previewUrl] - GitHub Pages URL for browser-rendered HTML preview
  * @param {string} [args.summaryUrl] - GitHub raw URL to the 2-3 sentence summary
  * @param {string} [args.folderUrl] - GitHub folder URL (browseable archive)
  * @param {string} args.reason - Why Beehiiv upload failed (API error message)
@@ -592,17 +597,24 @@ async function sendBeehiivFallbackEmail(Manager, assistant, args) {
     }
     messageLines.push('</ul>');
     messageLines.push('');
-    messageLines.push('<strong>Assets (manual upload links):</strong>');
+    messageLines.push('<strong>Assets:</strong>');
     messageLines.push('<ul>');
-    messageLines.push(`<li><strong>Full HTML</strong> (one-shot paste): <a href="${args.htmlUrl}">${args.htmlUrl}</a></li>`);
+    messageLines.push('<li><strong>Full HTML</strong> (one-shot paste into Beehiiv)');
+    messageLines.push('<ul>');
+    if (args.previewUrl) {
+      messageLines.push(`<li><a href="${args.previewUrl}">Preview in browser</a></li>`);
+    }
+    messageLines.push(`<li><a href="${args.htmlUrl}">View raw HTML</a></li>`);
+    messageLines.push('</ul>');
+    messageLines.push('</li>');
     if (args.markdownUrl) {
-      messageLines.push(`<li><strong>Per-section markdown</strong> (paste as separate blocks, ads between): <a href="${args.markdownUrl}">${args.markdownUrl}</a></li>`);
+      messageLines.push(`<li><a href="${args.markdownUrl}"><strong>Per-section markdown</strong></a> — paste as separate blocks, ads between</li>`);
     }
     if (args.summaryUrl) {
-      messageLines.push(`<li><strong>Summary</strong> (2-3 sentence recap): <a href="${args.summaryUrl}">${args.summaryUrl}</a></li>`);
+      messageLines.push(`<li><a href="${args.summaryUrl}"><strong>Summary</strong></a> — 2-3 sentence recap</li>`);
     }
     if (args.folderUrl) {
-      messageLines.push(`<li><strong>All assets</strong>: <a href="${args.folderUrl}">${args.folderUrl}</a></li>`);
+      messageLines.push(`<li><a href="${args.folderUrl}"><strong>All assets</strong></a> — GitHub folder</li>`);
     }
     messageLines.push('</ul>');
 

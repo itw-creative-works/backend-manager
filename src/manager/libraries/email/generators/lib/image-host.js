@@ -3,11 +3,12 @@
  * rendered `newsletter.html`) to the public `itw-creative-works/newsletter-assets`
  * GitHub repo as a single atomic commit.
  *
- * Returns publicly resolvable `raw.githubusercontent.com` URLs:
- *   - Image URLs: embedded in the HTML via <img src=...> so Beehiiv / SendGrid /
- *     any inbox can render them
- *   - HTML URL: download link for manual paste into Beehiiv (and a stable
- *     archive of every issue's final rendered form)
+ * Returns publicly resolvable URLs:
+ *   - Image URLs (`raw.githubusercontent.com`): embedded in the HTML via
+ *     <img src=...> so Beehiiv / SendGrid / any inbox can render them
+ *   - HTML URL (`raw.githubusercontent.com`): download link for manual paste
+ *     into Beehiiv (and a stable archive of every issue's final rendered form)
+ *   - Preview URL (`*.github.io`): browser-renderable HTML via GitHub Pages
  *
  * Public-safety guarantees baked in:
  *   - Only accepts PNG buffers for images — verified by magic-byte check
@@ -27,6 +28,7 @@ const REPO_NAME  = 'newsletter-assets';
 const REPO_BRANCH = 'main';
 
 const RAW_BASE = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REPO_BRANCH}`;
+const PAGES_BASE = `https://${REPO_OWNER}.github.io/${REPO_NAME}`;
 
 // `{brandId}/{campaignId}/section-N.png` — both ids are kebab/alphanumeric
 const IMAGE_PATH_REGEX = /^[a-z0-9-]+\/[A-Za-z0-9_-]+\/section-\d+\.png$/;
@@ -61,7 +63,7 @@ const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
  * @param {string} [args.commitMessage] - Full override of the default commit message
  * @param {string} [args.token] - GitHub token (defaults to process.env.GH_TOKEN)
  * @param {object} [args.assistant] - logger
- * @returns {Promise<{ urls: string[], paths: string[], htmlUrl?: string, htmlPath?: string, folderUrl: string, commitSha: string }>}
+ * @returns {Promise<{ urls: string[], paths: string[], htmlUrl?: string, htmlPath?: string, previewUrl?: string, folderUrl: string, commitSha: string }>}
  */
 async function uploadAssets({ images, html, markdown, summary, brandId, campaignId, subject, commitMessage, token, assistant }) {
   const hasImages = Array.isArray(images) && images.length > 0;
@@ -245,6 +247,7 @@ async function uploadAssets({ images, html, markdown, summary, brandId, campaign
   if (htmlFile) {
     result.htmlUrl = `${RAW_BASE}/${htmlFile.path}`;
     result.htmlPath = htmlFile.path;
+    result.previewUrl = `${PAGES_BASE}/${htmlFile.path}`;
   }
 
   if (markdownFile) {
@@ -280,4 +283,5 @@ module.exports = {
   REPO_NAME,
   REPO_BRANCH,
   RAW_BASE,
+  PAGES_BASE,
 };

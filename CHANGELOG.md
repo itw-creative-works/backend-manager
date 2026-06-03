@@ -14,6 +14,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.3.2] - 2026-06-03
+
+### Added
+- **Newsletter HTML preview via GitHub Pages.** Enabled GitHub Pages on the `newsletter-assets` repo so newsletter HTML renders natively in the browser. Added `PAGES_BASE` constant and `previewUrl` to `image-host.js` uploads, threaded through to the Firestore campaign `assets` doc and the Beehiiv fallback alert email.
+
+### Changed
+- **Cleaner Beehiiv fallback email.** Restructured the asset links to use clean anchor text with a nested list (preview / raw HTML) under "Full HTML" instead of displaying raw GitHub URLs.
+- **Download-app-link email subject.** Friendlier subject line format.
+
 # [5.3.1] - 2026-06-02
 
 ### Fixed
