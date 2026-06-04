@@ -24,8 +24,8 @@ module.exports = async ({ assistant, Manager, libraries }) => {
     return assistant.respond('Missing processor parameter', { code: 400 });
   }
 
-  // Validate key — accept either BACKEND_MANAGER_WEBHOOK_KEY (preferred) or BACKEND_MANAGER_KEY (legacy)
-  if (!key || (key !== process.env.BACKEND_MANAGER_WEBHOOK_KEY && key !== process.env.BACKEND_MANAGER_KEY)) {
+  // Validate key
+  if (!key || key !== process.env.BACKEND_MANAGER_WEBHOOK_KEY) {
     return assistant.respond('Invalid key', { code: 401 });
   }
 

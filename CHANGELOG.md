@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.3.3] - 2026-06-03
+
+### BREAKING
+- **Payment webhook routes no longer accept `BACKEND_MANAGER_KEY` as a fallback.** `/payments/webhook` and `/payments/dispute-alert` now only accept `BACKEND_MANAGER_WEBHOOK_KEY`. All consumer brands must have `BACKEND_MANAGER_WEBHOOK_KEY` set in their `.env` and registered with their payment providers (Stripe, PayPal, Chargebee, Chargeblast) before upgrading to this version.
+
 # [5.3.2] - 2026-06-03
 
 ### Added
