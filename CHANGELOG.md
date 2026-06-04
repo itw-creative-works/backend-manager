@@ -14,6 +14,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.3.5] - 2026-06-04
+
+### Added
+- **Campaign integration test.** `test/routes/marketing/campaign.js` covers send-to-test_admin (extended mode), future-campaign-pending, and auth gate checks.
+- **Provider observability logs.** SendGrid: `resolveFieldIds`, `addContact` (email + list + field count), `buildFields` (warns on unmapped fields). Beehiiv: `addSubscriber` (email + publication + field count). These were completely silent before.
+
+### Fixed
+- **Beehiiv fallback alert used `brand.url` for email domain.** Subdomain projects (e.g. Ultimate Jekyll) built `alerts@ultimate-jekyll.itwcreativeworks.com` instead of the correct `alerts@itwcreativeworks.com`. Now derives domain from `brand.contact.email`.
+
 # [5.3.4] - 2026-06-04
 
 ### Added

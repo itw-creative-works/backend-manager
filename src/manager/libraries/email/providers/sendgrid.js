@@ -50,6 +50,8 @@ async function resolveFieldIds() {
       _fieldIdCache[field.name] = field.id;
     }
 
+    console.log(`SendGrid resolveFieldIds: ${Object.keys(_fieldIdCache).length} fields loaded:`, _fieldIdCache);
+
     return _fieldIdCache;
   } catch (e) {
     console.error('SendGrid resolveFieldIds error:', e);
@@ -557,6 +559,9 @@ async function addContact({ email, firstName, lastName, company, customFields })
   }
 
   const listId = getListId();
+
+  console.log(`SendGrid addContact: ${email} → list=${listId || '(none)'}, customFields=${Object.keys(contact.custom_fields).length}`);
+
   const result = await upsertContacts({
     contacts: [contact],
     listIds: listId ? [listId] : [],
@@ -581,12 +586,20 @@ async function buildFields(userDoc) {
   const idMap = await resolveFieldIds();
   const fields = {};
 
+  const unmapped = [];
+
   for (const [name, value] of Object.entries(values)) {
     const sgId = idMap[name];
 
     if (sgId) {
       fields[sgId] = value;
+    } else {
+      unmapped.push(name);
     }
+  }
+
+  if (unmapped.length) {
+    console.warn(`SendGrid buildFields: ${unmapped.length} field(s) have no SendGrid ID (skipped):`, unmapped);
   }
 
   return fields;

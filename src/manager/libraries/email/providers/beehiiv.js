@@ -64,6 +64,8 @@ async function addSubscriber({ email, firstName, lastName, source, publicationId
       body.custom_fields = fields;
     }
 
+    console.log(`Beehiiv addSubscriber: ${email} → pub=${publicationId}, customFields=${fields.length}`);
+
     const data = await fetch(`${BASE_URL}/publications/${publicationId}/subscriptions`, {
       method: 'post',
       response: 'json',

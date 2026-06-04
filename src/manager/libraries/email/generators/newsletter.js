@@ -571,10 +571,10 @@ async function sendBeehiivFallbackEmail(Manager, assistant, args) {
   // The `sender: 'internal'` SENDERS entry already resolves the FROM address
   // to this; we mirror the same domain for the TO so it's a self-addressed
   // operational alert (no human inbox involved).
-  const brandDomain = (Manager.config?.brand?.url || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const brandDomain = Manager.config?.brand?.contact?.email?.split('@')[1];
 
   if (!brandDomain) {
-    assistant.log('Newsletter generator: Beehiiv fallback email skipped — no brand.url');
+    assistant.log('Newsletter generator: Beehiiv fallback email skipped — no brand.contact.email');
     return;
   }
 
