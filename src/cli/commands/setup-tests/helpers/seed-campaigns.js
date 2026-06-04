@@ -1,4 +1,5 @@
 const moment = require('moment');
+const { nextWeekday, nextNthWeekday } = require('../../../../manager/libraries/email/constants.js');
 
 /**
  * Seed marketing campaigns — recurring templates created/enforced on setup.
@@ -14,36 +15,6 @@ const moment = require('moment');
  * IDs and names are timing-agnostic so consuming projects can change
  * the recurrence pattern without breaking the ID.
  */
-
-/**
- * Get the next occurrence of a specific day of month.
- * @param {number} dayOfMonth - Day (1-31)
- * @param {number} hour - Hour (UTC)
- */
-function nextMonthDay(dayOfMonth, hour) {
-  const next = moment.utc().startOf('month').date(dayOfMonth).hour(hour);
-
-  if (next.isBefore(moment.utc())) {
-    next.add(1, 'month');
-  }
-
-  return next.unix();
-}
-
-/**
- * Get the next occurrence of a specific weekday.
- * @param {number} dayOfWeek - 0=Sunday, 1=Monday, ..., 6=Saturday
- * @param {number} hour - Hour (UTC)
- */
-function nextWeekday(dayOfWeek, hour) {
-  const next = moment.utc().startOf('day').hour(hour);
-
-  while (next.day() !== dayOfWeek || next.isBefore(moment.utc())) {
-    next.add(1, 'day');
-  }
-
-  return next.unix();
-}
 
 function buildSeedCampaigns() {
   const now = moment.utc();
@@ -76,10 +47,10 @@ function buildSeedCampaigns() {
           excludeSegments: ['subscription_paid'],
           utm: { utm_campaign: '{holiday.name}_sale', utm_content: 'free_users' },
         },
-        sendAt: nextMonthDay(15, 14),
+        sendAt: nextNthWeekday(2, 3, 17, 30),
         status: 'pending',
         type: 'email',
-        recurrence: { pattern: 'monthly', day: 15, hour: 14 },
+        recurrence: { pattern: 'monthly-weekday', nth: 2, day: 3, hour: 17, minute: 30 },
         metadata: {
           created: { timestamp: nowISO, timestampUNIX: nowUNIX },
           updated: { timestamp: nowISO, timestampUNIX: nowUNIX },
@@ -117,10 +88,10 @@ function buildSeedCampaigns() {
           excludeSegments: ['subscription_paid'],
           utm: { utm_campaign: '{holiday.name}_sale', utm_content: 'churned_trial' },
         },
-        sendAt: nextMonthDay(15, 14),
+        sendAt: nextNthWeekday(2, 3, 17, 30),
         status: 'pending',
         type: 'email',
-        recurrence: { pattern: 'monthly', day: 15, hour: 14 },
+        recurrence: { pattern: 'monthly-weekday', nth: 2, day: 3, hour: 17, minute: 30 },
         metadata: {
           created: { timestamp: nowISO, timestampUNIX: nowUNIX },
           updated: { timestamp: nowISO, timestampUNIX: nowUNIX },
@@ -158,10 +129,10 @@ function buildSeedCampaigns() {
           excludeSegments: ['subscription_paid'],
           utm: { utm_campaign: '{holiday.name}_sale', utm_content: 'churned_paid' },
         },
-        sendAt: nextMonthDay(15, 14),
+        sendAt: nextNthWeekday(2, 3, 17, 30),
         status: 'pending',
         type: 'email',
-        recurrence: { pattern: 'monthly', day: 15, hour: 14 },
+        recurrence: { pattern: 'monthly-weekday', nth: 2, day: 3, hour: 17, minute: 30 },
         metadata: {
           created: { timestamp: nowISO, timestampUNIX: nowUNIX },
           updated: { timestamp: nowISO, timestampUNIX: nowUNIX },
@@ -199,10 +170,10 @@ function buildSeedCampaigns() {
           excludeSegments: ['subscription_paid', 'subscription_churned_paid', 'subscription_churned_trial'],
           utm: { utm_campaign: '{holiday.name}_sale', utm_content: 'cancelled' },
         },
-        sendAt: nextMonthDay(15, 14),
+        sendAt: nextNthWeekday(2, 3, 17, 30),
         status: 'pending',
         type: 'email',
-        recurrence: { pattern: 'monthly', day: 15, hour: 14 },
+        recurrence: { pattern: 'monthly-weekday', nth: 2, day: 3, hour: 17, minute: 30 },
         metadata: {
           created: { timestamp: nowISO, timestampUNIX: nowUNIX },
           updated: { timestamp: nowISO, timestampUNIX: nowUNIX },
@@ -228,14 +199,15 @@ function buildSeedCampaigns() {
           providers: ['beehiiv'],
           utm: { utm_campaign: 'newsletter_{date.month}_{date.year}', utm_content: 'newsletter' },
         },
-        sendAt: nextWeekday(1, 10),
+        sendAt: nextWeekday(3, 17, 30),
         status: 'pending',
         type: 'email',
         generator: 'newsletter',
         recurrence: {
           pattern: 'weekly',
-          hour: 10,
-          day: 1,
+          day: 3,
+          hour: 17,
+          minute: 30,
         },
         metadata: {
           created: { timestamp: nowISO, timestampUNIX: nowUNIX },

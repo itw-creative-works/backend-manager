@@ -180,6 +180,15 @@ class TestRunner {
       if (response.success) {
         console.log(chalk.green('✓'));
 
+        // Abort if the running emulator belongs to a different project.
+        // This catches the case where you run `npx mgr test` in project A
+        // while project B's emulator is still up on the same ports — requests
+        // hit the wrong hosting rewrites and tests fail with mysterious 404s.
+        const mismatch = await this.checkProjectMismatch(response.data);
+        if (mismatch) {
+          return false;
+        }
+
         // Report the live mode the emulator just confirmed. The test command
         // writes `.temp/test-mode.json` before invoking us; the emulator's
         // file-watcher mutates its `process.env.TEST_EXTENDED_MODE` to match;
@@ -200,6 +209,52 @@ class TestRunner {
       console.log(chalk.red(`  Health check failed: ${error.message}`));
       return false;
     }
+  }
+
+  /**
+   * Verify the running emulator belongs to this project. Tries the Firebase
+   * Emulator Hub (localhost:4400) first — it always knows the project ID
+   * regardless of BEM version. Falls back to the health endpoint's projectId
+   * field (added in BEM 5.3.3+). Returns true (= mismatch, abort) if the
+   * project IDs differ.
+   */
+  async checkProjectMismatch(healthData) {
+    const expectedProjectId = this.options.firebaseConfig?.projectId;
+    if (!expectedProjectId) {
+      return false;
+    }
+
+    let emulatorProjectId;
+
+    // Try the Firebase Emulator Hub first (version-independent, always correct)
+    try {
+      const http = require('http');
+      const body = await new Promise((resolve, reject) => {
+        const req = http.get('http://localhost:4400/emulators', (res) => {
+          let data = '';
+          res.on('data', (chunk) => { data += chunk; });
+          res.on('end', () => resolve(data));
+        });
+        req.on('error', reject);
+        req.setTimeout(3000, () => { req.destroy(); reject(new Error('timeout')); });
+      });
+      emulatorProjectId = JSON.parse(body).projectId;
+    } catch (e) {
+      // Hub unreachable — fall back to health endpoint
+    }
+
+    // Fall back to the health endpoint's projectId (BEM 5.3.3+)
+    if (!emulatorProjectId) {
+      emulatorProjectId = healthData?.projectId;
+    }
+
+    if (emulatorProjectId && emulatorProjectId !== expectedProjectId) {
+      console.log(chalk.red(`\n  ✗ Project mismatch: the running emulator belongs to "${emulatorProjectId}" but this project is "${expectedProjectId}".`));
+      console.log(chalk.red(`    Stop the other emulator first, then run: npx mgr emulator`));
+      return true;
+    }
+
+    return false;
   }
 
   /**

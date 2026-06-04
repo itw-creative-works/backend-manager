@@ -18,18 +18,22 @@ The `POST /admin/post` route creates blog posts via GitHub's API. It handles ima
 
 ## Image resize
 
-Sources from guest-post submissions can be enormous (16384×10576 has been seen in the wild — ~520MB raw RGB). Sources that large stall downstream Jekyll/imagemin pipelines on the consumer site, which silently ship the site missing those images.
+Sources from guest-post submissions can be enormous (16384×10576 has been seen in the wild — ~520MB raw RGB). Sources that large stall downstream Jekyll/imagemin pipelines on the consumer site, and can OOM a 256MB Cloud Function when sharp decompresses them (a 5184×3456 JPEG decodes to ~71MB raw pixels).
 
-To prevent this, every downloaded image is checked against `IMAGE_MAX_DIMENSION` (4096px on the long edge) and re-encoded as a progressive JPEG at `IMAGE_JPEG_QUALITY` (80) if it exceeds the limit. Images already at or below the limit pass through untouched.
+Two defenses:
+
+1. **CDN pre-scale** — `applyImageCDNParams(src)` adds server-side resize params to supported CDN URLs *before* downloading. Currently supports Unsplash (`images.unsplash.com`), which uses Imgix-style `?w=&q=` params. The CDN delivers a pre-scaled image (e.g. ~314KB instead of 3.8MB for a 2048px cap), so sharp never sees the massive original. Params are only added if not already present on the URL.
+
+2. **Local sharp resize** — after download, `resizeImage()` checks the long edge against `IMAGE_MAX_DIMENSION` and re-encodes as progressive JPEG at `IMAGE_JPEG_QUALITY` if it exceeds the limit. Images already within the limit pass through untouched. `sharp.cache(false)` is set so decoded pixel buffers are freed immediately between images — without this, processing several images serially can OOM even at 256MB.
 
 The resize happens in `downloadImage()` (after the `.jpg` extension check, before returning to the caller), so:
 - The base64 content that gets committed to GitHub is the resized version
 - The consumer repo never sees the giant source
 - Future downstream optimization (UJM imagemin, etc.) starts from a sane source size
 
-Constants live in `src/manager/routes/admin/post/post.js`:
+Constants live in `src/manager/routes/admin/post/post.js` (UJM's `imagemin.js` uses the same names and values):
 ```js
-const IMAGE_MAX_DIMENSION = 4096;
+const IMAGE_MAX_DIMENSION = 2048;
 const IMAGE_JPEG_QUALITY = 80;
 ```
 

@@ -16,6 +16,7 @@
 const moment = require('moment');
 const pushid = require('pushid');
 const notification = require('../../../libraries/notification.js');
+const { getNextOccurrence } = require('../../../libraries/email/constants.js');
 
 module.exports = async ({ Manager, assistant, libraries }) => {
   const { admin } = libraries;
@@ -129,36 +130,3 @@ module.exports = async ({ Manager, assistant, libraries }) => {
 
   assistant.log(`Completed! (${sent} processed, ${failed} failed)`);
 };
-
-/**
- * Calculate the next occurrence unix timestamp from the current sendAt.
- *
- * @param {number} currentSendAt - Current fire time (unix)
- * @param {object} recurrence - { pattern, hour, day, month }
- * @returns {number} Next fire time (unix)
- */
-function getNextOccurrence(currentSendAt, recurrence) {
-  const current = moment.unix(currentSendAt);
-  const { pattern } = recurrence;
-
-  switch (pattern) {
-    case 'daily':
-      return current.add(1, 'day').unix();
-
-    case 'weekly':
-      return current.add(1, 'week').unix();
-
-    case 'monthly':
-      return current.add(1, 'month').unix();
-
-    case 'quarterly':
-      return current.add(3, 'months').unix();
-
-    case 'yearly':
-      return current.add(1, 'year').unix();
-
-    default:
-      // Fallback: 1 month
-      return current.add(1, 'month').unix();
-  }
-}

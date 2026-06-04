@@ -365,6 +365,8 @@ async function resolveSegmentIds() {
       _segmentIdCache[segment.name] = segment.id;
     }
 
+    console.log(`Beehiiv resolveSegmentIds: ${Object.keys(_segmentIdCache).length} segments loaded:`, _segmentIdCache);
+
     return _segmentIdCache;
   } catch (e) {
     console.error('Beehiiv resolveSegmentIds error:', e);
@@ -447,6 +449,8 @@ async function createPost(options) {
         body.recipients.exclude_segment_ids = excludeSegments;
       }
     }
+
+    console.log('Beehiiv createPost body:', JSON.stringify(body, null, 2));
 
     const data = await fetch(`${BASE_URL}/publications/${publicationId}/posts`, {
       method: 'post',

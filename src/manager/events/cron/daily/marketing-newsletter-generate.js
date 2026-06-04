@@ -30,6 +30,7 @@
  */
 const moment = require('moment');
 const pushid = require('pushid');
+const { getNextOccurrence } = require('../../../libraries/email/constants.js');
 
 // Generator modules — keyed by generator field value
 const generators = {
@@ -157,20 +158,3 @@ module.exports = async ({ Manager, assistant, libraries }) => {
 
   assistant.log('Pre-generation complete');
 };
-
-/**
- * Calculate the next occurrence unix timestamp.
- */
-function getNextOccurrence(currentSendAt, recurrence) {
-  const current = moment.unix(currentSendAt);
-  const { pattern } = recurrence;
-
-  switch (pattern) {
-    case 'daily':     return current.add(1, 'day').unix();
-    case 'weekly':    return current.add(1, 'week').unix();
-    case 'monthly':   return current.add(1, 'month').unix();
-    case 'quarterly': return current.add(3, 'months').unix();
-    case 'yearly':    return current.add(1, 'year').unix();
-    default:          return current.add(1, 'month').unix();
-  }
-}

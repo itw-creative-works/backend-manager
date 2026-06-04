@@ -21,7 +21,7 @@ const IMAGE_REGEX = /(?:!\[(.*?)\]\((.*?)\))/img;
 // re-encode quality. Sources above the max cause downstream Jekyll/imagemin
 // pipelines to stall on huge decodes (e.g. a 16384×10576 source decodes to
 // ~520MB raw), so resize at ingest time.
-const IMAGE_MAX_DIMENSION = 4096;
+const IMAGE_MAX_DIMENSION = 2048;
 const IMAGE_JPEG_QUALITY = 80;
 
 module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
@@ -204,14 +204,41 @@ async function downloadImages(assistant, settings) {
   return files;
 }
 
+// Apply CDN-side resize params so the server delivers a pre-scaled image.
+// Unsplash (images.unsplash.com) supports Imgix-style params: w, q, fm.
+// Other CDNs can be added here as needed.
+function applyImageCDNParams(src) {
+  try {
+    const url = new URL(src);
+
+    if (url.hostname === 'images.unsplash.com') {
+      if (!url.searchParams.has('w')) {
+        url.searchParams.set('w', String(IMAGE_MAX_DIMENSION));
+      }
+      if (!url.searchParams.has('q')) {
+        url.searchParams.set('q', String(IMAGE_JPEG_QUALITY));
+      }
+    }
+
+    return url.toString();
+  } catch (e) {
+    return src;
+  }
+}
+
 // Helper: Download image
 async function downloadImage(assistant, src, alt) {
   const fetch = assistant.Manager.require('wonderful-fetch');
   const hyphenated = assistant.Manager.Utilities().slugify(alt);
 
-  assistant.log(`downloadImage(): src=${src}, alt=${alt}, hyphenated=${hyphenated}`);
+  // Request a server-side resize from supported CDNs so we never download
+  // a massive original (e.g. 5184×3456 → ~71MB decoded). This keeps peak
+  // memory well within Cloud Functions limits even at 256MB.
+  const url = applyImageCDNParams(src);
 
-  const result = await fetch(src, {
+  assistant.log(`downloadImage(): src=${src}, url=${url}, alt=${alt}, hyphenated=${hyphenated}`);
+
+  const result = await fetch(url, {
     method: 'get',
     download: `${assistant.tmpdir}/${hyphenated}`,
   });
@@ -234,8 +261,13 @@ async function downloadImage(assistant, src, alt) {
 // Helper: Resize image in place if the long edge exceeds IMAGE_MAX_DIMENSION.
 // Re-encodes as progressive JPEG at IMAGE_JPEG_QUALITY. Short-circuits when the
 // source is already within the limit.
+//
+// Disables sharp's pixel cache so decoded buffers are freed immediately —
+// without this, processing several large images serially can OOM a 256MB
+// Cloud Function even though only one image is "active" at a time.
 async function resizeImage(assistant, filepath) {
   const sharp = assistant.Manager.require('sharp');
+  sharp.cache(false);
 
   const meta = await sharp(filepath).metadata();
   const longEdge = Math.max(meta.width, meta.height);

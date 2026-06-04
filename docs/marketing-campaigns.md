@@ -17,7 +17,7 @@
   sendAt: 1743465600,        // Unix timestamp (any format accepted, normalized on create)
   status: 'pending',         // pending | sent | failed
   type: 'email',             // email | push
-  recurrence: { pattern, hour, day },  // Optional — makes it recurring
+  recurrence: { pattern, day, hour, minute?, nth? },  // Optional — makes it recurring
   generator: 'newsletter',   // Optional — runs content generator before sending
   recurringId: '_recurring-sale',      // Present on history docs (links to parent template)
   generatedFrom: '_recurring-newsletter', // Present on generated docs
@@ -39,7 +39,11 @@ Campaigns with a `recurrence` field repeat automatically:
 - Status stays `pending` on the recurring template, history docs are `sent`/`failed`
 - `_` prefix on IDs groups them at top of Firestore console
 
-Recurrence patterns: `daily`, `weekly`, `monthly`, `quarterly`, `yearly`
+Recurrence patterns: `daily`, `weekly`, `monthly`, `monthly-weekday`, `quarterly`, `yearly`
+
+The `monthly-weekday` pattern targets the Nth weekday of each month (e.g., 2nd Wednesday). Requires `nth` (1-4) and `day` (0=Sun–6=Sat) in the recurrence object. All other patterns use simple interval addition from the current `sendAt`.
+
+All scheduling helpers live in `constants.js` (SSOT): `nextWeekday()`, `nextNthWeekday()`, `nextMonthDay()`, `getNextOccurrence()`. Both cron jobs import from there — no duplicated logic.
 
 ## Generator Campaigns
 
@@ -249,8 +253,11 @@ Created by `npx mgr setup` (idempotent, enforced fields checked every run):
 
 | ID | Type | Description |
 |----|------|-------------|
-| `_recurring-sale` | email (sendgrid) | Seasonal sale targeting free + cancelled + churned users |
-| `_recurring-newsletter` | email (beehiiv) | AI-generated newsletter from parent server sources |
+| `_recurring-sale-free` | email (sendgrid) | Sale targeting free users — 2nd Wednesday of month, 10:30 AM PT (17:30 UTC) |
+| `_recurring-sale-churned-trial` | email (sendgrid) | Sale targeting churned trial users — 2nd Wednesday, 10:30 AM PT |
+| `_recurring-sale-churned-paid` | email (sendgrid) | Sale targeting churned paid users — 2nd Wednesday, 10:30 AM PT |
+| `_recurring-sale-cancelled` | email (sendgrid) | Sale targeting cancelled users — 2nd Wednesday, 10:30 AM PT |
+| `_recurring-newsletter` | email (beehiiv) | AI-generated newsletter — every Wednesday, 10:30 AM PT (17:30 UTC) |
 
 ## Marketing Config
 

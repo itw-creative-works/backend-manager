@@ -14,6 +14,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.3.4] - 2026-06-04
+
+### Added
+- **`monthly-weekday` recurrence pattern.** Campaigns can now recur on the Nth weekday of each month (e.g., 2nd Wednesday). New `getNextOccurrence` case + `nextNthWeekday()` helper.
+- **Minute precision for campaign scheduling.** All scheduling helpers (`nextWeekday`, `nextNthWeekday`, `nextMonthDay`, `getNextOccurrence`) now accept an optional `minute` parameter (previously hour-only).
+- **Emulator project mismatch detection.** Health check returns `projectId`; the test runner compares it (via Emulator Hub + health endpoint) and aborts immediately if the running emulator belongs to a different project.
+- **CDN image pre-scaling.** `admin/post` adds `?w=&q=` params to Unsplash URLs before downloading so the CDN delivers a pre-scaled image (~314KB vs 3.8MB) and sharp never decodes a massive original.
+- **Emulator orphan cleanup.** `npx mgr emulator` sweeps all emulator ports after shutdown and kills orphaned Java processes (Firestore, Database, PubSub) that survived SIGTERM.
+- **SendGrid sender identity resolution.** `resolveSenderIds()` fetches verified senders and maps `from_email → sender_id` for Single Send campaigns.
+
+### Changed
+- **Campaign scheduling helpers consolidated into `constants.js` (SSOT).** `getNextOccurrence`, `nextWeekday`, `nextNthWeekday`, and `nextMonthDay` were duplicated across `seed-campaigns.js` and both cron jobs — now imported from a single source.
+- **Default campaign send times changed to Wednesday 10:30 AM PT (17:30 UTC).** Sale campaigns use the 2nd Wednesday of each month (`monthly-weekday`); newsletter sends every Wednesday (`weekly`). Previously: 15th of month at 14:00 UTC / Monday at 10:00 UTC.
+- **`IMAGE_MAX_DIMENSION` reduced from 4096 to 2048.** Blog header images capped at 2048px on the long edge. Reduces peak memory in `admin/post` from ~71MB to ~11MB decoded. Matches UJM's `imagemin.js`.
+- **`sharp.cache(false)` in `resizeImage()`.** Disables sharp's pixel cache so decoded buffers are freed immediately between images, preventing OOM on 256MB Cloud Functions.
+- **Emulator SIGINT handling.** Ctrl+C handler is now synchronous (prevents Node from exiting before shutdown completes). Second Ctrl+C force-kills. Port sweep runs after exit regardless of spam.
+- **SendGrid `createSingleSend` fixes.** Resolves `sender_id` from Sender Identities, builds `html_content` from preheader + dynamic content, uses `resolvedSettings` for segment mapping.
+
+### Fixed
+- **Marketing segment resolution used wrong settings object.** `sendCampaign` passed `settings.segments` instead of `resolvedSettings.segments`, ignoring campaign-level overrides.
+
 # [5.3.3] - 2026-06-03
 
 ### BREAKING

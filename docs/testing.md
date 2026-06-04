@@ -31,6 +31,29 @@ npx mgr test      # Terminal 2 - runs tests
 npx mgr test
 ```
 
+## Project mismatch detection
+
+The test runner's health check verifies that the running emulator belongs to the **same project** as the test suite. If you leave project A's emulator running and run `npx mgr test` from project B, the hosting rewrites won't match and tests fail with mysterious 404s.
+
+Detection uses two sources (tried in order):
+1. **Firebase Emulator Hub** (`localhost:4400/emulators`) — always returns the emulator's `projectId`, regardless of BEM version.
+2. **Health endpoint** (`/test/health`) — returns `projectId` from `Manager.config.firebaseConfig.projectId` (BEM 5.3.3+).
+
+On mismatch the runner aborts immediately:
+```
+✗ Project mismatch: the running emulator belongs to "project-a" but this project is "project-b".
+  Stop the other emulator first, then run: npx mgr emulator
+```
+
+## Cross-project API calls (single-emulator limitation)
+
+Some routes fan out to **other BEM backends** — e.g. a sponsorship submission on `itw-creative-works` publishes a guest post to `ultimate-jekyll`'s `POST /admin/post`. Only **one** Firebase emulator can run locally at a time, so these cross-project calls **always hit the live deployed target**, even in test/dev mode.
+
+This means:
+- The target backend must be **deployed** with up-to-date code for extended tests to pass.
+- Normal (non-extended) test mode **gates these calls** via `assistant.isTesting() && !process.env.TEST_EXTENDED_MODE` checks, returning synthetic results. Extended mode makes the real call.
+- You **cannot** test cross-project API calls against a local emulator. If the live target is down or has a bug, extended tests that depend on it will fail.
+
 ## Test Data Cleanup — at the START of every run
 
 **Hard rule: all LOCAL cleanup happens BEFORE the suite runs, never after.** If a previous run was killed mid-execution (Ctrl-C, OOM, emulator crash), end-of-run cleanup would never fire and the next run would inherit polluted state — broken trial-eligibility checks, leftover dispute alerts, stale webhook docs, polluted marketing-provider lists. Pre-test cleanup makes every run idempotent regardless of how the last one died.

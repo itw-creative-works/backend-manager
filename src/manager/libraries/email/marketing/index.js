@@ -339,8 +339,8 @@ Marketing.prototype.sendCampaign = async function (settings) {
     const segmentIdMap = await sendgridProvider.resolveSegmentIds();
 
     resolvedSegments.sendgrid = {
-      segments: (settings.segments || []).map(key => segmentIdMap[key] || key).filter(Boolean),
-      excludeSegments: (settings.excludeSegments || []).map(key => segmentIdMap[key] || key).filter(Boolean),
+      segments: (resolvedSettings.segments || []).map(key => segmentIdMap[key] || key).filter(Boolean),
+      excludeSegments: (resolvedSettings.excludeSegments || []).map(key => segmentIdMap[key] || key).filter(Boolean),
     };
   }
 

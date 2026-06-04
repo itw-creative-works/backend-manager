@@ -12,6 +12,7 @@ Module.prototype.main = function () {
       status: 'healthy',
       timestamp: new Date().toISOString(),
       environment: assistant.meta?.environment || 'unknown',
+      projectId: Manager.config?.firebaseConfig?.projectId || process.env.GCLOUD_PROJECT || 'unknown',
       version: Manager.package?.version || 'unknown',
       bemVersion: Manager.version || 'unknown',
       testExtendedMode: !!process.env.TEST_EXTENDED_MODE,

@@ -57,18 +57,36 @@ class EmulatorCommand extends BaseCommand {
 
       this.log(chalk.gray('\n  Emulator ready. Press Ctrl+C to shut down...\n'));
 
-      const onSigint = async () => {
-        this.log(chalk.gray('\n  Shutting down emulator...'));
-        await shutdown();
-        this.log(chalk.gray('  Emulator stopped.\n'));
-        process.exit(0);
+      // Synchronous SIGINT handler — must NOT be async. In Node, registering any
+      // SIGINT listener suppresses the default "exit on signal" behavior, but only
+      // if the listener is present when the signal fires. An async handler loses
+      // the race: Node starts it, doesn't await it, and the process dies mid-shutdown.
+      // So: set a flag synchronously, kick off shutdown (no await), and let the
+      // main `await exitPromise` below resolve naturally once shutdown kills the child.
+      let sigintCount = 0;
+      const onSigint = () => {
+        sigintCount++;
+        if (sigintCount === 1) {
+          this.log(chalk.gray('\n  Shutting down emulator... (Ctrl+C again to force kill)'));
+          shutdown();
+        } else {
+          this.log(chalk.gray('  Force killing emulator...'));
+          shutdown();
+        }
       };
-      process.once('SIGINT', onSigint);
+      process.on('SIGINT', onSigint);
 
-      // Resolve if the emulator dies on its own (crash, port conflict, etc.)
+      // Resolve when the emulator exits (via shutdown or crash)
       await exitPromise;
+      // Kill any orphaned Java processes left on emulator ports.
+      // SIGINT listener stays active so Ctrl+C spam during the sweep
+      // doesn't kill us before orphans are cleaned up.
+      await this.killOrphanedEmulatorProcesses();
       process.removeListener('SIGINT', onSigint);
-      this.log(chalk.gray('\n  Emulator stopped.\n'));
+      this.log(chalk.gray('  Emulator stopped.\n'));
+      if (sigintCount > 0) {
+        process.exit(0);
+      }
     } catch (error) {
       this.logError(`Emulator error: ${error.message || error}`);
       process.exit(1);
@@ -243,21 +261,32 @@ class EmulatorCommand extends BaseCommand {
       }
     };
 
+    let shutdownDone = false;
     const shutdown = async () => {
-      if (child.exitCode !== null || child.signalCode !== null) {
-        return; // already gone
+      if (shutdownDone) {
+        return;
       }
 
-      killGroup('SIGTERM');
+      // 1. Signal the process group (sh + firebase + direct children)
+      if (child.exitCode === null && child.signalCode === null) {
+        killGroup('SIGTERM');
 
-      const killTimer = setTimeout(() => {
-        if (child.exitCode === null && child.signalCode === null) {
+        // Wait up to 5s for clean exit, then SIGKILL the group
+        const exited = await Promise.race([
+          exitPromise.then(() => true),
+          new Promise((r) => setTimeout(() => r(false), 5000)),
+        ]);
+
+        if (!exited) {
           killGroup('SIGKILL');
+          await Promise.race([
+            exitPromise.then(() => true),
+            new Promise((r) => setTimeout(() => r(false), 3000)),
+          ]);
         }
-      }, 10000);
+      }
 
-      await exitPromise;
-      clearTimeout(killTimer);
+      shutdownDone = true;
     };
 
     return { child, shutdown, emulatorPorts, exitPromise };
@@ -276,12 +305,13 @@ class EmulatorCommand extends BaseCommand {
   async runWithEmulator(command) {
     const { shutdown, exitPromise } = await this.startEmulators();
 
-    // SIGINT (Ctrl+C) → graceful shutdown
-    const onSigint = async () => {
-      await shutdown();
-      process.exit(0);
+    // Same synchronous SIGINT pattern as execute() — see comment there.
+    let sigintCount = 0;
+    const onSigint = () => {
+      sigintCount++;
+      shutdown();
     };
-    process.once('SIGINT', onSigint);
+    process.on('SIGINT', onSigint);
 
     try {
       // Run the user command; when it exits we tear down the emulator.
@@ -298,6 +328,7 @@ class EmulatorCommand extends BaseCommand {
       process.removeListener('SIGINT', onSigint);
       await shutdown();
       await exitPromise;
+      await this.killOrphanedEmulatorProcesses();
 
       if (cmdExit.code !== 0) {
         throw Object.assign(new Error(`Command exited with code ${cmdExit.code}`), { code: cmdExit.code });
@@ -305,6 +336,7 @@ class EmulatorCommand extends BaseCommand {
     } catch (e) {
       process.removeListener('SIGINT', onSigint);
       await shutdown();
+      await this.killOrphanedEmulatorProcesses();
       throw e;
     }
   }
@@ -330,6 +362,39 @@ class EmulatorCommand extends BaseCommand {
     }
 
     return emulatorPorts;
+  }
+
+  /**
+   * Kill any processes still listening on emulator ports after shutdown.
+   * Firebase-tools spawns Java emulators (Firestore, Database, PubSub) that
+   * often survive SIGTERM/SIGKILL of the firebase node process. This sweep
+   * runs AFTER the main child exits, so anything still on these ports is orphaned.
+   */
+  killOrphanedEmulatorProcesses() {
+    const projectDir = this.main.firebaseProjectPath;
+    const ports = Object.values(this.loadEmulatorPorts(projectDir));
+    // Also sweep the emulator hub (4400) and storage (9199)
+    ports.push(4400, 9199);
+
+    // Synchronous sweep — no async delays that Ctrl+C spam can interrupt.
+    const { execSync } = require('child_process');
+    let killed = 0;
+    for (const port of ports) {
+      try {
+        const pids = execSync(`lsof -ti TCP:${port} -sTCP:LISTEN 2>/dev/null`, { encoding: 'utf8' })
+          .trim().split('\n').filter(Boolean);
+        for (const pid of pids) {
+          try {
+            process.kill(Number(pid), 'SIGKILL');
+            killed++;
+          } catch (e) { /* already dead */ }
+        }
+      } catch (e) { /* no process on this port */ }
+    }
+
+    if (killed > 0) {
+      this.log(chalk.gray(`  Cleaned up ${killed} orphaned emulator process${killed > 1 ? 'es' : ''}.`));
+    }
   }
 }
 

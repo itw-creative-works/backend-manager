@@ -40,8 +40,8 @@ const GROUPS = {
   'hello': 35092,          // BEM - Onboarding
   'account': 25927,        // BEM - Account
   'marketing': 25928,      // BEM - Marketing & Promotions
-  'newsletter': 28096,     // BEM - Newsletter
   'security': 35093,       // BEM - Security
+  'newsletter': 28096,     // BEM - Newsletter
   'internal': 35094,       // BEM - Internal Alerts
 };
 
@@ -94,6 +94,130 @@ const SENDERS = {
 
 // SendGrid limit for scheduled emails (72 hours, but use 71 for buffer)
 const SEND_AT_LIMIT = 71;
+
+// --- Campaign scheduling helpers (SSOT — used by seed-campaigns + both cron jobs) ---
+const moment = require('moment');
+
+/**
+ * Get the next occurrence of a specific weekday.
+ * @param {number} dayOfWeek - 0=Sunday, 1=Monday, ..., 6=Saturday
+ * @param {number} hour - Hour (UTC, 0-23)
+ * @param {number} [minute=0] - Minute (0-59)
+ * @returns {number} Unix timestamp
+ */
+function nextWeekday(dayOfWeek, hour, minute = 0) {
+  const next = moment.utc().startOf('day').hour(hour).minute(minute);
+
+  while (next.day() !== dayOfWeek || next.isBefore(moment.utc())) {
+    next.add(1, 'day');
+  }
+
+  return next.unix();
+}
+
+/**
+ * Get the next occurrence of the Nth weekday in a month (e.g., 2nd Wednesday).
+ * @param {number} nth - Which occurrence (1=first, 2=second, 3=third, 4=fourth)
+ * @param {number} dayOfWeek - 0=Sunday, 1=Monday, ..., 6=Saturday
+ * @param {number} hour - Hour (UTC, 0-23)
+ * @param {number} [minute=0] - Minute (0-59)
+ * @returns {number} Unix timestamp
+ */
+function nextNthWeekday(nth, dayOfWeek, hour, minute = 0) {
+  function findNthWeekdayInMonth(m) {
+    const first = m.clone().startOf('month');
+    let day = first.clone();
+
+    // Advance to the first matching weekday
+    while (day.day() !== dayOfWeek) {
+      day.add(1, 'day');
+    }
+
+    // Advance to the Nth occurrence
+    day.add(nth - 1, 'weeks');
+
+    return day.hour(hour).minute(minute).second(0).millisecond(0);
+  }
+
+  const thisMonth = findNthWeekdayInMonth(moment.utc());
+
+  if (thisMonth.isAfter(moment.utc())) {
+    return thisMonth.unix();
+  }
+
+  return findNthWeekdayInMonth(moment.utc().add(1, 'month')).unix();
+}
+
+/**
+ * Get the next occurrence of a specific day of month.
+ * @param {number} dayOfMonth - Day (1-31)
+ * @param {number} hour - Hour (UTC, 0-23)
+ * @param {number} [minute=0] - Minute (0-59)
+ * @returns {number} Unix timestamp
+ */
+function nextMonthDay(dayOfMonth, hour, minute = 0) {
+  const next = moment.utc().startOf('month').date(dayOfMonth).hour(hour).minute(minute);
+
+  if (next.isBefore(moment.utc())) {
+    next.add(1, 'month');
+  }
+
+  return next.unix();
+}
+
+/**
+ * Calculate the next occurrence unix timestamp from the current sendAt.
+ *
+ * Supports:
+ *   - daily, weekly, monthly, quarterly, yearly — simple interval addition
+ *   - monthly-weekday — Nth weekday of the month (e.g., 2nd Wednesday)
+ *     Requires recurrence: { pattern: 'monthly-weekday', nth, day, hour, minute? }
+ *
+ * @param {number} currentSendAt - Current fire time (unix)
+ * @param {object} recurrence - { pattern, hour, day, nth?, minute? }
+ * @returns {number} Next fire time (unix)
+ */
+function getNextOccurrence(currentSendAt, recurrence) {
+  const current = moment.unix(currentSendAt).utc();
+  const { pattern } = recurrence;
+
+  switch (pattern) {
+    case 'daily':
+      return current.add(1, 'day').unix();
+
+    case 'weekly':
+      return current.add(1, 'week').unix();
+
+    case 'monthly':
+      return current.add(1, 'month').unix();
+
+    case 'monthly-weekday': {
+      const target = current.clone().add(1, 'month').startOf('month');
+
+      while (target.day() !== recurrence.day) {
+        target.add(1, 'day');
+      }
+
+      target.add((recurrence.nth || 1) - 1, 'weeks');
+
+      return target
+        .hour(recurrence.hour)
+        .minute(recurrence.minute || 0)
+        .second(0)
+        .millisecond(0)
+        .unix();
+    }
+
+    case 'quarterly':
+      return current.add(3, 'months').unix();
+
+    case 'yearly':
+      return current.add(1, 'year').unix();
+
+    default:
+      return current.add(1, 'month').unix();
+  }
+}
 
 /**
  * Convert SVG image URLs to PNG equivalents — email clients don't render SVGs.
@@ -300,4 +424,8 @@ module.exports = {
   encode,
   errorWithCode,
   resolveFieldValues,
+  nextWeekday,
+  nextNthWeekday,
+  nextMonthDay,
+  getNextOccurrence,
 };

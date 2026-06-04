@@ -57,6 +57,45 @@ async function resolveFieldIds() {
   }
 }
 
+// Cached sender from_email → sender_id map
+let _senderIdCache = null;
+
+/**
+ * Fetch sender identities from SendGrid and build a from_email → id map.
+ * Sender identities are created by OMEGA's sendgrid/ensure/sender-identity handler.
+ * Cached in memory for the lifetime of the process.
+ *
+ * @returns {object} Map of from_email → sender ID (integer)
+ */
+async function resolveSenderIds() {
+  if (_senderIdCache) {
+    return _senderIdCache;
+  }
+
+  try {
+    const data = await fetch(`${BASE_URL}/verified_senders`, {
+      response: 'json',
+      headers: headers(),
+      timeout: SENDGRID_TIMEOUT_MS,
+    });
+
+    _senderIdCache = {};
+
+    for (const sender of (data?.results || [])) {
+      if (sender.from_email) {
+        _senderIdCache[sender.from_email] = sender.id;
+      }
+    }
+
+    console.log(`SendGrid resolveSenderIds: ${Object.keys(_senderIdCache).length} senders loaded:`, _senderIdCache);
+
+    return _senderIdCache;
+  } catch (e) {
+    console.error('SendGrid resolveSenderIds error:', e);
+    return {};
+  }
+}
+
 // Cached segment name → SendGrid segment ID map
 let _segmentIdCache = null;
 
@@ -84,6 +123,8 @@ async function resolveSegmentIds() {
     for (const segment of (data.results || [])) {
       _segmentIdCache[segment.name] = segment.id;
     }
+
+    console.log(`SendGrid resolveSegmentIds: ${Object.keys(_segmentIdCache).length} segments loaded:`, _segmentIdCache);
 
     return _segmentIdCache;
   } catch (e) {
@@ -311,14 +352,24 @@ async function createSingleSend({ name, subject, preheader, templateId, from, se
       send_to: sendTo,
       email_config: {
         subject,
-        sender_id: null,
         custom_unsubscribe_url: null,
         generate_plain_content: true,
       },
     };
 
-    if (preheader) {
-      body.email_config.html_content = `<span style="display:none">${preheader}</span>`;
+    // Resolve sender_id from registered Sender Identities (created by OMEGA)
+    if (from) {
+      const senderIdMap = await resolveSenderIds();
+      const senderId = senderIdMap[from.email];
+
+      if (senderId) {
+        body.email_config.sender_id = senderId;
+      } else {
+        return {
+          success: false,
+          error: `No SendGrid Sender Identity found for "${from.email}". Run OMEGA sendgrid service to create one.`,
+        };
+      }
     }
 
     // Use design_editor with template
@@ -327,11 +378,17 @@ async function createSingleSend({ name, subject, preheader, templateId, from, se
       body.email_config.template_id = templateId;
     }
 
-    if (from) {
-      body.email_config.sender_id = null;
-      // SendGrid Single Sends use sender_id OR from, depending on account setup.
-      // We'll set the from fields directly if supported, otherwise the sender_id
-      // must be pre-configured in SendGrid.
+    // html_content is required by SendGrid for scheduling, even with templates.
+    // Build from preheader + dynamic content if available.
+    const contentParts = [];
+    if (preheader) {
+      contentParts.push(`<span style="display:none">${preheader}</span>`);
+    }
+    if (dynamicTemplateData?.content) {
+      contentParts.push(dynamicTemplateData.content);
+    }
+    if (contentParts.length) {
+      body.email_config.html_content = contentParts.join('');
     }
 
     if (asmGroupId) {
@@ -352,6 +409,8 @@ async function createSingleSend({ name, subject, preheader, templateId, from, se
     if (dynamicTemplateData && Object.keys(dynamicTemplateData).length) {
       body.email_config.dynamic_template_data = dynamicTemplateData;
     }
+
+    console.log('SendGrid createSingleSend body:', JSON.stringify(body, null, 2));
 
     const data = await fetch(`${BASE_URL}/marketing/singlesends`, {
       method: 'post',
@@ -388,6 +447,8 @@ async function scheduleSingleSend(singleSendId, sendAt) {
       timeout: SENDGRID_TIMEOUT_MS,
       body: { send_at: sendAt },
     });
+
+    console.log('SendGrid scheduleSingleSend response:', JSON.stringify(data, null, 2));
 
     if (data.send_at || data.status === 'scheduled') {
       return { success: true };
@@ -657,6 +718,7 @@ module.exports = {
   // Resolution
   resolveFieldIds,
   resolveSegmentIds,
+  resolveSenderIds,
 
   // Contacts
   addContact,
