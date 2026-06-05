@@ -1,6 +1,8 @@
 /**
  * Marketing email library — contact syncing + campaign management
  *
+ * Pipeline: prepare (shared) → content → audience → render → deliver
+ *
  * Usage:
  *   const email = Manager.Email(assistant);
  *
@@ -24,12 +26,11 @@
  * - Campaign cron jobs (send campaigns)
  */
 const _ = require('lodash');
-const MarkdownIt = require('markdown-it');
-const md = new MarkdownIt({ html: true, breaks: true, linkify: true });
 
-const { TEMPLATES, GROUPS, SENDERS } = require('../constants.js');
+const { GROUPS } = require('../constants.js');
 const { tagLinks } = require('../utm.js');
 const { validate } = require('../validation.js');
+const prepare = require('../prepare.js');
 const sendgridProvider = require('../providers/sendgrid.js');
 const beehiivProvider = require('../providers/beehiiv.js');
 
@@ -40,7 +41,6 @@ function Marketing(assistant) {
   self.Manager = assistant.Manager;
   self.admin = self.Manager.libraries.admin;
 
-  // Resolve provider availability from config + env
   const marketing = self.Manager.config?.marketing || {};
 
   self.providers = {
@@ -51,18 +51,10 @@ function Marketing(assistant) {
   return self;
 }
 
-/**
- * Add a new contact to enabled providers (lightweight — no full user doc needed).
- * Used by newsletter subscribe and admin bulk import.
- *
- * @param {object} options
- * @param {string} options.email
- * @param {string} [options.firstName]
- * @param {string} [options.lastName]
- * @param {string} [options.source] - UTM source
- * @param {object} [options.customFields] - Extra SendGrid custom fields (keyed by field ID)
- * @returns {{ sendgrid?: object, beehiiv?: object }}
- */
+// ============================================================
+// Contact management (add / sync / remove) — unchanged
+// ============================================================
+
 Marketing.prototype.add = async function (options) {
   const self = this;
   const assistant = self.assistant;
@@ -73,9 +65,6 @@ Marketing.prototype.add = async function (options) {
     return {};
   }
 
-  // SSOT for what "valid marketing email" means — format, disposable, corporate,
-  // localPart junk (incl. _test.* test-suite accounts). Single validate() call
-  // catches all of these before we hit SendGrid/Beehiiv.
   const validation = await validate(email);
   if (!validation.valid) {
     assistant.warn(`Marketing.add(): Validation failed, skipping: ${email}`, validation.checks);
@@ -94,25 +83,15 @@ Marketing.prototype.add = async function (options) {
 
   if (self.providers.sendgrid) {
     promises.push(
-      sendgridProvider.addContact({
-        email,
-        firstName,
-        lastName,
-        company,
-        customFields,
-      }).then((r) => { results.sendgrid = r; })
+      sendgridProvider.addContact({ email, firstName, lastName, company, customFields })
+        .then((r) => { results.sendgrid = r; })
     );
   }
 
   if (self.providers.beehiiv) {
     promises.push(
-      beehiivProvider.addContact({
-        email,
-        firstName,
-        lastName,
-        company,
-        source,
-      }).then((r) => { results.beehiiv = r; })
+      beehiivProvider.addContact({ email, firstName, lastName, company, source })
+        .then((r) => { results.beehiiv = r; })
     );
   }
 
@@ -123,18 +102,10 @@ Marketing.prototype.add = async function (options) {
   return results;
 };
 
-/**
- * Sync a user's data to SendGrid and Beehiiv.
- * Upserts the contact with all custom fields derived from the user doc.
- *
- * @param {string|object} userDocOrUid - UID string (fetches from Firestore) or full user document object
- * @returns {{ sendgrid?: object, beehiiv?: object }}
- */
 Marketing.prototype.sync = async function (userDocOrUid) {
   const self = this;
   const assistant = self.assistant;
 
-  // Resolve UID to user doc if string
   let userDoc;
 
   if (typeof userDocOrUid === 'string') {
@@ -161,9 +132,6 @@ Marketing.prototype.sync = async function (userDocOrUid) {
     return {};
   }
 
-  // SSOT for what "valid marketing email" means — format, disposable, corporate,
-  // localPart junk (incl. _test.* test-suite accounts). Single validate() call
-  // catches all of these before we hit SendGrid/Beehiiv.
   const validation = await validate(email);
   if (!validation.valid) {
     assistant.warn(`Marketing.sync(): Validation failed, skipping: ${email}`, validation.checks);
@@ -186,12 +154,7 @@ Marketing.prototype.sync = async function (userDocOrUid) {
   if (self.providers.sendgrid) {
     promises.push(
       sendgridProvider.buildFields(userDoc).then((customFields) =>
-        sendgridProvider.addContact({
-          email,
-          firstName,
-          lastName,
-          customFields,
-        })
+        sendgridProvider.addContact({ email, firstName, lastName, customFields })
       ).then((r) => { results.sendgrid = r; })
     );
   }
@@ -199,10 +162,7 @@ Marketing.prototype.sync = async function (userDocOrUid) {
   if (self.providers.beehiiv) {
     promises.push(
       beehiivProvider.addContact({
-        email,
-        firstName,
-        lastName,
-        source,
+        email, firstName, lastName, source,
         customFields: beehiivProvider.buildFields(userDoc),
       }).then((r) => { results.beehiiv = r; })
     );
@@ -215,12 +175,6 @@ Marketing.prototype.sync = async function (userDocOrUid) {
   return results;
 };
 
-/**
- * Remove a contact from all enabled providers.
- *
- * @param {string} email - Email address to remove
- * @returns {{ sendgrid?: object, beehiiv?: object }}
- */
 Marketing.prototype.remove = async function (email) {
   const self = this;
   const assistant = self.assistant;
@@ -261,28 +215,35 @@ Marketing.prototype.remove = async function (email) {
   return results;
 };
 
+// ============================================================
+// Campaign management
+// ============================================================
+
 /**
  * Create and optionally schedule a marketing campaign across enabled providers.
  *
- * Unified interface — each provider handles what it supports:
- *   SendGrid: Single Send with lists, segments, excludes, templates
- *   Beehiiv:  Post with segments, HTML content, scheduling
+ * Steps:
+ *   1. Resolve template variables ({brand.name}, {season.name}, etc.)
+ *   2. Render content (markdown → HTML, UTM tagging)
+ *   3. Resolve segments per provider
+ *   4. Dispatch to provider-specific senders (SendGrid, Beehiiv)
  *
  * @param {object} settings
- * @param {string} settings.name - Campaign name (internal, used as title for Beehiiv)
+ * @param {string} settings.name - Campaign name
  * @param {string} settings.subject - Email subject line
- * @param {string} [settings.preheader] - Email preview text
- * @param {string} [settings.template] - Template shortcut or SendGrid template ID
- * @param {string} [settings.content] - Markdown content (converted to HTML per provider)
- * @param {object} [settings.data] - Dynamic template variables (SendGrid only)
- * @param {string} [settings.sender] - Sender category ('marketing', 'newsletter', etc.)
- * @param {Array<string>} [settings.lists] - SendGrid list IDs (defaults to brand list)
- * @param {Array<string>} [settings.segments] - Segment IDs to target (both providers)
- * @param {Array<string>} [settings.excludeSegments] - Segment IDs to exclude (both providers)
- * @param {boolean} [settings.all] - Target all contacts (SendGrid only)
+ * @param {string} [settings.preheader] - Preview text
+ * @param {string} [settings.template] - Template name ('card', 'plain', etc.)
+ * @param {object} [settings.data] - Template data (content goes in data.content: { title, message, button, discountCode })
+ * @param {string} [settings.contentHtml] - Pre-rendered HTML (newsletter generator only — skips markdown)
+ * @param {string} [settings.sender] - Sender category
+ * @param {Array<string>} [settings.segments] - Segment keys to target
+ * @param {Array<string>} [settings.excludeSegments] - Segment keys to exclude
+ * @param {Array<string>} [settings.lists] - SendGrid list IDs
+ * @param {boolean} [settings.all] - Target all contacts
  * @param {string} [settings.sendAt] - ISO datetime, 'now', or omit for draft
- * @param {string} [settings.group] - ASM unsubscribe group (SendGrid only)
- * @param {Array<string>} [settings.categories] - Analytics categories (SendGrid only)
+ * @param {string|number} [settings.group] - ASM unsubscribe group
+ * @param {Array<string>} [settings.categories] - Analytics categories
+ * @param {boolean} [settings.test] - Test mode (targets test_admin only)
  * @param {Array<string>} [settings.providers] - Override which providers to use
  * @returns {{ sendgrid?: object, beehiiv?: object }}
  */
@@ -292,23 +253,17 @@ Marketing.prototype.sendCampaign = async function (settings) {
   const assistant = self.assistant;
 
   const useProviders = settings.providers || Object.keys(self.providers).filter(p => self.providers[p]);
-  const results = {};
-  const promises = [];
 
-  // Resolve campaign-level variables: {brand.name}, {season.name}, {holiday.name}, {date.*}, {discount.*}
-  // Walks all string values in settings and resolves single-brace vars via powertools.template()
-  // Double braces {{var}} are left untouched for SendGrid template-level resolution
+  // --- 1. Resolve template variables ---
   const brand = Manager.config?.brand;
   const templateContext = buildTemplateContext(brand, settings);
-  let resolvedSettings = resolveTemplateVars(settings, templateContext);
+  let resolved = resolveTemplateVars(settings, templateContext);
 
-  // Test mode: real Single Send / Beehiiv Post, but targeted only to test_admin segment
   if (settings.test) {
     assistant.log('Marketing.sendCampaign(): TEST MODE — targeting test_admin segment only');
-
-    resolvedSettings = {
-      ...resolvedSettings,
-      name: `[TEST] ${resolvedSettings.name}`,
+    resolved = {
+      ...resolved,
+      name: `[TEST] ${resolved.name}`,
       segments: ['test_admin'],
       excludeSegments: [],
       lists: [],
@@ -316,71 +271,72 @@ Marketing.prototype.sendCampaign = async function (settings) {
     };
   }
 
-  // Use pre-rendered HTML (from a generator) if present, otherwise render markdown.
-  // Generators like newsletter produce email-safe HTML via MJML — skip the markdown
-  // pipeline entirely. tagLinks() is still applied so UTM params get injected.
-  let contentHtml = resolvedSettings.contentHtml
-    || (resolvedSettings.content ? md.render(resolvedSettings.content) : '');
+  // --- 2. Render content ---
+  // Newsletter generator pre-renders HTML and passes it as top-level contentHtml.
+  // Human-authored campaigns pass markdown in data.content.message.
+  const callerContent = resolved.data?.content || {};
+  const contentHtml = resolved.contentHtml
+    || callerContent.html
+    || prepare.renderContent(
+      { content: callerContent.message },
+      {
+        brandUrl: brand?.url,
+        brandId: brand?.id,
+        campaign: resolved.name,
+        type: 'marketing',
+        utm: resolved.utm,
+      },
+    );
 
-  if (contentHtml) {
-    contentHtml = tagLinks(contentHtml, {
-      brandUrl: brand?.url,
-      brandId: brand?.id,
-      campaign: resolvedSettings.name,
-      type: 'marketing',
-      utm: resolvedSettings.utm,
-    });
-  }
-
-  // Resolve SSOT segment keys → provider segment IDs
+  // --- 3. Resolve segments per provider ---
   const resolvedSegments = {};
 
   if (useProviders.includes('sendgrid') && self.providers.sendgrid) {
     const segmentIdMap = await sendgridProvider.resolveSegmentIds();
-
     resolvedSegments.sendgrid = {
-      segments: (resolvedSettings.segments || []).map(key => segmentIdMap[key] || key).filter(Boolean),
-      excludeSegments: (resolvedSettings.excludeSegments || []).map(key => segmentIdMap[key] || key).filter(Boolean),
+      segments: (resolved.segments || []).map(key => segmentIdMap[key] || key).filter(Boolean),
+      excludeSegments: (resolved.excludeSegments || []).map(key => segmentIdMap[key] || key).filter(Boolean),
     };
   }
 
   if (useProviders.includes('beehiiv') && self.providers.beehiiv) {
     const segmentIdMap = await beehiivProvider.resolveSegmentIds();
-
     resolvedSegments.beehiiv = {
-      segments: (resolvedSettings.segments || []).map(key => segmentIdMap[key] || key).filter(Boolean),
-      excludeSegments: (resolvedSettings.excludeSegments || []).map(key => segmentIdMap[key] || key).filter(Boolean),
+      segments: (resolved.segments || []).map(key => segmentIdMap[key] || key).filter(Boolean),
+      excludeSegments: (resolved.excludeSegments || []).map(key => segmentIdMap[key] || key).filter(Boolean),
     };
   }
 
   assistant.log('Marketing.sendCampaign():', {
-    name: resolvedSettings.name,
+    name: resolved.name,
     providers: useProviders,
     sendAt: settings.sendAt || 'draft',
   });
 
-  // --- SendGrid ---
+  // --- 4. Dispatch to providers ---
+  const results = {};
+  const promises = [];
+
   if (useProviders.includes('sendgrid') && self.providers.sendgrid) {
     const sgSettings = {
-      ...resolvedSettings,
+      ...resolved,
       segments: resolvedSegments.sendgrid?.segments || [],
       excludeSegments: resolvedSegments.sendgrid?.excludeSegments || [],
     };
 
     promises.push(
-      self._sendCampaignSendGrid(sgSettings, contentHtml)
+      _sendCampaignSendGrid(Manager, sgSettings, contentHtml)
         .then((r) => { results.sendgrid = r; })
         .catch((e) => { results.sendgrid = { success: false, error: e.message }; })
     );
   }
 
-  // --- Beehiiv ---
   if (useProviders.includes('beehiiv') && self.providers.beehiiv) {
     promises.push(
       beehiivProvider.createPost({
-        title: resolvedSettings.name,
-        subject: resolvedSettings.subject,
-        preheader: resolvedSettings.preheader,
+        title: resolved.name,
+        subject: resolved.subject,
+        preheader: resolved.preheader,
         content: contentHtml,
         sendAt: settings.sendAt,
         segments: resolvedSegments.beehiiv?.segments || [],
@@ -398,151 +354,173 @@ Marketing.prototype.sendCampaign = async function (settings) {
   return results;
 };
 
+Marketing.prototype.cancelCampaign = async function (campaignId) {
+  this.assistant.log('Marketing.cancelCampaign():', campaignId);
+  return sendgridProvider.cancelSingleSend(campaignId);
+};
+
+Marketing.prototype.getCampaign = async function (campaignId) {
+  return sendgridProvider.getSingleSend(campaignId);
+};
+
+Marketing.prototype.listCampaigns = async function (options) {
+  return sendgridProvider.listSingleSends(options);
+};
+
+// ============================================================
+// SendGrid campaign delivery (private)
+// ============================================================
+
 /**
- * SendGrid-specific campaign creation (Single Send + optional schedule).
- * @private
+ * SendGrid-specific: prepare → render → audience → create Single Send → schedule.
+ *
+ * @param {object} Manager
+ * @param {object} settings - Resolved campaign settings
+ * @param {string} contentHtml - Pre-rendered HTML body
+ * @returns {{ success: boolean, id?: string, scheduled?: boolean, error?: string }}
  */
-Marketing.prototype._sendCampaignSendGrid = async function (settings, contentHtml) {
-  const self = this;
-  const Manager = self.Manager;
+async function _sendCampaignSendGrid(Manager, settings, contentHtml) {
+  // --- Prepare ---
+  const { brand, brandDomain } = prepare.resolveBrand(Manager);
+  const { from, groupId } = prepare.resolveSender(
+    { sender: settings.sender || 'marketing', from: settings.from, group: settings.group },
+    brand,
+    brandDomain,
+  );
+  const categories = prepare.buildCategories('marketing', brand.id, settings.categories);
+  const signoff = prepare.resolveSignoff(settings.signoff);
 
-  const templateId = TEMPLATES[settings.template] || settings.template || TEMPLATES['default'];
+  // --- Render ---
+  // Marketing Single Sends can't use per-recipient HMAC links (one HTML for all recipients).
+  // Use SendGrid's ASM tag instead — replaced with a real per-recipient URL at delivery time.
+  const unsubscribeUrl = '<%asm_group_unsubscribe_raw_url%>';
 
-  // Resolve sender
-  const sender = SENDERS[settings.sender] || SENDERS['marketing'];
-  const brand = Manager.config?.brand;
-  const brandDomain = brand?.contact?.email?.split('@')[1];
+  const templateData = prepare.buildTemplateData({
+    brand,
+    subject: settings.subject,
+    preview: settings.preheader,
+    contentHtml,
+    signoff,
+    unsubscribeUrl,
+    categories,
+    callerData: settings.data,
+  });
 
-  const from = settings.from || {
-    email: `${sender.localPart}@${brandDomain}`,
-    name: sender.displayName.replace('{brand}', brand?.name || ''),
-  };
+  const rendered = await prepare.render({
+    brand,
+    template: settings.template || 'card',
+    data: templateData,
+    utm: { campaign: settings.name || settings.template || 'campaign', type: 'marketing' },
+  });
 
-  // Build send_to targeting
-  const sendTo = {};
+  // --- Audience ---
+  const { sendTo, excludeSegments, cleanup } = await _resolveAudience(settings, brand);
 
-  if (settings.all) {
-    sendTo.all = true;
-  }
-  if (settings.lists && settings.lists.length) {
-    sendTo.list_ids = settings.lists;
-  }
-  if (settings.segments && settings.segments.length) {
-    sendTo.segment_ids = settings.segments;
-  }
-
-  // ASM group
-  const asmGroupId = settings.group != null
-    ? (GROUPS[settings.group] || settings.group)
-    : sender.group;
-
-  // Categories
-  const categories = _.uniq([
-    'marketing',
-    brand?.id,
-    ...require('node-powertools').arrayify(settings.categories),
-  ].filter(Boolean));
-
-  // Create the Single Send
+  // --- Create Single Send ---
   const createResult = await sendgridProvider.createSingleSend({
     name: settings.name,
     subject: settings.subject,
-    preheader: settings.preheader,
-    templateId,
     from,
     sendTo,
-    excludeSegments: settings.excludeSegments,
-    asmGroupId,
+    excludeSegments,
+    asmGroupId: groupId,
     categories,
-    dynamicTemplateData: {
-      ...settings.data,
-      ...(contentHtml ? { content: contentHtml } : {}),
-    },
+    htmlContent: rendered.html,
   });
 
   if (!createResult.success) {
+    await cleanup();
     return createResult;
   }
 
-  // Schedule if sendAt is provided
+  // --- Schedule ---
   if (!settings.sendAt) {
+    await cleanup();
     return { success: true, id: createResult.id, scheduled: false };
   }
 
   const sendAt = settings.sendAt === 'now' ? 'now' : new Date(settings.sendAt).toISOString();
   const scheduleResult = await sendgridProvider.scheduleSingleSend(createResult.id, sendAt);
 
+  await cleanup();
+
   if (!scheduleResult.success) {
     return { success: false, id: createResult.id, error: scheduleResult.error };
   }
 
   return { success: true, id: createResult.id, scheduled: true };
-};
+}
 
 /**
- * Cancel a scheduled campaign (SendGrid only).
+ * Resolve SendGrid audience targeting (lists, segments, brand-scoped dynamic segments).
  *
- * @param {string} campaignId - Single Send ID
- * @returns {{ success: boolean, error?: string }}
+ * @param {object} settings - Resolved campaign settings
+ * @param {object} brand - Resolved brand
+ * @returns {{ sendTo: object, excludeSegments: string[], cleanup: Function }}
  */
-Marketing.prototype.cancelCampaign = async function (campaignId) {
-  const self = this;
-  self.assistant.log('Marketing.cancelCampaign():', campaignId);
+async function _resolveAudience(settings, brand) {
+  const sendTo = {};
+  const cleanupFns = [];
+  const isTest = settings.test;
 
-  return sendgridProvider.cancelSingleSend(campaignId);
-};
+  if (settings.all) {
+    sendTo.all = true;
+  } else if (settings.segments?.length) {
+    const tempInclude = await sendgridProvider.createBrandScopedSegment(
+      settings.segments,
+      brand.id,
+      { skipBrandFilter: isTest },
+    );
 
-/**
- * Get a campaign by ID (SendGrid only).
- *
- * @param {string} campaignId - Single Send ID
- * @returns {object|null}
- */
-Marketing.prototype.getCampaign = async function (campaignId) {
-  return sendgridProvider.getSingleSend(campaignId);
-};
+    if (tempInclude) {
+      sendTo.segment_ids = [tempInclude.segmentId];
+      cleanupFns.push(tempInclude.cleanup);
+    }
+  } else if (settings.lists?.length) {
+    sendTo.list_ids = settings.lists;
+  } else {
+    const brandListId = sendgridProvider.getListId();
+    if (brandListId) {
+      sendTo.list_ids = [brandListId];
+    }
+  }
 
-/**
- * List campaigns with optional status filter (SendGrid only).
- *
- * @param {object} [options]
- * @param {string} [options.status] - Filter: draft, scheduled, triggered
- * @returns {Array<object>}
- */
-Marketing.prototype.listCampaigns = async function (options) {
-  return sendgridProvider.listSingleSends(options);
-};
+  let excludeSegments = [];
+  if (settings.excludeSegments?.length && !isTest) {
+    const tempExclude = await sendgridProvider.createBrandScopedSegment(
+      settings.excludeSegments,
+      brand.id,
+      { skipBrandFilter: true },
+    );
 
-// --- Campaign variable resolution ---
+    if (tempExclude) {
+      excludeSegments = [tempExclude.segmentId];
+      cleanupFns.push(tempExclude.cleanup);
+    }
+  }
+
+  const cleanup = async () => {
+    for (const fn of cleanupFns) {
+      await fn();
+    }
+  };
+
+  return { sendTo, excludeSegments, cleanup };
+}
+
+// ============================================================
+// Campaign template variable resolution
+// ============================================================
 
 const SEASONS = {
-  0: 'Winter',   // Jan
-  1: 'Winter',   // Feb
-  2: 'Spring',   // Mar
-  3: 'Spring',   // Apr
-  4: 'Spring',   // May
-  5: 'Summer',   // Jun
-  6: 'Summer',   // Jul
-  7: 'Summer',   // Aug
-  8: 'Fall',     // Sep
-  9: 'Fall',     // Oct
-  10: 'Fall',    // Nov
-  11: 'Winter',  // Dec
+  0: 'Winter', 1: 'Winter', 2: 'Spring', 3: 'Spring', 4: 'Spring', 5: 'Summer',
+  6: 'Summer', 7: 'Summer', 8: 'Fall', 9: 'Fall', 10: 'Fall', 11: 'Winter',
 };
 
 const HOLIDAYS = {
-  0: 'New Year',          // Jan
-  1: 'Valentine\'s Day',  // Feb
-  2: 'Spring',            // Mar
-  3: 'Spring',            // Apr
-  4: 'Memorial Day',      // May
-  5: 'Summer',            // Jun
-  6: 'Independence Day',  // Jul
-  7: 'Back to School',    // Aug
-  8: 'Labor Day',         // Sep
-  9: 'Halloween',         // Oct
-  10: 'Black Friday',     // Nov
-  11: 'Christmas',        // Dec
+  0: 'New Year', 1: 'Valentine\'s Day', 2: 'Spring', 3: 'Spring',
+  4: 'Memorial Day', 5: 'Summer', 6: 'Independence Day', 7: 'Back to School',
+  8: 'Labor Day', 9: 'Halloween', 10: 'Black Friday', 11: 'Christmas',
 };
 
 const MONTH_NAMES = [
@@ -550,37 +528,20 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-/**
- * Build template context for campaign variable resolution.
- * Used with powertools.template() — supports nested paths like {brand.name}.
- *
- * Available variables:
- *   {brand.name}, {brand.id}, {brand.url}
- *   {season.name}    — Winter, Spring, Summer, Fall
- *   {holiday.name}   — New Year, Valentine's Day, Black Friday, Christmas, etc.
- *   {date.month}     — January, February, etc.
- *   {date.year}      — 2026
- *   {date.full}      — March 17, 2026
- */
 function buildTemplateContext(brand, settings) {
   const now = new Date();
   const month = now.getMonth();
 
-  // Resolve discount code if provided in settings
   const discountCodes = require('../../payment/discount-codes.js');
-  const discountCode = settings?.discountCode;
+  const discountCode = settings?.data?.content?.discountCode || settings?.discountCode;
   const discount = discountCode
     ? discountCodes.validate(discountCode)
     : { code: '', percent: '' };
 
   return {
     brand: brand || {},
-    season: {
-      name: SEASONS[month],
-    },
-    holiday: {
-      name: HOLIDAYS[month],
-    },
+    season: { name: SEASONS[month] },
+    holiday: { name: HOLIDAYS[month] },
     date: {
       month: MONTH_NAMES[month],
       year: String(now.getFullYear()),
@@ -593,10 +554,6 @@ function buildTemplateContext(brand, settings) {
   };
 }
 
-/**
- * Recursively walk an object and resolve {template} variables in all string values.
- * Arrays and nested objects are walked. Non-string values are passed through.
- */
 function resolveTemplateVars(obj, context) {
   const template = require('node-powertools').template;
 
@@ -605,9 +562,8 @@ function resolveTemplateVars(obj, context) {
       return obj;
     }
 
-    // Resolve, then replace any "null" or "undefined" leftovers with empty string
     const resolved = template(obj, context);
-    return resolved.replace(/\bnull\b|\bundefined\b/g, '').replace(/\s{2,}/g, ' ').trim();
+    return resolved.replace(/\bnull\b|\bundefined\b/g, '').replace(/[^\S\n]{2,}/g, ' ').trim();
   }
 
   if (Array.isArray(obj)) {

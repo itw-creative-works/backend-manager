@@ -60,6 +60,7 @@ const STATIC_ACCOUNTS = {
     properties: {
       roles: { admin: true },
       subscription: { product: { id: 'basic' }, status: 'active' },
+      personal: { name: { first: 'Admin', last: 'User' } },
     },
   },
   basic: {
@@ -69,6 +70,7 @@ const STATIC_ACCOUNTS = {
     properties: {
       roles: {},
       subscription: { product: { id: 'basic' }, status: 'active' },
+      personal: { name: { first: 'Alex', last: 'Basic' } },
     },
   },
   'premium-active': {
@@ -231,7 +233,8 @@ const JOURNEY_ACCOUNTS = {
     email: '_test.journey-payments-upgrade@{domain}',
     properties: {
       roles: {},
-      subscription: { product: { id: 'basic' }, status: 'active' }, // Starts as basic, upgraded via Stripe webhook
+      subscription: { product: { id: 'basic' }, status: 'active' },
+      personal: { name: { first: 'Jordan', last: 'Upgrade' } },
     },
   },
   'journey-payments-cancel': {
@@ -240,7 +243,8 @@ const JOURNEY_ACCOUNTS = {
     email: '_test.journey-payments-cancel@{domain}',
     properties: {
       roles: {},
-      subscription: { product: { id: 'basic' }, status: 'active' }, // Test's first step overwrites with correct paid product from config
+      subscription: { product: { id: 'basic' }, status: 'active' },
+      personal: { name: { first: 'Casey', last: 'Cancel' } },
     },
   },
   'journey-payments-suspend': {
@@ -249,7 +253,8 @@ const JOURNEY_ACCOUNTS = {
     email: '_test.journey-payments-suspend@{domain}',
     properties: {
       roles: {},
-      subscription: { product: { id: 'basic' }, status: 'active' }, // Test's first step overwrites with correct paid product from config
+      subscription: { product: { id: 'basic' }, status: 'active' },
+      personal: { name: { first: 'Sam', last: 'Suspend' } },
     },
   },
   'journey-payments-trial': {
@@ -258,7 +263,8 @@ const JOURNEY_ACCOUNTS = {
     email: '_test.journey-payments-trial@{domain}',
     properties: {
       roles: {},
-      subscription: { product: { id: 'basic' }, status: 'active' }, // Starts as basic, upgraded via trial webhook
+      subscription: { product: { id: 'basic' }, status: 'active' },
+      personal: { name: { first: 'Taylor', last: 'Trial' } },
     },
   },
   'journey-payments-trial-cancel': {
@@ -267,7 +273,8 @@ const JOURNEY_ACCOUNTS = {
     email: '_test.journey-payments-trial-cancel@{domain}',
     properties: {
       roles: {},
-      subscription: { product: { id: 'basic' }, status: 'active' }, // Starts as basic, trial then immediate cancel
+      subscription: { product: { id: 'basic' }, status: 'active' },
+      personal: { name: { first: 'Morgan', last: 'Trial' } },
     },
   },
   'journey-payments-failure': {
@@ -276,7 +283,8 @@ const JOURNEY_ACCOUNTS = {
     email: '_test.journey-payments-failure@{domain}',
     properties: {
       roles: {},
-      subscription: { product: { id: 'basic' }, status: 'active' }, // Test's first step overwrites with correct paid product from config
+      subscription: { product: { id: 'basic' }, status: 'active' },
+      personal: { name: { first: 'Riley', last: 'Failure' } },
     },
   },
   'journey-payments-plan-change': {
@@ -285,7 +293,8 @@ const JOURNEY_ACCOUNTS = {
     email: '_test.journey-payments-plan-change@{domain}',
     properties: {
       roles: {},
-      subscription: { product: { id: 'basic' }, status: 'active' }, // Test's first step overwrites with correct paid product from config
+      subscription: { product: { id: 'basic' }, status: 'active' },
+      personal: { name: { first: 'Avery', last: 'Planchg' } },
     },
   },
   'journey-payments-one-time': {
@@ -337,6 +346,16 @@ const JOURNEY_ACCOUNTS = {
     id: 'journey-payments-intent-discount',
     uid: '_test-journey-payments-intent-discount',
     email: '_test.journey-payments-intent-discount@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'basic' }, status: 'active' },
+      personal: { name: { first: 'Drew', last: 'Discount' } },
+    },
+  },
+  'intent-discount-validation': {
+    id: 'intent-discount-validation',
+    uid: '_test-intent-discount-validation',
+    email: '_test.intent-discount-validation@{domain}',
     properties: {
       roles: {},
       subscription: { product: { id: 'basic' }, status: 'active' },

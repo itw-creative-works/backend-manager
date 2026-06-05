@@ -31,7 +31,7 @@ module.exports = {
       name: 'add-contact',
       auth: 'admin',
 
-      async run({ http, assert, state }) {
+      async run({ http, assert, state, config }) {
         const response = await http.post('marketing/contact', {
           email: state.testEmail,
           firstName: 'Lifecycle',
@@ -47,7 +47,7 @@ module.exports = {
           assert.propertyEquals(response, 'data.providers.sendgrid.success', true, 'SendGrid add should succeed');
         }
 
-        if (process.env.BEEHIIV_API_KEY) {
+        if (process.env.BEEHIIV_API_KEY && config.marketing?.beehiiv?.publicationId) {
           assert.hasProperty(response, 'data.providers.beehiiv', 'Should have Beehiiv result');
           assert.propertyEquals(response, 'data.providers.beehiiv.success', true, 'Beehiiv add should succeed');
         }
@@ -60,10 +60,16 @@ module.exports = {
       name: 'sync-contact-by-uid',
       auth: 'admin',
 
-      async run({ http, assert, accounts }) {
-        // Sync the admin test account — exercises UID→doc resolution + buildFields
+      async run({ http, assert, accounts, config, Manager }) {
+        // Use consent-granted account — it has _test.allow_* prefix that bypasses validation
+        const grantedUid = accounts['consent-granted'].uid;
+        const admin = Manager.libraries.admin;
+        await admin.firestore().doc(`users/${grantedUid}`).set({
+          consent: { marketing: { status: 'granted' } },
+        }, { merge: true });
+
         const response = await http.put('marketing/contact', {
-          uid: accounts.admin.uid,
+          uid: grantedUid,
         });
 
         assert.isSuccess(response, 'Sync contact should succeed');
@@ -74,7 +80,7 @@ module.exports = {
           assert.propertyEquals(response, 'data.providers.sendgrid.success', true, 'SendGrid sync should succeed');
         }
 
-        if (process.env.BEEHIIV_API_KEY) {
+        if (process.env.BEEHIIV_API_KEY && config.marketing?.beehiiv?.publicationId) {
           assert.hasProperty(response, 'data.providers.beehiiv', 'Should have Beehiiv result');
           assert.propertyEquals(response, 'data.providers.beehiiv.success', true, 'Beehiiv sync should succeed');
         }
@@ -86,7 +92,7 @@ module.exports = {
       name: 'remove-contact',
       auth: 'admin',
 
-      async run({ http, assert, state }) {
+      async run({ http, assert, state, config }) {
         const response = await http.delete('marketing/contact', {
           email: state.testEmail,
         });
@@ -99,7 +105,7 @@ module.exports = {
           assert.propertyEquals(response, 'data.providers.sendgrid.success', true, 'SendGrid remove should succeed');
         }
 
-        if (process.env.BEEHIIV_API_KEY) {
+        if (process.env.BEEHIIV_API_KEY && config.marketing?.beehiiv?.publicationId) {
           assert.hasProperty(response, 'data.providers.beehiiv', 'Should have Beehiiv result');
           assert.propertyEquals(response, 'data.providers.beehiiv.success', true, 'Beehiiv remove should succeed');
         }

@@ -199,13 +199,13 @@ function sendDownloadEmail(assistant, user, requestId, downloads) {
     sender: 'account',
     categories: ['account/data-request-download'],
     subject: `Your data has been downloaded #${requestId}`,
-    template: 'default',
+    template: 'card',
     copy: true,
     data: {
       email: {
         preview: `Your personal data export was downloaded on ${downloadDate}.`,
       },
-      body: {
+      content: {
         title: 'Data Download Confirmation',
         message: `${greeting} personal data export has been successfully downloaded.
 

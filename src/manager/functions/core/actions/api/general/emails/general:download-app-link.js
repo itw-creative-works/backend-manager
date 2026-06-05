@@ -13,7 +13,7 @@ module.exports = function (payload, config) {
       sender: 'marketing',
       categories: ['download'],
       subject: `Free ${config.brand.name} download link for ${payload.name || 'you'}!`,
-      template: 'core/misc/app-download-link',
+      template: 'card',
       copy: false,
       data: {},
     }

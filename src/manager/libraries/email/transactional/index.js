@@ -1,6 +1,8 @@
 /**
  * Transactional email library — build and send individual emails via SendGrid
  *
+ * Pipeline: prepare (shared) → recipients (transactional-only) → render → deliver
+ *
  * Usage:
  *   const email = Manager.Email(assistant);
  *   const result = await email.send(settings);
@@ -14,23 +16,10 @@
 const _ = require('lodash');
 const moment = require('moment');
 const pushid = require('pushid');
-const MarkdownIt = require('markdown-it');
-const md = new MarkdownIt({
-  html: true,
-  breaks: true,
-  linkify: true,
-});
 
-const {
-  TEMPLATES,
-  GROUPS,
-  SENDERS,
-  SEND_AT_LIMIT,
-  sanitizeImagesForEmail,
-  encode,
-  errorWithCode,
-} = require('../constants.js');
+const { SEND_AT_LIMIT, errorWithCode } = require('../constants.js');
 const { tagLinks } = require('../utm.js');
+const prepare = require('../prepare.js');
 
 function Transactional(assistant) {
   const self = this;
@@ -45,6 +34,12 @@ function Transactional(assistant) {
 /**
  * Build a complete SendGrid email object from settings.
  *
+ * Steps:
+ *   1. Resolve brand + sender (shared)
+ *   2. Resolve recipients (transactional-only: normalize, UID lookup, CC, dedup)
+ *   3. Build template data tree (shared) + render content through MJML
+ *   4. Assemble SendGrid Mail Send object
+ *
  * @param {object} settings - Email settings (to, cc, bcc, subject, template, etc.)
  * @returns {object} SendGrid-ready email object
  * @throws {Error} On validation failure
@@ -54,21 +49,26 @@ Transactional.prototype.build = async function (settings) {
   const Manager = self.Manager;
   const admin = self.admin;
   const assistant = self.assistant;
-  const powertools = require('node-powertools');
 
-  // Normalize recipients
+  // --- 1. Brand + sender ---
+  const { brand, brandDomain } = prepare.resolveBrand(Manager);
+  const { from, groupId } = prepare.resolveSender(settings, brand, brandDomain);
+  const categories = prepare.buildCategories('transactional', brand.id, settings.categories);
+  const signoff = prepare.resolveSignoff(settings?.data?.signoff);
+  const templateName = settings.template || 'card';
+
+  // --- 2. Recipients ---
   let to = normalizeRecipients(settings.to);
   let cc = normalizeRecipients(settings.cc);
   let bcc = normalizeRecipients(settings.bcc);
 
-  // Resolve any UID recipients from Firestore
   [to, cc, bcc] = await Promise.all([
     resolveRecipients(to, admin, assistant),
     resolveRecipients(cc, admin, assistant),
     resolveRecipients(bcc, admin, assistant),
   ]);
 
-  // Resolve user template data from the primary recipient's user doc (if available)
+  // Extract user properties from primary recipient for template data
   const rawUserDoc = to[0]?._userDoc || {};
   const userProperties = Manager.User(rawUserDoc).properties;
   delete userProperties.api;
@@ -78,51 +78,25 @@ Transactional.prototype.build = async function (settings) {
   delete userProperties.attribution;
   delete userProperties.flags;
 
-  // Clean internal markers from recipients
+  // Clean internal markers
   for (const list of [to, cc, bcc]) {
     for (const entry of list) {
       delete entry._userDoc;
     }
   }
 
-  // Get brand config
-  const brand = Manager.config?.brand;
-
-  if (!brand) {
-    throw errorWithCode('Missing brand configuration in backend-manager-config.json', 400);
-  }
-
-  const brandData = _.cloneDeep(brand);
-  brandData.images = sanitizeImagesForEmail(brandData.images || {});
-
-  if (!brandData.contact?.email) {
-    throw errorWithCode('Missing brand.contact.email in backend-manager-config.json', 400);
-  }
-
   const copy = settings.copy ?? true;
 
-  // Add carbon copy recipients
   if (copy) {
-    cc.push({
-      email: brandData.contact.email,
-      name: brandData.name,
-    });
+    cc.push({ email: brand.contact.email, name: brand.name });
     bcc.push(
-      {
-        email: 'support@itwcreativeworks.com',
-        name: 'ITW Creative Works',
-      },
-      {
-        email: 'parser+carboncopy@sendgrid-parser.itwcreativeworks.com',
-        name: 'ITW Creative Works (Carbon Copy)',
-      }
+      { email: 'support@itwcreativeworks.com', name: 'ITW Creative Works' },
+      { email: 'parser+carboncopy@sendgrid-parser.itwcreativeworks.com', name: 'ITW Creative Works (Carbon Copy)' },
     );
   }
 
-  // Deduplicate all lists
   ({ to, cc, bcc } = deduplicateRecipients(to, cc, bcc));
 
-  // Delete empty names
   for (const list of [to, cc, bcc]) {
     for (const entry of list) {
       if (!entry.name) {
@@ -144,109 +118,58 @@ Transactional.prototype.build = async function (settings) {
 
   const preview = settings.preview || settings?.data?.email?.preview || null;
 
-  const templateId = TEMPLATES[settings.template] || settings.template || TEMPLATES['default'];
+  // --- 3. Template data + render ---
+  const unsubscribeUrl = prepare.buildUnsubscribeUrl({
+    email: to[0].email,
+    groupId,
+    template: templateName,
+    websiteUrl: Manager.project.websiteUrl,
+  });
 
-  // Resolve sender category
-  const sender = SENDERS[settings.sender] || null;
-  const brandDomain = brandData.contact.email.split('@')[1];
-
-  // From: explicit from > sender-derived > brand default
-  const from = settings.from
-    || (sender && {
-      email: `${sender.localPart}@${brandDomain}`,
-      name: sender.displayName.replace('{brand}', brandData.name),
-    })
-    || { email: brandData.contact.email, name: brandData.name };
-
-  // ASM group: explicit group > sender-derived > default
-  const groupId = settings.group != null
-    ? (GROUPS[settings.group] || settings.group)
-    : (sender ? sender.group : GROUPS['account']);
-
-  // Build categories
-  const categories = _.uniq([
-    'transactional',
-    brandData.id,
-    ...powertools.arrayify(settings.categories),
-  ]);
-
-  // Normalize sendAt
-  const sendAt = normalizeSendAt(settings.sendAt);
-
-  // Build unsubscribe URL
-  const crypto = require('crypto');
-  const unsubSig = crypto.createHmac('sha256', process.env.UNSUBSCRIBE_HMAC_KEY).update(to[0].email.toLowerCase()).digest('hex');
-  const unsubscribeUrl = `${Manager.project.websiteUrl}/portal/email-preferences?email=${encode(to[0].email)}&asmId=${encode(groupId)}&templateId=${encode(templateId)}&sig=${unsubSig}`;
-
-  // Build signoff defaults
-  const signoff = settings?.data?.signoff || {};
-  signoff.type = signoff.type || 'team';
-
-  if (signoff.type === 'personal') {
-    signoff.image = signoff.image
-      || 'https://cdn.itwcreativeworks.com/assets/ian-wiedenman/images/website/ian-wiedenman-headshot-2021-color-1024x1024.jpg';
-    signoff.name = signoff.name || 'Ian Wiedenman, CEO';
-    signoff.url = signoff.url || 'https://ianwiedenman.com';
-    signoff.urlText = signoff.urlText || '@ianwieds';
-  }
-
-  // Build dynamic template data — system-generated defaults
-  const dynamicTemplateData = {
-    email: {
-      id: Manager.require('uuid').v4(),
-      subject,
-      preview,
-      body: null,
-      unsubscribeUrl,
-      categories,
-      footer: {
-        text: null,
-      },
-      carbonCopy: copy,
-    },
-    personalization: {
-      email: to[0].email,
-      name: to[0].name,
-    },
-    signoff,
-    brand: brandData,
-    user: userProperties,
-  };
-
-  // Deep-merge caller's data on top of defaults.
-  // This is the single template data tree — everything the template can access.
-  // Callers can override any field (email.preview, signoff.type, etc.)
-  // and add custom data (order.*, body.*, abandonedCart.*, etc.) at the root.
-  // Templates access all fields at the root: {{order.id}}, {{email.preview}}, {{brand.name}}.
-  if (settings.data) {
-    _.merge(dynamicTemplateData, settings.data);
-  }
-
-  // Process markdown in body fields (after merge so caller data is resolved)
-  if (dynamicTemplateData.body?.message) {
-    dynamicTemplateData.body.message = md.render(dynamicTemplateData.body.message);
-  }
-  if (dynamicTemplateData.email?.body) {
-    dynamicTemplateData.email.body = md.render(dynamicTemplateData.email.body);
-  }
-
-  // Tag links with UTM params for attribution
+  // Render markdown content to HTML (if provided)
+  const utmCampaign = (settings.categories && settings.categories[0]) || settings.sender || templateName;
   const utmOptions = {
-    brandUrl: brand?.url,
-    brandId: brand?.id,
-    campaign: settings.sender || templateId,
+    brandUrl: brand.url,
+    brandId: brand.id,
+    campaign: utmCampaign,
     type: 'transactional',
     utm: settings.utm,
   };
+  const contentHtml = prepare.renderContent(
+    { content: settings?.data?.content?.message, html: settings?.data?.content?.html },
+    utmOptions,
+  );
 
-  if (dynamicTemplateData.body?.message) {
-    dynamicTemplateData.body.message = tagLinks(dynamicTemplateData.body.message, utmOptions);
-  }
-  if (dynamicTemplateData.email?.body) {
-    dynamicTemplateData.email.body = tagLinks(dynamicTemplateData.email.body, utmOptions);
+  const templateData = prepare.buildTemplateData({
+    brand,
+    subject,
+    preview,
+    contentHtml,
+    signoff,
+    unsubscribeUrl,
+    categories,
+    copy,
+    callerData: {
+      personalization: { email: to[0].email, name: to[0].name },
+      user: userProperties,
+      ...settings.data,
+    },
+  });
+
+  // Process markdown in any remaining body fields that the caller set directly
+  const MarkdownIt = require('markdown-it');
+  const md = new MarkdownIt({ html: true, breaks: true, linkify: true });
+
+  if (templateData.content?.message && typeof templateData.content.message === 'string' && !templateData.content.message.startsWith('<')) {
+    templateData.content.message = tagLinks(md.render(templateData.content.message), utmOptions);
   }
 
-  // Build the email object
+  // Render through MJML template
+  const rendered = await prepare.render({ brand, template: templateName, data: templateData });
+
+  // --- 4. Assemble SendGrid object ---
+  const sendAt = normalizeSendAt(settings.sendAt);
+
   const email = {
     to,
     cc,
@@ -254,31 +177,20 @@ Transactional.prototype.build = async function (settings) {
     from,
     replyTo: settings.replyTo || from.email,
     subject,
-    templateId,
+    content: [{ type: 'text/html', value: rendered.html }],
     categories,
-    dynamicTemplateData,
-    substitutionWrappers: ['{{', '}}'],
+    asm: { groupId },
+    headers: { 'List-Unsubscribe': `<${unsubscribeUrl}>` },
   };
 
-  // ASM group + unsubscribe header (always present on every email)
-  email.asm = { groupId };
-  email.headers = { 'List-Unsubscribe': `<${unsubscribeUrl}>` };
-
-  // Set sendAt
   if (sendAt) {
     email.sendAt = sendAt;
   }
 
-  // Handle raw HTML override
+  // Raw HTML override — caller provides complete HTML, skip MJML
   if (settings.html) {
     email.content = [{ type: 'text/html', value: settings.html }];
-    delete email.templateId;
   }
-
-  // Build stringified version for template rendering
-  const clonedData = _.cloneDeep(dynamicTemplateData);
-  clonedData.brand.sponsorships = {};
-  email.dynamicTemplateData._stringified = JSON.stringify(clonedData, null, 2);
 
   return email;
 };
@@ -299,22 +211,17 @@ Transactional.prototype.send = async function (settings) {
 
   assistant.log(`Email.send(): to=${JSON.stringify(settings.to)}, subject=${settings.subject}, template=${settings.template}`);
 
-  // Build email from settings (throws with code: 400 on validation failure)
   const email = await self.build(settings);
 
   // Initialize SendGrid
   const sendgrid = Manager.require('@sendgrid/mail');
   sendgrid.setApiKey(process.env.SENDGRID_API_KEY);
 
-  // If scheduled beyond the limit, queue it for later
+  // If scheduled beyond the limit, queue for later
   if (email.sendAt && email.sendAt >= moment().add(SEND_AT_LIMIT, 'hours').unix()) {
     await saveToEmailQueue(settings, email.sendAt, admin, assistant);
 
-    return {
-      status: 'queued',
-      options: email,
-      response: null,
-    };
+    return { status: 'queued', options: email, response: null };
   }
 
   // Send via SendGrid
@@ -326,37 +233,20 @@ Transactional.prototype.send = async function (settings) {
     throw errorWithCode(`Failed to send email: ${JSON.stringify(details)}`, 500);
   }
 
-  // Extract message ID
   const messageId = send[0].headers['x-message-id'];
-
   assistant.log('Email send succeeded:', messageId, send);
 
-  // Save audit trail (non-blocking)
   saveAuditTrail(email, messageId, admin, assistant);
 
-  // Track analytics
   if (assistant.analytics) {
     assistant.analytics.event('admin/email', { status: 'sent' });
   }
 
-  return {
-    status: 'sent',
-    options: email,
-    response: send,
-  };
+  return { status: 'sent', options: email, response: send };
 };
 
-// --- Private helpers ---
+// --- Recipients (transactional-only) ---
 
-/**
- * Normalize recipient input into a consistent array of { email, name?, _userDoc? } objects.
- *
- * Accepts:
- *   - Email string: 'user@example.com'
- *   - UID string (no @): 'abc123' — fetched from Firestore in resolveRecipients
- *   - Email object: { email: 'user@example.com', name: 'John' }
- *   - User doc object: { auth: { email: '...' }, personal: { name: { first: '...' } }, ... }
- */
 function normalizeRecipients(input) {
   if (!input) {
     return [];
@@ -377,7 +267,6 @@ function normalizeRecipients(input) {
         result.push({ _uid: item });
       }
     } else if (typeof item === 'object' && item.auth?.email) {
-      // Full user doc — extract email/name and stash doc for template data
       result.push({
         email: item.auth.email,
         ...(item.personal?.name?.first && { name: item.personal.name.first }),
@@ -391,10 +280,6 @@ function normalizeRecipients(input) {
   return result;
 }
 
-/**
- * Resolve any UID recipients by fetching user docs from Firestore.
- * Stashes the full user doc as `_userDoc` for template data resolution in build().
- */
 async function resolveRecipients(recipients, admin, assistant) {
   const uidEntries = recipients.filter(r => r._uid);
   const nonUidEntries = recipients.filter(r => !r._uid);
@@ -403,7 +288,6 @@ async function resolveRecipients(recipients, admin, assistant) {
     return nonUidEntries;
   }
 
-  // Fetch all UIDs in parallel
   const snapshots = await Promise.all(
     uidEntries.map(entry =>
       admin.firestore().doc(`users/${entry._uid}`).get()
@@ -442,9 +326,6 @@ async function resolveRecipients(recipients, admin, assistant) {
   return [...nonUidEntries, ...resolved];
 }
 
-/**
- * Deduplicate recipients within each list and cross-dedup cc/bcc against to.
- */
 function deduplicateRecipients(to, cc, bcc) {
   const dedup = (arr) => {
     const seen = new Set();
@@ -476,16 +357,14 @@ function deduplicateRecipients(to, cc, bcc) {
   return { to, cc, bcc };
 }
 
-/**
- * Normalize sendAt to a unix timestamp (seconds).
- */
+// --- Scheduling + persistence ---
+
 function normalizeSendAt(sendAt) {
   if (!sendAt && sendAt !== 0) {
     return null;
   }
 
   if (typeof sendAt === 'number') {
-    // If it looks like milliseconds (> year 2100 in seconds), convert
     if (sendAt > 4102444800) {
       return Math.floor(sendAt / 1000);
     }
@@ -503,15 +382,9 @@ function normalizeSendAt(sendAt) {
   return null;
 }
 
-/**
- * Save original settings to queue for deferred sending (beyond 71h limit).
- * Stores the raw settings so the email can be re-sent through the full
- * build pipeline when the cron picks it up.
- */
 async function saveToEmailQueue(settings, sendAt, admin, assistant) {
   const emailId = pushid();
 
-  // Clone and clean undefined values for Firestore
   const settingsCloned = _.cloneDeepWith(settings, (value) => {
     if (typeof value === 'undefined') {
       return null;
@@ -521,25 +394,17 @@ async function saveToEmailQueue(settings, sendAt, admin, assistant) {
   assistant.log(`saveToEmailQueue(): Saving ${emailId}, sendAt=${sendAt}`);
 
   await admin.firestore().doc(`emails-queue/${emailId}`)
-    .set({
-      settings: settingsCloned,
-      sendAt,
-    })
+    .set({ settings: settingsCloned, sendAt })
     .then(() => assistant.log(`saveToEmailQueue(): Success ${emailId}`))
     .catch(e => assistant.error(`saveToEmailQueue(): Failed ${emailId}`, e));
 }
 
-/**
- * Save sent email to Firestore for audit trail (non-blocking)
- */
 function saveAuditTrail(email, messageId, admin, assistant) {
-  // Clone and clean before storage
   const emailCloned = _.cloneDeepWith(email, (value) => {
     if (typeof value === 'undefined') {
       return null;
     }
   });
-  delete emailCloned.dynamicTemplateData._stringified;
 
   admin.firestore().doc(`emails/${messageId}`)
     .set({

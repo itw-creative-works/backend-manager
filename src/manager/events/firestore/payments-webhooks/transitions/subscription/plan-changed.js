@@ -9,13 +9,13 @@ module.exports = async function ({ before, after, order, uid, userDoc, assistant
   assistant.log(`Transition [subscription/plan-changed]: uid=${uid}, ${before.product?.id} → ${after.product?.id} (${direction})`);
 
   sendOrderEmail({
-    template: 'core/order/plan-changed',
+    template: 'order',
     subject: `Your plan has been updated #${order?.id || ''}`,
     categories: ['order/plan-changed'],
     userDoc,
     assistant,
     data: {
-      order: {
+      content: { event: 'plan-changed',
         ...order,
         // Inject previous plan info into the unified object for the template
         unified: {

@@ -29,7 +29,7 @@ const {
   column,
   dividerBlock,
   sponsorshipsAt,
-} = require('./shared.js');
+} = require('../newsletter-shared.js');
 
 const {
   SERIF_FONT,
@@ -42,9 +42,9 @@ const {
   dataCallout,
   tldrStrip,
   dispatchTerminator,
-} = require('./field-report-helpers.js');
+} = require('./helpers.js');
 
-const { computeIssueNumber } = require('./editorial-helpers.js');
+const { computeIssueNumber } = require('../editorial/helpers.js');
 
 // Field-report-specific paper background — slight ivory tint, never pure white.
 const PAPER = '#f7f3ec';

@@ -404,6 +404,29 @@ Job.prototype.main = function () {
 module.exports = Job;
 ```
 
+## Email System
+
+Unified MJML-based email rendering for transactional, marketing, and newsletter emails. All emails are rendered server-side — no SendGrid dynamic templates.
+
+- **Unified pipeline** — shared `prepare.js` layer for brand, sender, content, signoff, categories, unsubscribe URL
+- **Composable template system** — `base.js` provides building blocks (skeleton, logo, card wrapper, signoff, button, footer); templates compose what they need
+- **4 email templates** — `card` (default workhorse), `plain` (personal email feel), `order` (all 9 payment event types), `feedback` (rating faces)
+- **MJML compilation** — templates return MJML strings, compiled to email-safe HTML via the `mjml` package
+- **Hidden ASM + category tags** — baked into the skeleton to suppress SendGrid's auto-unsubscribe and enable email sorting
+
+### Email API
+
+```javascript
+const email = Manager.Email(assistant);
+await email.send({
+  template: 'card',
+  subject: 'Welcome!',
+  to: 'user@example.com',
+  sender: 'hello',
+  data: { body: { title: 'Welcome', message: '# Hello!\n\nWelcome aboard.' } },
+});
+```
+
 ## Marketing & Campaigns
 
 Built-in marketing system with multi-provider support (SendGrid + Beehiiv + FCM push).

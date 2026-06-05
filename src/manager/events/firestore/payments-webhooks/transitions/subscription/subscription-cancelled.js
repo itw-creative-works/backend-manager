@@ -13,13 +13,13 @@ module.exports = async function ({ before, after, order, uid, userDoc, assistant
   const hasFutureExpiry = !isTrial && after.expires?.timestamp && new Date(after.expires.timestamp) > new Date();
 
   sendOrderEmail({
-    template: 'core/order/cancelled',
+    template: 'order',
     subject: `Your subscription has been cancelled #${order?.id || ''}`,
     categories: ['order/cancelled'],
     userDoc,
     assistant,
     data: {
-      order: {
+      content: { event: 'cancelled',
         ...order,
         _computed: {
           date: formatDate(new Date().toISOString()),

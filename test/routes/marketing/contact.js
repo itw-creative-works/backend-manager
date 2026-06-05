@@ -39,7 +39,7 @@ module.exports = {
       auth: 'admin',
       timeout: 30000,
 
-      async run({ http, assert, state }) {
+      async run({ http, assert, state, config }) {
         const testEmail = TEST_EMAILS.valid();
         state.testEmail = testEmail;
 
@@ -75,7 +75,7 @@ module.exports = {
             }
           }
 
-          if (process.env.BEEHIIV_API_KEY) {
+          if (process.env.BEEHIIV_API_KEY && config.marketing?.beehiiv?.publicationId) {
             assert.hasProperty(response, 'data.providers.beehiiv', 'Should have Beehiiv result');
             if (providers.beehiiv?.success) {
               state.beehiivAdded = true;

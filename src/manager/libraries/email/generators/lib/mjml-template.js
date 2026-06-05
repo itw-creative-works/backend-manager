@@ -10,8 +10,8 @@
  */
 const mjml = require('mjml');
 
-const { resolveTemplate } = require('./templates/index.js');
-const { formatAddress } = require('./templates/shared.js');
+const { resolveNewsletterTemplate, resolveEmailTemplate } = require('./templates/index.js');
+const { formatAddress } = require('./templates/newsletter-shared.js');
 const { tagLinks } = require('../../utm');
 
 const DEFAULT_THEME = {
@@ -44,7 +44,7 @@ async function renderNewsletter({ brand, newsletterConfig, structure, imagePaths
   const brandAddress = formatAddress(brand?.address);
 
   const templateName = template || newsletterConfig?.template || DEFAULT_TEMPLATE;
-  const builder = resolveTemplate(templateName);
+  const builder = resolveNewsletterTemplate(templateName);
 
   // Resolve sponsorships: per-call override beats per-campaign beats config defaults
   const resolvedSponsorships = Array.isArray(sponsorships) && sponsorships.length
@@ -80,4 +80,41 @@ async function renderNewsletter({ brand, newsletterConfig, structure, imagePaths
   return { mjml: mjmlString, html, template: templateName, errors: compiled.errors || [] };
 }
 
-module.exports = { renderNewsletter };
+/**
+ * Render a campaign/transactional email to email-safe HTML.
+ * Uses the campaign template registry (card, plain, order, feedback).
+ *
+ * @param {object} args
+ * @param {object} args.brand - { name, id, url, address, theme }
+ * @param {string} args.template - Template name ('card', 'plain', 'order', 'feedback')
+ * @param {object} args.data - Full data object (brand, user, content, signoff, email, etc.)
+ * @param {object} [args.utm] - UTM overrides for link tagging ({ campaign, type })
+ * @returns {Promise<{mjml: string, html: string, template: string, errors: object[]}>}
+ */
+async function renderEmail({ brand, template, data, utm }) {
+  const theme = { ...DEFAULT_THEME, ...(brand?.theme || {}) };
+  const templateName = template || 'card';
+  const builder = resolveEmailTemplate(templateName);
+
+  const mjmlString = builder.build({ data, theme, templateName });
+
+  const compiled = await mjml(mjmlString, { validationLevel: 'soft' });
+
+  if (compiled.errors?.length) {
+    console.warn('MJML compilation warnings:', compiled.errors.map((e) => e.message));
+  }
+
+  const brandUrl = brand?.url || '';
+  const brandId = brand?.id || '';
+
+  let html = brandUrl
+    ? tagLinks(compiled.html, { brandUrl, brandId, campaign: utm?.campaign || templateName, type: utm?.type || 'transactional' })
+    : compiled.html;
+
+  // Wrap the body content with id="email-content" (matches legacy SendGrid template convention)
+  html = html.replace(/(<body[^>]*>)/, '$1<div id="email-content">').replace(/<\/body>/, '</div></body>');
+
+  return { mjml: mjmlString, html, template: templateName, errors: compiled.errors || [] };
+}
+
+module.exports = { renderNewsletter, renderEmail };

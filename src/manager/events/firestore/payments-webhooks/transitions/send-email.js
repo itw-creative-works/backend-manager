@@ -29,6 +29,9 @@ function sendOrderEmail({ template, subject, categories, data, userDoc, assistan
     ? { email: brandContact?.email, name: brandContact?.name || assistant.Manager.config?.brand?.name }
     : userDoc;
 
+  const content = data?.content || {};
+  assistant.log(`sendOrderEmail(): template=${template}, price=${content.unified?.payment?.price}, frequency=${content.unified?.payment?.frequency}, totalToday=${content._computed?.totalToday}, firstCharge=${content._computed?.firstChargeAmount}, trial=${content.unified?.trial?.claimed}, productId=${content.unified?.product?.id}`);
+
   email.send({
     sender,
     to,

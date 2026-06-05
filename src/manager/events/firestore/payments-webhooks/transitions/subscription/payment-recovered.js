@@ -8,14 +8,14 @@ module.exports = async function ({ before, after, order, uid, userDoc, assistant
   assistant.log(`Transition [subscription/payment-recovered]: uid=${uid}, product=${after.product?.id}`);
 
   sendOrderEmail({
-    template: 'core/order/payment-recovered',
+    template: 'order',
     subject: `Payment received for order #${order?.id || ''}`,
     categories: ['order/payment-recovered'],
     internalOnly: true,
     userDoc,
     assistant,
     data: {
-      order: {
+      content: { event: 'payment-recovered',
         ...order,
         _computed: {
           date: formatDate(new Date().toISOString()),

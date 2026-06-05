@@ -13,7 +13,7 @@ module.exports = {
   tests: [
     {
       name: 'verify-starts-as-basic',
-      async run({ accounts, firestore, assert, state, config, skip }) {
+      async run({ accounts, firestore, assert, state, config, skip, payments }) {
         const uid = accounts['journey-payments-trial'].uid;
         const userDoc = await firestore.get(`users/${uid}`);
 
@@ -33,6 +33,7 @@ module.exports = {
 
         state.uid = uid;
         state.paidProductId = paidProduct.id;
+        state.product = payments.products[paidProduct.id];
       },
     },
 
@@ -42,7 +43,7 @@ module.exports = {
         const response = await http.as('journey-payments-trial').post('payments/intent', {
           processor: 'test',
           productId: state.paidProductId,
-          frequency: 'monthly',
+          frequency: state.product.frequency,
           trial: true,
         });
 
@@ -137,7 +138,7 @@ module.exports = {
               start_date: Math.floor(Date.now() / 1000) - 86400 * 14,
               trial_start: Math.floor(Date.now() / 1000) - 86400 * 14,
               trial_end: Math.floor(Date.now() / 1000),
-              plan: { product: payments.stripeProductIds[state.paidProductId], interval: 'month' },
+              plan: { product: payments.stripeProductIds[state.paidProductId], interval: state.product.interval },
             },
           },
         });
@@ -163,7 +164,7 @@ module.exports = {
         assert.equal(userDoc.subscription.product.id, state.paidProductId, `Product should be ${state.paidProductId}`);
         assert.equal(userDoc.subscription.status, 'active', 'Status should be active');
         assert.equal(userDoc.subscription.trial.claimed, true, 'Trial should remain claimed (historical)');
-        assert.equal(userDoc.subscription.payment.frequency, 'monthly', 'Frequency should be monthly');
+        assert.equal(userDoc.subscription.payment.frequency, state.product.frequency, `Frequency should be ${state.product.frequency}`);
       },
     },
   ],

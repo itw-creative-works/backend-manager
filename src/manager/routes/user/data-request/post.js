@@ -102,13 +102,13 @@ function sendConfirmationEmail(assistant, user, requestId, reason) {
     sender: 'account',
     categories: ['account/data-request'],
     subject: `Your data request has been received #${requestId}`,
-    template: 'default',
+    template: 'card',
     copy: true,
     data: {
       email: {
         preview: `We've received your data export request. Your data will be available for download within 14 business days.`,
       },
-      body: {
+      content: {
         title: 'Data Request Received',
         message: `${greeting} received your request for a copy of your personal data.${reasonLine}
 

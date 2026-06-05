@@ -54,9 +54,17 @@ Campaigns with a `generator` field don't send directly. A daily cron pre-generat
 4. Advances the recurring template's `sendAt`
 5. Generated campaign appears on calendar for review, sent by frequent cron when due
 
+## Email Rendering
+
+All campaign emails are rendered server-side via the unified MJML template system — no SendGrid dynamic templates (`d-xxx` IDs). The marketing pipeline calls `prepare.render()` to compile campaign content through the same MJML pipeline used by transactional emails.
+
+Campaign content is **markdown** — converted to HTML via `renderContent()`, then passed to the resolved email template (default: `card`). The rendered HTML goes into SendGrid's `html_content` field on the Single Send.
+
+See [docs/email-system.md](email-system.md) for the full template system reference (composable base blocks, template registry, all 4 email templates).
+
 ## Template Variables
 
-Resolved at send time via `powertools.template()`. Single braces `{var}` for campaign-level, double `{{var}}` for SendGrid template-level.
+Resolved at send time via `powertools.template()`. Single braces `{var}` for campaign-level.
 
 | Variable | Example Output |
 |----------|---------------|
@@ -86,6 +94,54 @@ Defaults: `utm_source=brand.id`, `utm_medium=email`, `utm_campaign=name`, `utm_c
 | Engagement (5) | `engagement_active_30d`, `engagement_active_90d`, `engagement_inactive_90d`, `engagement_inactive_5m`, `engagement_inactive_6m` |
 
 Campaigns reference segments by SSOT key: `segments: ['subscription_free']`. Auto-translated to provider IDs.
+
+## Brand-Scoped Dynamic Segments (SendGrid)
+
+### The problem
+
+All brands share one SendGrid account. SendGrid segments are account-wide — `subscription_cancelled` contains cancelled users from ALL brands. `send_to.segment_ids` is a UNION (OR), so you can't intersect a segment with a brand's list. Custom fields like `brand_id` are global per contact (last brand to sync wins), so multi-brand contacts have unreliable `brand_id` values.
+
+### The workaround (current)
+
+At **send time**, the marketing pipeline creates a temporary SendGrid segment that ANDs the original segment's query with `"brand_id" = '<brand>'`. This scopes the audience to the current brand.
+
+**Flow:**
+1. Resolve segment names → SendGrid IDs (cached `resolveSegmentIds()`)
+2. Fetch each segment's `query_dsl` via `GET /marketing/segments/2.0/{id}`
+3. Extract WHERE clauses, combine with `AND "brand_id" = '<brand>'`
+4. `POST /marketing/segments/2.0` → creates temp segment (~3s)
+5. Use temp segment ID in `send_to.segment_ids`
+6. Schedule the Single Send — SendGrid evaluates the query at dispatch time
+7. Delete the temp segment after scheduling (query already captured)
+
+Same strategy for exclude segments — a separate temp segment is created and passed in `send_to.exclude_segment_ids`.
+
+**Test mode** skips the brand filter entirely. `test: true` overrides targeting to just `test_admin` with no brand_id condition, no lists, no excludes — so the admin email receives tests regardless of which brand last synced their `brand_id`.
+
+### Timing
+
+- Temp segment creation: ~3s (API call)
+- Segment materialization: ~10-15s (contacts_count populates)
+- SendGrid evaluates the query at send dispatch, NOT at segment creation — so materialization delay doesn't matter
+- Total overhead per campaign send: ~3-7s (create + cleanup)
+
+### Known limitation: `brand_id` is last-write-wins
+
+`brand_id` is a global custom field on the contact. When multiple brands sync the same email address, the last sync overwrites `brand_id`. For 99.9% of contacts (single-brand users), this is correct. Multi-brand contacts (e.g. admin emails) may have the wrong `brand_id`.
+
+### Ideal solution: SendGrid subusers
+
+Per-brand subusers provide full contact/segment/field isolation under one billing account. Requires SendGrid Pro plan ($90/month+). Each subuser gets its own API key, contacts, segments, and custom fields. OMEGA would create a subuser per brand during onboarding. This eliminates all the workarounds above.
+
+### Key files
+
+| Purpose | File |
+|---------|------|
+| Dynamic segment creation | `sendgrid.js` → `createBrandScopedSegment()` |
+| Segment query fetch | `sendgrid.js` → `getSegmentQuery()` |
+| Send pipeline integration | `marketing/index.js` → `_sendCampaignSendGrid()` |
+| Segment SSOT (conditions) | `constants.js` → `SEGMENTS` |
+| OMEGA segment setup | `omega-manager/src/services/sendgrid/ensure/segments.js` |
 
 ## Contact Pruning
 
@@ -241,9 +297,10 @@ Requires `GH_TOKEN` env var (org-scoped, write access to `newsletter-assets`). W
 | `lib/mjml-template.js` | Template dispatcher → MJML → email-safe HTML, UTM-tagged |
 | `lib/templates/index.js` | Template registry (`clean`, `editorial`, `field-report`) |
 | `lib/templates/classic-schema.js` | Shared content schema for `clean` + `editorial` |
-| `lib/templates/shared.js` | Opinionated `shell()` + primitives (sponsorship, citations, footer, address) |
-| `lib/templates/editorial-helpers.js` | Editorial-only helpers (pullquote, issue number, eyebrow) |
-| `lib/templates/field-report-helpers.js` | Field-report-only helpers (kicker, dispatch dateline, terminal block, terminator) |
+| `lib/templates/newsletter-shared.js` | Newsletter-specific `shell()` + primitives (sponsorship, citations, footer, address) |
+| `lib/templates/shared-campaign.js` | Shared utilities for all templates (`escape()`, `resolveTheme()`, `formatAddress()`) |
+| `lib/templates/editorial/helpers.js` | Editorial-only helpers (pullquote, issue number, eyebrow) |
+| `lib/templates/field-report/helpers.js` | Field-report-only helpers (kicker, dispatch dateline, terminal block, terminator) |
 | `newsletter.js` | Orchestrator — calls lib modules, fetches sources, claims sources |
 | `test/marketing/fixtures/{name}.json` | Hand-crafted structure per template (loaded by iteration test in fixture mode) |
 
@@ -289,6 +346,9 @@ marketing: {
 | Purpose | File |
 |---------|------|
 | Marketing library | `src/manager/libraries/email/marketing/index.js` |
+| Shared preparation (brand, sender, render) | `src/manager/libraries/email/prepare.js` |
+| Email template registry | `src/manager/libraries/email/generators/lib/templates/index.js` |
+| Composable base blocks (skeleton, logo, card, etc.) | `src/manager/libraries/email/generators/lib/templates/base.js` |
 | Field + segment SSOT | `src/manager/libraries/email/constants.js` |
 | UTM tagging | `src/manager/libraries/email/utm.js` |
 | Newsletter generator | `src/manager/libraries/email/generators/newsletter.js` |

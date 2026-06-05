@@ -16,7 +16,7 @@ module.exports = {
   tests: [
     {
       name: 'setup-paid-subscription',
-      async run({ accounts, firestore, assert, state, config, http, waitFor, skip }) {
+      async run({ accounts, firestore, assert, state, config, http, waitFor, skip, payments }) {
         const uid = accounts['journey-payments-failure'].uid;
 
         // Resolve first paid subscription product. If the brand has none configured,
@@ -28,13 +28,15 @@ module.exports = {
 
         state.uid = uid;
         state.paidProductId = paidProduct.id;
+        state.product = payments.products[paidProduct.id];
+
         state.paidProductName = paidProduct.name;
 
         // Create subscription via test intent
         const response = await http.as('journey-payments-failure').post('payments/intent', {
           processor: 'test',
           productId: paidProduct.id,
-          frequency: 'monthly',
+          frequency: state.product.frequency,
         });
         assert.isSuccess(response, 'Intent should succeed');
         state.orderId = response.data.orderId;

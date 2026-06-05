@@ -16,7 +16,7 @@ module.exports = {
   tests: [
     {
       name: 'verify-starts-as-basic',
-      async run({ accounts, firestore, assert, state, config, skip }) {
+      async run({ accounts, firestore, assert, state, config, skip, payments }) {
         const uid = accounts['journey-payments-trial-cancel'].uid;
         const userDoc = await firestore.get(`users/${uid}`);
 
@@ -34,6 +34,7 @@ module.exports = {
         state.uid = uid;
         state.paidProductId = trialProduct.id;
         state.paidProductName = trialProduct.name;
+        state.product = payments.products[trialProduct.id];
       },
     },
 
@@ -43,7 +44,7 @@ module.exports = {
         const response = await http.as('journey-payments-trial-cancel').post('payments/intent', {
           processor: 'test',
           productId: state.paidProductId,
-          frequency: 'monthly',
+          frequency: state.product.frequency,
           trial: true,
         });
 

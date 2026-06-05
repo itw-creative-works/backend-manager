@@ -56,13 +56,13 @@ function sendCancellationEmail(assistant, user, requestId) {
     sender: 'account',
     categories: ['account/data-request-cancelled'],
     subject: `Your data request has been cancelled #${requestId}`,
-    template: 'default',
+    template: 'card',
     copy: true,
     data: {
       email: {
         preview: `Your data export request #${requestId} has been cancelled.`,
       },
-      body: {
+      content: {
         title: 'Data Request Cancelled',
         message: `${greeting} data export request has been cancelled as requested.
 

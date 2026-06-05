@@ -71,11 +71,12 @@ module.exports = async ({ Manager, assistant, context, libraries }) => {
       email.send({
         sender: 'marketing',
         to: userDoc,
-        template: 'core/order/abandoned-cart',
+        template: 'order',
         subject: `Complete your ${brandName} ${productName} checkout`,
         categories: ['order/abandoned-cart', `order/abandoned-cart/reminder-${reminderIndex + 1}`],
         copy: false,
         data: {
+          content: { event: 'abandoned-cart' },
           abandonedCart: {
             productId: data.productId,
             productName: productName,

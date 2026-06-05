@@ -7,7 +7,7 @@
  * import from here; other templates (clean, future minimal/digest variants)
  * don't touch this file.
  */
-const { escape } = require('./shared.js');
+const { escape } = require('../newsletter-shared.js');
 
 const SERIF_FONT = 'Georgia, \'Times New Roman\', serif';
 

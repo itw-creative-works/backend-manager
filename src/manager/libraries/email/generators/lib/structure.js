@@ -24,7 +24,7 @@
  * via JSON schema). Can be overridden per-brand via
  * `marketing.beehiiv.content.provider.structure`.
  */
-const { resolveTemplate } = require('./templates/index.js');
+const { resolveNewsletterTemplate: resolveTemplate } = require('./templates/index.js');
 
 const DEFAULT_MODELS = {
   openai: 'gpt-5.4-mini',

@@ -10,8 +10,7 @@ module.exports = () => ({
   name: { types: ['string'], default: undefined, required: true },
   subject: { types: ['string'], default: undefined, required: true },
   preheader: { types: ['string'], default: '' },
-  template: { types: ['string'], default: 'default' },
-  content: { types: ['string'], default: '' },
+  template: { types: ['string'], default: 'card' },
   data: { types: ['object'], default: {} },
 
   // Targeting
@@ -27,9 +26,11 @@ module.exports = () => ({
   // UTM
   utm: { types: ['object'], default: {} },
 
+  // Lineage
+  recurringId: { types: ['string'], default: '' },
+
   // Config
   test: { types: ['boolean'], default: false },
-  discountCode: { types: ['string'], default: '' },
   sender: { types: ['string'], default: 'marketing' },
   providers: { types: ['array'], default: [] },
   group: { types: ['string'], default: '' },

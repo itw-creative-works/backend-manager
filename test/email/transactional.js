@@ -57,14 +57,16 @@ module.exports = {
           data: {
             email: {
               subject: 'BEM Test Email - Default Template',
-              body: 'Testing that default template is used when not specified.',
+            },
+            content: {
+              message: 'Testing that default template is used when not specified.',
             },
           },
         });
 
         assert.isSuccess(response, 'Should succeed with default template');
         assert.equal(response.data.status, 'sent', 'Status should be sent');
-        assert.equal(response.data.options.templateId, 'd-1cd2eee44b6340268c964cd7971d49b9', 'Should use default template (core/card)');
+        assert.ok(response.data.options.content?.[0]?.value?.includes('<html'), 'Should have rendered HTML content (MJML pipeline)');
       },
     },
 
@@ -98,7 +100,9 @@ module.exports = {
           data: {
             email: {
               subject: 'BEM Test Email - Fallback Subject',
-              body: 'Testing subject fallback from data.email.subject.',
+            },
+            content: {
+              message: 'Testing subject fallback from data.email.subject.',
             },
           },
         });
@@ -123,7 +127,9 @@ module.exports = {
           data: {
             email: {
               subject: 'BEM Test Email - String Email',
-              body: 'Testing string email format.',
+            },
+            content: {
+              message: 'Testing string email format.',
             },
           },
         });
@@ -146,7 +152,9 @@ module.exports = {
           data: {
             email: {
               subject: 'BEM Test Email - UID Recipient',
-              body: 'Testing UID resolution.',
+            },
+            content: {
+              message: 'Testing UID resolution.',
             },
           },
         });
@@ -173,7 +181,9 @@ module.exports = {
           data: {
             email: {
               subject: 'BEM Test Email - Mixed Recipients',
-              body: 'Testing mixed recipient formats.',
+            },
+            content: {
+              message: 'Testing mixed recipient formats.',
             },
           },
         });
@@ -196,7 +206,9 @@ module.exports = {
           data: {
             email: {
               subject: 'BEM Test Email - Object Recipient',
-              body: 'Testing single object recipient with name.',
+            },
+            content: {
+              message: 'Testing single object recipient with name.',
             },
           },
         });
@@ -221,7 +233,9 @@ module.exports = {
           data: {
             email: {
               subject: 'BEM Test Email - CC/BCC',
-              body: 'Testing cc and bcc recipients.',
+            },
+            content: {
+              message: 'Testing cc and bcc recipients.',
             },
           },
         });
@@ -248,7 +262,9 @@ module.exports = {
           data: {
             email: {
               subject: 'BEM Test Email - Dedup To',
-              body: 'Testing deduplication of same email in to.',
+            },
+            content: {
+              message: 'Testing deduplication of same email in to.',
             },
           },
         });
@@ -275,7 +291,9 @@ module.exports = {
           data: {
             email: {
               subject: 'BEM Test Email - Dedup CC',
-              body: 'Testing cross-list dedup (to removes from cc).',
+            },
+            content: {
+              message: 'Testing cross-list dedup (to removes from cc).',
             },
           },
         });
@@ -299,7 +317,9 @@ module.exports = {
           data: {
             email: {
               subject: 'BEM Test Email - Case Dedup',
-              body: 'Testing case-insensitive deduplication.',
+            },
+            content: {
+              message: 'Testing case-insensitive deduplication.',
             },
           },
         });
@@ -325,7 +345,9 @@ module.exports = {
           data: {
             email: {
               subject: 'BEM Test Email - No Copy',
-              body: 'Testing that copy:false produces no cc/bcc.',
+            },
+            content: {
+              message: 'Testing that copy:false produces no cc/bcc.',
             },
           },
         });
@@ -352,8 +374,7 @@ module.exports = {
 
         assert.isSuccess(response, 'Should send email with HTML override');
         assert.equal(response.data.status, 'sent', 'Status should be sent');
-        assert.ok(response.data.options.content, 'Should have content array for HTML override');
-        assert.equal(response.data.options.templateId, undefined, 'templateId should be removed for HTML override');
+        assert.ok(response.data.options.content?.[0]?.value?.includes('raw HTML content'), 'HTML override should be in content');
       },
     },
 
@@ -370,7 +391,9 @@ module.exports = {
           data: {
             email: {
               subject: 'BEM Test Email - SVG to PNG',
-              body: 'Testing that SVG images are converted to PNG for email.',
+            },
+            content: {
+              message: 'Testing that SVG images are converted to PNG for email.',
             },
           },
         });
@@ -378,15 +401,9 @@ module.exports = {
         assert.isSuccess(response, 'Should send email');
         assert.equal(response.data.status, 'sent', 'Status should be sent');
 
-        const brandImages = response.data.options.dynamicTemplateData.brand.images;
-
-        // Any image that was an SVG should now be a PNG (-x.svg → -1024.png)
-        for (const [key, value] of Object.entries(brandImages)) {
-          assert.ok(
-            !String(value || '').endsWith('.svg'),
-            `brand.images.${key} should not be an SVG (got: ${value})`,
-          );
-        }
+        // The rendered HTML should not contain any SVG image URLs
+        const html = response.data.options.content?.[0]?.value || '';
+        assert.ok(!html.includes('-x.svg'), 'Rendered HTML should not contain SVG image URLs (sanitized to PNG)');
       },
     },
 
@@ -406,7 +423,9 @@ module.exports = {
           data: {
             email: {
               subject: 'BEM Test Email - Sender Orders',
-              body: 'Testing sender resolution for orders.',
+            },
+            content: {
+              message: 'Testing sender resolution for orders.',
             },
           },
         });
@@ -434,7 +453,9 @@ module.exports = {
           data: {
             email: {
               subject: 'BEM Test Email - Sender Security',
-              body: 'Testing that security sender resolves correctly.',
+            },
+            content: {
+              message: 'Testing that security sender resolves correctly.',
             },
           },
         });
@@ -444,7 +465,6 @@ module.exports = {
         assert.ok(response.data.options.from.email.startsWith('security@'), 'From email should start with security@');
         assert.ok(response.data.options.asm, 'Should have ASM group');
         assert.ok(response.data.options.headers['List-Unsubscribe'], 'Should have List-Unsubscribe header');
-        assert.ok(response.data.options.dynamicTemplateData.email.unsubscribeUrl, 'Should have unsubscribeUrl');
       },
     },
 
@@ -465,7 +485,9 @@ module.exports = {
           data: {
             email: {
               subject: 'BEM Test Email - From Override',
-              body: 'Testing that explicit from overrides sender.',
+            },
+            content: {
+              message: 'Testing that explicit from overrides sender.',
             },
           },
         });
@@ -491,7 +513,9 @@ module.exports = {
           data: {
             email: {
               subject: 'BEM Test Email - Unknown Sender',
-              body: 'Testing that unknown sender falls back to brand defaults.',
+            },
+            content: {
+              message: 'Testing that unknown sender falls back to brand defaults.',
             },
           },
         });
@@ -520,7 +544,9 @@ module.exports = {
           data: {
             email: {
               subject: 'BEM Test Email - ISO SendAt',
-              body: 'Testing ISO string sendAt.',
+            },
+            content: {
+              message: 'Testing ISO string sendAt.',
             },
           },
         });

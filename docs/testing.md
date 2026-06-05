@@ -272,6 +272,25 @@ assert.fail(message)                           // Explicit fail
 
 `none`, `user`/`basic`, `admin`, `premium-active`, `premium-expired`
 
+## Email Tests (`test/email/`)
+
+All email tests live under `test/email/`, mirroring `src/manager/libraries/email/`. The pipeline was unified under MJML — all templates are rendered server-side (no SendGrid dynamic templates).
+
+| Test file | What it tests | Extended? |
+|---|---|---|
+| `templates.js` | MJML rendering for card/plain/order/feedback (11 tests) | No |
+| `transactional.js` | Transactional email building (output shape assertions) | No |
+| `validation.js` | Email format/disposable/corporate/local-part checks (80+ tests) | No |
+| `transactional-send.js` | Single transactional send via SendGrid | Yes |
+| `campaign-send.js` | Single marketing campaign send | Yes |
+| `feedback-and-plain-send.js` | Feedback + plain template visual test sends | Yes |
+| `newsletter-templates.js` | Newsletter MJML rendering (16 tests) | No |
+| `newsletter-generate.js` | Full AI newsletter generation (5min timeout) | Yes |
+| `marketing-lifecycle.js` | Contact lifecycle (add/sync/remove) | Yes |
+| `consent-lifecycle.js` | Consent webhook round-trip | Yes |
+
+Extended email tests send to `_test-<purpose>@{domain}` addresses (e.g. `_test-email-send@somiibo.com`). See [docs/email-system.md](email-system.md) for the full email system reference.
+
 ## Key Test Files
 
 | File | Purpose |

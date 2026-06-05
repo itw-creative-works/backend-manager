@@ -13,7 +13,7 @@ module.exports = {
   tests: [
     {
       name: 'setup-paid-subscription',
-      async run({ accounts, firestore, assert, state, config, http, waitFor, skip }) {
+      async run({ accounts, firestore, assert, state, config, http, waitFor, skip, payments }) {
         const uid = accounts['journey-payments-plan-change'].uid;
 
         // Resolve two distinct paid subscription products from config. If the brand
@@ -27,14 +27,14 @@ module.exports = {
         const productB = paidProducts[1];
 
         state.uid = uid;
-        state.productA = { id: productA.id, name: productA.name };
-        state.productB = { id: productB.id, name: productB.name };
+        state.productA = payments.products[productA.id];
+        state.productB = payments.products[productB.id];
 
         // Create subscription via test intent (product A)
         const response = await http.as('journey-payments-plan-change').post('payments/intent', {
           processor: 'test',
           productId: productA.id,
-          frequency: 'monthly',
+          frequency: state.productA.frequency,
         });
         assert.isSuccess(response, 'Intent should succeed');
         state.orderId = response.data.orderId;
@@ -78,7 +78,7 @@ module.exports = {
               start_date: Math.floor(Date.now() / 1000) - 86400 * 30,
               trial_start: null,
               trial_end: null,
-              plan: { product: payments.stripeProductIds[state.productB.id], interval: 'month' },
+              plan: { product: payments.stripeProductIds[state.productB.id], interval: state.productB.interval },
             },
           },
         });
@@ -110,7 +110,7 @@ module.exports = {
         assert.equal(userDoc.subscription.product.name, state.productB.name, `Product name should be ${state.productB.name}`);
         assert.equal(userDoc.subscription.status, 'active', 'Status should still be active');
         assert.equal(userDoc.subscription.payment.processor, 'test', 'Processor should be test');
-        assert.equal(userDoc.subscription.payment.frequency, 'monthly', 'Frequency should be monthly');
+        assert.equal(userDoc.subscription.payment.frequency, state.productB.frequency, `Frequency should be ${state.productB.frequency}`);
         assert.equal(userDoc.subscription.payment.resourceId, state.subscriptionId, 'Resource ID should be the same subscription');
       },
     },

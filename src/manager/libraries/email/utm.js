@@ -1,10 +1,11 @@
 /**
  * UTM link tagging for email HTML content
  *
- * Scans HTML for <a href> tags pointing to the brand's domain
- * and appends UTM parameters for attribution tracking.
+ * Scans HTML for <a href> tags and appends UTM parameters for attribution tracking.
+ * Tags all HTTP/HTTPS links — not just brand-domain links.
  *
- * Used by: marketing/index.js (campaigns), transactional/index.js (emails)
+ * Used by: marketing/index.js (campaigns), transactional/index.js (emails),
+ *          mjml-template.js (renderEmail, renderNewsletter)
  */
 
 const DEFAULT_UTM = {
@@ -14,26 +15,19 @@ const DEFAULT_UTM = {
 };
 
 /**
- * Append UTM parameters to all links matching the brand's domain(s).
+ * Append UTM parameters to all HTTP/HTTPS links in the HTML.
  *
  * @param {string} html - HTML content with <a href="..."> links
  * @param {object} options
- * @param {string} options.brandUrl - Brand URL (e.g., 'https://somiibo.com')
  * @param {string} options.brandId - Brand ID (e.g., 'somiibo') — used as default utm_source
+ * @param {string} [options.brandUrl] - Brand URL (unused — kept for call-site compat)
  * @param {string} [options.campaign] - Campaign/template name — used as default utm_campaign
  * @param {string} [options.type] - 'marketing' or 'transactional' — used as utm_content
  * @param {object} [options.utm] - Override/additional UTM params (e.g., { utm_term: 'spring' })
- * @returns {string} HTML with UTM params appended to matching links
+ * @returns {string} HTML with UTM params appended to all HTTP links
  */
 function tagLinks(html, options) {
-  if (!html || !options.brandUrl) {
-    return html;
-  }
-
-  // Extract brand hostname(s) to match against
-  const brandHostnames = extractHostnames(options.brandUrl);
-
-  if (!brandHostnames.length) {
+  if (!html || !options.brandId) {
     return html;
   }
 
@@ -59,13 +53,16 @@ function tagLinks(html, options) {
     return html;
   }
 
-  // Replace href values in <a> tags
+  // Replace href values in <a> tags (HTTP/HTTPS only, skip ESP substitution tags)
   return html.replace(/<a\s([^>]*?)href=["']([^"']+)["']/gi, (match, before, href) => {
     try {
+      if (href.includes('<%')) {
+        return match;
+      }
+
       const url = new URL(href);
 
-      // Only tag links to the brand's domain
-      if (!brandHostnames.includes(url.hostname.toLowerCase())) {
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') {
         return match;
       }
 
@@ -78,36 +75,9 @@ function tagLinks(html, options) {
 
       return `<a ${before}href="${url.toString()}"`;
     } catch (e) {
-      // Not a valid URL (relative path, mailto:, etc.) — skip
       return match;
     }
   });
-}
-
-/**
- * Extract hostnames from a brand URL.
- * Returns the base domain + www variant.
- *
- * @param {string} brandUrl
- * @returns {string[]}
- */
-function extractHostnames(brandUrl) {
-  try {
-    const url = new URL(brandUrl);
-    const hostname = url.hostname.toLowerCase();
-    const hostnames = [hostname];
-
-    // Add www variant
-    if (hostname.startsWith('www.')) {
-      hostnames.push(hostname.slice(4));
-    } else {
-      hostnames.push(`www.${hostname}`);
-    }
-
-    return hostnames;
-  } catch (e) {
-    return [];
-  }
 }
 
 module.exports = {

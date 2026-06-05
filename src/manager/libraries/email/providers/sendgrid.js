@@ -135,6 +135,107 @@ async function resolveSegmentIds() {
   }
 }
 
+// --- Dynamic Segments (brand-scoped temp segments) ---
+
+/**
+ * Fetch a segment's query_dsl by ID.
+ */
+async function getSegmentQuery(segmentId) {
+  const data = await fetch(`${BASE_URL}/marketing/segments/2.0/${segmentId}`, {
+    response: 'json',
+    headers: headers(),
+    timeout: SENDGRID_TIMEOUT_MS,
+  });
+  return data.query_dsl;
+}
+
+/**
+ * Create a temporary brand-scoped segment by combining existing segment queries
+ * with a brand_id filter.
+ *
+ * SendGrid's send_to.segment_ids is a UNION (OR), not an intersection. To achieve
+ * AND behavior (e.g. "cancelled users ON THIS BRAND"), we create a single temp
+ * segment whose query_dsl ANDs the original conditions with brand_id = '<brand>'.
+ *
+ * The temp segment is immediately usable in send_to.segment_ids — SendGrid evaluates
+ * the query at send dispatch time, not at segment creation time.
+ *
+ * Ideal solution is per-brand SendGrid subusers (full isolation), but that requires
+ * a Pro plan. This is the workaround for shared-account multi-brand setups.
+ *
+ * @param {string[]} segmentIds - Original segment IDs to combine (ANDed together)
+ * @param {string} brandId - Brand ID to scope to (injected as AND brand_id = '<brandId>')
+ * @param {object} [options]
+ * @param {boolean} [options.skipBrandFilter] - If true, don't add brand_id condition (used for test mode)
+ * @returns {{ segmentId: string, cleanup: () => Promise<void> }}
+ */
+async function createBrandScopedSegment(segmentIds, brandId, options = {}) {
+  console.log('SendGrid createBrandScopedSegment: starting', { segmentIds, brandId, options });
+
+  const whereParts = [];
+
+  if (!options.skipBrandFilter && brandId) {
+    whereParts.push(`"brand_id" = '${brandId}'`);
+    console.log(`SendGrid createBrandScopedSegment: added brand filter — "brand_id" = '${brandId}'`);
+  }
+
+  for (const id of segmentIds) {
+    console.log(`SendGrid createBrandScopedSegment: fetching query for segment ${id}...`);
+    const query = await getSegmentQuery(id);
+    console.log(`SendGrid createBrandScopedSegment: segment ${id} query_dsl:`, query || '(empty)');
+
+    if (!query) {
+      console.warn(`SendGrid createBrandScopedSegment: segment ${id} has no query_dsl, skipping`);
+      continue;
+    }
+
+    const whereMatch = query.match(/WHERE\s+(.+)$/i);
+    if (whereMatch) {
+      whereParts.push(`(${whereMatch[1]})`);
+      console.log(`SendGrid createBrandScopedSegment: extracted WHERE clause from ${id}:`, whereMatch[1]);
+    } else {
+      console.warn(`SendGrid createBrandScopedSegment: segment ${id} query has no WHERE clause, skipping`);
+    }
+  }
+
+  if (whereParts.length === 0) {
+    console.warn('SendGrid createBrandScopedSegment: no conditions resolved, returning null');
+    return null;
+  }
+
+  const combinedQuery = `SELECT contact_id, updated_at FROM contact_data WHERE ${whereParts.join(' AND ')}`;
+  const name = `__temp_${brandId || 'global'}_${Date.now()}`;
+
+  console.log('SendGrid createBrandScopedSegment: creating temp segment', { name, combinedQuery });
+
+  const start = Date.now();
+  const data = await fetch(`${BASE_URL}/marketing/segments/2.0`, {
+    method: 'post',
+    response: 'json',
+    headers: headers(),
+    timeout: SENDGRID_TIMEOUT_MS,
+    body: { name, query_dsl: combinedQuery },
+  });
+
+  console.log(`SendGrid createBrandScopedSegment: created in ${Date.now() - start}ms`, { id: data.id, contacts_count: data.contacts_count });
+
+  return {
+    segmentId: data.id,
+    cleanup: async () => {
+      try {
+        await fetch(`${BASE_URL}/marketing/segments/2.0/${data.id}`, {
+          method: 'delete',
+          headers: headers(),
+          timeout: SENDGRID_TIMEOUT_MS,
+        });
+        console.log(`SendGrid cleanup: deleted temp segment ${data.id} (${name})`);
+      } catch (e) {
+        console.error(`SendGrid cleanup: failed to delete temp segment ${data.id}:`, e.message);
+      }
+    },
+  };
+}
+
 // --- Contact Management ---
 
 /**
@@ -335,26 +436,27 @@ function getListId() {
 
 /**
  * Create a Single Send (marketing campaign).
+ * Accepts pre-rendered HTML (from MJML pipeline) as htmlContent.
  *
  * @param {object} options
  * @param {string} options.name - Campaign name
  * @param {string} options.subject - Email subject
- * @param {string} options.templateId - SendGrid template ID
+ * @param {string} options.htmlContent - Complete rendered HTML email
  * @param {object} options.from - { email, name }
  * @param {object} options.sendTo - { list_ids?, segment_ids?, all? }
  * @param {number} [options.asmGroupId] - Unsubscribe group ID
  * @param {Array<string>} [options.categories] - Email categories
- * @param {object} [options.dynamicTemplateData] - Template variables
  * @returns {{ success: boolean, id?: string, error?: string }}
  */
-async function createSingleSend({ name, subject, preheader, templateId, from, sendTo, excludeSegments, asmGroupId, categories, dynamicTemplateData }) {
+async function createSingleSend({ name, subject, htmlContent, from, sendTo, excludeSegments, asmGroupId, categories }) {
   try {
     const body = {
       name,
       send_to: sendTo,
       email_config: {
         subject,
-        custom_unsubscribe_url: null,
+        editor: 'code',
+        html_content: htmlContent,
         generate_plain_content: true,
       },
     };
@@ -374,25 +476,6 @@ async function createSingleSend({ name, subject, preheader, templateId, from, se
       }
     }
 
-    // Use design_editor with template
-    if (templateId) {
-      body.email_config.editor = 'design';
-      body.email_config.template_id = templateId;
-    }
-
-    // html_content is required by SendGrid for scheduling, even with templates.
-    // Build from preheader + dynamic content if available.
-    const contentParts = [];
-    if (preheader) {
-      contentParts.push(`<span style="display:none">${preheader}</span>`);
-    }
-    if (dynamicTemplateData?.content) {
-      contentParts.push(dynamicTemplateData.content);
-    }
-    if (contentParts.length) {
-      body.email_config.html_content = contentParts.join('');
-    }
-
     if (asmGroupId) {
       body.email_config.suppression_group_id = asmGroupId;
     }
@@ -401,15 +484,9 @@ async function createSingleSend({ name, subject, preheader, templateId, from, se
       body.email_config.categories = categories;
     }
 
-    // Exclude segments from targeting
     if (excludeSegments && excludeSegments.length) {
       body.send_to = body.send_to || {};
       body.send_to.exclude_segment_ids = excludeSegments;
-    }
-
-    // Dynamic template variables
-    if (dynamicTemplateData && Object.keys(dynamicTemplateData).length) {
-      body.email_config.dynamic_template_data = dynamicTemplateData;
     }
 
     console.log('SendGrid createSingleSend body:', JSON.stringify(body, null, 2));
@@ -740,6 +817,13 @@ module.exports = {
   getSegmentContacts,
   bulkDeleteContacts,
   buildFields,
+
+  // Lists
+  getListId,
+
+  // Dynamic segments (brand-scoped temp segments)
+  getSegmentQuery,
+  createBrandScopedSegment,
 
   // Campaigns (Single Sends)
   createSingleSend,

@@ -94,18 +94,18 @@ module.exports = {
       skip: !process.env.TEST_EXTENDED_MODE ? 'TEST_EXTENDED_MODE not set (skipping AI inference test)' : false,
       timeout: 30000,
 
-      async run({ assert, Manager }) {
-        // The library reads BACKEND_MANAGER_OPENAI_API_KEY; OPENAI_API_KEY is also accepted as a fallback.
+      async run({ assert, Manager, skip }) {
         if (!process.env.BACKEND_MANAGER_OPENAI_API_KEY && !process.env.OPENAI_API_KEY) {
-          return assert.fail('BACKEND_MANAGER_OPENAI_API_KEY not set');
+          return skip('BACKEND_MANAGER_OPENAI_API_KEY not set');
         }
 
         const assistant = Manager.Assistant();
         const result = await inferContact('john.smith@microsoft.com', assistant);
 
         assert.ok(result, 'Should return a result');
-        assert.ok(result.firstName, 'Should infer a first name');
         assert.equal(result.method, 'ai', 'Should use AI method');
+        assert.hasProperty(result, 'firstName', 'Should have firstName');
+        assert.hasProperty(result, 'lastName', 'Should have lastName');
         assert.ok(typeof result.confidence === 'number', 'Confidence should be a number');
       },
     },

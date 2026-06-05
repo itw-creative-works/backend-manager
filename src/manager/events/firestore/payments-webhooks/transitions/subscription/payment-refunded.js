@@ -14,13 +14,13 @@ module.exports = async function ({ before, after, order, uid, userDoc, assistant
   assistant.log(`Transition [subscription/payment-refunded]: uid=${uid}, product=${after?.product?.id}, amount=${refundDetails?.amount} ${refundDetails?.currency}, reason=${refundDetails?.reason || 'none'}`);
 
   sendOrderEmail({
-    template: 'core/order/refunded',
+    template: 'order',
     subject: `Your payment has been refunded #${order?.id || ''}`,
     categories: ['order/refunded'],
     userDoc,
     assistant,
     data: {
-      order: {
+      content: { event: 'refunded',
         ...order,
         _computed: {
           date: formatDate(new Date().toISOString()),

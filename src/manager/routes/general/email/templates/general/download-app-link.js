@@ -17,7 +17,7 @@ module.exports = function (payload, config) {
       sender: 'marketing',
       categories: ['download'],
       subject: `${payload.name || 'Hey'}, your ${config.brand.name} download link is ready!`,
-      template: 'core/misc/app-download-link',
+      template: 'card',
       copy: false,
       data: {},
     }

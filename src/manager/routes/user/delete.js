@@ -105,13 +105,13 @@ function sendConfirmationEmail(assistant, email, uid, reason, firstName) {
     sender: 'account',
     categories: ['account/delete'],
     subject: `Your ${brandName} account has been deleted`,
-    template: 'default',
+    template: 'card',
     copy: true,
     data: {
       email: {
         preview: `Your ${brandName} account has been permanently deleted. All associated data has been removed.`,
       },
-      body: {
+      content: {
         title: 'Account Deleted',
         message: `${greeting} **${brandName}** account and all associated personal data have been permanently deleted from our systems. This action is irreversible.${reasonLine}
 

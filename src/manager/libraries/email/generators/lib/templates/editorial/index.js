@@ -25,7 +25,7 @@ const {
   column,
   dividerBlock,
   sponsorshipsAt,
-} = require('./shared.js');
+} = require('../newsletter-shared.js');
 
 const {
   SERIF_FONT,
@@ -33,9 +33,9 @@ const {
   pullQuoteFrom,
   stripSentence,
   issueLine,
-} = require('./editorial-helpers.js');
+} = require('./helpers.js');
 
-const { CLASSIC_SCHEMA, normalizeClassic } = require('./classic-schema.js');
+const { CLASSIC_SCHEMA, normalizeClassic } = require('../classic-schema.js');
 
 const SPACING_OVERRIDES = {
   gutter: '48px',
@@ -131,7 +131,7 @@ function build({ structure, imagePaths, theme: themeIn, brandName, brandUrl, bra
       background: WHITE,
     },
     footerStyle: {
-      padding: `36px ${gutter} 48px ${gutter}`,
+      padding: `36px ${gutter} 64px ${gutter}`,
       topRule: `<div class="footer-rule"></div>`,
       extraLine: `${brandName} · Issue ${issue.number}`,
       linkStyle: 'border-bottom: none;',

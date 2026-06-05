@@ -388,7 +388,7 @@ function sendWelcomeEmails(assistant, uid, firstName) {
   sendWelcomeEmail(assistant, uid, firstName).catch(e => assistant.error('signup(): sendWelcomeEmail failed:', e));
   sendDiscountNudgeEmail(assistant, uid, firstName).catch(e => assistant.error('signup(): sendDiscountNudgeEmail failed:', e));
   sendCheckupEmail(assistant, uid, firstName).catch(e => assistant.error('signup(): sendCheckupEmail failed:', e));
-  sendFeedbackEmail(assistant, uid).catch(e => assistant.error('signup(): sendFeedbackEmail failed:', e));
+  sendFeedbackEmail(assistant, uid, firstName).catch(e => assistant.error('signup(): sendFeedbackEmail failed:', e));
 }
 
 /**
@@ -404,13 +404,13 @@ function sendWelcomeEmail(assistant, uid, firstName) {
     sender: 'hello',
     categories: ['account/welcome'],
     subject: `Welcome to ${Manager.config.brand.name}!`,
-    template: 'default',
+    template: 'card',
     copy: false,
     data: {
       email: {
         preview: `Welcome aboard! I'm Ian, the CEO and founder of ${Manager.config.brand.name}. I'm here to ensure your journey with us gets off to a great start.`,
       },
-      body: {
+      content: {
         title: `Welcome to ${Manager.config.brand.name}!`,
         message: `${greeting} aboard!
 
@@ -423,7 +423,7 @@ Thank you for choosing **${Manager.config.brand.name}**. Here's to new beginning
       signoff: {
         type: 'personal',
         name: 'Ian Wiedenman, CEO',
-        url: `https://ianwiedenman.com?utm_source=welcome-email&utm_medium=email&utm_campaign=${Manager.config.brand.id}`,
+        url: 'https://ianwiedenman.com',
         urlText: '@ianwieds',
       },
     },
@@ -465,14 +465,14 @@ function sendDiscountNudgeEmail(assistant, uid, firstName) {
     sender: 'hello',
     categories: ['engagement/discount-nudge'],
     subject: subject,
-    template: 'default',
+    template: 'card',
     copy: false,
     sendAt: moment().add(24, 'hours').unix(),
     data: {
       email: {
         preview: `Just checking in from ${Manager.config.brand.name} — and I've got a little thank-you for you.`,
       },
-      body: {
+      content: {
         title: `How's it going?`,
         message: `${greeting},
 
@@ -487,7 +487,7 @@ I read every reply and I'm looking forward to hearing from you!`,
       signoff: {
         type: 'personal',
         name: 'Ian Wiedenman, CEO',
-        url: `https://ianwiedenman.com?utm_source=discount-nudge-email&utm_medium=email&utm_campaign=${Manager.config.brand.id}`,
+        url: 'https://ianwiedenman.com',
         urlText: '@ianwieds',
       },
     },
@@ -511,14 +511,14 @@ function sendCheckupEmail(assistant, uid, firstName) {
     sender: 'hello',
     categories: ['account/checkup'],
     subject: `How is your experience with ${Manager.config.brand.name}?`,
-    template: 'default',
+    template: 'card',
     copy: false,
     sendAt: moment().add(5, 'days').unix(),
     data: {
       email: {
         preview: `Checking in from ${Manager.config.brand.name} to see how things are going. Let us know if you have any questions or feedback!`,
       },
-      body: {
+      content: {
         title: `How's everything going?`,
         message: `${greeting},
 
@@ -533,7 +533,7 @@ Thank you for choosing **${Manager.config.brand.name}**. Here's to new beginning
       signoff: {
         type: 'personal',
         name: 'Ian Wiedenman, CEO',
-        url: `https://ianwiedenman.com?utm_source=checkup-email&utm_medium=email&utm_campaign=${Manager.config.brand.id}`,
+        url: 'https://ianwiedenman.com',
         urlText: '@ianwieds',
       },
     },
@@ -547,16 +547,17 @@ Thank you for choosing **${Manager.config.brand.name}**. Here's to new beginning
 /**
  * Send feedback email (10 days after signup)
  */
-function sendFeedbackEmail(assistant, uid) {
+function sendFeedbackEmail(assistant, uid, firstName) {
   const Manager = assistant.Manager;
   const mailer = Manager.Email(assistant);
+  const first = firstName || 'You';
 
   return mailer.send({
     to: uid,
     sender: 'hello',
     categories: ['engagement/feedback'],
-    subject: `Want to share your feedback about ${Manager.config.brand.name}?`,
-    template: 'core/engagement/feedback',
+    subject: `${first} + feedback = Amazon gift card 🎁`,
+    template: 'feedback',
     copy: false,
     sendAt: moment().add(10, 'days').unix(),
   })

@@ -8,13 +8,13 @@ module.exports = async function ({ before, after, order, uid, userDoc, assistant
   assistant.log(`Transition [subscription/cancellation-requested]: uid=${uid}, product=${after.product?.id}, cancelDate=${after.cancellation?.date?.timestamp}`);
 
   sendOrderEmail({
-    template: 'core/order/cancellation-requested',
+    template: 'order',
     subject: `Your cancellation is confirmed #${order?.id || ''}`,
     categories: ['order/cancellation-requested'],
     userDoc,
     assistant,
     data: {
-      order: {
+      content: { event: 'cancellation-requested',
         ...order,
         _computed: {
           date: formatDate(new Date().toISOString()),

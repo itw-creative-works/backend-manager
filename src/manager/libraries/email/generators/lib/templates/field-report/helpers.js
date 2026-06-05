@@ -14,8 +14,8 @@
  * Lives separately from shared.js (which is template-agnostic) and from
  * editorial-helpers.js (which encodes a totally different aesthetic).
  */
-const { escape } = require('./shared.js');
-const { computeIssueNumber } = require('./editorial-helpers.js');
+const { escape } = require('../newsletter-shared.js');
+const { computeIssueNumber } = require('../editorial/helpers.js');
 
 const SERIF_FONT = `'Tiempos Headline', 'Tiempos Text', Georgia, 'Times New Roman', serif`;
 const MONO_FONT  = `'JetBrains Mono', 'IBM Plex Mono', Menlo, Consolas, monospace`;

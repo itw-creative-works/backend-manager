@@ -5,7 +5,7 @@ const _ = require('lodash');
 const moment = require('moment');
 
 // Fields that live at the doc level, not inside doc.settings
-const DOC_LEVEL_FIELDS = ['id', 'sendAt', 'type', 'recurrence', 'generator'];
+const DOC_LEVEL_FIELDS = ['id', 'sendAt', 'type', 'recurrence', 'generator', 'recurringId'];
 
 /**
  * Separate settings into doc-level fields and nested settings.
@@ -23,6 +23,7 @@ function buildCampaignDoc(settings) {
     type,
     ...(settings.recurrence ? { recurrence: settings.recurrence } : {}),
     ...(settings.generator ? { generator: settings.generator } : {}),
+    ...(settings.recurringId ? { recurringId: settings.recurringId } : {}),
   };
 
   // Everything else goes into doc.settings — strip empties

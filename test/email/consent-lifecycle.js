@@ -101,7 +101,7 @@ module.exports = {
       auth: 'admin',
       timeout: 180000,
 
-      async run({ accounts, assert, Manager, assistant }) {
+      async run({ accounts, assert, Manager, assistant, config }) {
         const granted = accounts['consent-granted'];
         const admin = Manager.libraries.admin;
 
@@ -144,7 +144,9 @@ module.exports = {
         const bhContact = await pollProvider(() => beehiivProvider.findContact(granted.email), true);
 
         assert.ok(sgContact, 'granted account should now exist in SendGrid');
-        assert.ok(bhContact, 'granted account should now exist in Beehiiv');
+        if (config.marketing?.beehiiv?.publicationId) {
+          assert.ok(bhContact, 'granted account should now exist in Beehiiv');
+        }
       },
     },
 

@@ -4,7 +4,7 @@
  * Two modes:
  *
  * 1. FIXTURE MODE (default — runs in every test invocation, no env required)
- *    Loads a hand-crafted structure JSON from test/marketing/fixtures/<template>.json
+ *    Loads a hand-crafted structure JSON from test/email/fixtures/<template>.json
  *    and renders it through the active template. No AI, no source fetching,
  *    no images, ~25-50ms render time, $0 cost. This is what runs in CI and
  *    what you iterate against for layout/CSS changes.
@@ -15,7 +15,7 @@
  *      3. config.marketing.beehiiv.content.template  (use the active brand's template)
  *      4. 'clean'                            (universal fallback)
  *
- *    Add a new template? Drop a matching JSON in test/marketing/fixtures/<name>.json.
+ *    Add a new template? Drop a matching JSON in test/email/fixtures/<name>.json.
  *    The fixture's content shape MUST match the template's `schema` export.
  *
  * 2. AI PIPELINE MODE (set TEST_EXTENDED_MODE=1)
@@ -81,7 +81,7 @@ const jetpack = require('fs-jetpack');
 module.exports = {
   description: 'Generate a newsletter preview (fixture by default, full AI pipeline with TEST_EXTENDED_MODE)',
   auth: 'none',
-  timeout: 180000, // 3 min — AI + parallel SVG calls + rasterization
+  timeout: 300000, // 5 min — AI structure + image generation + GitHub upload + Beehiiv draft
   // The test ALWAYS runs. By default it renders a hand-crafted fixture for the
   // active template (fast, free, deterministic — catches layout regressions in
   // CI). Set TEST_EXTENDED_MODE=1 to switch to the full AI pipeline that fetches
@@ -124,7 +124,7 @@ module.exports = {
 
     // --- Fixture mode ---
     // Default behavior of this test. Loads a hand-crafted structure JSON from
-    // test/marketing/fixtures/{name}.json and renders it directly. No AI, no
+    // test/email/fixtures/{name}.json and renders it directly. No AI, no
     // source fetching, no images. Used as the deterministic "predictable
     // preview" loop AND as the default test-suite render.
     //
@@ -151,7 +151,7 @@ module.exports = {
       const fixturePath = path.join(__dirname, 'fixtures', `${requestedFixture}.json`);
 
       assert.ok(jetpack.exists(fixturePath),
-        `Fixture not found: ${fixturePath}. Available fixtures: ${jetpack.list(path.join(__dirname, 'fixtures')).filter((f) => f.endsWith('.json')).join(', ')}. Every registered template should ship a matching fixture in test/marketing/fixtures/.`);
+        `Fixture not found: ${fixturePath}. Available fixtures: ${jetpack.list(path.join(__dirname, 'fixtures')).filter((f) => f.endsWith('.json')).join(', ')}. Every registered template should ship a matching fixture in test/email/fixtures/.`);
 
       const structure = jetpack.read(fixturePath, 'json');
 
@@ -416,10 +416,11 @@ module.exports = {
     // because the generator uses the uploaded CDN URLs in the rendered HTML.
     const persistImage = async (image, idx) => {
       const filename = `section-${idx + 1}.png`;
-      const svgFilename = `section-${idx + 1}.svg`;
 
       jetpack.write(path.join(runDir, filename), image.png);
-      jetpack.write(path.join(runDir, svgFilename), image.svg);
+      if (image.svg) {
+        jetpack.write(path.join(runDir, `section-${idx + 1}.svg`), image.svg);
+      }
 
       return `./${filename}`;
     };

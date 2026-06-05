@@ -59,7 +59,7 @@ module.exports = {
     {
       name: 'exports-constants',
       async run({ assert }) {
-        assert.equal(IMAGE_MAX_DIMENSION, 4096, 'IMAGE_MAX_DIMENSION should be 4096');
+        assert.equal(IMAGE_MAX_DIMENSION, 2048, 'IMAGE_MAX_DIMENSION should be 2048');
         assert.equal(IMAGE_JPEG_QUALITY, 80, 'IMAGE_JPEG_QUALITY should be 80');
         assert.isType(resizeImage, 'function', 'resizeImage should be exported as a function');
       },
@@ -89,8 +89,7 @@ module.exports = {
     {
       name: 'image-exactly-at-max-passes-through',
       async run({ assert }) {
-        // Long edge exactly === IMAGE_MAX_DIMENSION → no resize (boundary condition)
-        const filepath = await makeJpeg(IMAGE_MAX_DIMENSION, 2000);
+        const filepath = await makeJpeg(IMAGE_MAX_DIMENSION, 1000);
 
         const result = await resizeImage(makeAssistant(), filepath);
 
@@ -106,16 +105,15 @@ module.exports = {
     {
       name: 'landscape-oversized-is-resized-to-max-width',
       async run({ assert }) {
-        // 8000x4000 landscape → long edge is width → clamp width to 4096, scale height proportionally to 2048
+        // 8000x4000 landscape → long edge is width → clamp to 2048, height scales to 1024
         const filepath = await makeJpeg(8000, 4000);
 
         const result = await resizeImage(makeAssistant(), filepath);
 
         assert.equal(result.resized, true, 'Oversized landscape should be resized');
         assert.equal(result.width, IMAGE_MAX_DIMENSION, 'Width clamped to IMAGE_MAX_DIMENSION');
-        assert.equal(result.height, IMAGE_MAX_DIMENSION / 2, 'Height scaled proportionally (8000:4000 → 4096:2048)');
+        assert.equal(result.height, IMAGE_MAX_DIMENSION / 2, 'Height scaled proportionally');
 
-        // Verify the file on disk was actually overwritten
         const meta = await sharp(filepath).metadata();
         assert.equal(meta.width, IMAGE_MAX_DIMENSION, 'On-disk width matches reported width');
         assert.equal(meta.height, IMAGE_MAX_DIMENSION / 2, 'On-disk height matches reported height');
@@ -130,7 +128,7 @@ module.exports = {
     {
       name: 'portrait-oversized-is-resized-to-max-height',
       async run({ assert }) {
-        // 4000x8000 portrait → long edge is height → clamp height to 4096, width proportionally to 2048
+        // 4000x8000 portrait → long edge is height → clamp to 2048, width scales to 1024
         const filepath = await makeJpeg(4000, 8000);
 
         const result = await resizeImage(makeAssistant(), filepath);
@@ -148,8 +146,7 @@ module.exports = {
     {
       name: 'huge-image-is-resized-down',
       async run({ assert }) {
-        // 16384x10576 — the actual size from post-1779087609 (the-importance-of-feedback-loops).
-        // Raw RGB this size is ~520MB, which is what stalled UJM's imagemin stream.
+        // 16384x10576 — the actual size from post-1779087609.
         const filepath = await makeJpeg(16384, 10576);
         const sizeBefore = jetpack.inspect(filepath).size;
 
@@ -157,8 +154,8 @@ module.exports = {
 
         assert.equal(result.resized, true, 'Huge image should be resized');
         assert.equal(result.width, IMAGE_MAX_DIMENSION, 'Long edge clamped to IMAGE_MAX_DIMENSION');
-        // 16384:10576 ratio → height = 4096 * (10576/16384) = 2644
-        assert.inRange(result.height, 2643, 2645, 'Height scaled proportionally (within rounding)');
+        // 16384:10576 ratio → height = 2048 * (10576/16384) = 1322
+        assert.inRange(result.height, 1321, 1323, 'Height scaled proportionally (within rounding)');
 
         const sizeAfter = jetpack.inspect(filepath).size;
         assert.ok(sizeAfter < sizeBefore, 'Resized file on disk should be smaller than original');

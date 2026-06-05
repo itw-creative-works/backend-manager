@@ -880,13 +880,28 @@ class TestRunner {
       throw new SkipError(reason);
     };
 
-    // Precomputed map of BEM product id → Stripe-compatible product ID for tests.
-    // Falls back to the "_test_<id>" sentinel when no real Stripe product is configured,
-    // letting the Stripe resolver match it back to the BEM product. SSOT for tests that
-    // need to construct Stripe-shaped webhook payloads (cancel, refund, plan-change, etc.).
+    // Precomputed product metadata for payment tests — SSOT for all product-aware tests.
+    // Each product gets: stripeProductId, frequency, interval, price resolved from config.
+    // Tests use payments.products[id].* instead of recomputing per-test.
+    const FREQ_TO_INTERVAL = { daily: 'day', weekly: 'week', monthly: 'month', annually: 'year' };
     const products = this.config.payment?.products || [];
     const stripeProductIds = Object.fromEntries(
       products.map((p) => [p.id, p.stripe?.productId || `_test_${p.id}`])
+    );
+    const productMeta = Object.fromEntries(
+      products.map((p) => {
+        const freq = p.prices ? Object.keys(p.prices)[0] : null;
+        return [p.id, {
+          id: p.id,
+          name: p.name,
+          type: p.type,
+          stripeProductId: p.stripe?.productId || `_test_${p.id}`,
+          frequency: freq,
+          interval: FREQ_TO_INTERVAL[freq] || null,
+          price: freq ? p.prices[freq] : 0,
+          trial: p.trial || null,
+        }];
+      })
     );
 
     return {
@@ -906,7 +921,7 @@ class TestRunner {
       assistant: this.config.assistant,
       rules: this.rulesContext,
       config: this.config,
-      payments: { stripeProductIds },
+      payments: { stripeProductIds, products: productMeta },
     };
   }
 

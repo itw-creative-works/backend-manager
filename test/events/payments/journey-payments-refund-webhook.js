@@ -18,7 +18,7 @@ module.exports = {
   tests: [
     {
       name: 'setup-paid-subscription',
-      async run({ accounts, firestore, assert, state, config, http, waitFor, skip }) {
+      async run({ accounts, firestore, assert, state, config, http, waitFor, skip, payments }) {
         const uid = accounts['journey-payments-refund-webhook'].uid;
 
         // Resolve a paid product with a monthly price. If the brand has none configured,
@@ -30,12 +30,12 @@ module.exports = {
 
         state.uid = uid;
         state.paidProductId = paidProduct.id;
-
+        state.product = payments.products[paidProduct.id];
         // Create subscription via test intent
         const response = await http.as('journey-payments-refund-webhook').post('payments/intent', {
           processor: 'test',
           productId: paidProduct.id,
-          frequency: 'monthly',
+          frequency: state.product.frequency,
         });
         assert.isSuccess(response, 'Intent should succeed');
         state.orderId = response.data.orderId;
@@ -80,7 +80,7 @@ module.exports = {
               start_date: Math.floor(Date.now() / 1000) - 86400 * 30,
               trial_start: null,
               trial_end: null,
-              plan: { product: payments.stripeProductIds[state.paidProductId], interval: 'month' },
+              plan: { product: payments.stripeProductIds[state.paidProductId], interval: state.product.interval },
             },
           },
         });

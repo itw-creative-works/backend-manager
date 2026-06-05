@@ -213,11 +213,12 @@ module.exports = {
         if (!paidProduct) {
           skip('No paid product configured in this brand');
         }
+        const frequency = Object.keys(paidProduct.prices)[0];
 
-        const response = await http.as('journey-payments-intent-discount').post('payments/intent', {
+        const response = await http.as('intent-discount-validation').post('payments/intent', {
           processor: 'test',
           productId: paidProduct.id,
-          frequency: 'monthly',
+          frequency,
           discount: 'FLASH20',
         });
 
@@ -239,11 +240,12 @@ module.exports = {
         if (!paidProduct) {
           skip('No paid product configured in this brand');
         }
+        const frequency = Object.keys(paidProduct.prices)[0];
 
         const response = await http.as('journey-payments-intent-attribution').post('payments/intent', {
           processor: 'test',
           productId: paidProduct.id,
-          frequency: 'monthly',
+          frequency,
           attribution: { utm_source: 'test', utm_medium: 'unit-test' },
           supplemental: { referral: 'friend' },
         });

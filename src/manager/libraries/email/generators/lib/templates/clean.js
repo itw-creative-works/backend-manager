@@ -16,7 +16,7 @@ const {
   sectionCard,
   signoffBlock,
   sponsorshipsAt,
-} = require('./shared.js');
+} = require('./newsletter-shared.js');
 
 const { CLASSIC_SCHEMA, normalizeClassic } = require('./classic-schema.js');
 

@@ -535,7 +535,7 @@ async function buildLinkedArticle({ Manager, assistant, brand, config, structure
     article,
     id: Math.round(Date.now() / 1000),
     author: config?.article?.author,
-    postPath: 'ghostii',
+    postPath: 'newsletter',
   });
 
   return { url: result.url || url, slug: result.slug || slug, path: result.path, published: true, article };
@@ -623,13 +623,13 @@ async function sendBeehiivFallbackEmail(Manager, assistant, args) {
       to: alertsEmail,
       copy: false,  // self-addressed operational alert — no CC/BCC clutter
       subject: `Newsletter ready for manual Beehiiv upload: "${args.subject}"`,
-      template: 'core/card',
+      template: 'card',
       categories: ['marketing/newsletter-manual-upload'],
       data: {
         email: {
           preview: `Beehiiv upload failed — newsletter awaiting manual upload from ${args.folderUrl || 'GitHub archive'}`,
         },
-        body: {
+        content: {
           title: 'Newsletter Ready for Manual Upload',
           message: messageLines.join('\n'),
         },

@@ -225,14 +225,14 @@ function sendDisputeEmail({ alert, match, result, alertId, assistant }) {
     sender: 'internal',
     to: brandEmail,
     subject: subject,
-    template: 'core/card',
+    template: 'card',
     categories: ['order/dispute-alert'],
     copy: true,
     data: {
       email: {
         preview: `Dispute Alert: ${matched} — $${alert.amount} on ****${alert.card.last4}`,
       },
-      body: {
+      content: {
         title: `Dispute Alert: ${matched}`,
         message: messageLines.join('\n'),
       },

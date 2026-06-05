@@ -171,7 +171,7 @@ function shell(envelope, slots, config) {
     sponsorshipsAt({ sponsorships, position: 'end', theme, ...sponsorshipStyle }),
     signoff,
     citationsBlock({ citations: structure.citations, theme, ...citationsStyle }),
-    footerBlock({ brandName, brandUrl, theme, address: brandAddress, ...footerStyle }),
+    cfg.footerOverride || footerBlock({ brandName, brandUrl, theme, address: brandAddress, ...footerStyle }),
   ].filter(Boolean).join('\n');
 
   return `<mjml>
@@ -503,6 +503,81 @@ function sectionCard({ section, imagePath, theme, padding, background, imageBord
     </mj-section>`;
 }
 
+// ---------- Campaign/transactional blocks ----------
+
+/**
+ * Signoff block for campaign and transactional emails.
+ * Handles structured signoff object: { type: 'team'|'personal', name, image, url, urlText }.
+ * 'team' = "Best, The {Brand} Team". 'personal' = headshot + name + link.
+ */
+function transactionalSignoffBlock({ data, theme }) {
+  const signoff = data?.signoff || {};
+  const brandName = data?.brand?.name || '';
+  const gutter = theme?.spacing?.gutter || DEFAULT_SPACING.gutter;
+
+  if (signoff.type === 'personal' && signoff.name) {
+    const imageMjml = signoff.image
+      ? `<mj-image src="${escape(signoff.image)}" alt="${escape(signoff.name)}" width="60px" border-radius="50%" padding="0 0 12px 0" />`
+      : '';
+    const linkMjml = signoff.url
+      ? `<br/><a href="${escape(signoff.url)}" style="color: ${theme.primaryColor}; font-size: 14px;">${escape(signoff.urlText || signoff.url)}</a>`
+      : '';
+
+    return singleColumnSection({
+      background: '#ffffff',
+      padding: `32px ${gutter} 16px ${gutter}`,
+      content: `
+        ${imageMjml}
+        <mj-text padding="0">
+          <div style="color: ${theme.secondaryColor};">
+            Best,<br/><strong>${escape(signoff.name)}</strong>${linkMjml}
+          </div>
+        </mj-text>`,
+    });
+  }
+
+  return singleColumnSection({
+    background: '#ffffff',
+    padding: `32px ${gutter} 16px ${gutter}`,
+    content: `<mj-text padding="0"><div style="color: ${theme.secondaryColor};">Best,<br/>The ${escape(brandName)} Team</div></mj-text>`,
+  });
+}
+
+/**
+ * Footer block with SendGrid ASM unsubscribe tags.
+ * Replaces footerBlock() for campaign/transactional emails.
+ * ASM tags suppress SendGrid's auto-inserted ugly default unsubscribe text.
+ */
+function campaignFooterBlock({ data, theme, padding }) {
+  const brandName = data?.brand?.name || '';
+  const brandUrl = data?.brand?.url || '#';
+  const address = formatAddress(data?.brand?.address);
+  const addressHtml = address ? `<br/><div style="margin-top: 10px; color: #aaa;">${escape(address)}</div>` : '';
+
+  // Custom unsubscribe URL (HMAC-signed portal link) or fallback to brand URL
+  const unsubscribeUrl = data?.email?.unsubscribeUrl || `${brandUrl}/portal/email-preferences`;
+
+  // Hidden ASM tags: prevents SendGrid from appending its own ugly default
+  // "Unsubscribe From This List | Manage Email Preferences" text.
+  // The _raw_url variants output just the URL (not a full <a> tag).
+  const hiddenAsm = `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">
+    <a href="<%asm_group_unsubscribe_raw_url%>">unsubscribe</a>
+    <a href="<%asm_preferences_raw_url%>">preferences</a>
+  </div>`;
+
+  return `
+    <mj-section background-color="${theme.accentColor}" padding="${padding || '16px 32px 32px 32px'}">
+      <mj-column>
+        <mj-text font-size="12px" color="#888888" align="center">
+          ${hiddenAsm}
+          You're receiving this because you subscribed to <a href="${brandUrl}" style="color: #888888;">${escape(brandName)}</a>.
+          <br/><a href="${unsubscribeUrl}" style="color: #888888;">Unsubscribe</a> | <a href="${unsubscribeUrl}" style="color: #888888;">Email Preferences</a>
+          ${addressHtml}
+        </mj-text>
+      </mj-column>
+    </mj-section>`;
+}
+
 module.exports = {
   // tokens
   DEFAULT_SPACING,
@@ -531,4 +606,7 @@ module.exports = {
   sponsorshipBlock,
   sponsorshipsAt,
   sectionCard,
+  // campaign/transactional
+  transactionalSignoffBlock,
+  campaignFooterBlock,
 };

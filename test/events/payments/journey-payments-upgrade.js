@@ -13,7 +13,7 @@ module.exports = {
   tests: [
     {
       name: 'verify-starts-as-basic',
-      async run({ accounts, firestore, assert, state, config, skip }) {
+      async run({ accounts, firestore, assert, state, config, skip, payments }) {
         const uid = accounts['journey-payments-upgrade'].uid;
         const userDoc = await firestore.get(`users/${uid}`);
 
@@ -30,6 +30,8 @@ module.exports = {
 
         state.uid = uid;
         state.paidProductId = paidProduct.id;
+        state.product = payments.products[paidProduct.id];
+
         state.paidProductName = paidProduct.name;
       },
     },
@@ -40,7 +42,7 @@ module.exports = {
         const response = await http.as('journey-payments-upgrade').post('payments/intent', {
           processor: 'test',
           productId: state.paidProductId,
-          frequency: 'monthly',
+          frequency: state.product.frequency,
         });
 
         assert.isSuccess(response, 'Intent should succeed');
@@ -73,7 +75,7 @@ module.exports = {
         assert.equal(userDoc.subscription.payment.processor, 'test', 'Processor should be test');
         assert.equal(userDoc.subscription.payment.orderId, state.orderId, 'Order ID should match intent');
         assert.ok(userDoc.subscription.payment.resourceId, 'Resource ID should be set');
-        assert.equal(userDoc.subscription.payment.frequency, 'monthly', 'Frequency should be monthly');
+        assert.equal(userDoc.subscription.payment.frequency, state.product.frequency, 'Frequency should be monthly');
         assert.equal(userDoc.subscription.cancellation.pending, false, 'Should not be pending cancellation');
 
         state.subscriptionId = userDoc.subscription.payment.resourceId;

@@ -14,7 +14,7 @@
  * field-report.
  */
 const { renderNewsletter } = require('../../src/manager/libraries/email/generators/lib/mjml-template.js');
-const { listTemplates, resolveTemplate } = require('../../src/manager/libraries/email/generators/lib/templates/index.js');
+const { listNewsletterTemplates: listTemplates, resolveNewsletterTemplate: resolveTemplate } = require('../../src/manager/libraries/email/generators/lib/templates/index.js');
 
 const TEST_BRAND = {
   id: 'testco',

@@ -144,14 +144,16 @@ The `transitions/index.js` module compares the **before** state (current `users/
 
 ### Subscription Transitions
 
-| Transition | Before → After | File |
-|---|---|---|
-| `new-subscription` | basic/null → active paid | `transitions/subscription/new-subscription.js` |
-| `payment-failed` | active → suspended | `transitions/subscription/payment-failed.js` |
-| `payment-recovered` | suspended → active | `transitions/subscription/payment-recovered.js` |
-| `cancellation-requested` | pending=false → pending=true | `transitions/subscription/cancellation-requested.js` |
-| `subscription-cancelled` | non-cancelled → cancelled | `transitions/subscription/subscription-cancelled.js` |
-| `plan-changed` | active product A → active product B | `transitions/subscription/plan-changed.js` |
+| Transition | Before → After | File | Email event |
+|---|---|---|---|
+| `new-subscription` | basic/null → active paid | `transitions/subscription/new-subscription.js` | `confirmation` |
+| `payment-failed` | active → suspended | `transitions/subscription/payment-failed.js` | `payment-failed` |
+| `payment-recovered` | suspended → active | `transitions/subscription/payment-recovered.js` | `payment-recovered` |
+| `cancellation-requested` | pending=false → pending=true | `transitions/subscription/cancellation-requested.js` | `cancellation-requested` |
+| `subscription-cancelled` | non-cancelled → cancelled | `transitions/subscription/subscription-cancelled.js` | `cancelled` |
+| `plan-changed` | active product A → active product B | `transitions/subscription/plan-changed.js` | `plan-changed` |
+
+All transition handlers send email via `template: 'order'` + `data.order.event: '<event>'`. The single `order.js` template handles all 9 event types — no per-event template files. See [docs/email-system.md](email-system.md) for the full template system reference.
 
 Note: Trials are NOT a separate transition. The `new-subscription` handler checks `after.trial.claimed` to determine if the subscription started with a trial.
 

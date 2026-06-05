@@ -16,13 +16,13 @@ module.exports = async function ({ before, after, order, uid, userDoc, assistant
   assistant.log(`Transition [one-time/purchase-completed]: uid=${uid}, resourceId=${after.payment?.resourceId}, discount=${hasPromoDiscount ? discount.code : 'none'}`);
 
   sendOrderEmail({
-    template: 'core/order/confirmation',
+    template: 'order',
     subject: `Your ${brandName} ${productName} order #${order?.id || ''}`,
     categories: ['order/confirmation'],
     userDoc,
     assistant,
     data: {
-      order: {
+      content: { event: 'confirmation',
         ...order,
         _computed: {
           date: formatDate(new Date().toISOString()),
