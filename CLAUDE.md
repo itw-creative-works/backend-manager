@@ -22,6 +22,10 @@ Backend Manager (BEM) is a comprehensive framework for building modern Firebase 
 3. `npx mgr emulator` — start Firebase emulators (auth/firestore/functions/database/storage)
 4. `npx mgr serve` — local serve with Stripe webhook forwarding (if `STRIPE_SECRET_KEY` is set)
 5. `npx mgr test` — runs framework + project test suites against an emulator
+   - `npx mgr test email/transactional` — run a specific test by path (relative to `test/`)
+   - `npx mgr test bem:email/templates` — run only BEM framework tests matching a path
+   - `npx mgr test project:routes/custom` — run only consumer project tests matching a path
+   - Prefix with `TEST_EXTENDED_MODE=true` for tests that hit real external APIs (SendGrid, OpenAI, etc.)
 6. `npx mgr deploy` — deploy Cloud Functions to Firebase
 7. `npx mgr logs:read` / `npx mgr logs:tail` — Cloud Function logs from Google Cloud Logging
 

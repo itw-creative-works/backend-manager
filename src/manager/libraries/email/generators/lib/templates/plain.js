@@ -27,7 +27,7 @@ function build({ data }) {
 
   // Optional link
   const link = content.link?.url
-    ? `<p><a href="${escape(content.link.url)}" style="color: #1a73e8;">${escape(content.link.text || content.link.url)}</a></p>`
+    ? `<p><a href="${content.link.url}" style="color: #1a73e8;">${escape(content.link.text || content.link.url)}</a></p>`
     : '';
 
   // Signoff
@@ -60,7 +60,7 @@ function build({ data }) {
         <mj-text>${greeting}${message}${link}</mj-text>
         <mj-text padding="12px 0 0 0"><p>${escape(signoffGreeting)},<br>${escape(signoffName)}</p></mj-text>
         <mj-text padding="24px 0 0 0" font-size="11px" color="#aaaaaa">
-          <a href="${escape(unsubscribeUrl)}" style="color:#aaaaaa;">Unsubscribe</a> &middot;
+          <a href="${unsubscribeUrl}" style="color:#aaaaaa;">Unsubscribe</a> &middot;
           <a href="${brandUrl}/account" style="color:#aaaaaa;">Manage account</a> &middot;
           ${address}
           ${hiddenAsm}

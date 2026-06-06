@@ -58,7 +58,7 @@ function build({ data, theme }) {
         </mj-text>
 
         <!-- CTA Button -->
-        <mj-button href="${escape(feedbackUrl)}?${utm}" background-color="#1A202C" color="#ffffff" border-radius="4px" font-size="16px" font-weight="normal" inner-padding="10px 20px" padding="24px 0 0 0">I want to win a $100 Amazon Gift Card!</mj-button>
+        <mj-button href="${feedbackUrl}?${utm}" background-color="#1A202C" color="#ffffff" border-radius="4px" font-size="16px" font-weight="normal" inner-padding="10px 20px" padding="24px 0 0 0">I want to win a $100 Amazon Gift Card!</mj-button>
 
         <!-- Help Text -->
         <mj-text padding="16px 0 0 0" align="center">

@@ -319,7 +319,7 @@ function _ctaButton(event, brand, order) {
 
   const v = variants[event] || variants['confirmation'];
 
-  return `<mj-button href="${escape(v.url)}" background-color="#1A202C" color="#ffffff" border-radius="4px" font-size="16px" font-weight="normal" inner-padding="10px 20px" padding="24px 0 0 0">${v.text}</mj-button>`;
+  return `<mj-button href="${v.url}" background-color="#1A202C" color="#ffffff" border-radius="4px" font-size="16px" font-weight="normal" inner-padding="10px 20px" padding="24px 0 0 0">${v.text}</mj-button>`;
 }
 
 function _helpText(brand) {

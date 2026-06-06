@@ -1,6 +1,12 @@
 TODO
 * pdate deps LIKE WF, PP, ETC
 
+TODO
+* remove shim in
+/Users/ian/Developer/Repositories/ITW-Creative-Works/backend-manager/src/manager/libraries/email/transactional/index.js:59-61 — legacy template name map
+/Users/ian/Developer/Repositories/ITW-Creative-Works/backend-manager/src/manager/libraries/email/transactional/index.js:132-135 — data.body → data.content shim
+ONly needed for about 10 days after Jue 6th 2026, then safe to remove (queued emails)
+
 PAYMENT SYSTEM
 * Ensure attribution is working (utm but also the AD ID shit like from adwords, tiktok ads, meta etc)
 * ensure legacy plan RESOLVING is working

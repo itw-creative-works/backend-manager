@@ -89,7 +89,7 @@ function logo(brand, theme) {
         </mj-text>
       </mj-column>
     </mj-section>
-    <mj-section padding="16px 0 0 0"><mj-column><mj-text>&nbsp;</mj-text></mj-column></mj-section>`;
+    <mj-section><mj-column><mj-spacer height="16px" /></mj-column></mj-section>`;
 }
 
 /**
@@ -102,7 +102,7 @@ function cardWrapper(content) {
         ${content}
       </mj-column>
     </mj-section>
-    <mj-section padding="24px 0 0 0"><mj-column><mj-text>&nbsp;</mj-text></mj-column></mj-section>`;
+    <mj-section><mj-column><mj-spacer height="24px" /></mj-column></mj-section>`;
 }
 
 /**
@@ -119,7 +119,7 @@ function signoff(data, theme) {
       ? `<img src="${escape(s.image)}" alt="${escape(s.name)}" width="60" style="width: 60px; height: 60px; border-radius: 50%; display: block;" />`
       : '';
     const link = s.url
-      ? `<br/><a href="${escape(s.url)}" style="color: ${primaryColor}; font-size: 14px; text-decoration: none;">${escape(s.urlText || s.url)}</a>`
+      ? `<br/><a href="${s.url}" style="color: ${primaryColor}; font-size: 14px; text-decoration: none;">${escape(s.urlText || s.url)}</a>`
       : '';
 
     const inner = img
@@ -147,7 +147,7 @@ function button(btn) {
     return '';
   }
 
-  return `<mj-button href="${escape(btn.url)}" background-color="#1A202C" color="#ffffff" border-radius="4px" font-size="16px" font-weight="normal" inner-padding="10px 20px" padding="24px 0 0 0">${escape(btn.text)}</mj-button>`;
+  return `<mj-button href="${btn.url}" background-color="#1A202C" color="#ffffff" border-radius="4px" font-size="16px" font-weight="normal" inner-padding="10px 20px" padding="24px 0 0 0">${escape(btn.text)}</mj-button>`;
 }
 
 /**

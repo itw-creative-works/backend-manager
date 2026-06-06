@@ -58,13 +58,17 @@ module.exports = async ({ Manager, assistant, libraries }) => {
     if (type === 'email') {
       campaignResults = await email.sendCampaign({ ...settings, sendAt: 'now' });
     } else if (type === 'push') {
+      const pushFilters = settings.test
+        ? { owner: settings._testUid || null, ...settings.filters }
+        : (settings.filters || {});
+
       campaignResults = {
         push: await notification.send(assistant, {
           title: settings.name,
           body: settings.subject || settings.body,
-          icon: settings.icon,
-          clickAction: settings.clickAction,
-          filters: settings.filters,
+          icon: settings.icon || Manager.config.brand?.images?.brandmark,
+          clickAction: settings.clickAction || Manager.config.brand?.url,
+          filters: pushFilters,
         }),
       };
     } else {

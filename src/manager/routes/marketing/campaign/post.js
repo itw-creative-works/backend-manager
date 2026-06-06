@@ -25,6 +25,10 @@ module.exports = async ({ assistant, user, Manager, settings, analytics }) => {
   const campaignId = settings.id || pushid();
   const { docFields, campaignSettings, now } = buildCampaignDoc(settings);
 
+  if (campaignSettings.test) {
+    campaignSettings._testUid = user.auth.uid;
+  }
+
   const isFuture = docFields.sendAt > now.unix();
 
   const doc = {
@@ -51,25 +55,43 @@ module.exports = async ({ assistant, user, Manager, settings, analytics }) => {
   // If sendAt is now/past, fire immediately
   let results = null;
 
-  if (!isFuture && docFields.type === 'email') {
-    const mailer = Manager.Email(assistant);
-    results = await mailer.sendCampaign({ ...campaignSettings, sendAt: 'now' });
+  if (!isFuture) {
+    if (docFields.type === 'email') {
+      const mailer = Manager.Email(assistant);
+      results = await mailer.sendCampaign({ ...campaignSettings, sendAt: 'now' });
+    } else if (docFields.type === 'push') {
+      const notification = require('../../../libraries/notification.js');
+      const pushFilters = campaignSettings.test
+        ? { owner: campaignSettings._testUid || null, ...campaignSettings.filters }
+        : (campaignSettings.filters || {});
 
-    // Update status
-    const status = Object.values(results).some(r => r.success) ? 'sent' : 'failed';
+      results = {
+        push: await notification.send(assistant, {
+          title: campaignSettings.name,
+          body: campaignSettings.subject,
+          icon: campaignSettings.icon || Manager.config.brand?.images?.brandmark,
+          clickAction: campaignSettings.clickAction || Manager.config.brand?.url,
+          filters: pushFilters,
+        }),
+      };
+    }
 
-    await admin.firestore().doc(`marketing-campaigns/${campaignId}`).set({
-      status,
-      results,
-      metadata: {
-        updated: {
-          timestamp: new Date().toISOString(),
-          timestampUNIX: Math.round(Date.now() / 1000),
+    if (results) {
+      const status = Object.values(results).some(r => r.success || r.sent > 0) ? 'sent' : 'failed';
+
+      await admin.firestore().doc(`marketing-campaigns/${campaignId}`).set({
+        status,
+        results,
+        metadata: {
+          updated: {
+            timestamp: new Date().toISOString(),
+            timestampUNIX: Math.round(Date.now() / 1000),
+          },
         },
-      },
-    }, { merge: true });
+      }, { merge: true });
 
-    assistant.log('marketing/campaign sent:', { campaignId, status, results });
+      assistant.log('marketing/campaign sent:', { campaignId, status, results });
+    }
   }
 
   // Analytics

@@ -31,6 +31,29 @@ npx mgr test      # Terminal 2 - runs tests
 npx mgr test
 ```
 
+### Filtering tests
+
+Pass a path (relative to `test/`) as a positional argument to run specific tests:
+
+```bash
+# Run a single test file
+npx mgr test email/transactional
+
+# Run all tests in a directory
+npx mgr test routes/marketing
+
+# Run only BEM framework tests (from node_modules/backend-manager/test/)
+npx mgr test bem:email/templates
+
+# Run only consumer project tests (from the project's own test/)
+npx mgr test project:routes/custom
+
+# Combine with extended mode for tests that hit real APIs
+TEST_EXTENDED_MODE=true npx mgr test routes/marketing/push-send
+```
+
+The filter matches against the test file path. `bem:` and `project:` prefixes scope the filter to framework-only or project-only tests respectively. Without a prefix, both are searched.
+
 ## Project mismatch detection
 
 The test runner's health check verifies that the running emulator belongs to the **same project** as the test suite. If you leave project A's emulator running and run `npx mgr test` from project B, the hosting rewrites won't match and tests fail with mysterious 404s.

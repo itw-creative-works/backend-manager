@@ -40,12 +40,14 @@ async function send(assistant, options) {
   }
 
   // Build notification payload
+  const brand = assistant.Manager.config?.brand;
   const notification = {
     title,
     body,
     imageUrl: icon
+      || brand?.images?.brandmark
       || 'https://cdn.itwcreativeworks.com/assets/itw-creative-works/images/socials/itw-creative-works-brandmark-square-black-1024x1024.png',
-    click_action: clickAction || 'https://itwcreativeworks.com',
+    click_action: clickAction || brand?.url || 'https://itwcreativeworks.com',
   };
 
   // Add cache buster to click_action URL

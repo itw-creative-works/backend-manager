@@ -14,6 +14,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.4.1] - 2026-06-06
+
+### Added
+- **Push notification campaigns.** Marketing campaign POST route and cron now handle `type: 'push'` with brand-aware icon/clickAction defaults and test-mode owner filtering.
+- **`filters` field** in campaign schema for push notification targeting.
+- **Test filtering docs** in CLAUDE.md and docs/testing.md (`npx mgr test <path>`, `bem:`, `project:` prefixes).
+
+### Fixed
+- **Email migration shims (temporary).** Old template names (`default` → `card`, `core/engagement/feedback` → `feedback`) and old data format (`data.body` → `data.content`) mapped for queued emails saved before the MJML migration.
+- **Double-escaped URLs in email templates.** Button hrefs, signoff links, and CTA URLs were HTML-escaped via `escape()`, breaking URLs with `&` characters. Removed `escape()` from href attributes across all templates while keeping it on display text.
+- **Spacer elements.** Replaced `&nbsp;` text hacks with proper `mj-spacer` elements in base template.
+- **Notification library defaults.** Icon and click URL now use brand config instead of hardcoded ITW values.
+
 # [5.4.0] - 2026-06-05
 
 ### Added

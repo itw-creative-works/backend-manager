@@ -288,7 +288,7 @@ function fieldReportDispatch({ dispatch, imagePath, theme, inkColor, brandName, 
     ? singleColumnSection({
       background: PAPER,
       padding: `24px ${gutter} 0 ${gutter}`,
-      content: `<mj-text padding="0"><div style="display: inline-block; border: 1.5px solid ${inkColor}; padding: 14px 24px;"><a href="${escape(safeDispatch.cta.url)}" style="font-family: ${MONO_FONT}; font-size: 11px; letter-spacing: 3px; font-weight: 700; text-transform: uppercase; color: ${inkColor}; text-decoration: none; border-bottom: none;">${escape(safeDispatch.cta.label)} &nbsp;→</a></div></mj-text>`,
+      content: `<mj-text padding="0"><div style="display: inline-block; border: 1.5px solid ${inkColor}; padding: 14px 24px;"><a href="${safeDispatch.cta.url}" style="font-family: ${MONO_FONT}; font-size: 11px; letter-spacing: 3px; font-weight: 700; text-transform: uppercase; color: ${inkColor}; text-decoration: none; border-bottom: none;">${escape(safeDispatch.cta.label)} &nbsp;→</a></div></mj-text>`,
     })
     : '';
 

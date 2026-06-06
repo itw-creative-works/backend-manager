@@ -29,6 +29,9 @@ module.exports = () => ({
   // Lineage
   recurringId: { types: ['string'], default: '' },
 
+  // Push notification targeting
+  filters: { types: ['object'], default: {} },
+
   // Config
   test: { types: ['boolean'], default: false },
   sender: { types: ['string'], default: 'marketing' },

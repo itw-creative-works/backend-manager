@@ -55,7 +55,10 @@ Transactional.prototype.build = async function (settings) {
   const { from, groupId } = prepare.resolveSender(settings, brand, brandDomain);
   const categories = prepare.buildCategories('transactional', brand.id, settings.categories);
   const signoff = prepare.resolveSignoff(settings?.data?.signoff);
-  const templateName = settings.template || 'card';
+
+  // TEMPORARY: shim for emails queued before the MJML migration (old template names)
+  const LEGACY_TEMPLATE_MAP = { 'default': 'card', 'core/engagement/feedback': 'feedback' };
+  const templateName = LEGACY_TEMPLATE_MAP[settings.template] || settings.template || 'card';
 
   // --- 2. Recipients ---
   let to = normalizeRecipients(settings.to);
@@ -125,6 +128,11 @@ Transactional.prototype.build = async function (settings) {
     template: templateName,
     websiteUrl: Manager.project.websiteUrl,
   });
+
+  // TEMPORARY: shim for emails queued before the MJML migration (data.body → data.content)
+  if (settings?.data?.body && !settings?.data?.content) {
+    settings.data.content = settings.data.body;
+  }
 
   // Render markdown content to HTML (if provided)
   const utmCampaign = (settings.categories && settings.categories[0]) || settings.sender || templateName;
