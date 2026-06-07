@@ -9,7 +9,7 @@ module.exports = {
   timeout: 30000,
 
   async run({ http, assert, config }) {
-    const response = await http.post('admin/email', {
+    const response = await http.post('backend-manager/admin/email', {
       subject: '[TEST] Transactional pipeline — card template',
       to: `_test-email-send@${config.domain}`,
       template: 'card',

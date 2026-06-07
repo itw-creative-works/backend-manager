@@ -17,7 +17,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert, config }) {
-        const response = await http.post('admin/email', {
+        const response = await http.post('backend-manager/admin/email', {
           subject: 'Test Email',
           to: [{ email: `_test-receiver@${config.domain}` }],
         });
@@ -32,7 +32,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert, config }) {
-        const response = await http.post('admin/email', {
+        const response = await http.post('backend-manager/admin/email', {
           subject: 'Test Email',
           to: [{ email: `_test-receiver@${config.domain}` }],
         });
@@ -49,7 +49,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert, config }) {
-        const response = await http.post('admin/email', {
+        const response = await http.post('backend-manager/admin/email', {
           to: [{ email: `_test-receiver@${config.domain}` }],
           copy: false,
         });
@@ -66,7 +66,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert, config }) {
-        const response = await http.post('admin/email', {
+        const response = await http.post('backend-manager/admin/email', {
           subject: 'BEM Test Email - Status Sent',
           to: [{ email: `_test-receiver@${config.domain}`, name: 'Test Receiver' }],
           copy: false,
@@ -92,7 +92,7 @@ module.exports = {
       async run({ http, assert, config }) {
         const sendAt = Math.floor(Date.now() / 1000) + (72 * 60 * 60);
 
-        const response = await http.post('admin/email', {
+        const response = await http.post('backend-manager/admin/email', {
           subject: 'BEM Test Email - Status Queued',
           to: [{ email: `_test-receiver@${config.domain}`, name: 'Test Receiver' }],
           copy: false,

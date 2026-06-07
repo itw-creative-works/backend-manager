@@ -23,7 +23,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.post('admin/post', {
+        const response = await http.post('backend-manager/admin/post', {
           url: 'test-post',
           description: 'Test description',
           headerImageURL: 'https://example.com/image.jpg',
@@ -40,7 +40,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.post('admin/post', {
+        const response = await http.post('backend-manager/admin/post', {
           title: 'Test Post',
           description: 'Test description',
           headerImageURL: 'https://example.com/image.jpg',
@@ -57,7 +57,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.post('admin/post', {
+        const response = await http.post('backend-manager/admin/post', {
           title: 'Test Post',
           url: 'test-post',
           headerImageURL: 'https://example.com/image.jpg',
@@ -74,7 +74,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.post('admin/post', {
+        const response = await http.post('backend-manager/admin/post', {
           title: 'Test Post',
           url: 'test-post',
           description: 'Test description',
@@ -91,7 +91,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.post('admin/post', {
+        const response = await http.post('backend-manager/admin/post', {
           title: 'Test Post',
           url: 'test-post',
           description: 'Test description',
@@ -137,7 +137,7 @@ module.exports = {
         // verify the resize step runs end-to-end and the committed file is clamped.
         const headerImageURL = 'https://picsum.photos/id/1/5000/3000.jpg';
 
-        const response = await http.post('admin/post', {
+        const response = await http.post('backend-manager/admin/post', {
           title: 'BEM Test Create Post',
           url: 'bem-test-create-post',
           description: 'Test post created by BEM test suite to verify @post/ body rewriting.',
@@ -247,7 +247,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.post('admin/post', {
+        const response = await http.post('backend-manager/admin/post', {
           title: 'Test Post',
           url: 'test-post',
           description: 'Test description',
@@ -265,7 +265,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.post('admin/post', {
+        const response = await http.post('backend-manager/admin/post', {
           title: 'Test Post',
           url: 'test-post',
           description: 'Test description',

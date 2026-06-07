@@ -31,7 +31,7 @@ module.exports = {
         state.productB = payments.products[productB.id];
 
         // Create subscription via test intent (product A)
-        const response = await http.as('journey-payments-plan-change').post('payments/intent', {
+        const response = await http.as('journey-payments-plan-change').post('backend-manager/payments/intent', {
           processor: 'test',
           productId: productA.id,
           frequency: state.productA.frequency,
@@ -62,7 +62,7 @@ module.exports = {
         state.eventId = `_test-evt-journey-plan-change-${Date.now()}`;
 
         // Send subscription.updated with product B's Stripe product ID (or test sentinel)
-        const response = await http.as('none').post(`payments/webhook?processor=test&key=${config.backendManagerWebhookKey}`, {
+        const response = await http.as('none').post(`backend-manager/payments/webhook?processor=test&key=${config.backendManagerWebhookKey}`, {
           id: state.eventId,
           type: 'customer.subscription.updated',
           data: {

@@ -31,7 +31,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.post('admin/repo/content', {
+        const response = await http.post('backend-manager/admin/repo/content', {
           content: 'Test content',
         });
 
@@ -46,7 +46,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.post('admin/repo/content', {
+        const response = await http.post('backend-manager/admin/repo/content', {
           path: '_test/bem-test-file.txt',
         });
 
@@ -62,7 +62,7 @@ module.exports = {
 
       async run({ http, assert, state }) {
         const uniqueContent = `BEM Test - ${new Date().toISOString()}`;
-        const response = await http.post('admin/repo/content', {
+        const response = await http.post('backend-manager/admin/repo/content', {
           path: '_test/bem-write-test.txt',
           content: uniqueContent,
         });
@@ -84,7 +84,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert, state }) {
-        const response = await http.post('admin/repo/content', {
+        const response = await http.post('backend-manager/admin/repo/content', {
           path: '_test/type-test.txt',
           content: 'Test content with default type',
         });
@@ -106,7 +106,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert }) {
-        const response = await http.post('admin/repo/content', {
+        const response = await http.post('backend-manager/admin/repo/content', {
           path: '_test/custom-repo-test.txt',
           content: 'Test content',
           githubUser: 'nonexistent-user-12345',
@@ -124,7 +124,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.post('admin/repo/content', {
+        const response = await http.post('backend-manager/admin/repo/content', {
           path: '_test/bem-test-file.txt',
           content: 'Test content',
         });
@@ -139,7 +139,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.post('admin/repo/content', {
+        const response = await http.post('backend-manager/admin/repo/content', {
           path: '_test/bem-test-file.txt',
           content: 'Test content',
         });

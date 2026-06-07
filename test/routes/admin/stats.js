@@ -14,7 +14,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert }) {
-        const response = await http.get('admin/stats', {});
+        const response = await http.get('backend-manager/admin/stats', {});
 
         assert.isSuccess(response, 'Get stats should succeed with admin auth');
         assert.ok(
@@ -31,7 +31,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert }) {
-        const response = await http.get('admin/stats', {});
+        const response = await http.get('backend-manager/admin/stats', {});
 
         assert.isSuccess(response, 'Get stats should succeed');
         assert.hasProperty(response, 'data.users', 'Stats should contain users field');
@@ -50,7 +50,7 @@ module.exports = {
       timeout: 60000,
 
       async run({ http, assert }) {
-        const response = await http.get('admin/stats', {
+        const response = await http.get('backend-manager/admin/stats', {
           update: { users: true },
         });
 
@@ -70,11 +70,11 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert }) {
-        await http.get('admin/stats', {
+        await http.get('backend-manager/admin/stats', {
           update: { users: true },
         });
 
-        const response = await http.get('admin/stats', {});
+        const response = await http.get('backend-manager/admin/stats', {});
 
         assert.isSuccess(response, 'Get stats should succeed');
         if (response.data.metadata) {
@@ -90,7 +90,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.get('admin/stats', {});
+        const response = await http.get('backend-manager/admin/stats', {});
 
         assert.isError(response, 401, 'Get stats should fail without authentication');
       },
@@ -103,7 +103,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.get('admin/stats', {});
+        const response = await http.get('backend-manager/admin/stats', {});
 
         assert.isError(response, 403, 'Get stats should fail for non-admin user');
       },

@@ -15,7 +15,7 @@ module.exports = {
     {
       name: 'rejects-unauthenticated',
       async run({ http, assert }) {
-        const response = await http.as('none').post('payments/refund', {
+        const response = await http.as('none').post('backend-manager/payments/refund', {
           confirmed: true,
           reason: 'Too expensive',
         });
@@ -27,7 +27,7 @@ module.exports = {
     {
       name: 'rejects-missing-confirmed',
       async run({ http, assert }) {
-        const response = await http.as('basic').post('payments/refund', {
+        const response = await http.as('basic').post('backend-manager/payments/refund', {
           reason: 'Too expensive',
         });
 
@@ -38,7 +38,7 @@ module.exports = {
     {
       name: 'rejects-missing-reason',
       async run({ http, assert }) {
-        const response = await http.as('basic').post('payments/refund', {
+        const response = await http.as('basic').post('backend-manager/payments/refund', {
           confirmed: true,
         });
 
@@ -49,7 +49,7 @@ module.exports = {
     {
       name: 'rejects-basic-user',
       async run({ http, assert }) {
-        const response = await http.as('basic').post('payments/refund', {
+        const response = await http.as('basic').post('backend-manager/payments/refund', {
           confirmed: true,
           reason: 'Too expensive',
         });
@@ -62,7 +62,7 @@ module.exports = {
       name: 'rejects-active-subscription-without-cancellation',
       async run({ http, assert }) {
         // refund-active-no-cancel has an active subscription without pending cancellation
-        const response = await http.as('refund-active-no-cancel').post('payments/refund', {
+        const response = await http.as('refund-active-no-cancel').post('backend-manager/payments/refund', {
           confirmed: true,
           reason: 'Too expensive',
         });
@@ -75,7 +75,7 @@ module.exports = {
       name: 'rejects-payment-older-than-6-months',
       async run({ http, assert }) {
         // refund-expired-payment has a cancelled subscription with a payment older than 6 months
-        const response = await http.as('refund-expired-payment').post('payments/refund', {
+        const response = await http.as('refund-expired-payment').post('backend-manager/payments/refund', {
           confirmed: true,
           reason: 'Too expensive',
         });
@@ -88,7 +88,7 @@ module.exports = {
       name: 'rejects-no-processor-or-resource-id',
       async run({ http, assert }) {
         // refund-no-processor has a cancelled subscription but no processor
-        const response = await http.as('refund-no-processor').post('payments/refund', {
+        const response = await http.as('refund-no-processor').post('backend-manager/payments/refund', {
           confirmed: true,
           reason: 'Too expensive',
         });
@@ -101,7 +101,7 @@ module.exports = {
       name: 'rejects-unknown-processor',
       async run({ http, assert }) {
         // refund-unknown-processor has a cancelled subscription with unknown processor
-        const response = await http.as('refund-unknown-processor').post('payments/refund', {
+        const response = await http.as('refund-unknown-processor').post('backend-manager/payments/refund', {
           confirmed: true,
           reason: 'Too expensive',
         });
@@ -120,7 +120,7 @@ module.exports = {
         }
 
         // Step 1: Create a test subscription intent to set up a proper paid subscription
-        const intentResponse = await http.as('route-refund-success').post('payments/intent', {
+        const intentResponse = await http.as('route-refund-success').post('backend-manager/payments/intent', {
           processor: 'test',
           productId: paidProduct.id,
           frequency: 'monthly',
@@ -138,7 +138,7 @@ module.exports = {
 
         // Step 2: Cancel the subscription first (refund requires cancellation).
         // skipGuards bypasses the 24-hour subscription-age guard on the cancel route.
-        const cancelResponse = await http.as('route-refund-success').post('payments/cancel', {
+        const cancelResponse = await http.as('route-refund-success').post('backend-manager/payments/cancel', {
           confirmed: true,
           reason: 'Too expensive',
           skipGuards: true,
@@ -153,7 +153,7 @@ module.exports = {
         }, 15000, 500);
 
         // Step 3: Request a refund
-        const refundResponse = await http.as('route-refund-success').post('payments/refund', {
+        const refundResponse = await http.as('route-refund-success').post('backend-manager/payments/refund', {
           confirmed: true,
           reason: 'Not satisfied with the service',
           feedback: 'Testing refund flow',

@@ -14,7 +14,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.get('user/subscription', {});
+        const response = await http.get('backend-manager/user/subscription', {});
 
         assert.isSuccess(response, 'Get subscription info should succeed for authenticated user');
         assert.hasProperty(response, 'data.subscription', 'Response should contain subscription object');
@@ -32,7 +32,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.get('user/subscription', {});
+        const response = await http.get('backend-manager/user/subscription', {});
 
         assert.isSuccess(response, 'Get subscription info should succeed');
 
@@ -60,7 +60,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.get('user/subscription', {});
+        const response = await http.get('backend-manager/user/subscription', {});
 
         assert.isSuccess(response, 'Get subscription info should succeed for premium user');
         assert.hasProperty(response, 'data.subscription.product.id', 'Premium user should have subscription id');
@@ -75,7 +75,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.get('user/subscription', {});
+        const response = await http.get('backend-manager/user/subscription', {});
 
         assert.isSuccess(response, 'Get subscription info should succeed for expired premium');
         assert.hasProperty(response, 'data.subscription.product.id', 'Should still have subscription id');
@@ -90,7 +90,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.get('user/subscription', {});
+        const response = await http.get('backend-manager/user/subscription', {});
 
         assert.isError(response, 401, 'Get subscription info should fail without authentication');
       },

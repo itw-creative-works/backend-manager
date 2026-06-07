@@ -1,7 +1,7 @@
 const moment = require('moment');
 const _ = require('lodash');
 const { inferContact } = require('../../../libraries/infer-contact.js');
-const { validate: validateEmail, isDisposable } = require('../../../libraries/email/validation.js');
+const { validate: validateEmail, isDisposable, ALL_CHECKS } = require('../../../libraries/email/validation.js');
 
 const MAX_POLL_TIME_MS = 30000;
 const POLL_INTERVAL_MS = 500;
@@ -360,8 +360,8 @@ async function syncMarketingContact(assistant, uid, email) {
     return;
   }
 
-  // Validate email before adding to marketing lists (disposable check only, no ZeroBounce cost)
-  const validation = await validateEmail(email);
+  // Validate email before adding to marketing lists (includes mailbox verification via NeverBounce/ZeroBounce)
+  const validation = await validateEmail(email, { checks: ALL_CHECKS });
 
   if (!validation.valid) {
     assistant.log(`signup(): Skipping marketing sync — email validation failed:`, validation.checks);

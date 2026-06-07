@@ -23,7 +23,7 @@ module.exports = {
 
         for (let i = 0; i < state.testDocs.length; i++) {
           const doc = state.testDocs[i];
-          const response = await http.as('admin').post('admin/firestore', {
+          const response = await http.as('admin').post('backend-manager/admin/firestore', {
             path: `${TEST_COLLECTION}/doc${i + 1}`,
             document: doc,
           });
@@ -36,7 +36,7 @@ module.exports = {
     {
       name: 'query-all-documents',
       async run({ http, assert, state }) {
-        const queryResponse = await http.as('admin').post('admin/firestore/query', {
+        const queryResponse = await http.as('admin').post('backend-manager/admin/firestore/query', {
           queries: [
             { collection: TEST_COLLECTION },
           ],
@@ -58,7 +58,7 @@ module.exports = {
     {
       name: 'query-with-where',
       async run({ http, assert }) {
-        const queryResponse = await http.as('admin').post('admin/firestore/query', {
+        const queryResponse = await http.as('admin').post('backend-manager/admin/firestore/query', {
           queries: [
             {
               collection: TEST_COLLECTION,
@@ -90,7 +90,7 @@ module.exports = {
     {
       name: 'query-with-limit',
       async run({ http, assert }) {
-        const queryResponse = await http.as('admin').post('admin/firestore/query', {
+        const queryResponse = await http.as('admin').post('backend-manager/admin/firestore/query', {
           queries: [
             {
               collection: TEST_COLLECTION,
@@ -111,7 +111,7 @@ module.exports = {
     {
       name: 'query-with-orderBy',
       async run({ http, assert }) {
-        const queryResponse = await http.as('admin').post('admin/firestore/query', {
+        const queryResponse = await http.as('admin').post('backend-manager/admin/firestore/query', {
           queries: [
             {
               collection: TEST_COLLECTION,
@@ -141,7 +141,7 @@ module.exports = {
     {
       name: 'query-empty-collection',
       async run({ http, assert }) {
-        const queryResponse = await http.as('admin').post('admin/firestore/query', {
+        const queryResponse = await http.as('admin').post('backend-manager/admin/firestore/query', {
           queries: [
             { collection: '_test_nonexistent_collection_12345' },
           ],
@@ -164,7 +164,7 @@ module.exports = {
     {
       name: 'query-no-collection',
       async run({ http, assert }) {
-        const queryResponse = await http.as('admin').post('admin/firestore/query', {
+        const queryResponse = await http.as('admin').post('backend-manager/admin/firestore/query', {
           queries: [{}],
         });
 
@@ -180,7 +180,7 @@ module.exports = {
     {
       name: 'unauthenticated-rejected',
       async run({ http, assert }) {
-        const queryResponse = await http.as('none').post('admin/firestore/query', {
+        const queryResponse = await http.as('none').post('backend-manager/admin/firestore/query', {
           queries: [{ collection: TEST_COLLECTION }],
         });
 
@@ -192,7 +192,7 @@ module.exports = {
     {
       name: 'non-admin-rejected',
       async run({ http, assert }) {
-        const queryResponse = await http.as('basic').post('admin/firestore/query', {
+        const queryResponse = await http.as('basic').post('backend-manager/admin/firestore/query', {
           queries: [{ collection: TEST_COLLECTION }],
         });
 

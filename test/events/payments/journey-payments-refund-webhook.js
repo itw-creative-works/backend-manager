@@ -32,7 +32,7 @@ module.exports = {
         state.paidProductId = paidProduct.id;
         state.product = payments.products[paidProduct.id];
         // Create subscription via test intent
-        const response = await http.as('journey-payments-refund-webhook').post('payments/intent', {
+        const response = await http.as('journey-payments-refund-webhook').post('backend-manager/payments/intent', {
           processor: 'test',
           productId: paidProduct.id,
           frequency: state.product.frequency,
@@ -63,7 +63,7 @@ module.exports = {
 
         state.cancelEventId = `_test-evt-journey-refund-cancel-${Date.now()}`;
 
-        const response = await http.as('none').post(`payments/webhook?processor=test&key=${config.backendManagerWebhookKey}`, {
+        const response = await http.as('none').post(`backend-manager/payments/webhook?processor=test&key=${config.backendManagerWebhookKey}`, {
           id: state.cancelEventId,
           type: 'customer.subscription.updated',
           data: {
@@ -114,7 +114,7 @@ module.exports = {
         state.refundEventId = `_test-evt-journey-refund-charge-${Date.now()}`;
         state.refundAmountCents = 2800; // $28.00
 
-        const response = await http.as('none').post(`payments/webhook?processor=test&key=${config.backendManagerWebhookKey}`, {
+        const response = await http.as('none').post(`backend-manager/payments/webhook?processor=test&key=${config.backendManagerWebhookKey}`, {
           id: state.refundEventId,
           type: 'charge.refunded',
           data: {

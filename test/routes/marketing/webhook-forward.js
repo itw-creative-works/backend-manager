@@ -30,7 +30,7 @@ module.exports = {
         }
 
         const response = await http.as('none').post(
-          `marketing/webhook/forward?provider=sendgrid&key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`,
+          `backend-manager/marketing/webhook/forward?provider=sendgrid&key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`,
           [{ sg_event_id: 'should-not-process', event: 'group_unsubscribe', email: 'test@example.com' }]
         );
 
@@ -50,7 +50,7 @@ module.exports = {
 
         // A valid key shouldn't unlock the forwarder — gate is on config.parent, not key.
         const response = await http.as('none').post(
-          `marketing/webhook/forward?provider=beehiiv&key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`,
+          `backend-manager/marketing/webhook/forward?provider=beehiiv&key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`,
           { id: 'should-not-process', event: 'subscription.unsubscribed', email: 'test@example.com' }
         );
 

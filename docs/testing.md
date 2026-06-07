@@ -266,12 +266,30 @@ module.exports = {
 
 | Property | Description |
 |----------|-------------|
-| `http` | HTTP client (`http.command()`, `http.as('admin').command()`) |
+| `http` | HTTP client — sends requests to the hosting emulator as-is (see [HTTP Routing](#http-routing)) |
 | `assert` | Assertion helpers (see below) |
 | `accounts` | Test accounts `{ basic, admin, premium-active, ... }` |
 | `firestore` | Direct DB access (`get`, `set`, `delete`, `exists`) |
 | `state` | Shared state (suites only) |
 | `waitFor` | Polling helper `waitFor(condition, timeout, interval)` |
+
+## HTTP Routing
+
+The `http` client sends requests directly to the hosting emulator (`http://localhost:5002`) with no magic prefix. The route string you pass becomes the URL path as-is — the hosting emulator's `firebase.json` rewrites handle routing to the correct Cloud Function.
+
+```javascript
+// BEM built-in routes — go through bm_api via firebase.json rewrite
+http.post('backend-manager/payments/intent', { ... })
+http.as('admin').get('backend-manager/admin/stats')
+http.as('none').post('backend-manager/marketing/webhook?provider=sendgrid&key=...', [...])
+
+// Consumer project routes — go to their own Cloud Functions via firebase.json rewrites
+http.post('projects', { name: 'My Project' })
+http.get('sender-accounts', { projectId: 'abc' })
+http.as('none').post('webhooks', { event: 'reply', campaignId: '...' })
+```
+
+BEM routes live under `/backend-manager/*` — always include that prefix. Consumer routes use whatever path is in their `firebase.json` rewrites — no prefix needed.
 
 ## Assert Methods
 

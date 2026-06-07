@@ -17,7 +17,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.get('user', {});
+        const response = await http.get('backend-manager/user', {});
 
         assert.isError(response, 401, 'Resolve should fail without authentication');
       },
@@ -30,7 +30,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert, accounts }) {
-        const response = await http.get('user', {});
+        const response = await http.get('backend-manager/user', {});
 
         assert.isSuccess(response, 'Resolve should succeed for basic user');
 
@@ -62,7 +62,7 @@ module.exports = {
 
       async run({ http, assert, accounts }) {
         // Authenticate with the real admin test account's privateKey
-        const response = await http.withPrivateKey(accounts.admin.privateKey).get('user', {});
+        const response = await http.withPrivateKey(accounts.admin.privateKey).get('backend-manager/user', {});
 
         assert.isSuccess(response, 'Resolve should succeed for admin account');
 
@@ -88,7 +88,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert, accounts }) {
-        const response = await http.get('user', {});
+        const response = await http.get('backend-manager/user', {});
 
         assert.isSuccess(response, 'Resolve should succeed with backendManagerKey');
 
@@ -111,7 +111,7 @@ module.exports = {
 
       async run({ http, assert, accounts, config }) {
         const paidProduct = getFirstPaidProduct(config);
-        const response = await http.get('user', {});
+        const response = await http.get('backend-manager/user', {});
 
         assert.isSuccess(response, 'Resolve should succeed for premium user');
 
@@ -139,7 +139,7 @@ module.exports = {
 
       async run({ http, assert, accounts, config }) {
         const paidProduct = getFirstPaidProduct(config);
-        const response = await http.get('user', {});
+        const response = await http.get('backend-manager/user', {});
 
         assert.isSuccess(response, 'Resolve should succeed for expired premium user');
 

@@ -24,7 +24,7 @@ module.exports = {
           skip('No paid product configured in this brand');
         }
 
-        const response = await http.as('none').post('payments/intent', {
+        const response = await http.as('none').post('backend-manager/payments/intent', {
           processor: 'stripe',
           productId: paidProduct.id,
           frequency: 'monthly',
@@ -42,7 +42,7 @@ module.exports = {
           skip('No paid product configured in this brand');
         }
 
-        const response = await http.as('basic').post('payments/intent', {
+        const response = await http.as('basic').post('backend-manager/payments/intent', {
           productId: paidProduct.id,
           frequency: 'monthly',
         });
@@ -54,7 +54,7 @@ module.exports = {
     {
       name: 'rejects-missing-product-id',
       async run({ http, assert }) {
-        const response = await http.as('basic').post('payments/intent', {
+        const response = await http.as('basic').post('backend-manager/payments/intent', {
           processor: 'stripe',
           frequency: 'monthly',
         });
@@ -71,7 +71,7 @@ module.exports = {
           skip('No paid subscription product configured in this brand');
         }
 
-        const response = await http.as('basic').post('payments/intent', {
+        const response = await http.as('basic').post('backend-manager/payments/intent', {
           processor: 'stripe',
           productId: paidProduct.id,
         });
@@ -89,7 +89,7 @@ module.exports = {
           skip('No paid product configured in this brand');
         }
 
-        const response = await http.as('premium-active').post('payments/intent', {
+        const response = await http.as('premium-active').post('backend-manager/payments/intent', {
           processor: 'stripe',
           productId: paidProduct.id,
           frequency: 'monthly',
@@ -108,7 +108,7 @@ module.exports = {
           skip('No paid product configured in this brand');
         }
 
-        const response = await http.as('premium-suspended').post('payments/intent', {
+        const response = await http.as('premium-suspended').post('backend-manager/payments/intent', {
           processor: 'stripe',
           productId: paidProduct.id,
           frequency: 'monthly',
@@ -127,7 +127,7 @@ module.exports = {
           skip('No paid product configured in this brand');
         }
 
-        const response = await http.as('premium-cancelling').post('payments/intent', {
+        const response = await http.as('premium-cancelling').post('backend-manager/payments/intent', {
           processor: 'stripe',
           productId: paidProduct.id,
           frequency: 'monthly',
@@ -146,7 +146,7 @@ module.exports = {
           skip('No paid product configured in this brand');
         }
 
-        const response = await http.as('premium-expired').post('payments/intent', {
+        const response = await http.as('premium-expired').post('backend-manager/payments/intent', {
           processor: 'test',
           productId: paidProduct.id,
           frequency: 'monthly',
@@ -159,7 +159,7 @@ module.exports = {
     {
       name: 'rejects-invalid-product',
       async run({ http, assert }) {
-        const response = await http.as('basic').post('payments/intent', {
+        const response = await http.as('basic').post('backend-manager/payments/intent', {
           processor: 'stripe',
           productId: 'nonexistent-product',
           frequency: 'monthly',
@@ -177,7 +177,7 @@ module.exports = {
           skip('No paid product configured in this brand');
         }
 
-        const response = await http.as('basic').post('payments/intent', {
+        const response = await http.as('basic').post('backend-manager/payments/intent', {
           processor: 'unknown-processor',
           productId: paidProduct.id,
           frequency: 'monthly',
@@ -195,7 +195,7 @@ module.exports = {
           skip('No paid product configured in this brand');
         }
 
-        const response = await http.as('basic').post('payments/intent', {
+        const response = await http.as('basic').post('backend-manager/payments/intent', {
           processor: 'stripe',
           productId: paidProduct.id,
           frequency: 'monthly',
@@ -215,7 +215,7 @@ module.exports = {
         }
         const frequency = Object.keys(paidProduct.prices)[0];
 
-        const response = await http.as('intent-discount-validation').post('payments/intent', {
+        const response = await http.as('intent-discount-validation').post('backend-manager/payments/intent', {
           processor: 'test',
           productId: paidProduct.id,
           frequency,
@@ -242,7 +242,7 @@ module.exports = {
         }
         const frequency = Object.keys(paidProduct.prices)[0];
 
-        const response = await http.as('journey-payments-intent-attribution').post('payments/intent', {
+        const response = await http.as('journey-payments-intent-attribution').post('backend-manager/payments/intent', {
           processor: 'test',
           productId: paidProduct.id,
           frequency,
@@ -267,7 +267,7 @@ module.exports = {
           skip('No paid product configured in this brand');
         }
 
-        const response = await http.as('journey-payments-intent').post('payments/intent', {
+        const response = await http.as('journey-payments-intent').post('backend-manager/payments/intent', {
           processor: 'test',
           productId: paidProduct.id,
           frequency: 'monthly',
@@ -308,7 +308,7 @@ module.exports = {
         await firestore.set(orderDocPath, { owner: uid, type: 'subscription', processor: 'test', status: 'cancelled' });
 
         try {
-          const response = await http.as('journey-payments-intent-trial').post('payments/intent', {
+          const response = await http.as('journey-payments-intent-trial').post('backend-manager/payments/intent', {
             processor: 'test',
             productId: paidProduct.id,
             frequency: 'monthly',

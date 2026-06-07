@@ -22,7 +22,7 @@ module.exports = {
         state.testEmail = testEmail;
 
         // Delete from all providers — handles "not found" gracefully
-        await http.delete('marketing/contact', { email: testEmail }).catch(() => {});
+        await http.delete('backend-manager/marketing/contact', { email: testEmail }).catch(() => {});
       },
     },
 
@@ -32,7 +32,7 @@ module.exports = {
       auth: 'admin',
 
       async run({ http, assert, state, config }) {
-        const response = await http.post('marketing/contact', {
+        const response = await http.post('backend-manager/marketing/contact', {
           email: state.testEmail,
           firstName: 'Lifecycle',
           lastName: 'Test',
@@ -68,7 +68,7 @@ module.exports = {
           consent: { marketing: { status: 'granted' } },
         }, { merge: true });
 
-        const response = await http.put('marketing/contact', {
+        const response = await http.put('backend-manager/marketing/contact', {
           uid: grantedUid,
         });
 
@@ -93,7 +93,7 @@ module.exports = {
       auth: 'admin',
 
       async run({ http, assert, state, config }) {
-        const response = await http.delete('marketing/contact', {
+        const response = await http.delete('backend-manager/marketing/contact', {
           email: state.testEmail,
         });
 
@@ -118,7 +118,7 @@ module.exports = {
       auth: 'admin',
 
       async run({ http, accounts }) {
-        await http.delete('marketing/contact', {
+        await http.delete('backend-manager/marketing/contact', {
           email: accounts.admin.email,
         }).catch(() => {});
       },

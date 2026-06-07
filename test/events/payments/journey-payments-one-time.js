@@ -42,7 +42,7 @@ module.exports = {
     {
       name: 'create-one-time-intent',
       async run({ http, assert, state }) {
-        const response = await http.as('journey-payments-one-time').post('payments/intent', {
+        const response = await http.as('journey-payments-one-time').post('backend-manager/payments/intent', {
           processor: 'test',
           productId: state.productId,
         });

@@ -16,7 +16,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert }) {
-        const response = await http.post('admin/notification', {
+        const response = await http.post('backend-manager/admin/notification', {
           notification: {
             title: 'BEM Test Notification',
             body: 'Testing from BEM test suite',
@@ -37,7 +37,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert }) {
-        const response = await http.post('admin/notification', {
+        const response = await http.post('backend-manager/admin/notification', {
           notification: {
             title: 'Filtered Notification',
             body: 'Testing owner filter',
@@ -60,7 +60,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert }) {
-        const response = await http.post('admin/notification', {
+        const response = await http.post('backend-manager/admin/notification', {
           notification: {
             title: 'Tagged Notification',
             body: 'Testing tags filter',
@@ -81,7 +81,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert }) {
-        const response = await http.post('admin/notification', {
+        const response = await http.post('backend-manager/admin/notification', {
           notification: {
             title: 'Limited Notification',
             body: 'Testing limit filter',
@@ -104,7 +104,7 @@ module.exports = {
 
       async run({ http, assert }) {
         // Omit notification entirely to test schema defaults are applied
-        const response = await http.post('admin/notification', {
+        const response = await http.post('backend-manager/admin/notification', {
           filters: {
             limit: 1,
           },
@@ -122,7 +122,7 @@ module.exports = {
       skip: !process.env.TEST_FCM_TOKEN ? 'TEST_FCM_TOKEN env var not set' : false,
 
       async run({ http, assert, config }) {
-        const response = await http.post('admin/notification', {
+        const response = await http.post('backend-manager/admin/notification', {
           notification: {
             title: 'BEM Test Notification',
             body: `Test sent at ${new Date().toISOString()}`,
@@ -145,7 +145,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert }) {
-        const response = await http.post('admin/notification', {
+        const response = await http.post('backend-manager/admin/notification', {
           notification: {
             title: 'Fake Token Test',
             body: 'Testing with invalid token',
@@ -166,7 +166,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.post('admin/notification', {
+        const response = await http.post('backend-manager/admin/notification', {
           notification: {
             title: 'Test Notification',
             body: 'This is a test',
@@ -184,7 +184,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.post('admin/notification', {
+        const response = await http.post('backend-manager/admin/notification', {
           notification: {
             title: 'Test Notification',
             body: 'This is a test',

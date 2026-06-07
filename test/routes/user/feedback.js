@@ -15,7 +15,7 @@ module.exports = {
       timeout: 30000, // Longer timeout due to external API call
 
       async run({ http, assert }) {
-        const response = await http.post('user/feedback', {
+        const response = await http.post('backend-manager/user/feedback', {
           rating: 'like',
           like: 'Great app! Works well.',
           dislike: '',
@@ -34,7 +34,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert }) {
-        const response = await http.post('user/feedback', {
+        const response = await http.post('backend-manager/user/feedback', {
           rating: 'love',
           like: 'Absolutely love this app! Best thing ever! Highly recommend!',
           dislike: '',
@@ -56,7 +56,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert }) {
-        const response = await http.post('user/feedback', {
+        const response = await http.post('backend-manager/user/feedback', {
           rating: 'dislike',
           like: '',
           dislike: 'Could use some improvements in the UI',
@@ -74,7 +74,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert }) {
-        const response = await http.post('user/feedback', {
+        const response = await http.post('backend-manager/user/feedback', {
           rating: 'like',
           like: 'Premium features are great!',
           dislike: '',
@@ -91,7 +91,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.post('user/feedback', {
+        const response = await http.post('backend-manager/user/feedback', {
           rating: 'like',
           like: 'Test',
           dislike: '',

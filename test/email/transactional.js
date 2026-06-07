@@ -18,7 +18,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.post('admin/email', {
+        const response = await http.post('backend-manager/admin/email', {
           subject: 'BEM Test Email - Empty To',
           to: [],
           copy: false,
@@ -34,7 +34,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.post('admin/email', {
+        const response = await http.post('backend-manager/admin/email', {
           subject: 'BEM Test Email - Bad Object',
           to: [{ name: 'No Email' }],
           copy: false,
@@ -50,7 +50,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert, config }) {
-        const response = await http.post('admin/email', {
+        const response = await http.post('backend-manager/admin/email', {
           subject: 'BEM Test Email - Default Template',
           to: [{ email: `_test-receiver@${config.domain}` }],
           copy: false,
@@ -76,7 +76,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.post('admin/email', {
+        const response = await http.post('backend-manager/admin/email', {
           subject: 'BEM Test Email - Bad UID',
           to: 'nonexistent_uid_12345',
           copy: false,
@@ -94,7 +94,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert, config }) {
-        const response = await http.post('admin/email', {
+        const response = await http.post('backend-manager/admin/email', {
           to: [{ email: `_test-receiver@${config.domain}` }],
           copy: false,
           data: {
@@ -120,7 +120,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert, config }) {
-        const response = await http.post('admin/email', {
+        const response = await http.post('backend-manager/admin/email', {
           subject: 'BEM Test Email - String Email',
           to: `_test-receiver@${config.domain}`,
           copy: false,
@@ -145,7 +145,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert, accounts }) {
-        const response = await http.post('admin/email', {
+        const response = await http.post('backend-manager/admin/email', {
           subject: 'BEM Test Email - UID Recipient',
           to: accounts.admin.uid,
           copy: false,
@@ -170,7 +170,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert, accounts, config }) {
-        const response = await http.post('admin/email', {
+        const response = await http.post('backend-manager/admin/email', {
           subject: 'BEM Test Email - Mixed Recipients',
           to: [
             `_test-receiver@${config.domain}`,
@@ -199,7 +199,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert, config }) {
-        const response = await http.post('admin/email', {
+        const response = await http.post('backend-manager/admin/email', {
           subject: 'BEM Test Email - Object Recipient',
           to: { email: `_test-receiver@${config.domain}`, name: 'Named Recipient' },
           copy: false,
@@ -224,7 +224,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert, config }) {
-        const response = await http.post('admin/email', {
+        const response = await http.post('backend-manager/admin/email', {
           subject: 'BEM Test Email - CC/BCC',
           to: `_test-receiver@${config.domain}`,
           cc: `_test-cc@${config.domain}`,
@@ -255,7 +255,7 @@ module.exports = {
       async run({ http, assert, config }) {
         const email = `_test-dedup@${config.domain}`;
 
-        const response = await http.post('admin/email', {
+        const response = await http.post('backend-manager/admin/email', {
           subject: 'BEM Test Email - Dedup To',
           to: [email, email],
           copy: false,
@@ -283,7 +283,7 @@ module.exports = {
       async run({ http, assert, config }) {
         const email = `_test-dedup-cc@${config.domain}`;
 
-        const response = await http.post('admin/email', {
+        const response = await http.post('backend-manager/admin/email', {
           subject: 'BEM Test Email - Dedup CC',
           to: email,
           cc: email,
@@ -310,7 +310,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert, config }) {
-        const response = await http.post('admin/email', {
+        const response = await http.post('backend-manager/admin/email', {
           subject: 'BEM Test Email - Case Dedup',
           to: [`_TEST-DEDUP@${config.domain}`, `_test-dedup@${config.domain}`],
           copy: false,
@@ -338,7 +338,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert, config }) {
-        const response = await http.post('admin/email', {
+        const response = await http.post('backend-manager/admin/email', {
           subject: 'BEM Test Email - No Copy',
           to: `_test-receiver@${config.domain}`,
           copy: false,
@@ -365,7 +365,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert, config }) {
-        const response = await http.post('admin/email', {
+        const response = await http.post('backend-manager/admin/email', {
           subject: 'BEM Test Email - HTML Override',
           to: `_test-receiver@${config.domain}`,
           html: '<p>This is raw HTML content.</p>',
@@ -384,7 +384,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert, config }) {
-        const response = await http.post('admin/email', {
+        const response = await http.post('backend-manager/admin/email', {
           subject: 'BEM Test Email - SVG to PNG',
           to: `_test-receiver@${config.domain}`,
           copy: false,
@@ -415,7 +415,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert, config }) {
-        const response = await http.post('admin/email', {
+        const response = await http.post('backend-manager/admin/email', {
           subject: 'BEM Test Email - Sender Orders',
           to: `_test-receiver@${config.domain}`,
           sender: 'orders',
@@ -445,7 +445,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert, config }) {
-        const response = await http.post('admin/email', {
+        const response = await http.post('backend-manager/admin/email', {
           subject: 'BEM Test Email - Sender Security',
           to: `_test-receiver@${config.domain}`,
           sender: 'security',
@@ -476,7 +476,7 @@ module.exports = {
       async run({ http, assert, config }) {
         const customFrom = { email: `custom@${config.domain}`, name: 'Custom Sender' };
 
-        const response = await http.post('admin/email', {
+        const response = await http.post('backend-manager/admin/email', {
           subject: 'BEM Test Email - From Override',
           to: `_test-receiver@${config.domain}`,
           sender: 'orders',
@@ -505,7 +505,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert, config }) {
-        const response = await http.post('admin/email', {
+        const response = await http.post('backend-manager/admin/email', {
           subject: 'BEM Test Email - Unknown Sender',
           to: `_test-receiver@${config.domain}`,
           sender: 'nonexistent',
@@ -536,7 +536,7 @@ module.exports = {
         // Use a time 1 hour from now (well within the 71h limit)
         const sendAtDate = new Date(Date.now() + (60 * 60 * 1000)).toISOString();
 
-        const response = await http.post('admin/email', {
+        const response = await http.post('backend-manager/admin/email', {
           subject: 'BEM Test Email - ISO SendAt',
           to: `_test-receiver@${config.domain}`,
           sendAt: sendAtDate,

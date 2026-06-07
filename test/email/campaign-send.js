@@ -10,7 +10,7 @@ module.exports = {
   timeout: 60000,
 
   async run({ http, assert }) {
-    const response = await http.post('marketing/campaign', {
+    const response = await http.post('backend-manager/marketing/campaign', {
       name: '[TEST] Summer Sale — Free Users',
       subject: 'Summer Sale — {discount.percent}% Off Your First Month!',
       preheader: 'Limited time offer — upgrade to Premium today',

@@ -12,7 +12,7 @@ module.exports = {
     {
       name: 'rejects-unauthenticated',
       async run({ http, assert }) {
-        const response = await http.as('none').post('payments/cancel', {
+        const response = await http.as('none').post('backend-manager/payments/cancel', {
           confirmed: true,
         });
 
@@ -23,7 +23,7 @@ module.exports = {
     {
       name: 'rejects-missing-confirmed',
       async run({ http, assert }) {
-        const response = await http.as('basic').post('payments/cancel', {
+        const response = await http.as('basic').post('backend-manager/payments/cancel', {
           reason: 'Too expensive',
         });
 
@@ -34,7 +34,7 @@ module.exports = {
     {
       name: 'rejects-basic-user',
       async run({ http, assert }) {
-        const response = await http.as('basic').post('payments/cancel', {
+        const response = await http.as('basic').post('backend-manager/payments/cancel', {
           confirmed: true,
         });
 
@@ -46,7 +46,7 @@ module.exports = {
       name: 'rejects-no-processor-or-resource-id',
       async run({ http, assert }) {
         // cancel-no-processor starts with payment.processor=null
-        const response = await http.as('cancel-no-processor').post('payments/cancel', {
+        const response = await http.as('cancel-no-processor').post('backend-manager/payments/cancel', {
           confirmed: true,
         });
 
@@ -58,7 +58,7 @@ module.exports = {
       name: 'rejects-already-pending-cancellation',
       async run({ http, assert }) {
         // cancel-already-pending starts with cancellation.pending=true
-        const response = await http.as('cancel-already-pending').post('payments/cancel', {
+        const response = await http.as('cancel-already-pending').post('backend-manager/payments/cancel', {
           confirmed: true,
         });
 
@@ -70,7 +70,7 @@ module.exports = {
       name: 'rejects-subscription-younger-than-24-hours',
       async run({ http, assert }) {
         // cancel-too-young starts with startDate set to now (< 24 hours old)
-        const response = await http.as('cancel-too-young').post('payments/cancel', {
+        const response = await http.as('cancel-too-young').post('backend-manager/payments/cancel', {
           confirmed: true,
         });
 
@@ -82,7 +82,7 @@ module.exports = {
       name: 'rejects-unknown-processor',
       async run({ http, assert }) {
         // cancel-unknown-processor starts with processor='unknown-processor'
-        const response = await http.as('cancel-unknown-processor').post('payments/cancel', {
+        const response = await http.as('cancel-unknown-processor').post('backend-manager/payments/cancel', {
           confirmed: true,
         });
 
@@ -100,7 +100,7 @@ module.exports = {
         }
 
         // Step 1: Create a test subscription intent to set up a proper paid subscription
-        const intentResponse = await http.as('route-cancel-success').post('payments/intent', {
+        const intentResponse = await http.as('route-cancel-success').post('backend-manager/payments/intent', {
           processor: 'test',
           productId: paidProduct.id,
           frequency: 'monthly',
@@ -117,7 +117,7 @@ module.exports = {
         }, 15000, 500);
 
         // Step 2: Call the cancel endpoint (skipGuards bypasses the 24-hour age guard)
-        const cancelResponse = await http.as('route-cancel-success').post('payments/cancel', {
+        const cancelResponse = await http.as('route-cancel-success').post('backend-manager/payments/cancel', {
           confirmed: true,
           reason: 'Too expensive',
           skipGuards: true,

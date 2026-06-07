@@ -14,7 +14,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.post('user/token', {});
+        const response = await http.post('backend-manager/user/token', {});
 
         assert.isSuccess(response, 'Create custom token should succeed for authenticated user');
         assert.hasProperty(response, 'data.token', 'Response should contain token');
@@ -32,7 +32,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.post('user/token', {});
+        const response = await http.post('backend-manager/user/token', {});
 
         assert.isSuccess(response, 'Create custom token should succeed');
 
@@ -50,7 +50,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.post('user/token', {});
+        const response = await http.post('backend-manager/user/token', {});
 
         assert.isSuccess(response, 'Create custom token should succeed for premium user');
         assert.hasProperty(response, 'data.token', 'Response should contain token');
@@ -64,7 +64,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.post('user/token', {});
+        const response = await http.post('backend-manager/user/token', {});
 
         assert.isError(response, 401, 'Create custom token should fail without authentication');
       },

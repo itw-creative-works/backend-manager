@@ -13,7 +13,7 @@ module.exports = {
 
       async run({ http, assert }) {
         // POST /backend-manager/general/uuid
-        const response = await http.post('general/uuid', {
+        const response = await http.post('backend-manager/general/uuid', {
           version: '4',
         });
 
@@ -35,7 +35,7 @@ module.exports = {
       timeout: 10000,
 
       async run({ http, assert }) {
-        const response = await http.post('general/uuid', {
+        const response = await http.post('backend-manager/general/uuid', {
           version: '5',
           name: 'test-name-for-uuid',
         });
@@ -58,12 +58,12 @@ module.exports = {
       timeout: 10000,
 
       async run({ http, assert }) {
-        const response1 = await http.post('general/uuid', {
+        const response1 = await http.post('backend-manager/general/uuid', {
           version: '5',
           name: 'test-name-for-uuid',
         });
 
-        const response2 = await http.post('general/uuid', {
+        const response2 = await http.post('backend-manager/general/uuid', {
           version: '5',
           name: 'test-name-for-uuid',
         });
@@ -86,7 +86,7 @@ module.exports = {
       timeout: 10000,
 
       async run({ http, assert }) {
-        const response = await http.post('general/uuid', {
+        const response = await http.post('backend-manager/general/uuid', {
           version: '5',
         });
 
@@ -102,7 +102,7 @@ module.exports = {
       timeout: 10000,
 
       async run({ http, assert }) {
-        const response = await http.post('general/uuid', {
+        const response = await http.post('backend-manager/general/uuid', {
           version: '99',
         });
 

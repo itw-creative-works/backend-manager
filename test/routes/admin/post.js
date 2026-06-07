@@ -50,7 +50,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.put('admin/post', {
+        const response = await http.put('backend-manager/admin/post', {
           body: 'Test content',
         });
 
@@ -65,7 +65,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.put('admin/post', {
+        const response = await http.put('backend-manager/admin/post', {
           url: 'https://example.com/blog/test-post',
         });
 
@@ -80,7 +80,7 @@ module.exports = {
       timeout: 60000,
 
       async run({ http, assert, config }) {
-        const response = await http.put('admin/post', {
+        const response = await http.put('backend-manager/admin/post', {
           url: `https://${config.domain}/blog/nonexistent-test-post-12345`,
           body: 'This is test content from BEM test suite.',
         });
@@ -98,7 +98,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert }) {
-        const response = await http.put('admin/post', {
+        const response = await http.put('backend-manager/admin/post', {
           url: `https://example.com/blog/never-created-${Date.now()}`,
           body: 'Test content',
           githubUser: 'nonexistent-user-12345',
@@ -223,7 +223,7 @@ module.exports = {
         const newBody = 'This content was EDITED by the BEM test suite.\n\nThe edit was successful!';
         state.editedBody = newBody;
 
-        const response = await http.put('admin/post', {
+        const response = await http.put('backend-manager/admin/post', {
           url: state.postUrl,
           body: newBody,
         });
@@ -280,7 +280,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.put('admin/post', {
+        const response = await http.put('backend-manager/admin/post', {
           url: 'https://example.com/blog/test-post',
           body: 'Test content',
         });
@@ -295,7 +295,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.put('admin/post', {
+        const response = await http.put('backend-manager/admin/post', {
           url: 'https://example.com/blog/test-post',
           body: 'Test content',
         });

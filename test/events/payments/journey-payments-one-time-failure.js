@@ -39,7 +39,7 @@ module.exports = {
 
         // Send invoice.payment_failed with a non-subscription billing reason
         // This routes to category: 'one-time' in the webhook parser
-        const response = await http.as('none').post(`payments/webhook?processor=test&key=${config.backendManagerWebhookKey}`, {
+        const response = await http.as('none').post(`backend-manager/payments/webhook?processor=test&key=${config.backendManagerWebhookKey}`, {
           id: state.eventId,
           type: 'invoice.payment_failed',
           data: {

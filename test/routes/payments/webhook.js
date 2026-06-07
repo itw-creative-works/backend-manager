@@ -14,7 +14,7 @@ module.exports = {
       name: 'rejects-missing-processor',
       auth: 'none',
       async run({ http, assert }) {
-        const response = await http.as('none').post('payments/webhook', {});
+        const response = await http.as('none').post('backend-manager/payments/webhook', {});
 
         assert.isError(response, 400, 'Should reject missing processor');
       },
@@ -24,7 +24,7 @@ module.exports = {
       name: 'rejects-invalid-key',
       auth: 'none',
       async run({ http, assert }) {
-        const response = await http.as('none').post('payments/webhook?processor=stripe&key=wrong-key', {});
+        const response = await http.as('none').post('backend-manager/payments/webhook?processor=stripe&key=wrong-key', {});
 
         assert.isError(response, 401, 'Should reject invalid key');
       },
@@ -34,7 +34,7 @@ module.exports = {
       name: 'rejects-unknown-processor',
       auth: 'none',
       async run({ http, assert }) {
-        const response = await http.as('none').post(`payments/webhook?processor=unknown&key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`, {
+        const response = await http.as('none').post(`backend-manager/payments/webhook?processor=unknown&key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`, {
           id: 'evt_test_unknown',
           type: 'test.event',
           data: { object: {} },
@@ -50,7 +50,7 @@ module.exports = {
       async run({ http, assert, firestore }) {
         const eventId = '_test-evt-valid-webhook';
 
-        const response = await http.as('none').post(`payments/webhook?processor=stripe&key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`, {
+        const response = await http.as('none').post(`backend-manager/payments/webhook?processor=stripe&key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`, {
           id: eventId,
           type: 'customer.subscription.updated',
           data: {
@@ -84,7 +84,7 @@ module.exports = {
 
         // Use the test processor so the on-write trigger doesn't require STRIPE_SECRET_KEY
         // (a failed first webhook would let the dedup-retry branch fire instead of returning duplicate=true)
-        const send = () => http.as('none').post(`payments/webhook?processor=test&key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`, {
+        const send = () => http.as('none').post(`backend-manager/payments/webhook?processor=test&key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`, {
           id: eventId,
           type: 'customer.subscription.updated',
           data: {

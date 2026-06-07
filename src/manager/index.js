@@ -555,14 +555,21 @@ Manager.prototype._handleMcp = function (req, res, routePath) {
 Manager.prototype._processMiddleware = function (req, res, routePath) {
   const self = this;
 
-  // Set paths for BEM internal routes/schemas
   const bemRoutesDir = path.resolve(__dirname, './routes');
   const bemSchemasDir = path.resolve(__dirname, './schemas');
+  const consumerRoutesDir = path.normalize(`${self.cwd}${self.options.routes || '/routes'}`);
+  const consumerSchemasDir = path.normalize(`${self.cwd}${self.options.schemas || '/schemas'}`);
 
-  // Route directly through middleware (no hooks for new system)
+  // Check if the route exists in the consumer's routes directory first
+  const consumerRoutePath = path.resolve(consumerRoutesDir, routePath);
+  const isConsumerRoute = require('fs').existsSync(consumerRoutePath);
+
+  const routesDir = isConsumerRoute ? consumerRoutesDir : bemRoutesDir;
+  const schemasDir = isConsumerRoute ? consumerSchemasDir : bemSchemasDir;
+
   return self.Middleware(req, res).run(routePath, {
-    routesDir: bemRoutesDir,
-    schemasDir: bemSchemasDir,
+    routesDir,
+    schemasDir,
     schema: routePath,
   });
 };

@@ -32,7 +32,7 @@ module.exports = {
       timeout: 15000,
       async run({ http, assert }) {
         const sig = generateSig(TEST_EMAIL);
-        const response = await http.post('marketing/email-preferences', {
+        const response = await http.post('backend-manager/marketing/email-preferences', {
           email: TEST_EMAIL,
           asmId: TEST_ASM_ID,
           action: 'unsubscribe',
@@ -49,7 +49,7 @@ module.exports = {
       timeout: 15000,
       async run({ http, assert }) {
         const sig = generateSig(TEST_EMAIL);
-        const response = await http.post('marketing/email-preferences', {
+        const response = await http.post('backend-manager/marketing/email-preferences', {
           email: TEST_EMAIL,
           asmId: TEST_ASM_ID,
           action: 'subscribe',
@@ -67,7 +67,7 @@ module.exports = {
       async run({ http, assert }) {
         // Old 'resubscribe' action is no longer accepted — must use 'subscribe'
         const sig = generateSig(TEST_EMAIL);
-        const response = await http.post('marketing/email-preferences', {
+        const response = await http.post('backend-manager/marketing/email-preferences', {
           email: TEST_EMAIL,
           asmId: TEST_ASM_ID,
           action: 'resubscribe',
@@ -82,7 +82,7 @@ module.exports = {
       auth: 'none',
       timeout: 15000,
       async run({ http, assert }) {
-        const response = await http.post('marketing/email-preferences', {
+        const response = await http.post('backend-manager/marketing/email-preferences', {
           email: TEST_EMAIL,
           asmId: TEST_ASM_ID,
           action: 'unsubscribe',
@@ -97,7 +97,7 @@ module.exports = {
       auth: 'none',
       timeout: 15000,
       async run({ http, assert }) {
-        const response = await http.post('marketing/email-preferences', {
+        const response = await http.post('backend-manager/marketing/email-preferences', {
           asmId: TEST_ASM_ID,
           action: 'unsubscribe',
           sig: 'anything',
@@ -112,7 +112,7 @@ module.exports = {
       timeout: 15000,
       async run({ http, assert }) {
         const sig = generateSig('not-an-email');
-        const response = await http.post('marketing/email-preferences', {
+        const response = await http.post('backend-manager/marketing/email-preferences', {
           email: 'not-an-email',
           asmId: TEST_ASM_ID,
           action: 'unsubscribe',
@@ -128,7 +128,7 @@ module.exports = {
       timeout: 15000,
       async run({ http, assert }) {
         const sig = generateSig(TEST_EMAIL);
-        const response = await http.post('marketing/email-preferences', {
+        const response = await http.post('backend-manager/marketing/email-preferences', {
           email: TEST_EMAIL,
           action: 'unsubscribe',
           sig,
@@ -143,7 +143,7 @@ module.exports = {
       timeout: 15000,
       async run({ http, assert }) {
         const sig = generateSig(TEST_EMAIL);
-        const response = await http.post('marketing/email-preferences', {
+        const response = await http.post('backend-manager/marketing/email-preferences', {
           email: TEST_EMAIL,
           asmId: TEST_ASM_ID,
           action: 'delete',
@@ -160,7 +160,7 @@ module.exports = {
       async run({ http, assert }) {
         // sig generated for a different email — must not validate against TEST_EMAIL
         const sig = generateSig('someone-else@gmail.com');
-        const response = await http.post('marketing/email-preferences', {
+        const response = await http.post('backend-manager/marketing/email-preferences', {
           email: TEST_EMAIL,
           asmId: TEST_ASM_ID,
           action: 'unsubscribe',
@@ -180,7 +180,7 @@ module.exports = {
         const uid = accounts.basic.uid;
 
         const beforeMs = Date.now();
-        const response = await http.as('basic').post('marketing/email-preferences', {
+        const response = await http.as('basic').post('backend-manager/marketing/email-preferences', {
           action: 'unsubscribe',
         });
         const afterMs = Date.now();
@@ -221,7 +221,7 @@ module.exports = {
         const priorRevokedAt = beforeDoc?.consent?.marketing?.revokedAt;
         assert.ok(priorRevokedAt?.timestamp, 'Prior test should have left a revokedAt timestamp');
 
-        const response = await http.as('basic').post('marketing/email-preferences', {
+        const response = await http.as('basic').post('backend-manager/marketing/email-preferences', {
           action: 'subscribe',
         });
 
@@ -255,7 +255,7 @@ module.exports = {
       auth: 'basic',
       timeout: 15000,
       async run({ http, assert }) {
-        const response = await http.as('basic').post('marketing/email-preferences', {
+        const response = await http.as('basic').post('backend-manager/marketing/email-preferences', {
           action: 'delete',
         });
         assert.isError(response, 400, 'Invalid action should return 400');
@@ -268,7 +268,7 @@ module.exports = {
       timeout: 15000,
       async run({ http, assert }) {
         // Old proposed 'opt-in' is NOT accepted — must use 'subscribe'
-        const response = await http.as('basic').post('marketing/email-preferences', {
+        const response = await http.as('basic').post('backend-manager/marketing/email-preferences', {
           action: 'opt-in',
         });
         assert.isError(response, 400, 'Old "opt-in" name should be rejected (use "subscribe")');
@@ -282,7 +282,7 @@ module.exports = {
       async run({ http, assert }) {
         // Unauthenticated + no sig → email field is required for HMAC path → 400.
         // (No auth means we hit the anonymous path; no email/asmId means missing-required.)
-        const response = await http.post('marketing/email-preferences', {
+        const response = await http.post('backend-manager/marketing/email-preferences', {
           action: 'unsubscribe',
         });
         assert.isError(response, 400, 'Unauthenticated request without HMAC fields should 400');

@@ -11,7 +11,7 @@ module.exports = {
       name: 'no-auth',
       auth: 'none',
       async run({ http, assert }) {
-        const response = await http.get('test/authenticate');
+        const response = await http.get('backend-manager/test/authenticate');
 
         assert.isSuccess(response, 'Should succeed without auth');
         assert.equal(response.data.user.authenticated, false, 'User should not be authenticated');
@@ -23,7 +23,7 @@ module.exports = {
       name: 'private-key',
       auth: 'basic',
       async run({ http, assert, accounts }) {
-        const response = await http.as('basic').get('test/authenticate');
+        const response = await http.as('basic').get('backend-manager/test/authenticate');
 
         assert.isSuccess(response, 'Should succeed with privateKey');
         assert.equal(response.data.user.authenticated, true, 'User should be authenticated');
@@ -36,7 +36,7 @@ module.exports = {
       name: 'invalid-private-key',
       auth: 'none',
       async run({ http, assert }) {
-        const response = await http.withPrivateKey('invalid-key-12345').get('test/authenticate');
+        const response = await http.withPrivateKey('invalid-key-12345').get('backend-manager/test/authenticate');
 
         assert.isSuccess(response, 'Should succeed but not authenticate');
         assert.equal(response.data.user.authenticated, false, 'Invalid key should not authenticate');
@@ -48,7 +48,7 @@ module.exports = {
       name: 'backend-manager-key',
       auth: 'admin',
       async run({ http, assert }) {
-        const response = await http.as('admin').get('test/authenticate');
+        const response = await http.as('admin').get('backend-manager/test/authenticate');
 
         assert.isSuccess(response, 'Should succeed with backendManagerKey');
         assert.equal(response.data.user.authenticated, true, 'User should be authenticated');

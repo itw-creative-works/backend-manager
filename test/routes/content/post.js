@@ -15,7 +15,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.get('content/post', {});
+        const response = await http.get('backend-manager/content/post', {});
 
         assert.isError(response, 400, 'Missing URL should return 400');
       },
@@ -28,7 +28,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert }) {
-        const response = await http.get('content/post', {
+        const response = await http.get('backend-manager/content/post', {
           url: 'https://example.com/blog/this-post-definitely-does-not-exist-12345',
         });
 
@@ -43,7 +43,7 @@ module.exports = {
       timeout: 30000,
 
       async run({ http, assert }) {
-        const response = await http.get('content/post', {
+        const response = await http.get('backend-manager/content/post', {
           url: 'https://example.com/blog/nonexistent-test-post-12345',
         });
 

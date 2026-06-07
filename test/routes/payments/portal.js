@@ -11,7 +11,7 @@ module.exports = {
     {
       name: 'rejects-unauthenticated',
       async run({ http, assert }) {
-        const response = await http.as('none').post('payments/portal', {
+        const response = await http.as('none').post('backend-manager/payments/portal', {
           returnUrl: 'https://example.com/account',
         });
 
@@ -22,7 +22,7 @@ module.exports = {
     {
       name: 'rejects-basic-user',
       async run({ http, assert }) {
-        const response = await http.as('basic').post('payments/portal', {
+        const response = await http.as('basic').post('backend-manager/payments/portal', {
           returnUrl: 'https://example.com/account',
         });
 
@@ -34,7 +34,7 @@ module.exports = {
       name: 'rejects-no-processor',
       async run({ http, assert }) {
         // portal-no-processor starts with payment.processor=null
-        const response = await http.as('portal-no-processor').post('payments/portal', {
+        const response = await http.as('portal-no-processor').post('backend-manager/payments/portal', {
           returnUrl: 'https://example.com/account',
         });
 
@@ -46,7 +46,7 @@ module.exports = {
       name: 'rejects-unknown-processor',
       async run({ http, assert }) {
         // portal-unknown-processor starts with processor='unknown-processor'
-        const response = await http.as('portal-unknown-processor').post('payments/portal', {
+        const response = await http.as('portal-unknown-processor').post('backend-manager/payments/portal', {
           returnUrl: 'https://example.com/account',
         });
 
@@ -64,7 +64,7 @@ module.exports = {
         }
 
         // Set up a paid subscription with the test processor
-        const intentResponse = await http.as('journey-payments-portal-route').post('payments/intent', {
+        const intentResponse = await http.as('journey-payments-portal-route').post('backend-manager/payments/intent', {
           processor: 'test',
           productId: paidProduct.id,
           frequency: 'monthly',
@@ -80,7 +80,7 @@ module.exports = {
         }, 15000, 500);
 
         // Call the portal endpoint
-        const portalResponse = await http.as('journey-payments-portal-route').post('payments/portal', {
+        const portalResponse = await http.as('journey-payments-portal-route').post('backend-manager/payments/portal', {
           returnUrl: 'https://example.com/account',
         });
 

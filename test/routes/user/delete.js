@@ -32,7 +32,7 @@ module.exports = {
       async run({ http, assert }) {
         // Auth as the delete user and try to delete themselves
         // Should be blocked due to active subscription
-        const deleteResponse = await http.as('delete').delete('user', {});
+        const deleteResponse = await http.as('delete').delete('backend-manager/user', {});
 
         assert.isError(deleteResponse, 400, 'Deletion should be blocked with active subscription');
         assert.ok(
@@ -62,7 +62,7 @@ module.exports = {
       name: 'delete-user-succeeds',
       async run({ http, assert }) {
         // Auth as the delete user and delete themselves
-        const deleteResponse = await http.as('delete').delete('user', {});
+        const deleteResponse = await http.as('delete').delete('backend-manager/user', {});
 
         assert.isSuccess(deleteResponse, `DELETE /user should succeed: ${JSON.stringify(deleteResponse, null, 2)}`);
       },
@@ -101,7 +101,7 @@ module.exports = {
       name: 'admin-can-delete-other-user',
       async run({ http, assert, state }) {
         // Auth as admin (using backendManagerKey) and delete another user
-        const deleteResponse = await http.as('admin').delete('user', {
+        const deleteResponse = await http.as('admin').delete('backend-manager/user', {
           uid: state.adminDeleteUid,
         });
 
@@ -127,7 +127,7 @@ module.exports = {
     {
       name: 'unauthenticated-rejected',
       async run({ http, assert }) {
-        const deleteResponse = await http.as('none').delete('user', {});
+        const deleteResponse = await http.as('none').delete('backend-manager/user', {});
 
         assert.isError(deleteResponse, 401, 'Delete should fail without authentication');
       },

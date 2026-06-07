@@ -30,7 +30,7 @@ module.exports = {
         state.paidProductName = paidProduct.name;
 
         // Create subscription via test intent
-        const response = await http.as('journey-payments-suspend').post('payments/intent', {
+        const response = await http.as('journey-payments-suspend').post('backend-manager/payments/intent', {
           processor: 'test',
           productId: paidProduct.id,
           frequency: state.product.frequency,
@@ -58,7 +58,7 @@ module.exports = {
       async run({ http, assert, state, config, payments }) {
         state.eventId1 = `_test-evt-journey-suspend-fail-${Date.now()}`;
 
-        const response = await http.as('none').post(`payments/webhook?processor=test&key=${config.backendManagerWebhookKey}`, {
+        const response = await http.as('none').post(`backend-manager/payments/webhook?processor=test&key=${config.backendManagerWebhookKey}`, {
           id: state.eventId1,
           type: 'customer.subscription.updated',
           data: {
@@ -109,7 +109,7 @@ module.exports = {
 
         state.eventId2 = `_test-evt-journey-suspend-recover-${Date.now()}`;
 
-        const response = await http.as('none').post(`payments/webhook?processor=test&key=${config.backendManagerWebhookKey}`, {
+        const response = await http.as('none').post(`backend-manager/payments/webhook?processor=test&key=${config.backendManagerWebhookKey}`, {
           id: state.eventId2,
           type: 'customer.subscription.updated',
           data: {

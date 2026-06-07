@@ -43,7 +43,7 @@ module.exports = {
         const testEmail = TEST_EMAILS.valid();
         state.testEmail = testEmail;
 
-        const response = await http.post('marketing/contact', {
+        const response = await http.post('backend-manager/marketing/contact', {
           email: testEmail,
           source: 'bem-test',
           // skipValidation bypasses the mailbox verification check — the test email
@@ -93,7 +93,7 @@ module.exports = {
 
         console.log(`Cleaning up test contact: ${state.testEmail}`);
 
-        const result = await http.delete('marketing/contact', {
+        const result = await http.delete('backend-manager/marketing/contact', {
           email: state.testEmail,
         });
         console.log('Cleanup result:', result.data);
@@ -107,7 +107,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.post('marketing/contact', {
+        const response = await http.post('backend-manager/marketing/contact', {
           email: 'not-a-valid-email',
           source: 'bem-test',
         });
@@ -123,7 +123,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.post('marketing/contact', {
+        const response = await http.post('backend-manager/marketing/contact', {
           firstName: 'Test',
           source: 'bem-test',
         });
@@ -139,7 +139,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.post('marketing/contact', {
+        const response = await http.post('backend-manager/marketing/contact', {
           email: 'test@mailinator.com',
           source: 'bem-test',
         });
@@ -160,7 +160,7 @@ module.exports = {
         const testEmail = TEST_EMAILS.valid();
         state.testEmail = testEmail;
 
-        const response = await http.post('marketing/contact', {
+        const response = await http.post('backend-manager/marketing/contact', {
           email: testEmail,
           source: 'bem-test',
           // No firstName/lastName - should be inferred
@@ -188,7 +188,7 @@ module.exports = {
           return;
         }
 
-        await http.delete('marketing/contact', { email: state.testEmail });
+        await http.delete('backend-manager/marketing/contact', { email: state.testEmail });
       },
     },
 
@@ -203,7 +203,7 @@ module.exports = {
         const testEmail = 'rachel.greene+bem@mailinator.com';
         state.testEmail = testEmail;
 
-        const response = await http.post('marketing/contact', {
+        const response = await http.post('backend-manager/marketing/contact', {
           email: testEmail,
           source: 'bem-test',
           skipValidation: true,
@@ -223,7 +223,7 @@ module.exports = {
           return;
         }
 
-        await http.delete('marketing/contact', { email: state.testEmail });
+        await http.delete('backend-manager/marketing/contact', { email: state.testEmail });
       },
     },
 
@@ -240,7 +240,7 @@ module.exports = {
         const testEmail = TEST_EMAILS.valid();
         state.testEmail = testEmail;
 
-        const response = await http.post('marketing/contact', {
+        const response = await http.post('backend-manager/marketing/contact', {
           email: testEmail,
           source: 'bem-test',
         });
@@ -272,7 +272,7 @@ module.exports = {
           return;
         }
 
-        await http.delete('marketing/contact', { email: state.testEmail });
+        await http.delete('backend-manager/marketing/contact', { email: state.testEmail });
       },
     },
 
@@ -290,7 +290,7 @@ module.exports = {
         // Must NOT trip earlier checks (localPart blocklist, disposable, corporate).
         const testEmail = TEST_EMAILS.invalid();
 
-        const response = await http.post('marketing/contact', {
+        const response = await http.post('backend-manager/marketing/contact', {
           email: testEmail,
           source: 'bem-test',
         });
@@ -333,7 +333,7 @@ module.exports = {
         //   - Local emulator (BEM_TESTING=true): reCAPTCHA is bypassed, but unauthenticated
         //     users hit the marketing-subscribe rate limit (quota 0/0) → 429
         // Both are correct: the route protects itself from anonymous abuse. Accept either.
-        const response = await http.post('marketing/contact', {
+        const response = await http.post('backend-manager/marketing/contact', {
           email: TEST_EMAILS.valid(),
           source: 'bem-test',
         });
@@ -359,7 +359,7 @@ module.exports = {
         // Clean up the rachel.greene+bem test contact from marketing providers
         const testEmail = TEST_EMAILS.valid();
 
-        const response = await http.delete('marketing/contact', {
+        const response = await http.delete('backend-manager/marketing/contact', {
           email: testEmail,
         });
 

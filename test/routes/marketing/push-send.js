@@ -14,7 +14,7 @@ module.exports = {
   timeout: 30000,
 
   async run({ http, assert, config }) {
-    const response = await http.post('marketing/campaign', {
+    const response = await http.post('backend-manager/marketing/campaign', {
       name: '[TEST] Push notification',
       subject: 'This is a test push notification from BEM',
       type: 'push',

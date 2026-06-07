@@ -40,7 +40,7 @@ module.exports = {
     {
       name: 'create-trial-intent',
       async run({ http, assert, state }) {
-        const response = await http.as('journey-payments-trial').post('payments/intent', {
+        const response = await http.as('journey-payments-trial').post('backend-manager/payments/intent', {
           processor: 'test',
           productId: state.paidProductId,
           frequency: state.product.frequency,
@@ -122,7 +122,7 @@ module.exports = {
 
         state.eventId2 = `_test-evt-journey-trial-active-${Date.now()}`;
 
-        const response = await http.as('none').post(`payments/webhook?processor=test&key=${config.backendManagerWebhookKey}`, {
+        const response = await http.as('none').post(`backend-manager/payments/webhook?processor=test&key=${config.backendManagerWebhookKey}`, {
           id: state.eventId2,
           type: 'customer.subscription.updated',
           data: {

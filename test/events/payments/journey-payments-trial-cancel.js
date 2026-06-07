@@ -41,7 +41,7 @@ module.exports = {
     {
       name: 'create-trial-intent',
       async run({ http, assert, state }) {
-        const response = await http.as('journey-payments-trial-cancel').post('payments/intent', {
+        const response = await http.as('journey-payments-trial-cancel').post('backend-manager/payments/intent', {
           processor: 'test',
           productId: state.paidProductId,
           frequency: state.product.frequency,
@@ -82,7 +82,7 @@ module.exports = {
       async run({ http, assert }) {
         // Cancel via endpoint — test processor should detect trial and simulate immediate cancel.
         // skipGuards bypasses the 24-hour subscription-age guard.
-        const response = await http.as('journey-payments-trial-cancel').post('payments/cancel', {
+        const response = await http.as('journey-payments-trial-cancel').post('backend-manager/payments/cancel', {
           confirmed: true,
           reason: 'Changed my mind during trial',
           feedback: 'Testing trial cancellation',

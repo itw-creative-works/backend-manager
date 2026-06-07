@@ -11,7 +11,7 @@ module.exports = {
     {
       name: 'rejects-missing-code',
       async run({ http, assert }) {
-        const response = await http.as('none').get('payments/discount');
+        const response = await http.as('none').get('backend-manager/payments/discount');
 
         assert.isError(response, 400, 'Should reject missing code');
       },
@@ -20,7 +20,7 @@ module.exports = {
     {
       name: 'returns-valid-for-known-code',
       async run({ http, assert }) {
-        const response = await http.as('none').get('payments/discount', {
+        const response = await http.as('none').get('backend-manager/payments/discount', {
           code: 'FLASH20',
         });
 
@@ -35,7 +35,7 @@ module.exports = {
     {
       name: 'returns-valid-case-insensitive',
       async run({ http, assert }) {
-        const response = await http.as('none').get('payments/discount', {
+        const response = await http.as('none').get('backend-manager/payments/discount', {
           code: 'flash20',
         });
 
@@ -48,7 +48,7 @@ module.exports = {
     {
       name: 'returns-invalid-for-unknown-code',
       async run({ http, assert }) {
-        const response = await http.as('none').get('payments/discount', {
+        const response = await http.as('none').get('backend-manager/payments/discount', {
           code: 'NOTAREALCODE',
         });
 
@@ -67,7 +67,7 @@ module.exports = {
         ];
 
         for (const { code, percent } of codes) {
-          const response = await http.as('none').get('payments/discount', { code });
+          const response = await http.as('none').get('backend-manager/payments/discount', { code });
 
           assert.isSuccess(response, `Should succeed for ${code}`);
           assert.equal(response.data.valid, true, `${code} should be valid`);

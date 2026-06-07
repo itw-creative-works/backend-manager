@@ -14,6 +14,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.5.1] - 2026-06-07
+
+### Changed
+- **Test HTTP client sends plain requests.** `http.post('route')` now goes to `/${route}` instead of `/backend-manager/${route}`. All BEM test files updated to explicitly include `backend-manager/` prefix. Consumer projects can now test their own routes directly (e.g. `http.post('projects', {...})`).
+- **`_processMiddleware` checks consumer routes.** Falls back to BEM's own routes directory only if the consumer doesn't have a matching route — enables consumer routes to work through `bm_api`.
+- **Signup uses full email validation.** `syncMarketingContact` now runs `ALL_CHECKS` (including NeverBounce mailbox verification) before syncing to marketing lists.
+
 # [5.5.0] - 2026-06-06
 
 ### BREAKING

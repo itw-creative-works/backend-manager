@@ -19,7 +19,7 @@ module.exports = {
         : false,
 
       async run({ http, assert, state }) {
-        const response = await http.post('marketing/campaign', {
+        const response = await http.post('backend-manager/marketing/campaign', {
           name: 'BEM Test Campaign',
           subject: 'Test Marketing Email',
           content: '# Hello\n\nThis is a **test marketing email** sent from the BEM test suite.\n\nIf you received this, the SendGrid Single Send pipeline is working.',
@@ -70,7 +70,7 @@ module.exports = {
         // Future sendAt → campaign is saved as 'pending' for cron pickup, not sent immediately
         const futureDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-        const response = await http.post('marketing/campaign', {
+        const response = await http.post('backend-manager/marketing/campaign', {
           name: 'Future Campaign',
           subject: 'Future Subject',
           content: 'Future content',
@@ -96,7 +96,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.post('marketing/campaign', {
+        const response = await http.post('backend-manager/marketing/campaign', {
           name: 'Unauthorized Campaign',
           subject: 'Should fail',
           content: 'Should fail',
@@ -112,7 +112,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const response = await http.post('marketing/campaign', {
+        const response = await http.post('backend-manager/marketing/campaign', {
           name: 'Unauthenticated Campaign',
           subject: 'Should fail',
           content: 'Should fail',

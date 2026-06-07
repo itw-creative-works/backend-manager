@@ -39,7 +39,7 @@ module.exports = {
     {
       name: 'create-test-intent',
       async run({ http, assert, state }) {
-        const response = await http.as('journey-payments-upgrade').post('payments/intent', {
+        const response = await http.as('journey-payments-upgrade').post('backend-manager/payments/intent', {
           processor: 'test',
           productId: state.paidProductId,
           frequency: state.product.frequency,

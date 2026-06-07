@@ -25,7 +25,7 @@ module.exports = {
           },
         };
 
-        const writeResponse = await http.post('admin/database', {
+        const writeResponse = await http.post('backend-manager/admin/database', {
           path: TEST_PATH,
           document: testData,
         });
@@ -41,7 +41,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const readResponse = await http.get('admin/database', {
+        const readResponse = await http.get('backend-manager/admin/database', {
           path: TEST_PATH,
         });
 
@@ -68,7 +68,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const readResponse = await http.get('admin/database', {
+        const readResponse = await http.get('backend-manager/admin/database', {
           path: '_test/nonexistent-path-12345',
         });
 
@@ -91,7 +91,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const readResponse = await http.get('admin/database', {});
+        const readResponse = await http.get('backend-manager/admin/database', {});
 
         assert.isError(readResponse, 400, 'Missing path should return 400');
       },
@@ -104,7 +104,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const readResponse = await http.get('admin/database', {
+        const readResponse = await http.get('backend-manager/admin/database', {
           path: TEST_PATH,
         });
 
@@ -119,7 +119,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const readResponse = await http.get('admin/database', {
+        const readResponse = await http.get('backend-manager/admin/database', {
           path: TEST_PATH,
         });
 

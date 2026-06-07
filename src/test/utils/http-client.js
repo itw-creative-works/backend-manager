@@ -184,7 +184,7 @@ class HttpClient {
     data = data || {};
 
     const isGet = method === 'get';
-    const endpoint = isFullEndpoint ? route : `/backend-manager/${route}`;
+    const endpoint = isFullEndpoint ? route : `/${route}`;
     const url = `${this.baseUrl}${endpoint}`;
     const headers = { ...authConfig.headers, ...options.headers };
 

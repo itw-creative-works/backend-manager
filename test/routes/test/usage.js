@@ -31,7 +31,7 @@ module.exports = {
     {
       name: 'increment-default',
       async run({ http, assert, state }) {
-        const response = await http.as('basic').post('test/usage', {});
+        const response = await http.as('basic').post('backend-manager/test/usage', {});
 
         assert.isSuccess(response, 'Usage increment should succeed');
         assert.hasProperty(response, 'data.metric', 'Response should contain metric name');
@@ -105,7 +105,7 @@ module.exports = {
     {
       name: 'increment-custom-amount',
       async run({ http, assert, state }) {
-        const response = await http.as('basic').post('test/usage', {
+        const response = await http.as('basic').post('backend-manager/test/usage', {
           amount: 5,
         });
 
@@ -164,17 +164,17 @@ module.exports = {
       name: 'multiple-increments-accumulate',
       async run({ http, assert, state }) {
         // First increment
-        const response1 = await http.as('basic').post('test/usage', {});
+        const response1 = await http.as('basic').post('backend-manager/test/usage', {});
 
         assert.isSuccess(response1, 'First increment should succeed');
 
         // Second increment
-        const response2 = await http.as('basic').post('test/usage', {});
+        const response2 = await http.as('basic').post('backend-manager/test/usage', {});
 
         assert.isSuccess(response2, 'Second increment should succeed');
 
         // Third increment with custom amount
-        const response3 = await http.as('basic').post('test/usage', {
+        const response3 = await http.as('basic').post('backend-manager/test/usage', {
           amount: 3,
         });
 
@@ -210,7 +210,7 @@ module.exports = {
         // Unauthenticated requests use IP as key (no proxy headers in emulator, so falls back to 'unknown')
         state.unauthKey = 'unknown';
 
-        const response = await http.as('none').post('test/usage', {});
+        const response = await http.as('none').post('backend-manager/test/usage', {});
 
         assert.isSuccess(response, 'Unauthenticated usage increment should succeed');
         assert.equal(response.data.authenticated, false, 'Should report as unauthenticated');
@@ -322,7 +322,7 @@ module.exports = {
       name: 'daily-counter-accumulates-after-reset',
       async run({ http, assert }) {
         // After cron reset daily to 0, new increments should start from 0
-        const response = await http.as('basic').post('test/usage', {
+        const response = await http.as('basic').post('backend-manager/test/usage', {
           amount: 3,
         });
 

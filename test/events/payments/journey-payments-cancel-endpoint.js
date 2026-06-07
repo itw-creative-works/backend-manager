@@ -27,7 +27,7 @@ module.exports = {
         state.paidProductId = paidProduct.id;
         state.product = payments.products[paidProduct.id];
         // Create subscription via test intent — auto-fires webhook pipeline
-        const response = await http.as('journey-payments-cancel-route').post('payments/intent', {
+        const response = await http.as('journey-payments-cancel-route').post('backend-manager/payments/intent', {
           processor: 'test',
           productId: paidProduct.id,
           frequency: state.product.frequency,
@@ -54,7 +54,7 @@ module.exports = {
         // Test processor writes a payments-webhooks doc directly,
         // triggering the on-write pipeline automatically — no manual webhook needed.
         // skipGuards bypasses the 24-hour subscription-age guard.
-        const response = await http.as('journey-payments-cancel-route').post('payments/cancel', {
+        const response = await http.as('journey-payments-cancel-route').post('backend-manager/payments/cancel', {
           confirmed: true,
           reason: 'Too expensive',
           feedback: 'Would return at a lower price',

@@ -35,7 +35,7 @@ module.exports = {
         state.paidProductId = paidProduct.id;
         state.product = payments.products[paidProduct.id];
         // Create subscription via test intent
-        const response = await http.as('journey-payments-uid-resolution').post('payments/intent', {
+        const response = await http.as('journey-payments-uid-resolution').post('backend-manager/payments/intent', {
           processor: 'test',
           productId: paidProduct.id,
           frequency: state.product.frequency,
@@ -69,7 +69,7 @@ module.exports = {
 
         state.noUidEventId = `_test-evt-journey-uid-resolve-${Date.now()}`;
 
-        const response = await http.as('none').post(`payments/webhook?processor=test&key=${config.backendManagerWebhookKey}`, {
+        const response = await http.as('none').post(`backend-manager/payments/webhook?processor=test&key=${config.backendManagerWebhookKey}`, {
           id: state.noUidEventId,
           type: 'customer.subscription.updated',
           data: {

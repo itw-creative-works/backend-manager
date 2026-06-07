@@ -25,7 +25,7 @@ module.exports = {
           },
         };
 
-        const writeResponse = await http.post('admin/firestore', {
+        const writeResponse = await http.post('backend-manager/admin/firestore', {
           path: TEST_PATH,
           document: testData,
         });
@@ -41,7 +41,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const readResponse = await http.get('admin/firestore', {
+        const readResponse = await http.get('backend-manager/admin/firestore', {
           path: TEST_PATH,
         });
 
@@ -68,7 +68,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const readResponse = await http.get('admin/firestore', {
+        const readResponse = await http.get('backend-manager/admin/firestore', {
           path: '_test/nonexistent-document-12345',
         });
 
@@ -87,7 +87,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const readResponse = await http.get('admin/firestore', {});
+        const readResponse = await http.get('backend-manager/admin/firestore', {});
 
         assert.isError(readResponse, 400, 'Missing path should return 400');
       },
@@ -100,7 +100,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const readResponse = await http.get('admin/firestore', {
+        const readResponse = await http.get('backend-manager/admin/firestore', {
           path: TEST_PATH,
         });
 
@@ -115,7 +115,7 @@ module.exports = {
       timeout: 15000,
 
       async run({ http, assert }) {
-        const readResponse = await http.get('admin/firestore', {
+        const readResponse = await http.get('backend-manager/admin/firestore', {
           path: TEST_PATH,
         });
 
