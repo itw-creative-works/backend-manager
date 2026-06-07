@@ -343,7 +343,7 @@ module.exports = {
         const email = accounts.basic.email;
         const eventId = `_test-bh-unsub-${Date.now()}`;
         const eventISO = new Date().toISOString();
-        const publicationId = config.marketing?.beehiiv?.publicationId;
+        const publicationId = config.marketing?.newsletter?.publicationId;
 
         if (!publicationId) {
           return skip('No Beehiiv publication ID configured for this brand');
@@ -377,7 +377,7 @@ module.exports = {
         const uid = accounts.basic.uid;
         const email = accounts.basic.email;
         const eventId = `_test-bh-deleted-${Date.now()}`;
-        const publicationId = config.marketing?.beehiiv?.publicationId;
+        const publicationId = config.marketing?.newsletter?.publicationId;
 
         const response = await http.as('none').post(
           `marketing/webhook?provider=beehiiv&key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`,
@@ -406,7 +406,7 @@ module.exports = {
         const uid = accounts.basic.uid;
         const email = accounts.basic.email;
         const eventId = `_test-bh-paused-${Date.now()}`;
-        const publicationId = config.marketing?.beehiiv?.publicationId;
+        const publicationId = config.marketing?.newsletter?.publicationId;
 
         const response = await http.as('none').post(
           `marketing/webhook?provider=beehiiv&key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`,
@@ -479,7 +479,7 @@ module.exports = {
       async run({ http, assert, config }) {
         // Email that doesn't map to any user — shared publication scenario where
         // multiple brands receive the same event but only one has the user.
-        const publicationId = config.marketing?.beehiiv?.publicationId;
+        const publicationId = config.marketing?.newsletter?.publicationId;
         const eventId = `_test-bh-unknown-${Date.now()}`;
 
         const response = await http.as('none').post(
@@ -504,7 +504,7 @@ module.exports = {
       async run({ http, assert, accounts, config }) {
         // 'subscription.created' (new signup) is NOT a revoke — should be ignored.
         const email = accounts.basic.email;
-        const publicationId = config.marketing?.beehiiv?.publicationId;
+        const publicationId = config.marketing?.newsletter?.publicationId;
         const eventId = `_test-bh-created-${Date.now()}`;
 
         const response = await http.as('none').post(
@@ -530,7 +530,7 @@ module.exports = {
       async run({ http, firestore, assert, accounts, config, skip }) {
         const uid = accounts.basic.uid;
         const email = accounts.basic.email;
-        const publicationId = config.marketing?.beehiiv?.publicationId;
+        const publicationId = config.marketing?.newsletter?.publicationId;
         const eventId = `_test-bh-dup-${Date.now()}`;
 
         if (!publicationId) {

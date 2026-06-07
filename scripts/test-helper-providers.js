@@ -20,7 +20,7 @@
  *
  * The script picks up:
  *   - SENDGRID_API_KEY, BEEHIIV_API_KEY from <cwd>/.env (functions/.env)
- *   - marketing.sendgrid.listId, marketing.beehiiv.publicationId from <cwd>/backend-manager-config.json
+ *   - marketing.campaigns.listId, marketing.newsletter.publicationId from <cwd>/backend-manager-config.json
  *   - service-account from <cwd>/service-account.json
  *
  * Exit codes: 0 ok, 1 usage error, 2 provider error.

@@ -12,7 +12,7 @@
 const TEST_DOMAIN = 'acme.com';
 const TEST_EMAILS = {
   valid: () => `sarah.martinez+bem@${TEST_DOMAIN}`,         // Should infer: Sarah Martinez
-  invalid: () => `nonexistent.user+bem@${TEST_DOMAIN}`,     // No such mailbox — ZeroBounce should flag invalid
+  invalid: () => `nonexistent.user+bem@${TEST_DOMAIN}`,     // No such mailbox — mailbox verification should flag invalid
 };
 
 module.exports = {
@@ -47,21 +47,21 @@ module.exports = {
           const providers = response.data.providers || {};
 
           if (process.env.SENDGRID_API_KEY) {
-            assert.hasProperty(response, 'data.providers.sendgrid', 'Should have SendGrid result');
-            if (providers.sendgrid?.success) {
+            assert.hasProperty(response, 'data.providers.campaigns', 'Should have SendGrid result');
+            if (providers.campaigns?.success) {
               state.sendgridAdded = true;
             } else {
               // Log error for debugging but don't fail - could be list matching issue
-              console.log('SendGrid result:', providers.sendgrid);
+              console.log('SendGrid result:', providers.campaigns);
             }
           }
 
           if (process.env.BEEHIIV_API_KEY) {
-            assert.hasProperty(response, 'data.providers.beehiiv', 'Should have Beehiiv result');
-            if (providers.beehiiv?.success) {
+            assert.hasProperty(response, 'data.providers.newsletter', 'Should have Beehiiv result');
+            if (providers.newsletter?.success) {
               state.beehiivAdded = true;
             } else {
-              console.log('Beehiiv result:', providers.beehiiv);
+              console.log('Beehiiv result:', providers.newsletter);
             }
           }
         }
@@ -160,8 +160,8 @@ module.exports = {
 
         // Track if providers were called
         if (process.env.TEST_EXTENDED_MODE) {
-          state.sendgridAdded = response.data?.providers?.sendgrid?.success;
-          state.beehiivAdded = response.data?.providers?.beehiiv?.success;
+          state.sendgridAdded = response.data?.providers?.campaigns?.success;
+          state.beehiivAdded = response.data?.providers?.newsletter?.success;
         }
       },
 
@@ -195,8 +195,8 @@ module.exports = {
         assert.isSuccess(response, 'Add marketing contact with skipValidation should succeed');
 
         if (process.env.TEST_EXTENDED_MODE) {
-          state.sendgridAdded = response.data?.providers?.sendgrid?.success;
-          state.beehiivAdded = response.data?.providers?.beehiiv?.success;
+          state.sendgridAdded = response.data?.providers?.campaigns?.success;
+          state.beehiivAdded = response.data?.providers?.newsletter?.success;
         }
       },
 
@@ -209,13 +209,13 @@ module.exports = {
       },
     },
 
-    // Test 7: Mailbox verification (only runs if TEST_EXTENDED_MODE and ZEROBOUNCE_API_KEY are set)
+    // Test 7: Mailbox verification (only runs if TEST_EXTENDED_MODE and a mailbox API key are set)
     {
       name: 'mailbox-validation',
       auth: 'admin',
       timeout: 30000,
-      skip: !process.env.TEST_EXTENDED_MODE || !process.env.ZEROBOUNCE_API_KEY
-        ? 'TEST_EXTENDED_MODE or ZEROBOUNCE_API_KEY not set'
+      skip: !process.env.TEST_EXTENDED_MODE || !(process.env.NEVERBOUNCE_API_KEY || process.env.ZEROBOUNCE_API_KEY)
+        ? 'TEST_EXTENDED_MODE or mailbox API key not set'
         : false,
 
       async run({ http, assert, state, skip }) {
@@ -245,8 +245,8 @@ module.exports = {
 
         assert.hasProperty(mbResult, 'status', 'Mailbox check should return status');
 
-        state.sendgridAdded = response.data?.providers?.sendgrid?.success;
-        state.beehiivAdded = response.data?.providers?.beehiiv?.success;
+        state.sendgridAdded = response.data?.providers?.campaigns?.success;
+        state.beehiivAdded = response.data?.providers?.newsletter?.success;
       },
 
       async cleanup({ state, http }) {
@@ -258,13 +258,13 @@ module.exports = {
       },
     },
 
-    // Test 9: Mailbox verification rejects invalid email (only runs if TEST_EXTENDED_MODE and ZEROBOUNCE_API_KEY are set)
+    // Test 9: Mailbox verification rejects invalid email (only runs if TEST_EXTENDED_MODE and a mailbox API key are set)
     {
       name: 'mailbox-rejects-invalid',
       auth: 'admin',
       timeout: 30000,
-      skip: !process.env.TEST_EXTENDED_MODE || !process.env.ZEROBOUNCE_API_KEY
-        ? 'TEST_EXTENDED_MODE or ZEROBOUNCE_API_KEY not set'
+      skip: !process.env.TEST_EXTENDED_MODE || !(process.env.NEVERBOUNCE_API_KEY || process.env.ZEROBOUNCE_API_KEY)
+        ? 'TEST_EXTENDED_MODE or mailbox API key not set'
         : false,
 
       async run({ http, assert, skip }) {

@@ -17,14 +17,14 @@
 // (The infer-contact prompt rejects fictional names — e.g. "rachel.greene" sometimes
 // matches the Friends character and returns empty. Use a more anonymous name.)
 //
-// `invalid`: must reach the ZeroBounce mailbox check (so previous checks all pass — must
+// `invalid`: must reach the mailbox verification check (so previous checks all pass — must
 // NOT start with "test"/"example" which are in BLOCKED_LOCAL_PATTERNS, NOT be on
 // a corporate/disposable domain). Real-looking name on a real domain with no actual
 // mailbox there is the safest pick.
 const TEST_DOMAIN = 'acme.com';
 const TEST_EMAILS = {
   valid: () => `sarah.martinez+bem@${TEST_DOMAIN}`,         // Should infer: Sarah Martinez
-  invalid: () => `nonexistent.user+bem@${TEST_DOMAIN}`,     // No such mailbox — ZeroBounce should flag as invalid
+  invalid: () => `nonexistent.user+bem@${TEST_DOMAIN}`,     // No such mailbox — mailbox verification should flag as invalid
 };
 
 module.exports = {
@@ -46,10 +46,9 @@ module.exports = {
         const response = await http.post('marketing/contact', {
           email: testEmail,
           source: 'bem-test',
-          // skipValidation bypasses the ZeroBounce mailbox check — the test email
-          // (rachel.greene+bem@{brand}) doesn't have a real mailbox so ZeroBounce
-          // (correctly) marks it as not deliverable. We're testing the route flow,
-          // not the deliverability check itself.
+          // skipValidation bypasses the mailbox verification check — the test email
+          // doesn't have a real mailbox so the provider (correctly) marks it as not
+          // deliverable. We're testing the route flow, not the deliverability check itself.
           skipValidation: true,
           // No firstName/lastName - should be inferred as "Rachel Greene"
         });
@@ -66,21 +65,21 @@ module.exports = {
           const providers = response.data.providers || {};
 
           if (process.env.SENDGRID_API_KEY) {
-            assert.hasProperty(response, 'data.providers.sendgrid', 'Should have SendGrid result');
-            if (providers.sendgrid?.success) {
+            assert.hasProperty(response, 'data.providers.campaigns', 'Should have SendGrid result');
+            if (providers.campaigns?.success) {
               state.sendgridAdded = true;
             } else {
               // Log error for debugging but don't fail - could be list matching issue
-              console.log('SendGrid result:', providers.sendgrid);
+              console.log('SendGrid result:', providers.campaigns);
             }
           }
 
-          if (process.env.BEEHIIV_API_KEY && config.marketing?.beehiiv?.publicationId) {
-            assert.hasProperty(response, 'data.providers.beehiiv', 'Should have Beehiiv result');
-            if (providers.beehiiv?.success) {
+          if (process.env.BEEHIIV_API_KEY && config.marketing?.newsletter?.publicationId) {
+            assert.hasProperty(response, 'data.providers.newsletter', 'Should have Beehiiv result');
+            if (providers.newsletter?.success) {
               state.beehiivAdded = true;
             } else {
-              console.log('Beehiiv result:', providers.beehiiv);
+              console.log('Beehiiv result:', providers.newsletter);
             }
           }
         }
@@ -179,8 +178,8 @@ module.exports = {
 
         // Track if providers were called
         if (process.env.TEST_EXTENDED_MODE) {
-          state.sendgridAdded = response.data?.providers?.sendgrid?.success;
-          state.beehiivAdded = response.data?.providers?.beehiiv?.success;
+          state.sendgridAdded = response.data?.providers?.campaigns?.success;
+          state.beehiivAdded = response.data?.providers?.newsletter?.success;
         }
       },
 
@@ -214,8 +213,8 @@ module.exports = {
         assert.isSuccess(response, 'Add marketing contact with skipValidation should succeed');
 
         if (process.env.TEST_EXTENDED_MODE) {
-          state.sendgridAdded = response.data?.providers?.sendgrid?.success;
-          state.beehiivAdded = response.data?.providers?.beehiiv?.success;
+          state.sendgridAdded = response.data?.providers?.campaigns?.success;
+          state.beehiivAdded = response.data?.providers?.newsletter?.success;
         }
       },
 
@@ -228,13 +227,13 @@ module.exports = {
       },
     },
 
-    // Test 7: Mailbox verification (only runs if TEST_EXTENDED_MODE and ZEROBOUNCE_API_KEY are set)
+    // Test 7: Mailbox verification (only runs if TEST_EXTENDED_MODE and a mailbox API key are set)
     {
       name: 'add-mailbox-validation',
       auth: 'admin',
       timeout: 30000,
-      skip: !process.env.TEST_EXTENDED_MODE || !process.env.ZEROBOUNCE_API_KEY
-        ? 'TEST_EXTENDED_MODE or ZEROBOUNCE_API_KEY not set'
+      skip: !process.env.TEST_EXTENDED_MODE || !(process.env.NEVERBOUNCE_API_KEY || process.env.ZEROBOUNCE_API_KEY)
+        ? 'TEST_EXTENDED_MODE or mailbox API key not set'
         : false,
 
       async run({ http, assert, state, skip }) {
@@ -264,8 +263,8 @@ module.exports = {
 
         assert.hasProperty(mbResult, 'status', 'Mailbox check should return status');
 
-        state.sendgridAdded = response.data?.providers?.sendgrid?.success;
-        state.beehiivAdded = response.data?.providers?.beehiiv?.success;
+        state.sendgridAdded = response.data?.providers?.campaigns?.success;
+        state.beehiivAdded = response.data?.providers?.newsletter?.success;
       },
 
       async cleanup({ state, http }) {
@@ -277,17 +276,17 @@ module.exports = {
       },
     },
 
-    // Test 9: Mailbox verification rejects invalid email (only runs if TEST_EXTENDED_MODE and ZEROBOUNCE_API_KEY are set)
+    // Test 9: Mailbox verification rejects invalid email (only runs if TEST_EXTENDED_MODE and a mailbox API key are set)
     {
       name: 'add-mailbox-rejects-invalid',
       auth: 'admin',
       timeout: 30000,
-      skip: !process.env.TEST_EXTENDED_MODE || !process.env.ZEROBOUNCE_API_KEY
-        ? 'TEST_EXTENDED_MODE or ZEROBOUNCE_API_KEY not set'
+      skip: !process.env.TEST_EXTENDED_MODE || !(process.env.NEVERBOUNCE_API_KEY || process.env.ZEROBOUNCE_API_KEY)
+        ? 'TEST_EXTENDED_MODE or mailbox API key not set'
         : false,
 
       async run({ http, assert, skip }) {
-        // Email that should reach ZeroBounce and be flagged as undeliverable.
+        // Email that should reach the mailbox provider and be flagged as undeliverable.
         // Must NOT trip earlier checks (localPart blocklist, disposable, corporate).
         const testEmail = TEST_EMAILS.invalid();
 

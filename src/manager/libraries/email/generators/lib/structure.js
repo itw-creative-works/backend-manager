@@ -22,7 +22,7 @@
  *
  * Provider defaults to OpenAI (structured JSON output is more reliable on GPT
  * via JSON schema). Can be overridden per-brand via
- * `marketing.beehiiv.content.provider.structure`.
+ * `marketing.newsletter.content.provider.structure`.
  */
 const { resolveNewsletterTemplate: resolveTemplate } = require('./templates/index.js');
 
@@ -129,7 +129,7 @@ function defaultBuildPrompt({ brand, newsletterConfig, sources }) {
  * @param {object} args
  * @param {Array<object>} args.sources - Newsletter source records (id, subject, ai: { headline, summary, takeaways })
  * @param {object} args.brand - { name, url, id, description? }
- * @param {object} args.newsletterConfig - marketing.beehiiv.content from BEM config
+ * @param {object} args.newsletterConfig - marketing.newsletter.content from BEM config
  * @param {object} args.ai - AI instance from Manager.AI(assistant)
  * @param {object} args.assistant - BEM assistant
  * @returns {Promise<object>} Structured newsletter object

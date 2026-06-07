@@ -21,7 +21,7 @@
   generator: 'newsletter',   // Optional — runs content generator before sending
   recurringId: '_recurring-sale',      // Present on history docs (links to parent template)
   generatedFrom: '_recurring-newsletter', // Present on generated docs
-  results: { sendgrid: {...}, beehiiv: {...} },
+  results: { campaigns: {...}, newsletter: {...} },
   metadata: { created: {...}, updated: {...} },
 }
 ```
@@ -156,7 +156,7 @@ Per-brand subusers provide full contact/segment/field isolation under one billin
 Pipeline:
 1. Fetch sources: `GET {parentUrl}/newsletter/sources?category=X&claimFor=brandId` (atomic claim)
 2. **structure.js** — Generic dispatcher. Resolves the active template, merges `BASE_SCHEMA` (universal fields: subject, preheader, signoff, citations) with the template's own `schema` fragment, calls the template's `buildPrompt({brand, newsletterConfig, sources})` to get the AI brief, runs the AI call, and normalizes the result via the template's optional `normalize()`. Default provider: `openai` (override per-run only via `NEWSLETTER_PROVIDER_STRUCTURE` env).
-3. **image-illustrator.js** (default) — One flat-vector PNG per section in parallel (`Promise.all`), generated directly via `Manager.AI(assistant).image()` → `gpt-image-2`. Iterates `structure.sections` — templates whose content shape isn't section-based (e.g. field-report uses `dispatches`) populate `sections` in their `normalize()` step so this loop keeps working unchanged. The prompt enforces a clean flat 2D vector style (Stripe / Linear / undraw.co aesthetic) built from the brand palette (`content.theme.{primary,secondary,accent}Color`), on a white background, no text. **Legacy method:** set `marketing.beehiiv.content.method.image = 'svg'` to use the older `svg-illustrator.js` (AI authors an `<svg>`, rasterized via `@resvg/resvg-js`). Both methods return the same `{ png: Buffer, fallback, meta }` contract.
+3. **image-illustrator.js** (default) — One flat-vector PNG per section in parallel (`Promise.all`), generated directly via `Manager.AI(assistant).image()` → `gpt-image-2`. Iterates `structure.sections` — templates whose content shape isn't section-based (e.g. field-report uses `dispatches`) populate `sections` in their `normalize()` step so this loop keeps working unchanged. The prompt enforces a clean flat 2D vector style (Stripe / Linear / undraw.co aesthetic) built from the brand palette (`content.theme.{primary,secondary,accent}Color`), on a white background, no text. **Legacy method:** set `marketing.newsletter.content.method.image = 'svg'` to use the older `svg-illustrator.js` (AI authors an `<svg>`, rasterized via `@resvg/resvg-js`). Both methods return the same `{ png: Buffer, fallback, meta }` contract.
 4. **mjml-template.js** — Resolves the template by name from `templates/index.js`, calls `template.build({structure, imagePaths, theme, ...})` for the MJML, compiles to email-safe HTML via the `mjml` package. Brand-domain links get UTM-tagged via the existing `tagLinks()` utility.
 5. Mark used: `PUT {parentUrl}/newsletter/sources` per source
 
@@ -164,7 +164,7 @@ Pipeline:
 
 ## Newsletter-driven blog article (`article.enabled`)
 
-When `marketing.beehiiv.content.article.enabled: true`, the newsletter generator expands its **lead section** (`structure.sections[0]`) into a full blog article and links to it from the newsletter.
+When `marketing.newsletter.content.article.enabled: true`, the newsletter generator expands its **lead section** (`structure.sections[0]`) into a full blog article and links to it from the newsletter.
 
 Flow (runs in parallel with SVG generation, between structure and render):
 1. `buildLinkedArticle()` builds a brief from the lead section's title + body, folded with the shared `tone` + `instructions`.
@@ -174,7 +174,7 @@ Flow (runs in parallel with SVG generation, between structure and render):
 
 **Failure is isolated** — if the article build throws, it resolves to `null`, no CTA is injected, and the newsletter ships normally. The newsletter never depends on the article succeeding.
 
-The published URL is surfaced on the return as `assets.articleUrl` and `meta.article`. Config block: `marketing.beehiiv.content.article = { enabled, author }` (`enabled` default `false`; `author` is the post author slug). Standalone article publishing (independent of the newsletter) still lives in the daily `ghostii-auto-publisher.js` cron, which now shares the same `libraries/content/ghostii.js` engine — see [docs/admin-post-route.md](admin-post-route.md). Standalone Ghostii is **disabled by default** (`ghostii[0].articles: 0`).
+The published URL is surfaced on the return as `assets.articleUrl` and `meta.article`. Config block: `marketing.newsletter.content.article = { enabled, author }` (`enabled` default `false`; `author` is the post author slug). Standalone article publishing (independent of the newsletter) still lives in the daily `ghostii-auto-publisher.js` cron, which now shares the same `libraries/content/ghostii.js` engine — see [docs/admin-post-route.md](admin-post-route.md). Standalone Ghostii is **disabled by default** (`ghostii[0].articles: 0`).
 
 ## Template-owned schemas
 
@@ -207,11 +207,12 @@ Existing classic-shape templates (`clean`, `editorial`) share their schema via `
 
 Set `TEST_EXTENDED_MODE=1` to switch to the full AI pipeline against real sources from the parent server. That mode requires `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `BACKEND_MANAGER_KEY`, and a parent URL.
 
-Per-brand customization lives under `marketing.beehiiv.content` — nested under `beehiiv` because Beehiiv is the platform that publishes the result, and the whole pipeline is gated by `marketing.beehiiv.enabled`. There's no separate enabled flag on the content block (redundant — disabling beehiiv disables content generation as a side effect, since there's nowhere for the generated content to land). The `content` block name is provider-agnostic on purpose — eventually `marketing.sendgrid.content` would describe a similarly-shaped pipeline for promo email blasts:
+Per-brand customization lives under `marketing.newsletter.content` — nested under `newsletter` because the newsletter role owns the content pipeline. The whole pipeline is gated by `marketing.newsletter.enabled`. Each role specifies its platform via a `platform` key (e.g. `platform: 'beehiiv'`):
 
 ```js
-marketing.beehiiv = {
+marketing.newsletter = {
   enabled: true,
+  platform: 'beehiiv',
   publicationId: 'pub_xxxxx',
   content: {
     categories: ['social-media', 'marketing'],
@@ -275,7 +276,7 @@ marketing-campaigns/{newId}: {
 
 Templates add their own fields on top (e.g. classic adds `intro` + `sections`; field-report adds `tldr` + `dateline` + `dispatches`).
 
-**No AI-authored CTAs in generated content.** The schema intentionally does NOT include section-level CTAs / outbound links. The AI cannot author URLs reliably — it has no browse access to your site and no real source URLs to reference, so any URL it produces is invented. Newsletters are self-contained reads; outbound links come from sponsorship blocks rendered by the template shell (driven by `marketing.beehiiv.content.sponsorships[]`), not from generated section bodies. The **one exception** is the linked-article CTA: when `article.enabled` is on, `section.cta = { label, url }` is injected onto the lead section by code *after* the article is published (a real, verified URL) — never authored by the AI. Both `sectionCard` (MJML) and the markdown renderer render `section.cta` when present.
+**No AI-authored CTAs in generated content.** The schema intentionally does NOT include section-level CTAs / outbound links. The AI cannot author URLs reliably — it has no browse access to your site and no real source URLs to reference, so any URL it produces is invented. Newsletters are self-contained reads; outbound links come from sponsorship blocks rendered by the template shell (driven by `marketing.newsletter.content.sponsorships[]`), not from generated section bodies. The **one exception** is the linked-article CTA: when `article.enabled` is on, `section.cta = { label, url }` is injected onto the lead section by code *after* the article is published (a real, verified URL) — never authored by the AI. Both `sectionCard` (MJML) and the markdown renderer render `section.cta` when present.
 
 **Beehiiv failure → fallback alert email.** When Beehiiv draft creation fails (e.g. `SEND_API_NOT_ENTERPRISE_PLAN` on the free plan), the generator sends an internal alert email via `sender: 'internal'` (resolves to `alerts@{brandDomain}`) to `brand.contact.email` with:
 - The failure reason
@@ -310,19 +311,20 @@ Created by `npx mgr setup` (idempotent, enforced fields checked every run):
 
 | ID | Type | Description |
 |----|------|-------------|
-| `_recurring-sale-free` | email (sendgrid) | Sale targeting free users — 2nd Wednesday of month, 10:30 AM PT (17:30 UTC) |
-| `_recurring-sale-churned-trial` | email (sendgrid) | Sale targeting churned trial users — 2nd Wednesday, 10:30 AM PT |
-| `_recurring-sale-churned-paid` | email (sendgrid) | Sale targeting churned paid users — 2nd Wednesday, 10:30 AM PT |
-| `_recurring-sale-cancelled` | email (sendgrid) | Sale targeting cancelled users — 2nd Wednesday, 10:30 AM PT |
-| `_recurring-newsletter` | email (beehiiv) | AI-generated newsletter — every Wednesday, 10:30 AM PT (17:30 UTC) |
+| `_recurring-sale-free` | email (campaigns) | Sale targeting free users — 2nd Wednesday of month, 10:30 AM PT (17:30 UTC) |
+| `_recurring-sale-churned-trial` | email (campaigns) | Sale targeting churned trial users — 2nd Wednesday, 10:30 AM PT |
+| `_recurring-sale-churned-paid` | email (campaigns) | Sale targeting churned paid users — 2nd Wednesday, 10:30 AM PT |
+| `_recurring-sale-cancelled` | email (campaigns) | Sale targeting cancelled users — 2nd Wednesday, 10:30 AM PT |
+| `_recurring-newsletter` | email (newsletter) | AI-generated newsletter — every Wednesday, 10:30 AM PT (17:30 UTC) |
 
 ## Marketing Config
 
 ```javascript
 marketing: {
-  sendgrid: { enabled: true },
-  beehiiv: {
+  campaigns: { enabled: true, platform: 'sendgrid' },
+  newsletter: {
     enabled: false,
+    platform: 'beehiiv',
     publicationId: 'pub_xxxxx',
     content: {
       categories: ['social-media', 'marketing'],

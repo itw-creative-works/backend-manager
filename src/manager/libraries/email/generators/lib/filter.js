@@ -1,7 +1,7 @@
 /**
  * Brand-fit filter for newsletter sources.
  *
- * Given a pool of raw newsletter sources and a brand's `marketing.beehiiv.content`
+ * Given a pool of raw newsletter sources and a brand's `marketing.newsletter.content`
  * config, asks an AI to score each source for brand fit (0-10), then drops
  * anything below the threshold. This prevents off-topic sources from leaking
  * into the structure generator.

@@ -16,7 +16,7 @@
  *     publication, silent skip. This is how the shared-devbeans publication
  *     case works: the parent fans the event to every child, and only the
  *     brand(s) sharing that publication actually process it.
- *   - getPublicationId() reads from config.marketing.beehiiv.publicationId
+ *   - getPublicationId() reads from config.marketing.newsletter.publicationId
  *     or fuzzy-matches by brand name against the Beehiiv API.
  *
  * No idempotency ledger — the revoke + cross-provider remove are idempotent, so a
@@ -101,7 +101,7 @@ async function handleEvent({ Manager, assistant, parsed }) {
   // Publication filter — silent skip if the event isn't for our publication.
   // This is THE mechanism that routes shared-publication events (e.g. devbeans
   // across 6 brands) to only the brands that share that publication.
-  // beehiivProvider.getPublicationId() reads Manager.config.marketing.beehiiv.publicationId
+  // beehiivProvider.getPublicationId() reads Manager.config.marketing.newsletter.publicationId
   // first, then falls back to fuzzy-match against the Beehiiv API by brand name.
   if (publicationId) {
     let ourPublicationId = null;

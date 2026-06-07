@@ -35,17 +35,17 @@ module.exports = {
 
         console.log('Campaign results:', JSON.stringify(providers, null, 2));
 
-        if (providers.sendgrid) {
-          state.sendgridId = providers.sendgrid.id;
+        if (providers.campaigns) {
+          state.sendgridId = providers.campaigns.id;
 
           assert.propertyEquals(
-            response, 'data.providers.sendgrid.success', true,
-            `SendGrid should succeed. Error: ${providers.sendgrid.error || 'none'}`,
+            response, 'data.providers.campaigns.success', true,
+            `SendGrid should succeed. Error: ${providers.campaigns.error || 'none'}`,
           );
         }
 
-        if (providers.beehiiv) {
-          assert.hasProperty(response, 'data.providers.beehiiv', 'Should have Beehiiv result');
+        if (providers.newsletter) {
+          assert.hasProperty(response, 'data.providers.newsletter', 'Should have Beehiiv result');
         }
 
         state.campaignId = response.data.id;

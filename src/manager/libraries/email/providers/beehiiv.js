@@ -156,7 +156,7 @@ async function removeSubscriber(email, publicationId) {
 /**
  * Get this brand's Beehiiv publication ID.
  *
- * Reads `Manager.config.marketing.beehiiv.publicationId` — populated by
+ * Reads `Manager.config.marketing.newsletter.publicationId` — populated by
  * OMEGA's `beehiiv/ensure/publication.js` at brand-onboarding time. No
  * runtime API call, no fuzzy-match fragility.
  *
@@ -167,11 +167,11 @@ async function removeSubscriber(email, publicationId) {
  * @returns {string|null} Publication ID or null if not configured
  */
 function getPublicationId() {
-  const publicationId = Manager.config?.marketing?.beehiiv?.publicationId;
+  const publicationId = Manager.config?.marketing?.newsletter?.publicationId;
 
   if (!publicationId) {
     console.warn(
-      'Beehiiv: marketing.beehiiv.publicationId is not set in config. '
+      'Beehiiv: marketing.newsletter.publicationId is not set in config. '
       + 'Subscriber will NOT be added to a publication. '
       + 'Run OMEGA to populate.',
     );
@@ -385,7 +385,7 @@ async function resolveSegmentIds() {
  * @param {string} options.title - Post title (required)
  * @param {string} [options.publicationId] - Explicit publication ID (bypasses getPublicationId lookup).
  *                                            Preferred when the caller already knows it (e.g. newsletter.js
- *                                            reads it from marketing.beehiiv.publicationId).
+ *                                            reads it from marketing.newsletter.publicationId).
  * @param {string} [options.subject] - Email subject line (defaults to title)
  * @param {string} [options.preheader] - Email preview text
  * @param {string} [options.content] - HTML content body

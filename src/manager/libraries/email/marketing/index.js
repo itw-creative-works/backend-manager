@@ -44,8 +44,8 @@ function Marketing(assistant) {
   const marketing = self.Manager.config?.marketing || {};
 
   self.providers = {
-    sendgrid: marketing.sendgrid?.enabled !== false && !!process.env.SENDGRID_API_KEY,
-    beehiiv: marketing.beehiiv?.enabled !== false && !!process.env.BEEHIIV_API_KEY,
+    campaigns: marketing.campaigns?.enabled !== false && !!process.env.SENDGRID_API_KEY,
+    newsletter: marketing.newsletter?.enabled !== false && !!process.env.BEEHIIV_API_KEY,
   };
 
   return self;
@@ -81,17 +81,17 @@ Marketing.prototype.add = async function (options) {
   const results = {};
   const promises = [];
 
-  if (self.providers.sendgrid) {
+  if (self.providers.campaigns) {
     promises.push(
       sendgridProvider.addContact({ email, firstName, lastName, company, customFields })
-        .then((r) => { results.sendgrid = r; })
+        .then((r) => { results.campaigns = r; })
     );
   }
 
-  if (self.providers.beehiiv) {
+  if (self.providers.newsletter) {
     promises.push(
       beehiivProvider.addContact({ email, firstName, lastName, company, source })
-        .then((r) => { results.beehiiv = r; })
+        .then((r) => { results.newsletter = r; })
     );
   }
 
@@ -151,20 +151,20 @@ Marketing.prototype.sync = async function (userDocOrUid) {
   const results = {};
   const promises = [];
 
-  if (self.providers.sendgrid) {
+  if (self.providers.campaigns) {
     promises.push(
       sendgridProvider.buildFields(userDoc).then((customFields) =>
         sendgridProvider.addContact({ email, firstName, lastName, customFields })
-      ).then((r) => { results.sendgrid = r; })
+      ).then((r) => { results.campaigns = r; })
     );
   }
 
-  if (self.providers.beehiiv) {
+  if (self.providers.newsletter) {
     promises.push(
       beehiivProvider.addContact({
         email, firstName, lastName, source,
         customFields: beehiivProvider.buildFields(userDoc),
-      }).then((r) => { results.beehiiv = r; })
+      }).then((r) => { results.newsletter = r; })
     );
   }
 
@@ -194,17 +194,17 @@ Marketing.prototype.remove = async function (email) {
   const results = {};
   const promises = [];
 
-  if (self.providers.sendgrid) {
+  if (self.providers.campaigns) {
     promises.push(
       sendgridProvider.removeContact(email)
-        .then((r) => { results.sendgrid = r; })
+        .then((r) => { results.campaigns = r; })
     );
   }
 
-  if (self.providers.beehiiv) {
+  if (self.providers.newsletter) {
     promises.push(
       beehiivProvider.removeContact(email)
-        .then((r) => { results.beehiiv = r; })
+        .then((r) => { results.newsletter = r; })
     );
   }
 
@@ -245,7 +245,7 @@ Marketing.prototype.remove = async function (email) {
  * @param {Array<string>} [settings.categories] - Analytics categories
  * @param {boolean} [settings.test] - Test mode (targets test_admin only)
  * @param {Array<string>} [settings.providers] - Override which providers to use
- * @returns {{ sendgrid?: object, beehiiv?: object }}
+ * @returns {{ campaigns?: object, newsletter?: object }}
  */
 Marketing.prototype.sendCampaign = async function (settings) {
   const self = this;
@@ -291,17 +291,17 @@ Marketing.prototype.sendCampaign = async function (settings) {
   // --- 3. Resolve segments per provider ---
   const resolvedSegments = {};
 
-  if (useProviders.includes('sendgrid') && self.providers.sendgrid) {
+  if (useProviders.includes('campaigns') && self.providers.campaigns) {
     const segmentIdMap = await sendgridProvider.resolveSegmentIds();
-    resolvedSegments.sendgrid = {
+    resolvedSegments.campaigns = {
       segments: (resolved.segments || []).map(key => segmentIdMap[key] || key).filter(Boolean),
       excludeSegments: (resolved.excludeSegments || []).map(key => segmentIdMap[key] || key).filter(Boolean),
     };
   }
 
-  if (useProviders.includes('beehiiv') && self.providers.beehiiv) {
+  if (useProviders.includes('newsletter') && self.providers.newsletter) {
     const segmentIdMap = await beehiivProvider.resolveSegmentIds();
-    resolvedSegments.beehiiv = {
+    resolvedSegments.newsletter = {
       segments: (resolved.segments || []).map(key => segmentIdMap[key] || key).filter(Boolean),
       excludeSegments: (resolved.excludeSegments || []).map(key => segmentIdMap[key] || key).filter(Boolean),
     };
@@ -317,21 +317,21 @@ Marketing.prototype.sendCampaign = async function (settings) {
   const results = {};
   const promises = [];
 
-  if (useProviders.includes('sendgrid') && self.providers.sendgrid) {
+  if (useProviders.includes('campaigns') && self.providers.campaigns) {
     const sgSettings = {
       ...resolved,
-      segments: resolvedSegments.sendgrid?.segments || [],
-      excludeSegments: resolvedSegments.sendgrid?.excludeSegments || [],
+      segments: resolvedSegments.campaigns?.segments || [],
+      excludeSegments: resolvedSegments.campaigns?.excludeSegments || [],
     };
 
     promises.push(
       _sendCampaignSendGrid(Manager, sgSettings, contentHtml)
-        .then((r) => { results.sendgrid = r; })
-        .catch((e) => { results.sendgrid = { success: false, error: e.message }; })
+        .then((r) => { results.campaigns = r; })
+        .catch((e) => { results.campaigns = { success: false, error: e.message }; })
     );
   }
 
-  if (useProviders.includes('beehiiv') && self.providers.beehiiv) {
+  if (useProviders.includes('newsletter') && self.providers.newsletter) {
     promises.push(
       beehiivProvider.createPost({
         title: resolved.name,
@@ -339,11 +339,11 @@ Marketing.prototype.sendCampaign = async function (settings) {
         preheader: resolved.preheader,
         content: contentHtml,
         sendAt: settings.sendAt,
-        segments: resolvedSegments.beehiiv?.segments || [],
-        excludeSegments: resolvedSegments.beehiiv?.excludeSegments || [],
+        segments: resolvedSegments.newsletter?.segments || [],
+        excludeSegments: resolvedSegments.newsletter?.excludeSegments || [],
       })
-        .then((r) => { results.beehiiv = r; })
-        .catch((e) => { results.beehiiv = { success: false, error: e.message }; })
+        .then((r) => { results.newsletter = r; })
+        .catch((e) => { results.newsletter = { success: false, error: e.message }; })
     );
   }
 

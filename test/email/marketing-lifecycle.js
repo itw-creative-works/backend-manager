@@ -43,13 +43,13 @@ module.exports = {
         assert.propertyEquals(response, 'data.success', true, 'success should be true');
 
         if (process.env.SENDGRID_API_KEY) {
-          assert.hasProperty(response, 'data.providers.sendgrid', 'Should have SendGrid result');
-          assert.propertyEquals(response, 'data.providers.sendgrid.success', true, 'SendGrid add should succeed');
+          assert.hasProperty(response, 'data.providers.campaigns', 'Should have SendGrid result');
+          assert.propertyEquals(response, 'data.providers.campaigns.success', true, 'SendGrid add should succeed');
         }
 
-        if (process.env.BEEHIIV_API_KEY && config.marketing?.beehiiv?.publicationId) {
-          assert.hasProperty(response, 'data.providers.beehiiv', 'Should have Beehiiv result');
-          assert.propertyEquals(response, 'data.providers.beehiiv.success', true, 'Beehiiv add should succeed');
+        if (process.env.BEEHIIV_API_KEY && config.marketing?.newsletter?.publicationId) {
+          assert.hasProperty(response, 'data.providers.newsletter', 'Should have Beehiiv result');
+          assert.propertyEquals(response, 'data.providers.newsletter.success', true, 'Beehiiv add should succeed');
         }
       },
     },
@@ -76,13 +76,13 @@ module.exports = {
         assert.propertyEquals(response, 'data.success', true, 'success should be true');
 
         if (process.env.SENDGRID_API_KEY) {
-          assert.hasProperty(response, 'data.providers.sendgrid', 'Should have SendGrid result');
-          assert.propertyEquals(response, 'data.providers.sendgrid.success', true, 'SendGrid sync should succeed');
+          assert.hasProperty(response, 'data.providers.campaigns', 'Should have SendGrid result');
+          assert.propertyEquals(response, 'data.providers.campaigns.success', true, 'SendGrid sync should succeed');
         }
 
-        if (process.env.BEEHIIV_API_KEY && config.marketing?.beehiiv?.publicationId) {
-          assert.hasProperty(response, 'data.providers.beehiiv', 'Should have Beehiiv result');
-          assert.propertyEquals(response, 'data.providers.beehiiv.success', true, 'Beehiiv sync should succeed');
+        if (process.env.BEEHIIV_API_KEY && config.marketing?.newsletter?.publicationId) {
+          assert.hasProperty(response, 'data.providers.newsletter', 'Should have Beehiiv result');
+          assert.propertyEquals(response, 'data.providers.newsletter.success', true, 'Beehiiv sync should succeed');
         }
       },
     },
@@ -101,13 +101,13 @@ module.exports = {
         assert.propertyEquals(response, 'data.success', true, 'success should be true');
 
         if (process.env.SENDGRID_API_KEY) {
-          assert.hasProperty(response, 'data.providers.sendgrid', 'Should have SendGrid result');
-          assert.propertyEquals(response, 'data.providers.sendgrid.success', true, 'SendGrid remove should succeed');
+          assert.hasProperty(response, 'data.providers.campaigns', 'Should have SendGrid result');
+          assert.propertyEquals(response, 'data.providers.campaigns.success', true, 'SendGrid remove should succeed');
         }
 
-        if (process.env.BEEHIIV_API_KEY && config.marketing?.beehiiv?.publicationId) {
-          assert.hasProperty(response, 'data.providers.beehiiv', 'Should have Beehiiv result');
-          assert.propertyEquals(response, 'data.providers.beehiiv.success', true, 'Beehiiv remove should succeed');
+        if (process.env.BEEHIIV_API_KEY && config.marketing?.newsletter?.publicationId) {
+          assert.hasProperty(response, 'data.providers.newsletter', 'Should have Beehiiv result');
+          assert.propertyEquals(response, 'data.providers.newsletter.success', true, 'Beehiiv remove should succeed');
         }
       },
     },

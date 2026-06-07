@@ -36,9 +36,9 @@ module.exports = {
     assert.isSuccess(response, 'Should create and schedule campaign');
     assert.ok(response.data.id, 'Should have campaign ID');
 
-    const sg = response.data?.providers?.sendgrid;
-    assert.ok(sg, 'Should have sendgrid result');
-    assert.equal(sg.success, true, 'SendGrid should succeed');
+    const sg = response.data?.providers?.campaigns;
+    assert.ok(sg, 'Should have campaigns result');
+    assert.equal(sg.success, true, 'Campaigns (SendGrid) should succeed');
     assert.ok(sg.id, 'Should have Single Send ID');
     assert.equal(sg.scheduled, true, 'Should be scheduled');
   },

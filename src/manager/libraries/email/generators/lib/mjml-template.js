@@ -28,7 +28,7 @@ const DEFAULT_TEMPLATE = 'clean';
  *
  * @param {object} args
  * @param {object} args.brand - { name, id, url }
- * @param {object} args.newsletterConfig - marketing.beehiiv.content (theme, template, ...)
+ * @param {object} args.newsletterConfig - marketing.newsletter.content (theme, template, ...)
  * @param {object} args.structure - Output from structure.js
  * @param {string[]} args.imagePaths - One entry per section (URL or local path)
  * @param {string} [args.campaign] - Used for UTM utm_campaign

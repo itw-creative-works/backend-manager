@@ -12,7 +12,7 @@
  *    Fixture-name resolution priority:
  *      1. NEWSLETTER_FIXTURE=<name>         (explicit override)
  *      2. NEWSLETTER_TEMPLATE=<name>        (use the fixture for the override template)
- *      3. config.marketing.beehiiv.content.template  (use the active brand's template)
+ *      3. config.marketing.newsletter.content.template  (use the active brand's template)
  *      4. 'clean'                            (universal fallback)
  *
  *    Add a new template? Drop a matching JSON in test/email/fixtures/<name>.json.
@@ -51,7 +51,7 @@
  *   NEWSLETTER_NO_IMAGES=1             Skip SVG/PNG generation (fast iteration on copy only).
  *   NEWSLETTER_CREATE_ARTICLE=1       PUBLISH the linked blog article to the website repo (Ghostii → admin/post → GitHub).
  *                                       The article is always GENERATED when the brand's
- *                                       marketing.beehiiv.content.article.enabled is on (exercises the Ghostii write +
+ *                                       marketing.newsletter.content.article.enabled is on (exercises the Ghostii write +
  *                                       URL/CTA path); this flag only controls whether it's actually committed.
  *                                       OFF by default — a newsletter test run never commits a real post.
  *   NEWSLETTER_PROVIDER_STRUCTURE=X    Override structure provider (openai|anthropic).
@@ -91,8 +91,8 @@ module.exports = {
     const env = process.env;
 
     // --- Apply env overrides into newsletterConfig ---
-    // Newsletter config now lives under marketing.beehiiv.content.
-    const newsletterConfig = JSON.parse(JSON.stringify(config.marketing?.beehiiv?.content || {}));
+    // Newsletter config now lives under marketing.newsletter.content.
+    const newsletterConfig = JSON.parse(JSON.stringify(config.marketing?.newsletter?.content || {}));
 
     if (env.NEWSLETTER_PROVIDER_STRUCTURE) {
       newsletterConfig.provider = { ...(newsletterConfig.provider || {}), structure: env.NEWSLETTER_PROVIDER_STRUCTURE };
@@ -381,16 +381,16 @@ module.exports = {
       appendClaimed(claimedFile, sources.map((s) => s.id));
     }
 
-    // Force `beehiiv.enabled: true` and inject the per-run newsletter config
+    // Force `newsletter.enabled: true` and inject the per-run newsletter config
     // overrides onto Manager.config. The iteration test IS the explicit trigger
-    // — we're not checking whether beehiiv is configured for prod use, we're
+    // — we're not checking whether newsletter is configured for prod use, we're
     // driving the generator directly. Mutating Manager.config is fine here
     // because this is a `type: 'standalone'` test (one test per process — no
     // cross-test config leakage).
     Manager.config.marketing = {
       ...(Manager.config.marketing || {}),
-      beehiiv: {
-        ...(Manager.config.marketing?.beehiiv || {}),
+      newsletter: {
+        ...(Manager.config.marketing?.newsletter || {}),
         enabled: true,
         content: newsletterConfig,
       },
@@ -401,7 +401,7 @@ module.exports = {
 
     // EXTENDED mode mirrors the production cron's newsletter side effects:
     // GH upload always happens (PNGs + newsletter.html), Beehiiv draft upload
-    // always happens (governed inside newsletter.js by beehiiv.enabled, which
+    // always happens (governed inside newsletter.js by newsletter.enabled, which
     // we force true above). If you don't want the side effects, run fixture
     // mode instead.
     //
@@ -544,7 +544,7 @@ module.exports = {
  * Writes the Beehiiv response to {runDir}/beehiiv-upload.json for inspection.
  *
  * Required env: BEEHIIV_API_KEY
- * Required config: marketing.beehiiv.publicationId (or we fuzzy-match by brand name)
+ * Required config: marketing.newsletter.publicationId (or we fuzzy-match by brand name)
  */
 async function uploadDraftToBeehiiv({ html, structure, config, runDir }) {
   const apiKey = process.env.BEEHIIV_API_KEY;
@@ -558,7 +558,7 @@ async function uploadDraftToBeehiiv({ html, structure, config, runDir }) {
   const headers = { 'Authorization': `Bearer ${apiKey}` };
 
   // Resolve publication ID — config first, then fuzzy-match by brand name
-  let publicationId = config?.marketing?.beehiiv?.publicationId;
+  let publicationId = config?.marketing?.newsletter?.publicationId;
   const brandName = config?.brand?.name;
 
   if (!publicationId && brandName) {
@@ -709,7 +709,7 @@ async function fetchSourcesForRun({ parentUrl, newsletterConfig, brandId, source
   const categories = newsletterConfig.categories || [];
 
   if (!categories.length) {
-    throw new Error('marketing.beehiiv.content.categories must have at least one entry');
+    throw new Error('marketing.newsletter.content.categories must have at least one entry');
   }
 
   const all = [];

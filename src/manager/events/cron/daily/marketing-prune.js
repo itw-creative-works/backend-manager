@@ -86,7 +86,7 @@ async function stagePrune(Manager, assistant) {
   const marketing = Manager.config?.marketing || {};
 
   // --- SendGrid ---
-  if (marketing.sendgrid?.enabled !== false && process.env.SENDGRID_API_KEY) {
+  if (marketing.campaigns?.enabled !== false && process.env.SENDGRID_API_KEY) {
     const segmentIdMap = await sendgridProvider.resolveSegmentIds();
     const pruneSegmentId = segmentIdMap['engagement_inactive_6m'];
 
@@ -126,7 +126,7 @@ async function stagePrune(Manager, assistant) {
     assistant.log(`Marketing prune: Deleted ${totalDeleted} SendGrid contacts`);
 
     // Also remove from Beehiiv (same emails)
-    if (marketing.beehiiv?.enabled !== false && process.env.BEEHIIV_API_KEY) {
+    if (marketing.newsletter?.enabled !== false && process.env.BEEHIIV_API_KEY) {
       const beehiivProvider = require('../../../libraries/email/providers/beehiiv.js');
       const emails = exportResult.contacts.map(c => c.email).filter(Boolean);
 

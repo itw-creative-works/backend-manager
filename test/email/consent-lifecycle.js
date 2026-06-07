@@ -144,7 +144,7 @@ module.exports = {
         const bhContact = await pollProvider(() => beehiivProvider.findContact(granted.email), true);
 
         assert.ok(sgContact, 'granted account should now exist in SendGrid');
-        if (config.marketing?.beehiiv?.publicationId) {
+        if (config.marketing?.newsletter?.publicationId) {
           assert.ok(bhContact, 'granted account should now exist in Beehiiv');
         }
       },

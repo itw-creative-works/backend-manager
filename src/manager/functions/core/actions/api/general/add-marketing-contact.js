@@ -1,6 +1,6 @@
 const path = require('path');
 const recaptcha = require(path.join(__dirname, '..', '..', '..', '..', '..', 'libraries', 'recaptcha.js'));
-const { validate: validateEmail } = require(path.join(__dirname, '..', '..', '..', '..', '..', 'libraries', 'email', 'validation.js'));
+const { validate: validateEmail, ALL_CHECKS } = require(path.join(__dirname, '..', '..', '..', '..', '..', 'libraries', 'email', 'validation.js'));
 const { inferContact } = require(path.join(__dirname, '..', '..', '..', '..', '..', 'libraries', 'infer-contact.js'));
 
 function Module() {}
@@ -75,7 +75,7 @@ Module.prototype.main = function () {
 
     if (!skipValidation) {
       validation = await validateEmail(email, {
-        zerobounce: isAdmin && shouldCallExternalAPIs,
+        checks: isAdmin && shouldCallExternalAPIs ? ALL_CHECKS : undefined,
       });
 
       if (!validation.valid) {

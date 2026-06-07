@@ -23,7 +23,7 @@ const DEFAULT_QUALITY = 'medium';     // medium is plenty for flat vector; ~40-5
  * @param {object} args
  * @param {string} args.imagePrompt - Visual description from the structure
  * @param {object} args.brand - { name, tagline, color: { primary, secondary, ... } }
- * @param {object} args.newsletterConfig - marketing.beehiiv.content
+ * @param {object} args.newsletterConfig - marketing.newsletter.content
  * @param {object} args.ai - Manager.AI() instance
  * @param {object} args.assistant - BEM assistant
  * @returns {Promise<{png: Buffer, fallback: boolean, meta: object}>}

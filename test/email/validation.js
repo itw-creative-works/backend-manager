@@ -1,11 +1,13 @@
 /**
  * Test: Email validation library (libraries/email/validation.js)
- * Unit tests for format, local part, disposable domain, and ZeroBounce checks
+ * Unit tests for format, local part, disposable domain, and mailbox checks
  *
  * Format, local part, and disposable tests always run (free, regex-based).
- * Mailbox verification tests require TEST_EXTENDED_MODE + ZEROBOUNCE_API_KEY.
+ * Mailbox verification tests require TEST_EXTENDED_MODE + NEVERBOUNCE_API_KEY or ZEROBOUNCE_API_KEY.
  */
 const { validate, isDisposable, isCorporate, DEFAULT_CHECKS, ALL_CHECKS } = require('../../src/manager/libraries/email/validation.js');
+
+const HAS_MAILBOX_API_KEY = !!(process.env.NEVERBOUNCE_API_KEY || process.env.ZEROBOUNCE_API_KEY);
 
 module.exports = {
   description: 'Email validation',
@@ -551,7 +553,9 @@ module.exports = {
       timeout: 5000,
 
       async run({ assert }) {
-        const originalKey = process.env.ZEROBOUNCE_API_KEY;
+        const originalNB = process.env.NEVERBOUNCE_API_KEY;
+        const originalZB = process.env.ZEROBOUNCE_API_KEY;
+        delete process.env.NEVERBOUNCE_API_KEY;
         delete process.env.ZEROBOUNCE_API_KEY;
 
         try {
@@ -561,20 +565,23 @@ module.exports = {
           assert.hasProperty(result, 'checks.mailbox', 'Should have mailbox check');
           assert.propertyEquals(result, 'checks.mailbox.skipped', true, 'Should be marked as skipped');
         } finally {
-          if (originalKey) {
-            process.env.ZEROBOUNCE_API_KEY = originalKey;
+          if (originalNB) {
+            process.env.NEVERBOUNCE_API_KEY = originalNB;
+          }
+          if (originalZB) {
+            process.env.ZEROBOUNCE_API_KEY = originalZB;
           }
         }
       },
     },
 
-    // --- Mailbox verification API checks (require TEST_EXTENDED_MODE + ZEROBOUNCE_API_KEY) ---
+    // --- Mailbox verification API checks (require TEST_EXTENDED_MODE + mailbox API key) ---
 
     {
       name: 'mailbox-valid-email-passes',
       timeout: 15000,
-      skip: !process.env.TEST_EXTENDED_MODE || !process.env.ZEROBOUNCE_API_KEY
-        ? 'TEST_EXTENDED_MODE or ZEROBOUNCE_API_KEY not set'
+      skip: !process.env.TEST_EXTENDED_MODE || !HAS_MAILBOX_API_KEY
+        ? 'TEST_EXTENDED_MODE or mailbox API key not set'
         : false,
 
       async run({ assert, skip }) {
@@ -592,8 +599,8 @@ module.exports = {
     {
       name: 'mailbox-fake-domain-fails',
       timeout: 15000,
-      skip: !process.env.TEST_EXTENDED_MODE || !process.env.ZEROBOUNCE_API_KEY
-        ? 'TEST_EXTENDED_MODE or ZEROBOUNCE_API_KEY not set'
+      skip: !process.env.TEST_EXTENDED_MODE || !HAS_MAILBOX_API_KEY
+        ? 'TEST_EXTENDED_MODE or mailbox API key not set'
         : false,
 
       async run({ assert, skip }) {

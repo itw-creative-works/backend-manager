@@ -6,7 +6,7 @@
  * to ship to Beehiiv / SendGrid.
  *
  * Pipeline:
- *   1. Read newsletter categories from Manager.config.marketing.beehiiv.content.categories
+ *   1. Read newsletter categories from Manager.config.marketing.newsletter.content.categories
  *   2. Fetch ready sources from parent server (atomic claim via claimFor=brandId)
  *   3. structure.js → AI authors subject, preheader, intro, sections, signoff
  *   4. image-illustrator.js → AI generates one flat-vector PNG per section via
@@ -30,7 +30,7 @@ const { renderNewsletter } = require('./lib/mjml-template.js');
 
 // Default illustration method. 'image' = gpt-image-2 flat-vector PNGs (default).
 // 'svg' = legacy AI-authored SVG rasterized via resvg. Selected per-brand via
-// marketing.beehiiv.content.method.image.
+// marketing.newsletter.content.method.image.
 const DEFAULT_IMAGE_METHOD = 'image';
 
 function resolveSectionImageFn(newsletterConfig) {
@@ -68,21 +68,16 @@ const { writeArticle, publishArticle } = require('../../../libraries/content/gho
  * @returns {object|null} Updated settings with content filled in, or null if unavailable
  */
 async function generate(Manager, assistant, settings, opts = {}) {
-  // Content pipeline config lives under the provider that publishes the result.
-  // For newsletters, that's beehiiv (`marketing.beehiiv.content`). The whole
-  // pipeline is gated by beehiiv.enabled — disabling beehiiv disables newsletter
-  // generation as a side effect (correct, since there's nowhere for the
-  // generated content to land).
-  const beehiivConfig = Manager.config?.marketing?.beehiiv;
-  const config = beehiivConfig?.content;
+  const newsletterRoleConfig = Manager.config?.marketing?.newsletter;
+  const config = newsletterRoleConfig?.content;
 
-  if (!beehiivConfig?.enabled) {
-    assistant.log('Newsletter generator: beehiiv disabled in config');
+  if (!newsletterRoleConfig?.enabled) {
+    assistant.log('Newsletter generator: newsletter disabled in config');
     return null;
   }
 
   if (!config) {
-    assistant.log('Newsletter generator: no marketing.beehiiv.content config block');
+    assistant.log('Newsletter generator: no marketing.newsletter.content config block');
     return null;
   }
 
@@ -486,7 +481,7 @@ async function generate(Manager, assistant, settings, opts = {}) {
  * @param {object} args.Manager
  * @param {object} args.assistant
  * @param {object} args.brand - { id, name, url, ... }
- * @param {object} args.config - marketing.beehiiv.content (tone, instructions, article.author)
+ * @param {object} args.config - marketing.newsletter.content (tone, instructions, article.author)
  * @param {object} args.structure - newsletter structure (sections[0] is the lead)
  * @param {boolean} [args.publish] - Commit the post to GitHub via admin/post. Default false.
  * @returns {Promise<{url, slug, path, published}|null>}

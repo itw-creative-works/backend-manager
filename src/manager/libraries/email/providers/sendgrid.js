@@ -344,7 +344,7 @@ async function removeContact(email) {
 /**
  * Get this brand's SendGrid Marketing list ID.
  *
- * Reads `Manager.config.marketing.sendgrid.listId` — populated by OMEGA's
+ * Reads `Manager.config.marketing.campaigns.listId` — populated by OMEGA's
  * `sendgrid/ensure/list.js` at brand-onboarding time, same as how Beehiiv's
  * `publicationId` works. No runtime API call, no fuzzy-match fragility.
  *
@@ -356,11 +356,11 @@ async function removeContact(email) {
  * @returns {string|null} List ID or null if not configured
  */
 function getListId() {
-  const listId = Manager.config.marketing?.sendgrid?.listId;
+  const listId = Manager.config.marketing?.campaigns?.listId;
 
   if (!listId) {
     console.warn(
-      'SendGrid: marketing.sendgrid.listId is not set in config. '
+      'SendGrid: marketing.campaigns.listId is not set in config. '
       + 'Contact will be added to All Contacts only, not the brand list. '
       + 'Run OMEGA to populate.',
     );

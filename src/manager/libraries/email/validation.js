@@ -6,7 +6,7 @@
  * - disposable — checks against known disposable domain list
  * - corporate  — blocks corporate/social-media domains (meta.com, instagram.com, soundcloud.com, etc.)
  * - localPart  — blocks spam/junk local parts (test, noreply, all-numeric, etc.)
- * - mailbox  — verifies mailbox exists via API (costs money, requires ZEROBOUNCE_API_KEY)
+ * - mailbox  — verifies mailbox exists via API (costs money, requires NEVERBOUNCE_API_KEY or ZEROBOUNCE_API_KEY)
  *
  * Usage:
  *   validate(email)                                          // All free checks (format + disposable + corporate + localPart)
@@ -19,8 +19,9 @@
  * - routes/user/signup/post.js (disposable check only)
  * - libraries/email/marketing/index.js (safety net before Beehiiv/SendGrid add/sync)
  */
-const fetch = require('wonderful-fetch');
 const path = require('path');
+const neverbounceProvider = require('./validation-provider-neverbounce');
+const zerobounceProvider = require('./validation-provider-zerobounce');
 
 // All data lives in ./data/ — domains and local-part blocklists are co-located JSON files.
 const DATA_DIR = path.join(__dirname, 'data');
@@ -123,44 +124,22 @@ async function validate(email, options = {}) {
     result.checks.localPart = { valid: true };
   }
 
-  // 5. Mailbox verification (ZeroBounce)
+  // 5. Mailbox verification (NeverBounce preferred, ZeroBounce fallback)
   if (checks.has('mailbox')) {
-    if (!process.env.ZEROBOUNCE_API_KEY) {
-      result.checks.mailbox = { valid: true, skipped: true, reason: 'No API key' };
+    const provider = process.env.NEVERBOUNCE_API_KEY
+      ? neverbounceProvider
+      : (process.env.ZEROBOUNCE_API_KEY ? zerobounceProvider : null);
+
+    if (!provider) {
+      result.checks.mailbox = { valid: true, skipped: true, reason: 'No API key', provider: null };
       return result;
     }
 
-    try {
-      const data = await fetch(
-        `https://api.zerobounce.net/v2/validate?api_key=${process.env.ZEROBOUNCE_API_KEY}&email=${encodeURIComponent(email)}`,
-        { response: 'json', timeout: 60000 }
-      );
+    const mailboxResult = await provider.verify(email);
+    result.checks.mailbox = mailboxResult;
 
-      if (data.error) {
-        console.error('ZeroBounce API error:', data.error);
-        result.checks.mailbox = { valid: true, error: data.error };
-        return result;
-      }
-
-      if (!data.status) {
-        console.error('ZeroBounce unexpected response:', data);
-        result.checks.mailbox = { valid: true, error: 'Unexpected response format' };
-        return result;
-      }
-
-      const zbValid = data.status === 'valid';
-      result.checks.mailbox = {
-        valid: zbValid,
-        status: data.status,
-        subStatus: data.sub_status || null,
-      };
-
-      if (!zbValid) {
-        result.valid = false;
-      }
-    } catch (e) {
-      console.error('ZeroBounce validation error:', e);
-      result.checks.mailbox = { valid: true, error: e.message };
+    if (!mailboxResult.valid) {
+      result.valid = false;
     }
   }
 

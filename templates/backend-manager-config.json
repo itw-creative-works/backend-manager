@@ -136,17 +136,15 @@
     ],
   },
   marketing: {
-    sendgrid: {
+    campaigns: {
       enabled: true,
+      platform: 'sendgrid',
       listId: '',  // SendGrid Marketing list UUID. Populated by OMEGA's sendgrid/ensure/list.js. Skips runtime list-discovery API call.
     },
-    beehiiv: {
+    newsletter: {
       enabled: false,
+      platform: 'beehiiv',
       publicationId: '',  // Beehiiv publication ID (e.g., 'pub_xxxxx'). Populated by OMEGA's beehiiv/ensure/publication.js. Required for marketing sync to Beehiiv.
-      // Content pipeline. Lives under the provider that publishes the result —
-      // Beehiiv for newsletters, eventually SendGrid for promo blasts. The
-      // shape is the same regardless of provider: sources, tone, template,
-      // theme, sponsorships. `beehiiv.enabled: false` above disables it all.
       content: {
         categories: [],  // e.g., ['social-media', 'marketing'] — content categories to pull from parent server
         // AI-customization fields below are all optional with sensible defaults
@@ -198,7 +196,7 @@
   },
   // Standalone Ghostii article publisher (daily cron). OPT-IN: disabled by
   // default (articles: 0). Set articles >= 1 to auto-publish independent blog
-  // posts. For newsletter-linked articles, use marketing.beehiiv.content.article.enabled instead.
+  // posts. For newsletter-linked articles, use marketing.newsletter.content.article.enabled instead.
   ghostii: [
     {
       articles: 0,

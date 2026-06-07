@@ -14,6 +14,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.5.0] - 2026-06-06
+
+### BREAKING
+- **Marketing config keys renamed from platform-specific to role-based.** `marketing.sendgrid` → `marketing.campaigns` (with `platform: 'sendgrid'`), `marketing.beehiiv` → `marketing.newsletter` (with `platform: 'beehiiv'`). Response object keys (`providers.sendgrid`/`providers.beehiiv`) renamed to `providers.campaigns`/`providers.newsletter`. Seed campaign provider arrays updated to match. All consumer `backend-manager-config.json` files must be updated.
+
+### Added
+- **NeverBounce mailbox verification.** Added as the preferred mailbox verification provider (`NEVERBOUNCE_API_KEY`), with ZeroBounce kept as fallback. Provider logic extracted into pluggable `validation-provider-neverbounce.js` and `validation-provider-zerobounce.js` modules.
+- **`platform` property** on marketing config roles — specifies which provider backs each role (e.g. `platform: 'sendgrid'` under `campaigns`).
+
+### Changed
+- **Mailbox verification is now provider-agnostic.** `validation.js` dispatches to whichever provider has an API key set, instead of hardcoding ZeroBounce.
+
 # [5.4.1] - 2026-06-06
 
 ### Added

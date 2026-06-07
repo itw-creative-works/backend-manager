@@ -33,7 +33,7 @@ const PNG_WIDTH = 800; // 2x display width of 400px container
  * @param {object} args
  * @param {string} args.imagePrompt - Visual description from the structure
  * @param {object} args.brand - { name, color: { primary, secondary, ... } }
- * @param {object} args.newsletterConfig - marketing.beehiiv.content
+ * @param {object} args.newsletterConfig - marketing.newsletter.content
  * @param {object} args.ai - AI instance
  * @param {object} args.assistant - BEM assistant
  * @returns {Promise<{svg: string, png: Buffer, fallback: boolean}>}
