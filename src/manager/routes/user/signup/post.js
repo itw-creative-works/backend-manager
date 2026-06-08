@@ -62,6 +62,7 @@ module.exports = async ({ assistant, user, settings, libraries }) => {
   // 4. Gather all data, then write once
   const email = user.auth.email;
   const inferred = await inferUserContact(assistant, email);
+  assistant.log(`signup(): inferUserContact returned for ${email}:`, inferred);
   const userRecord = buildUserRecord(assistant, {
     settings,
     inferred,
@@ -79,14 +80,14 @@ module.exports = async ({ assistant, user, settings, libraries }) => {
   // 5. Process affiliate referral (writes to referrer's doc, not this user's)
   await processAffiliate(assistant, uid, email, settings);
 
-  // 6. Send emails + marketing (non-blocking, fire-and-forget)
+  // 6. Send emails + marketing (awaited so the function stays alive)
   // Gate marketing sync on explicit consent — never add a user to marketing lists without it
   if (userRecord.consent?.marketing?.status === 'granted') {
-    syncMarketingContact(assistant, uid, email);
+    await syncMarketingContact(assistant, uid, email);
   } else {
     assistant.log(`signup(): Skipping marketing sync — consent.marketing.status is "${userRecord.consent?.marketing?.status}"`);
   }
-  sendWelcomeEmails(assistant, uid, inferred?.firstName);
+  await sendWelcomeEmails(assistant, uid, inferred?.firstName);
 
   return assistant.respond({ signedUp: true });
 };
@@ -348,8 +349,7 @@ async function processAffiliate(assistant, uid, email, settings) {
 }
 
 /**
- * Sync marketing contact (non-blocking, fire-and-forget)
- * Validates email first — skips sync for disposable domains
+ * Sync marketing contact — validates email (including mailbox verification) before syncing to providers
  */
 async function syncMarketingContact(assistant, uid, email) {
   const Manager = assistant.Manager;
@@ -369,15 +369,19 @@ async function syncMarketingContact(assistant, uid, email) {
   }
 
   const mailer = Manager.Email(assistant);
-  mailer.sync(uid)
-    .then((r) => assistant.log('signup(): Marketing sync:', r))
-    .catch((e) => assistant.error('signup(): Marketing sync failed:', e));
+
+  try {
+    const result = await mailer.sync(uid);
+    assistant.log('signup(): Marketing sync:', result);
+  } catch (e) {
+    assistant.error('signup(): Marketing sync failed:', e);
+  }
 }
 
 /**
- * Send welcome, checkup, and feedback emails (non-blocking, fire-and-forget)
+ * Send welcome, checkup, and feedback emails
  */
-function sendWelcomeEmails(assistant, uid, firstName) {
+async function sendWelcomeEmails(assistant, uid, firstName) {
   const shouldSend = !assistant.isTesting() || process.env.TEST_EXTENDED_MODE;
 
   if (!shouldSend) {
@@ -385,10 +389,12 @@ function sendWelcomeEmails(assistant, uid, firstName) {
     return;
   }
 
-  sendWelcomeEmail(assistant, uid, firstName).catch(e => assistant.error('signup(): sendWelcomeEmail failed:', e));
-  sendDiscountNudgeEmail(assistant, uid, firstName).catch(e => assistant.error('signup(): sendDiscountNudgeEmail failed:', e));
-  sendCheckupEmail(assistant, uid, firstName).catch(e => assistant.error('signup(): sendCheckupEmail failed:', e));
-  sendFeedbackEmail(assistant, uid, firstName).catch(e => assistant.error('signup(): sendFeedbackEmail failed:', e));
+  await Promise.all([
+    sendWelcomeEmail(assistant, uid, firstName).catch(e => assistant.error('signup(): sendWelcomeEmail failed:', e)),
+    sendDiscountNudgeEmail(assistant, uid, firstName).catch(e => assistant.error('signup(): sendDiscountNudgeEmail failed:', e)),
+    sendCheckupEmail(assistant, uid, firstName).catch(e => assistant.error('signup(): sendCheckupEmail failed:', e)),
+    sendFeedbackEmail(assistant, uid, firstName).catch(e => assistant.error('signup(): sendFeedbackEmail failed:', e)),
+  ]);
 }
 
 /**
