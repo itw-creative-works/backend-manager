@@ -85,6 +85,10 @@ Marketing.prototype.add = async function (options) {
     promises.push(
       sendgridProvider.addContact({ email, firstName, lastName, company, customFields })
         .then((r) => { results.campaigns = r; })
+        .catch((e) => {
+          assistant.error('Marketing.add(): SendGrid failed:', e);
+          results.campaigns = { success: false, error: e.message };
+        })
     );
   }
 
@@ -92,6 +96,10 @@ Marketing.prototype.add = async function (options) {
     promises.push(
       beehiivProvider.addContact({ email, firstName, lastName, company, source })
         .then((r) => { results.newsletter = r; })
+        .catch((e) => {
+          assistant.error('Marketing.add(): Beehiiv failed:', e);
+          results.newsletter = { success: false, error: e.message };
+        })
     );
   }
 
@@ -156,6 +164,10 @@ Marketing.prototype.sync = async function (userDocOrUid) {
       sendgridProvider.buildFields(userDoc).then((customFields) =>
         sendgridProvider.addContact({ email, firstName, lastName, customFields })
       ).then((r) => { results.campaigns = r; })
+        .catch((e) => {
+          assistant.error('Marketing.sync(): SendGrid failed:', e);
+          results.campaigns = { success: false, error: e.message };
+        })
     );
   }
 
@@ -165,6 +177,10 @@ Marketing.prototype.sync = async function (userDocOrUid) {
         email, firstName, lastName, source,
         customFields: beehiivProvider.buildFields(userDoc),
       }).then((r) => { results.newsletter = r; })
+        .catch((e) => {
+          assistant.error('Marketing.sync(): Beehiiv failed:', e);
+          results.newsletter = { success: false, error: e.message };
+        })
     );
   }
 
@@ -198,6 +214,10 @@ Marketing.prototype.remove = async function (email) {
     promises.push(
       sendgridProvider.removeContact(email)
         .then((r) => { results.campaigns = r; })
+        .catch((e) => {
+          assistant.error('Marketing.remove(): SendGrid failed:', e);
+          results.campaigns = { success: false, error: e.message };
+        })
     );
   }
 
@@ -205,6 +225,10 @@ Marketing.prototype.remove = async function (email) {
     promises.push(
       beehiivProvider.removeContact(email)
         .then((r) => { results.newsletter = r; })
+        .catch((e) => {
+          assistant.error('Marketing.remove(): Beehiiv failed:', e);
+          results.newsletter = { success: false, error: e.message };
+        })
     );
   }
 

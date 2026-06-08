@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.5.3] - 2026-06-08
+
+### Fixed
+- **Per-provider error isolation in Marketing.sync/add/remove.** Added `.catch()` to each provider promise so one provider failing (e.g. SendGrid timeout during `buildFields`) no longer kills the other. Each provider now resolves independently with `{ success: false, error }` on failure, and the function always returns a per-provider status object instead of throwing.
+
 # [5.5.2] - 2026-06-08
 
 ### Fixed

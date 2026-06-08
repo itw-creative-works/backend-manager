@@ -70,6 +70,11 @@ For the directory layout of both the BEM library and consumer projects, see [doc
 
 See [docs/cli-firestore-auth.md](docs/cli-firestore-auth.md) and [docs/cli-logs.md](docs/cli-logs.md) for full flag references.
 
+## Development Workflow
+
+- **🚫 NEVER run `npm start` / `npm test` / `npx mgr emulator`** unless the user explicitly asks. Assume the user is already running the emulator or dev process. Running these commands kills the user's process and wastes time. Instead, **check output logs** after editing files to confirm the change took effect.
+- **If the user reports an error**, check the emulator/test output for the root cause before guessing.
+
 ## File Conventions
 
 - **CommonJS** throughout. `prepare-package` copies `src/` → `dist/` 1:1 (no transforms).
