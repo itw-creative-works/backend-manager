@@ -12,8 +12,10 @@
  *   - 'unsubscribe'         — user clicked the unified unsubscribe link
  *   - 'group_unsubscribe'   — user unsubscribed from a specific ASM group
  *   - 'spamreport'          — user marked email as spam
- *   - 'bounce'              — hard bounce (treat as revoke to avoid future sends)
- *   - 'dropped'             — SendGrid dropped the message (often due to suppression)
+ *   - 'bounce'              — ONLY when bounce_classification is 'Invalid Address' (hard bounce).
+ *                              Technical bounces (DMARC, TLS, DNS) are sender-side issues and
+ *                              should NOT revoke the recipient's consent.
+ *   - 'dropped'             — ONLY when bounce_classification is 'Invalid Address'.
  *
  * Note: 'group_unsubscribe' is the most common one (matches our ASM-link flow), and since
  * GROUPS.marketing (25928) is account-global across all brands, an unsub from group 25928
@@ -27,8 +29,14 @@ const REVOKE_EVENT_TYPES = new Set([
   'unsubscribe',
   'group_unsubscribe',
   'spamreport',
-  'bounce',
-  'dropped',
+]);
+
+// Bounce events only revoke consent when the bounce_classification indicates
+// the mailbox genuinely doesn't exist. Technical bounces (DMARC, TLS, DNS),
+// reputation bounces, content blocks, and temporary failures are the SENDER's
+// problem — the recipient's email is still valid.
+const HARD_BOUNCE_CLASSIFICATIONS = new Set([
+  'Invalid Address',
 ]);
 
 /**
@@ -69,6 +77,7 @@ function parseWebhook(req) {
     const email = typeof event.email === 'string' ? event.email.trim().toLowerCase() : null;
     const timestamp = typeof event.timestamp === 'number' ? event.timestamp : null;
     const asmGroupId = event.asm_group_id || null;
+    const bounceClassification = event.bounce_classification || null;
 
     return {
       eventId,
@@ -76,16 +85,28 @@ function parseWebhook(req) {
       email,
       timestamp,
       asmGroupId,
+      bounceClassification,
       raw: event,
     };
   });
 }
 
 /**
- * Returns true if this event type represents a revocation we should act on.
+ * Returns true if this parsed event represents a revocation we should act on.
+ * For bounce/dropped events, only hard bounces (Invalid Address) qualify.
  */
-function isSupported(eventType) {
-  return REVOKE_EVENT_TYPES.has(eventType);
+function isSupported(parsed) {
+  const { eventType, bounceClassification } = parsed;
+
+  if (REVOKE_EVENT_TYPES.has(eventType)) {
+    return true;
+  }
+
+  if (eventType === 'bounce' || eventType === 'dropped') {
+    return HARD_BOUNCE_CLASSIFICATIONS.has(bounceClassification);
+  }
+
+  return false;
 }
 
 /**

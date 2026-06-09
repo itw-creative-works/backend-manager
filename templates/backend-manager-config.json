@@ -1,4 +1,5 @@
 {
+  parent: '',  // 'self' = this BEM is the parent (newsletter-sources provider); a URL = external parent; '' = no parent
   brand: {
     id: 'my-app',
     name: 'My Brand',

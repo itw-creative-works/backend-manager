@@ -81,8 +81,8 @@ function parseWebhook(req) {
 /**
  * Returns true if this event type represents a revocation we should act on.
  */
-function isSupported(eventType) {
-  return REVOKE_EVENT_TYPES.has(eventType);
+function isSupported(parsed) {
+  return REVOKE_EVENT_TYPES.has(parsed.eventType);
 }
 
 /**

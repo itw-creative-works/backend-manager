@@ -11,7 +11,7 @@
  *
  * Each processor module defines:
  *   - parseWebhook(req)   — returns Array<{ eventId, eventType, email, timestamp, raw, ... }>
- *   - isSupported(type)   — returns true if this event should be processed
+ *   - isSupported(parsed) — returns true if this parsed event should be processed
  *   - handleEvent(ctx)    — does the work for one event (user doc + cross-provider sync)
  *
  * No idempotency ledger: every supported handler (revoke consent + cross-provider
@@ -106,7 +106,7 @@ async function processOneEvent({ Manager, assistant, provider, event, processorM
   const { eventType } = event;
 
   // Filter by supported event types
-  if (processorModule.isSupported && !processorModule.isSupported(eventType)) {
+  if (processorModule.isSupported && !processorModule.isSupported(event)) {
     return { processed: false, skipped: 'unsupported-event-type' };
   }
 

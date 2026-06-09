@@ -14,6 +14,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.5.4] - 2026-06-09
+
+### Fixed
+- **SendGrid bounce/dropped webhook filtering.** Bounce and dropped events now only revoke marketing consent when `bounce_classification` is `'Invalid Address'`. Technical bounces (DMARC, TLS, DNS failures) are sender-side issues and no longer revoke the recipient's consent.
+
+### Changed
+- **`isSupported()` receives full parsed event.** All webhook processors (`sendgrid`, `beehiiv`) now receive the full parsed event object instead of just the event type string, enabling classification-aware filtering.
+- **Config template `parent` field.** Added `parent` field to `backend-manager-config.json` template for newsletter-sources provider configuration.
+
 # [5.5.3] - 2026-06-08
 
 ### Fixed
