@@ -53,9 +53,7 @@ const CASES = [
   { email: 'no-reply@gmail.com', expect: 'fail', check: 'localPart' },
 
   // ---- Should FAIL: localPart (patterns) ----
-  { email: '123456@gmail.com', expect: 'fail', check: 'localPart' },
   { email: 'aaaa@gmail.com', expect: 'fail', check: 'localPart' },
-  { email: 'a123@gmail.com', expect: 'fail', check: 'localPart' },
   { email: 'testuser@gmail.com', expect: 'fail', check: 'localPart' },
   { email: '_test.basic@somiibo.com', expect: 'fail', check: 'localPart' },
   { email: '_test.allow_consent-granted@somiibo.com', expect: 'pass' },

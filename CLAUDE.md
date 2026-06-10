@@ -74,6 +74,7 @@ See [docs/cli-firestore-auth.md](docs/cli-firestore-auth.md) and [docs/cli-logs.
 
 - **🚫 NEVER run `npm start` / `npm test` / `npx mgr emulator`** unless the user explicitly asks. Assume the user is already running the emulator or dev process. Running these commands kills the user's process and wastes time. Instead, **check output logs** after editing files to confirm the change took effect.
 - **If the user reports an error**, check the emulator/test output for the root cause before guessing.
+- **Live-test UI changes via CDP.** When working on admin dashboards or browser-facing endpoints, use the `chrome-devtools` MCP tools (screenshots, click, evaluate JS, console logs) to verify the change works in the running browser. See `~/.claude/mcp-server/servers/chrome-devtools/CLAUDE.md`.
 
 ## File Conventions
 
