@@ -74,6 +74,11 @@ After `Manager.init()`, the Manager instance exposes factory methods:
 
 Auth events, payment-webhook transitions, and cron jobs are wired automatically — hook into them by exporting from `functions/hooks/<area>/<event>.js`.
 
+## Dependency resolution
+
+- **`Manager.require(name)`** resolves from BEM's module context. Consumer code (routes, schemas) can use it to access BEM's bundled dependencies without installing them directly.
+- **web-manager owns Firebase on the client side.** Frontend consumer code (UJM pages, BXM extensions, EM renderers) NEVER imports Firebase directly. BEM backend code uses `firebase-admin` directly (server-side is different).
+
 <!-- Everything above this marker is owned by the framework and rewritten on every `npx mgr setup`. Add your project-specific notes below — they are preserved across setups. -->
 
 # ========== Custom Values ==========
