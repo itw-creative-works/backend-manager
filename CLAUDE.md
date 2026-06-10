@@ -70,6 +70,11 @@ For the directory layout of both the BEM library and consumer projects, see [doc
 
 See [docs/cli-firestore-auth.md](docs/cli-firestore-auth.md) and [docs/cli-logs.md](docs/cli-logs.md) for full flag references.
 
+## Dependency Resolution
+
+- **Consumer code can use `Manager.require(name)`** to load any BEM dependency from BEM's own module context (static + prototype). Consumer projects do NOT need to install BEM's transitive deps directly.
+- **web-manager owns Firebase on the client side.** Consumer frontend code (UJM pages, BXM popup/options, EM renderers) NEVER imports Firebase directly — `firebase.firestore()` → `webManager.firestore()`, `firebase.auth()` → `webManager.auth()`. BEM backend code uses `firebase-admin` directly (server-side is different). The three frontend frameworks (EM/BXM/UJM) additionally resolve deps via webpack `resolve.modules`.
+
 ## Development Workflow
 
 - **🚫 NEVER run `npm start` / `npm test` / `npx mgr emulator`** unless the user explicitly asks. Assume the user is already running the emulator or dev process. Running these commands kills the user's process and wastes time. Instead, **check output logs** after editing files to confirm the change took effect.
