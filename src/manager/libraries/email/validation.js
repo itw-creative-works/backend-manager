@@ -3,15 +3,17 @@
  *
  * Available checks (run in this order):
  * - format     — basic email regex
- * - disposable — checks against known disposable domain list
+ * - disposable — checks against known disposable domain list (~7k domains)
  * - corporate  — blocks corporate/social-media domains (meta.com, instagram.com, soundcloud.com, etc.)
  * - localPart  — blocks spam/junk local parts (test, noreply, all-numeric, etc.)
- * - mailbox  — verifies mailbox exists via API (costs money, requires NEVERBOUNCE_API_KEY or ZEROBOUNCE_API_KEY)
+ * - typo       — catches common domain misspellings (gamil., gmai., aol.con, etc.)
+ * - dns        — verifies domain has MX records (no MX = can't receive email, guaranteed fail)
+ * - mailbox    — verifies mailbox exists via API (costs money, requires NEVERBOUNCE_API_KEY or ZEROBOUNCE_API_KEY)
  *
  * Usage:
- *   validate(email)                                          // All free checks (format + disposable + corporate + localPart)
+ *   validate(email)                                          // All free checks (format + disposable + corporate + localPart + typo)
  *   validate(email, { checks: ['format', 'disposable'] })    // Only format + disposable
- *   validate(email, { checks: ALL_CHECKS })                  // Everything including mailbox
+ *   validate(email, { checks: ALL_CHECKS })                  // Everything including dns + mailbox
  *
  * Used by:
  * - routes/marketing/contact/post.js
@@ -20,8 +22,12 @@
  * - libraries/email/marketing/index.js (safety net before Beehiiv/SendGrid add/sync)
  */
 const path = require('path');
+const dns = require('dns');
+const { promisify } = require('util');
 const neverbounceProvider = require('./validation-provider-neverbounce');
 const zerobounceProvider = require('./validation-provider-zerobounce');
+
+const resolveMx = promisify(dns.resolveMx);
 
 // All data lives in ./data/ — domains and local-part blocklists are co-located JSON files.
 const DATA_DIR = path.join(__dirname, 'data');
@@ -45,14 +51,17 @@ const BLOCKED_LOCAL_PARTS = new Set(
 );
 const BLOCKED_LOCAL_PATTERNS = require(path.join(DATA_DIR, 'blocked-local-patterns.js'));
 
+// Load typo-domain prefixes — common misspellings of major providers
+const TYPO_DOMAIN_PREFIXES = require(path.join(DATA_DIR, 'typo-domains.js'));
+
 // Format regex
 const EMAIL_FORMAT = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Default checks (all free checks — mailbox excluded because it costs money)
-const DEFAULT_CHECKS = ['format', 'disposable', 'corporate', 'localPart'];
+const DEFAULT_CHECKS = ['format', 'disposable', 'corporate', 'localPart', 'typo'];
 
-// All available checks
-const ALL_CHECKS = ['format', 'disposable', 'corporate', 'localPart', 'mailbox'];
+// All available checks (dns is free but async/slow — opt-in for bulk validation)
+const ALL_CHECKS = ['format', 'disposable', 'corporate', 'localPart', 'typo', 'dns', 'mailbox'];
 
 /**
  * Validate an email address through selected checks.
@@ -124,7 +133,64 @@ async function validate(email, options = {}) {
     result.checks.localPart = { valid: true };
   }
 
-  // 5. Mailbox verification (NeverBounce preferred, ZeroBounce fallback)
+  // 5. Typo domain — common misspellings of major providers
+  if (checks.has('typo') && domain) {
+    const matchedPrefix = TYPO_DOMAIN_PREFIXES.find((prefix) => domain.startsWith(prefix));
+
+    if (matchedPrefix) {
+      result.valid = false;
+      result.checks.typo = { valid: false, domain, matchedPrefix, reason: 'Likely misspelled domain' };
+      return result;
+    }
+
+    result.checks.typo = { valid: true };
+  }
+
+  // 6. DNS — guaranteed-fail checks (no MX, null MX, loopback MX, domain not found)
+  if (checks.has('dns') && domain) {
+    try {
+      const records = await resolveMx(domain);
+
+      if (!records || records.length === 0) {
+        result.valid = false;
+        result.checks.dns = { valid: false, domain, reason: 'No MX records' };
+        return result;
+      }
+
+      // Null MX (RFC 7505): exchange is empty or "." — domain explicitly rejects email
+      const hasNullMx = records.some((r) => !r.exchange || r.exchange === '.');
+      if (hasNullMx) {
+        result.valid = false;
+        result.checks.dns = { valid: false, domain, reason: 'Null MX (domain rejects email)' };
+        return result;
+      }
+
+      // Loopback MX: points to localhost or 0.0.0.0 — can't receive external mail
+      const hasLoopbackMx = records.some((r) =>
+        r.exchange === 'localhost'
+        || r.exchange === '0.0.0.0'
+        || r.exchange.startsWith('127.')
+        || r.exchange.endsWith('.invalid'),
+      );
+      if (hasLoopbackMx) {
+        result.valid = false;
+        result.checks.dns = { valid: false, domain, reason: 'Loopback MX (localhost/invalid)' };
+        return result;
+      }
+
+      result.checks.dns = { valid: true, mxCount: records.length };
+    } catch (e) {
+      if (e.code === 'ENOTFOUND' || e.code === 'ENODATA' || e.code === 'ESERVFAIL') {
+        result.valid = false;
+        result.checks.dns = { valid: false, domain, reason: `DNS lookup failed: ${e.code}` };
+        return result;
+      }
+      // Network error or timeout — don't block the email
+      result.checks.dns = { valid: true, skipped: true, reason: `DNS error: ${e.code}` };
+    }
+  }
+
+  // 7. Mailbox verification (NeverBounce preferred, ZeroBounce fallback)
   if (checks.has('mailbox')) {
     const provider = process.env.NEVERBOUNCE_API_KEY
       ? neverbounceProvider

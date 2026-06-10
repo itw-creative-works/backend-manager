@@ -138,7 +138,9 @@ Each processor's `handleEvent` does the same shape of work:
 
 | Provider | Event types treated as revoke |
 |---|---|
-| SendGrid | `unsubscribe`, `group_unsubscribe`, `spamreport`, `bounce`, `dropped` |
+| SendGrid | `unsubscribe`, `group_unsubscribe`, `spamreport`, `bounce`\*, `dropped`\* |
+
+\* `bounce` and `dropped` only revoke consent when `bounce_classification` is `'Invalid Address'` (hard bounce). Technical bounces (DMARC, TLS, DNS, reputation) are sender-side issues — the recipient's email is still valid, so consent is preserved.
 | Beehiiv | `subscription.unsubscribed`, `subscription.deleted`, `subscription.paused` |
 
 **Beehiiv publication filter.** Each Beehiiv event includes a `publication_id`. The processor compares this against `beehiivProvider.getPublicationId()`, which reads `Manager.config.marketing.newsletter.publicationId` (populated at brand-onboarding time by OMEGA's `beehiiv/ensure/publication.js`). Mismatch → silent skip. This is how shared-publication events (e.g. devbeans shared by 6 brands) get routed correctly — each brand processes only events matching its own publication. Brands without `publicationId` in config silently skip all Beehiiv webhook events. The same convention applies to SendGrid: `marketing.campaigns.listId` is populated by OMEGA's `sendgrid/ensure/list.js`.

@@ -56,6 +56,27 @@ After `build()`, `send()` delivers via SendGrid, handles scheduled sends (>71h �
 
 `_sendCampaignSendGrid()` follows the same prepare → render → deliver pattern. Content comes from `data.content.message` (markdown) — same location as transactional callers. Key difference: audience targeting uses brand-scoped dynamic segments (see [marketing-campaigns.md](marketing-campaigns.md)).
 
+### Email Validation Pipeline (`validation.js`)
+
+All marketing contact operations (`add`, `sync`) pass through `validate()` before reaching providers. Checks run in order; the first failure short-circuits.
+
+| # | Check | What it catches | Cost | Default |
+|---|---|---|---|---|
+| 1 | `format` | Regex: must have `@`, domain, no spaces | Free | Yes |
+| 2 | `disposable` | ~7k known disposable domains (vendor list + custom additions) | Free | Yes |
+| 3 | `corporate` | Social/corporate domains (instagram.com, facebook.com, etc.) | Free | Yes |
+| 4 | `localPart` | Junk local parts (test, noreply, all-numeric, `_test.*`) | Free | Yes |
+| 5 | `typo` | Common domain misspellings via prefix match (`gamil.`, `gmai.`, `aol.con`, `gmail.cok`, etc.) | Free | Yes |
+| 6 | `dns` | No MX record, null MX (RFC 7505), loopback MX, domain not found | Free | Opt-in |
+| 7 | `mailbox` | SMTP mailbox verification via NeverBounce or ZeroBounce | Paid | Opt-in |
+
+- **`DEFAULT_CHECKS`** = checks 1–5 (all free, run on every `mailer.add()`/`mailer.sync()` call)
+- **`ALL_CHECKS`** = checks 1–7 (used at signup to include paid mailbox verification)
+- The `dns` check is opt-in (not in DEFAULT_CHECKS) because it's async/slower — include it for bulk validation
+- The `typo` check uses prefix matching (`"gamil."` catches `gamil.com`, `gamil.con`, `gamil.co`) — see `data/typo-domains.js`
+- Custom disposable domains go in `data/custom-disposable-domains.json` (not the vendor list)
+- Run `node src/manager/libraries/email/validation.test.js` to verify all checks
+
 ## Data Contract
 
 The template receives one `data` object with a clear separation of concerns:
@@ -263,7 +284,7 @@ All email tests live under `test/email/`, mirroring the source at `src/manager/l
 |---|---|---|
 | `templates.js` | MJML rendering for all 4 email templates (11 tests) | No |
 | `transactional.js` | Transactional email building (assertions on output shape) | No |
-| `validation.js` | Email format/disposable/corporate/local-part checks (80+ tests) | No |
+| `validation.js` | Email format/disposable/corporate/local-part/typo/dns checks (60+ tests) | No |
 | `transactional-send.js` | Single transactional email send via SendGrid | Yes |
 | `campaign-send.js` | Marketing campaign send with title + CTA + discount code | Yes |
 | `feedback-and-plain-send.js` | Feedback + plain template visual test sends | Yes |
@@ -295,5 +316,10 @@ All extended email tests send to `_test-<purpose>@{domain}` addresses (e.g. `_te
 | UTM link tagging | `src/manager/libraries/email/utm.js` |
 | Constants (senders, groups, fields, segments) | `src/manager/libraries/email/constants.js` |
 | Email validation | `src/manager/libraries/email/validation.js` |
+| Typo domain prefixes | `src/manager/libraries/email/data/typo-domains.js` |
+| Custom disposable domains | `src/manager/libraries/email/data/custom-disposable-domains.json` |
+| NeverBounce provider | `src/manager/libraries/email/validation-provider-neverbounce.js` |
+| ZeroBounce provider | `src/manager/libraries/email/validation-provider-zerobounce.js` |
+| Validation test | `src/manager/libraries/email/validation.test.js` |
 | Seed campaigns | `src/cli/commands/setup-tests/helpers/seed-campaigns.js` |
 | Transition email dispatcher | `src/manager/events/firestore/payments-webhooks/transitions/send-email.js` |

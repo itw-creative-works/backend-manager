@@ -308,44 +308,12 @@ module.exports = {
       },
     },
 
-    // Test 15: Admin can write any user's document
-    {
-      name: 'admin-can-write-any-user-doc',
-      auth: 'none',
+    // Tests 15–18 exercise admin write/create/delete on a DEDICATED throwaway
+    // doc — never the shared seeded accounts. Mutating accounts.basic here
+    // poisons every suite that runs afterward (its api.privateKey and
+    // subscription are live fixtures for HTTP auth across the whole run).
 
-      async run({ rules, accounts }) {
-        const basicUid = accounts.basic.uid;
-        const db = rules.asAccount('admin');
-
-        // Should succeed - admin can write any user doc
-        await rules.expectSuccess(
-          db.doc(`users/${basicUid}`).set({
-            profile: { updatedByAdmin: true },
-          }, { merge: true })
-        );
-      },
-    },
-
-    // Test 16: Admin can write protected fields
-    {
-      name: 'admin-can-write-protected-fields',
-      auth: 'none',
-
-      async run({ rules, accounts }) {
-        const basicUid = accounts.basic.uid;
-        const db = rules.asAccount('admin');
-
-        // Should succeed - admin can write protected fields
-        await rules.expectSuccess(
-          db.doc(`users/${basicUid}`).set({
-            roles: { premium: true },
-            subscription: { product: { id: 'pro' }, status: 'active' },
-          }, { merge: true })
-        );
-      },
-    },
-
-    // Test 17: Admin can create a user document
+    // Test 15: Admin can create a user document
     {
       name: 'admin-can-create-user-doc',
       auth: 'none',
@@ -354,13 +322,51 @@ module.exports = {
         const db = rules.asAccount('admin');
         const newUid = '_test-new-user-by-admin';
 
-        // Should succeed - admin can create any user doc
+        // Should succeed - admin can create any user doc. The _test. email
+        // prefix keeps this doc blocked at the marketing validation layer
+        // (never reaches SendGrid/Beehiiv) even though a raw rules-context
+        // Firestore write fires no auth events anyway.
         await rules.expectSuccess(
           db.doc(`users/${newUid}`).set({
-            auth: { uid: newUid, email: 'new@test.com' },
+            auth: { uid: newUid, email: '_test.new-user-by-admin@example.com' },
             roles: {},
             subscription: { product: { id: 'basic' }, status: 'active' },
           })
+        );
+      },
+    },
+
+    // Test 16: Admin can write any user's document
+    {
+      name: 'admin-can-write-any-user-doc',
+      auth: 'none',
+
+      async run({ rules }) {
+        const db = rules.asAccount('admin');
+
+        // Should succeed - admin can write any user doc
+        await rules.expectSuccess(
+          db.doc('users/_test-new-user-by-admin').set({
+            profile: { updatedByAdmin: true },
+          }, { merge: true })
+        );
+      },
+    },
+
+    // Test 17: Admin can write protected fields
+    {
+      name: 'admin-can-write-protected-fields',
+      auth: 'none',
+
+      async run({ rules }) {
+        const db = rules.asAccount('admin');
+
+        // Should succeed - admin can write protected fields
+        await rules.expectSuccess(
+          db.doc('users/_test-new-user-by-admin').set({
+            roles: { premium: true },
+            subscription: { product: { id: 'pro' }, status: 'active' },
+          }, { merge: true })
         );
       },
     },
@@ -370,14 +376,13 @@ module.exports = {
       name: 'admin-can-delete-user-doc',
       auth: 'none',
 
-      async run({ rules, accounts }) {
+      async run({ rules }) {
         const db = rules.asAccount('admin');
-        // Delete one of the seeded test accounts
-        const targetUid = accounts.basic.uid;
 
-        // Should succeed - admin can delete any user doc
+        // Should succeed - admin can delete any user doc (the throwaway
+        // created in test 15, which also cleans it up)
         await rules.expectSuccess(
-          db.doc(`users/${targetUid}`).delete()
+          db.doc('users/_test-new-user-by-admin').delete()
         );
       },
     },
