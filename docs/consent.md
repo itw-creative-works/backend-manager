@@ -9,7 +9,7 @@ This doc covers the **server-side** (BEM) part of the system. The matching front
 1. **Capture explicit, affirmative consent** at signup with separate checkboxes for legal terms (required) and marketing communications (optional). Store the exact label text the user agreed to.
 2. **Let users withdraw consent at any time** via the account-page toggle or the email-footer unsubscribe link.
 3. **Stay in sync with provider-side actions** — when a user clicks unsubscribe in a SendGrid or Beehiiv email, the user doc updates AND the OTHER provider is also notified.
-4. **Never re-add an unsubscribed user** — `email.add()` and `email.sync()` short-circuit when `consent.marketing.status === 'revoked'`.
+4. **Never re-add an unsubscribed user** — `email.add()` and `email.sync()` short-circuit in the library itself when `consent.marketing.status === 'revoked'`, so every call site (payment-event syncs, admin re-syncs, public newsletter form, legacy API commands) is covered. See "Email library consent gate" below.
 
 ## Canonical user-doc shape
 
@@ -51,7 +51,7 @@ consent: {
 
 ## Capture points
 
-There are four places where consent gets recorded or updated. All four converge on the same canonical shape.
+There are five places where consent gets recorded or updated. All five converge on the same canonical shape.
 
 ### 1. Signup form (Phase B)
 
@@ -110,6 +110,8 @@ Body: { email, asmId, sig, action: 'subscribe' | 'unsubscribe' }
 - `sig = HMAC-SHA256(email, UNSUBSCRIBE_HMAC_KEY)` — proves we generated the link.
 - IP-rate-limited (5/day per IP).
 - **Also writes the user doc** if the email maps to a user — `consent.marketing.{status, revokedAt}` with `source: 'sendgrid'` (since HMAC links only appear in SendGrid email footers).
+- **Unsubscribe is cross-provider** — besides the SendGrid ASM suppression, the route calls `mailer.remove(email)` (best-effort) so the contact is removed from Beehiiv too. ASM suppression alone only stops SendGrid sends.
+- **Subscribe actually re-adds the contact** — the user-doc mirror writes `granted` BEFORE the provider calls, then the route calls `mailer.sync(uid)` when the email maps to a user (the fresh grant passes the library consent gate — no bypass flags) or `mailer.add({ email, source: 'resubscribe' })` when it doesn't. Best-effort, same testing guard as the ASM call.
 - Backward-compatible — old in-flight email links continue to work.
 
 ### 4. Provider webhooks (Phase E)
@@ -144,6 +146,17 @@ Each processor's `handleEvent` does the same shape of work:
 | Beehiiv | `subscription.unsubscribed`, `subscription.deleted`, `subscription.paused` |
 
 **Beehiiv publication filter.** Each Beehiiv event includes a `publication_id`. The processor compares this against `beehiivProvider.getPublicationId()`, which reads `Manager.config.marketing.newsletter.publicationId` (populated at brand-onboarding time by OMEGA's `beehiiv/ensure/publication.js`). Mismatch → silent skip. This is how shared-publication events (e.g. devbeans shared by 6 brands) get routed correctly — each brand processes only events matching its own publication. Brands without `publicationId` in config silently skip all Beehiiv webhook events. The same convention applies to SendGrid: `marketing.campaigns.listId` is populated by OMEGA's `sendgrid/ensure/list.js`.
+
+### 5. Admin contact removal
+
+[src/manager/routes/marketing/contact/delete.js](../src/manager/routes/marketing/contact/delete.js) — admin-only endpoint.
+
+```
+DELETE /backend-manager/marketing/contact
+Body: { email }
+```
+
+After removing the contact from all providers, the route mirrors `consent.marketing.status = 'revoked'` to the user doc when the email maps to a user — `revokedAt` from server time with `source: 'admin'`, same write shape as the webhook processors (`grantedAt` preserved as audit history). Without this mirror, the next `sync()` (payment event, admin re-sync) would re-add the contact the admin just removed. Best-effort and silent when no user matches.
 
 ## Parent forwarder (Phase E)
 
@@ -187,11 +200,22 @@ The parent BEM has its own brand (e.g. `itw-creative-works`) with its own users.
 4. The 6 brands sharing the devbeans publication: `getPublicationId()` matches, they each look up the user, only the brand(s) with the user write the doc and call `mailer.remove`.
 5. The brands with dedicated publications: `getPublicationId()` mismatch, silent skip.
 
-## Email library short-circuit
+## Email library consent gate
 
 [src/manager/libraries/email/marketing/index.js](../src/manager/libraries/email/marketing/index.js)
 
-`email.add()` and `email.sync()` check the user's `consent.marketing.status` before contacting providers. A user marked `'revoked'` is never re-added. This is the safety net against accidental re-subscription via batch syncs or campaign sends.
+`email.add()` and `email.sync()` check the user's `consent.marketing.status` IN THE LIBRARY, before validation and provider calls. Because the gate lives in the library rather than at call sites, every caller is covered: the signup route, the email-preferences toggle, payment-event syncs ([events/firestore/payments-webhooks/on-write.js](../src/manager/events/firestore/payments-webhooks/on-write.js)), the admin PUT re-sync (`routes/marketing/contact/put.js`), the public newsletter form (`routes/marketing/contact/post.js`), and the legacy API-command twins (`functions/core/actions/api/general/add-marketing-contact.js`).
+
+**Semantics:**
+
+- **Revoked-only skip.** ONLY the literal string `'revoked'` blocks. Missing consent, `null`, or any other value proceeds — legacy users have no `consent` field and must keep syncing.
+- **`sync()`** — after the user doc is resolved (whether passed as a doc or fetched by uid), a revoked doc logs a warn and returns `{ blocked: 'consent', email }` (mirrors the `{ blocked: 'validation', ... }` shape) BEFORE validation and provider calls.
+- **`add()`** — looks up the user doc by email first (same `auth.email` equality query the webhook processors use). Doc found + revoked → `{ blocked: 'consent', email }`. No doc found → proceed (pure newsletter contact). Lookup failure → proceed (fail open, logged) — a rare duplicate add is recoverable; silently dropping contacts is not.
+- **`remove()` is never gated** — removal is always safe.
+
+The signup route ADDITIONALLY gates at its call site (`userRecord.consent.marketing.status === 'granted'` before calling `mailer.sync(uid)`) — that check runs before the route's paid NeverBounce/ZeroBounce mailbox validation, so declined users never trigger a paid check. The library gate is the safety net for everyone else.
+
+The gate logic is unit-tested without Firestore in [src/manager/libraries/email/marketing/consent-gate.test.js](../src/manager/libraries/email/marketing/consent-gate.test.js) — run with `node src/manager/libraries/email/marketing/consent-gate.test.js`.
 
 ## Configuration
 
@@ -304,6 +328,7 @@ After the migration: optionally run a re-opt-in drip campaign to legally recover
 - [test/routes/marketing/webhook.js](../test/routes/marketing/webhook.js) — 15+ tests covering SendGrid + Beehiiv processors against the emulator
 - [test/routes/marketing/webhook-forward.js](../test/routes/marketing/webhook-forward.js) — verifies the forwarder route returns 404 on non-parent BEMs
 - [test/helpers/webhook-forward.js](../test/helpers/webhook-forward.js) — 12 unit-style tests with mocked admin + fetch, covering fan-out, URL derivation, failure isolation, self-inclusion, edge cases
+- [src/manager/libraries/email/marketing/consent-gate.test.js](../src/manager/libraries/email/marketing/consent-gate.test.js) — 28 plain-node cases for the library consent gate (revoked-only skip semantics, `{ blocked: 'consent' }` returns from `sync()`/`add()`, by-email lookup query + normalization, fail-open on lookup errors); runs directly with `node`, no emulator
 
 **Total: 75+ tests across the consent system.**
 

@@ -1,9 +1,11 @@
 /**
  * Email validation test — verifies all free checks (format, disposable, corporate, localPart, typo, dns)
+ * plus NeverBounce result parsing (no API calls).
  *
  * Run:   node src/manager/libraries/email/validation.test.js
  */
 const { validate } = require('./validation.js');
+const { parseResult } = require('./validation-provider-neverbounce.js');
 
 const FREE_CHECKS = ['format', 'disposable', 'corporate', 'localPart', 'typo', 'dns'];
 
@@ -85,9 +87,37 @@ const CASES = [
   { email: 'someone@example.com', expect: 'fail', check: 'dns' },
 ];
 
+// NeverBounce single-check `result` parsing — the API returns STRING textcodes.
+// Regression: BEM 5.5.1–5.6.1 compared against numbers, failing every mailbox
+// check and silently skipping marketing sync for all signups.
+const NB_PARSE_CASES = [
+  { result: 'valid', expectValid: true, expectStatus: 'valid' },
+  { result: 'catchall', expectValid: true, expectStatus: 'catchall' },
+  { result: 'catch-all', expectValid: true, expectStatus: 'catchall' },
+  { result: 'unknown', expectValid: true, expectStatus: 'unknown' },
+  { result: 'invalid', expectValid: false, expectStatus: 'invalid' },
+  { result: 'disposable', expectValid: false, expectStatus: 'disposable' },
+  { result: 0, expectValid: true, expectStatus: 'valid' },
+  { result: 1, expectValid: false, expectStatus: 'invalid' },
+  { result: 2, expectValid: false, expectStatus: 'disposable' },
+  { result: 3, expectValid: true, expectStatus: 'catchall' },
+  { result: 4, expectValid: true, expectStatus: 'unknown' },
+];
+
 async function run() {
   let passed = 0;
   let failed = 0;
+
+  for (const { result, expectValid, expectStatus } of NB_PARSE_CASES) {
+    const parsed = parseResult(result);
+    if (parsed.valid === expectValid && parsed.status === expectStatus) {
+      passed++;
+    } else {
+      failed++;
+      console.log(`  ✗ parseResult(${JSON.stringify(result)})`);
+      console.log(`    Expected: valid=${expectValid} status=${expectStatus}, Got: valid=${parsed.valid} status=${parsed.status}`);
+    }
+  }
 
   for (const { email, expect: expected, check: expectedCheck } of CASES) {
     const result = await validate(email, { checks: FREE_CHECKS });
@@ -115,7 +145,7 @@ async function run() {
   }
 
   console.log('');
-  console.log(`${passed} passed, ${failed} failed out of ${CASES.length} cases`);
+  console.log(`${passed} passed, ${failed} failed out of ${CASES.length + NB_PARSE_CASES.length} cases`);
 
   if (failed > 0) {
     process.exit(1);

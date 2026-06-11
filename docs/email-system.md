@@ -58,7 +58,7 @@ After `build()`, `send()` delivers via SendGrid, handles scheduled sends (>71h â
 
 ### Email Validation Pipeline (`validation.js`)
 
-All marketing contact operations (`add`, `sync`) pass through `validate()` before reaching providers. Checks run in order; the first failure short-circuits.
+All marketing contact operations (`add`, `sync`) pass through `validate()` before reaching providers. Checks run in order; the first failure short-circuits. (The library consent gate runs even earlier â€” a user with `consent.marketing.status === 'revoked'` returns `{ blocked: 'consent', email }` before validation; see [consent.md](consent.md#email-library-consent-gate).)
 
 | # | Check | What it catches | Cost | Default |
 |---|---|---|---|---|

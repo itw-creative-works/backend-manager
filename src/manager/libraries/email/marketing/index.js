@@ -20,10 +20,15 @@
  *
  * Used by:
  * - routes/marketing/contact (add)
- * - Auth on-create handler (sync on signup)
+ * - routes/user/signup (sync on signup — call site also gates on consent to skip the paid mailbox check)
  * - Payment transition handlers (sync on subscription change)
  * - Auth on-delete handler (remove contact)
  * - Campaign cron jobs (send campaigns)
+ *
+ * Consent gate: add() and sync() skip users whose consent.marketing.status is the
+ * literal string 'revoked' and return { blocked: 'consent', email }. Missing consent,
+ * null, or any other value proceeds — legacy users have no consent field and must
+ * keep syncing. remove() is always safe and stays ungated.
  */
 const _ = require('lodash');
 
@@ -52,8 +57,51 @@ function Marketing(assistant) {
 }
 
 // ============================================================
-// Contact management (add / sync / remove) — unchanged
+// Contact management (add / sync / remove)
 // ============================================================
+
+/**
+ * Consent gate — true ONLY when consent.marketing.status is the literal string 'revoked'.
+ * Missing consent, null, or any other value proceeds — legacy users have no consent field
+ * and must keep syncing.
+ *
+ * @param {object|null|undefined} userDoc - User doc data (or null/undefined when no user exists)
+ * @returns {boolean}
+ */
+function isMarketingRevoked(userDoc) {
+  return userDoc?.consent?.marketing?.status === 'revoked';
+}
+
+/**
+ * Look up a user doc by email (same query the marketing webhook processors use).
+ * Returns the doc data, or null when no user matches OR the lookup fails (fail open —
+ * a rare duplicate add is recoverable; silently dropping contacts is not).
+ *
+ * @param {object} admin - firebase-admin instance
+ * @param {object} assistant - Assistant (for logging)
+ * @param {string} email - Email address
+ * @returns {Promise<object|null>}
+ */
+async function findUserByEmail(admin, assistant, email) {
+  const snapshot = await admin.firestore().collection('users')
+    .where('auth.email', '==', email.trim().toLowerCase())
+    .limit(1)
+    .get()
+    .catch((e) => {
+      assistant.error('Marketing: User lookup by email failed (proceeding without consent gate):', e);
+      return null;
+    });
+
+  if (!snapshot || snapshot.empty) {
+    return null;
+  }
+
+  return snapshot.docs[0].data();
+}
+
+// Exposed as statics for plain-node unit tests (consent-gate.test.js)
+Marketing.isMarketingRevoked = isMarketingRevoked;
+Marketing.findUserByEmail = findUserByEmail;
 
 Marketing.prototype.add = async function (options) {
   const self = this;
@@ -63,6 +111,16 @@ Marketing.prototype.add = async function (options) {
   if (!email) {
     assistant.warn('Marketing.add(): No email provided, skipping');
     return {};
+  }
+
+  // Consent gate — if this email maps to a user who revoked marketing consent, never
+  // re-add them. No user doc → proceed (pure newsletter contact). Lookup failure →
+  // proceed (fail open, logged in findUserByEmail).
+  const userDoc = await findUserByEmail(self.admin, assistant, email);
+
+  if (isMarketingRevoked(userDoc)) {
+    assistant.warn(`Marketing.add(): Consent revoked, skipping: ${email}`);
+    return { blocked: 'consent', email };
   }
 
   const validation = await validate(email);
@@ -138,6 +196,13 @@ Marketing.prototype.sync = async function (userDocOrUid) {
   if (!email) {
     assistant.warn('Marketing.sync(): No email found in user doc, skipping');
     return {};
+  }
+
+  // Consent gate — never re-add a user who revoked marketing consent (payment-event
+  // syncs, admin re-syncs, and batch syncs all funnel through here).
+  if (isMarketingRevoked(userDoc)) {
+    assistant.warn(`Marketing.sync(): Consent revoked, skipping: ${email}`);
+    return { blocked: 'consent', email };
   }
 
   const validation = await validate(email);
