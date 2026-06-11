@@ -390,7 +390,7 @@ Security-rules tests use the `rules` client (`src/test/utils/firestore-rules-cli
 
 ## Test Account Isolation (CRITICAL)
 
-**NEVER use shared accounts (`basic`, `admin`, `premium-active`, …) with the `test` processor or any operation that creates side-effect data** (orders, webhooks, subscriptions). The test processor auto-fires webhooks that upgrade a user's subscription asynchronously — using `basic` for a payment-intent test upgrades `basic` to a paid subscription and breaks every subsequent test that depends on `basic` being a basic user.
+**NEVER use shared accounts (`basic`, `admin`, `premium-active`, …) with the `test` processor or any operation that creates side-effect data** (orders, webhooks, subscriptions, consent revocations). The test processor auto-fires webhooks that upgrade a user's subscription asynchronously — using `basic` for a payment-intent test upgrades `basic` to a paid subscription and breaks every subsequent test that depends on `basic` being a basic user.
 
 **Rule: any test that creates persistent side-effect data MUST use a dedicated `journey-*` account.**
 
@@ -402,7 +402,7 @@ const response = await http.as('basic').post('payments/intent', { processor: 'te
 const response = await http.as('journey-payments-intent-discount').post('payments/intent', { processor: 'test', ... });
 ```
 
-**When to create a journey account:** the test uses `processor: 'test'`, creates docs in `payments-orders` / `payments-intents` / `payments-webhooks`, modifies subscription state, or sends webhooks that trigger Firestore onWrite handlers. Add it to `src/test/test-accounts.js` (framework tests) or your project's `test/_init.js` `accounts` array (consumer tests).
+**When to create a journey account:** the test uses `processor: 'test'`, creates docs in `payments-orders` / `payments-intents` / `payments-webhooks`, modifies subscription state, sends webhooks that trigger Firestore onWrite handlers, or **writes `consent.marketing` (grant/revoke)** — e.g. marketing webhook revoke events, or `DELETE /marketing/contact` (which mirrors `revoked` to the user doc). Revoked consent persists for the rest of the run and trips the email library's consent gate (`{ blocked: 'consent' }`) on every later `sync()`/`add()` of that account. Existing examples: `journey-webhook-revoke` (webhook revoke events), `journey-marketing-sync` (extended-mode live-provider sync + cleanup; `_test.allow_*` prefix). Add new ones to `src/test/test-accounts.js` (framework tests) or your project's `test/_init.js` `accounts` array (consumer tests).
 
 **Shared accounts are safe for:** validation-only tests (missing fields, invalid input, auth rejection, unknown processor), read-only operations, and tests with no async side effects.
 

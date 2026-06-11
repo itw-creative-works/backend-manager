@@ -14,6 +14,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.6.4] - 2026-06-11
+
+### Changed
+- **Consent side effects moved off shared test accounts (journey-account isolation).** The marketing webhook suite's revoke-event tests (`test/routes/marketing/webhook.js`) repeatedly write `consent.marketing.status = 'revoked'` to their target account — persistent side-effect data that previously landed on the shared `basic` account, leaving it revoked for the remainder of every run (and, since the v5.6.3 library consent gate, changing `sync()`/`add()` behavior for every later suite touching it). They now target a dedicated `journey-webhook-revoke` account. The extended-mode lifecycle suite (`test/email/marketing-lifecycle.js`) likewise now syncs a dedicated `journey-marketing-sync` account (`_test.allow_*` prefix) instead of the shared `consent-granted` sentinel (which the signup + consent-lifecycle suites rely on). Its cleanup step also now deletes the contact the suite actually created — previously it deleted the ADMIN account's contact, which (post-v5.6.3) revoked admin's doc consent mid-run AND left the synced contact behind in SendGrid/Beehiiv after every extended run. `docs/test-framework.md`'s journey-account rule now lists `consent.marketing` writes as a trigger. Validated: marketing route suites pass (46 passing / 10 env-gated skips / 0 failures).
+
+### Fixed
+- **Anonymous HMAC unsubscribe tests now actually run.** The self-test boot (`src/cli/commands/test.js`) injects a test-only `UNSUBSCRIBE_HMAC_KEY` into the process env (the emulated functions inherit it — same mechanism as the fixture webhook key), closing the fixture gap that left all 8 anon-HMAC tests in `test/routes/marketing/email-preferences.js` failing as "known env gap". Those tests are the route-level coverage for the v5.6.3 HMAC changes (signature validation, rate limiting, consent mirroring); marketing suites went from 38 passing + 8 failing to 46 passing + 0 failing.
+
 # [5.6.3] - 2026-06-11
 
 ### Fixed

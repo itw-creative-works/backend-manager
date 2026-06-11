@@ -61,8 +61,10 @@ module.exports = {
       auth: 'admin',
 
       async run({ http, assert, accounts, config, Manager }) {
-        // Use consent-granted account — it has _test.allow_* prefix that bypasses validation
-        const grantedUid = accounts['consent-granted'].uid;
+        // Dedicated journey account — its _test.allow_* prefix bypasses validation, and the
+        // cleanup step's DELETE revokes its doc consent, so it must not be a shared sentinel
+        // (consent-granted is used by the signup + consent-lifecycle suites).
+        const grantedUid = accounts['journey-marketing-sync'].uid;
         const admin = Manager.libraries.admin;
         await admin.firestore().doc(`users/${grantedUid}`).set({
           consent: { marketing: { status: 'granted' } },
@@ -112,14 +114,17 @@ module.exports = {
       },
     },
 
-    // Step 4: Clean up the admin test contact that sync added
+    // Step 4: Clean up the contact the sync step added to the live providers.
+    // DELETE also mirrors revoked consent to the matching user doc — which is why this
+    // targets the dedicated journey account (step 2 re-seeds granted before syncing, so
+    // the suite is self-healing across runs).
     {
-      name: 'cleanup-synced-admin-contact',
+      name: 'cleanup-synced-contact',
       auth: 'admin',
 
       async run({ http, accounts }) {
         await http.delete('backend-manager/marketing/contact', {
-          email: accounts.admin.email,
+          email: accounts['journey-marketing-sync'].email,
         }).catch(() => {});
       },
     },

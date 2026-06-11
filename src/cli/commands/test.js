@@ -237,6 +237,11 @@ class TestCommand extends BaseCommand {
       process.env.BACKEND_MANAGER_WEBHOOK_KEY = process.env.BACKEND_MANAGER_WEBHOOK_KEY || cfg.backend_manager?.webhookKey;
     } catch (_) { /* fixture config unreadable — let the normal key check report it */ }
 
+    // Anonymous HMAC unsubscribe tests sign links with this shared secret; the
+    // emulated functions inherit it from this process env (same mechanism as the
+    // webhook key above). Test-only value — production sets its own env var.
+    process.env.UNSUBSCRIBE_HMAC_KEY = process.env.UNSUBSCRIBE_HMAC_KEY || '_test-unsubscribe-hmac-key';
+
     this.ensureFixtureServiceAccount(fixture);
     this.linkFixtureDeps(fixture);
     this.log(chalk.cyan(`  Self-test: booting bundled fixture project (${fixture})`));

@@ -18,8 +18,12 @@
  *   - Silent skip when email doesn't map to a user (shared SendGrid account scenario)
  *   - Batched events processed independently
  *   - Unsupported event types ignored
+ *
+ * All revoke-event tests target the dedicated `journey-webhook-revoke` account: they
+ * leave it with consent.marketing.status='revoked' (persistent side-effect data), which
+ * must never land on the shared `basic` account — revoked consent persists for the rest
+ * of the run and trips the email library's consent gate for later syncs of that account.
  */
-const { TEST_ACCOUNTS } = require('../../../src/test/test-accounts.js');
 
 // Helper — generate a unique sg_event_id per test
 function sgEventId(name) {
@@ -105,8 +109,8 @@ module.exports = {
       name: 'sendgrid-group-unsubscribe-writes-consent',
       auth: 'none',
       async run({ http, firestore, assert, accounts }) {
-        const uid = accounts.basic.uid;
-        const email = accounts.basic.email;
+        const uid = accounts['journey-webhook-revoke'].uid;
+        const email = accounts['journey-webhook-revoke'].email;
         const eventId = sgEventId('group-unsub');
         const eventTimestamp = Math.floor(Date.now() / 1000);
 
@@ -130,8 +134,8 @@ module.exports = {
       name: 'sendgrid-unsubscribe-event-handled',
       auth: 'none',
       async run({ http, firestore, assert, accounts }) {
-        const uid = accounts.basic.uid;
-        const email = accounts.basic.email;
+        const uid = accounts['journey-webhook-revoke'].uid;
+        const email = accounts['journey-webhook-revoke'].email;
         const eventId = sgEventId('unsub');
 
         const response = await http.as('none').post(
@@ -152,8 +156,8 @@ module.exports = {
       name: 'sendgrid-spamreport-event-handled',
       auth: 'none',
       async run({ http, firestore, assert, accounts }) {
-        const uid = accounts.basic.uid;
-        const email = accounts.basic.email;
+        const uid = accounts['journey-webhook-revoke'].uid;
+        const email = accounts['journey-webhook-revoke'].email;
         const eventId = sgEventId('spamreport');
 
         const response = await http.as('none').post(
@@ -173,8 +177,8 @@ module.exports = {
       name: 'sendgrid-hard-bounce-event-handled',
       auth: 'none',
       async run({ http, firestore, assert, accounts }) {
-        const uid = accounts.basic.uid;
-        const email = accounts.basic.email;
+        const uid = accounts['journey-webhook-revoke'].uid;
+        const email = accounts['journey-webhook-revoke'].email;
         const eventId = sgEventId('hard-bounce');
 
         // Only hard bounces (bounce_classification='Invalid Address') revoke consent.
@@ -195,8 +199,8 @@ module.exports = {
       name: 'sendgrid-dropped-hard-bounce-handled',
       auth: 'none',
       async run({ http, firestore, assert, accounts }) {
-        const uid = accounts.basic.uid;
-        const email = accounts.basic.email;
+        const uid = accounts['journey-webhook-revoke'].uid;
+        const email = accounts['journey-webhook-revoke'].email;
         const eventId = sgEventId('dropped');
 
         // 'dropped' follows the same classification filter as 'bounce'.
@@ -219,7 +223,7 @@ module.exports = {
       name: 'sendgrid-technical-bounce-ignored',
       auth: 'none',
       async run({ http, assert, accounts }) {
-        const email = accounts.basic.email;
+        const email = accounts['journey-webhook-revoke'].email;
         const eventId = sgEventId('technical-bounce');
 
         // Technical bounces (DMARC, TLS, DNS) are sender-side issues — the recipient's
@@ -239,7 +243,7 @@ module.exports = {
       name: 'sendgrid-bounce-without-classification-ignored',
       auth: 'none',
       async run({ http, assert, accounts }) {
-        const email = accounts.basic.email;
+        const email = accounts['journey-webhook-revoke'].email;
         const eventId = sgEventId('unclassified-bounce');
 
         // No bounce_classification — can't confirm a hard bounce, so skip.
@@ -258,7 +262,7 @@ module.exports = {
       name: 'sendgrid-delivered-event-ignored',
       auth: 'none',
       async run({ http, firestore, assert, accounts }) {
-        const email = accounts.basic.email;
+        const email = accounts['journey-webhook-revoke'].email;
         const eventId = sgEventId('delivered');
 
         const response = await http.as('none').post(
@@ -276,7 +280,7 @@ module.exports = {
       name: 'sendgrid-open-event-ignored',
       auth: 'none',
       async run({ http, assert, accounts }) {
-        const email = accounts.basic.email;
+        const email = accounts['journey-webhook-revoke'].email;
         const eventId = sgEventId('open');
 
         const response = await http.as('none').post(
@@ -317,8 +321,8 @@ module.exports = {
       name: 'sendgrid-batched-events-processed-independently',
       auth: 'none',
       async run({ http, firestore, assert, accounts }) {
-        const uid = accounts.basic.uid;
-        const email = accounts.basic.email;
+        const uid = accounts['journey-webhook-revoke'].uid;
+        const email = accounts['journey-webhook-revoke'].email;
         const e1 = sgEventId('batch-1');
         const e2 = sgEventId('batch-2');
         const e3 = sgEventId('batch-3');
@@ -348,8 +352,8 @@ module.exports = {
       name: 'sendgrid-duplicate-event-reprocessed-idempotently',
       auth: 'none',
       async run({ http, firestore, assert, accounts }) {
-        const uid = accounts.basic.uid;
-        const email = accounts.basic.email;
+        const uid = accounts['journey-webhook-revoke'].uid;
+        const email = accounts['journey-webhook-revoke'].email;
         const eventId = sgEventId('duplicate');
 
         // First delivery
@@ -380,8 +384,8 @@ module.exports = {
       name: 'sendgrid-event-without-eventId-processed',
       auth: 'none',
       async run({ http, firestore, assert, accounts }) {
-        const uid = accounts.basic.uid;
-        const email = accounts.basic.email;
+        const uid = accounts['journey-webhook-revoke'].uid;
+        const email = accounts['journey-webhook-revoke'].email;
 
         const response = await http.as('none').post(
           `backend-manager/marketing/webhook?provider=sendgrid&key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`,
@@ -404,8 +408,8 @@ module.exports = {
       name: 'beehiiv-subscription-unsubscribed-writes-consent',
       auth: 'none',
       async run({ http, firestore, assert, accounts, config, skip }) {
-        const uid = accounts.basic.uid;
-        const email = accounts.basic.email;
+        const uid = accounts['journey-webhook-revoke'].uid;
+        const email = accounts['journey-webhook-revoke'].email;
         const eventId = `_test-bh-unsub-${Date.now()}`;
         const eventISO = new Date().toISOString();
         const publicationId = config.marketing?.newsletter?.publicationId;
@@ -439,8 +443,8 @@ module.exports = {
       name: 'beehiiv-subscription-deleted-handled',
       auth: 'none',
       async run({ http, firestore, assert, accounts, config }) {
-        const uid = accounts.basic.uid;
-        const email = accounts.basic.email;
+        const uid = accounts['journey-webhook-revoke'].uid;
+        const email = accounts['journey-webhook-revoke'].email;
         const eventId = `_test-bh-deleted-${Date.now()}`;
         const publicationId = config.marketing?.newsletter?.publicationId;
 
@@ -468,8 +472,8 @@ module.exports = {
       name: 'beehiiv-subscription-paused-handled',
       auth: 'none',
       async run({ http, firestore, assert, accounts, config }) {
-        const uid = accounts.basic.uid;
-        const email = accounts.basic.email;
+        const uid = accounts['journey-webhook-revoke'].uid;
+        const email = accounts['journey-webhook-revoke'].email;
         const eventId = `_test-bh-paused-${Date.now()}`;
         const publicationId = config.marketing?.newsletter?.publicationId;
 
@@ -499,13 +503,13 @@ module.exports = {
         // Send an event with a publication_id that does NOT match this brand's pub.
         // Simulates the shared-devbeans scenario where the parent forwarder fans
         // an event to brands that don't share the publication — they silent-skip.
-        const email = accounts.basic.email;
+        const email = accounts['journey-webhook-revoke'].email;
         const eventId = `_test-bh-pubmismatch-${Date.now()}`;
 
         // Snapshot revokedAt BEFORE the request so we can prove the pub-mismatch
         // handler didn't write anything new. (The basic account may already have
         // a beehiiv-sourced revoke from a prior test that legitimately fired.)
-        const beforeDoc = await firestore.get(`users/${accounts.basic.uid}`);
+        const beforeDoc = await firestore.get(`users/${accounts['journey-webhook-revoke'].uid}`);
         const beforeRevokedAt = beforeDoc?.consent?.marketing?.revokedAt || null;
 
         const response = await http.as('none').post(
@@ -527,7 +531,7 @@ module.exports = {
 
         // Reload the user doc and verify revokedAt is byte-equivalent to before —
         // pub-mismatch must not write a new revoke entry.
-        const afterDoc = await firestore.get(`users/${accounts.basic.uid}`);
+        const afterDoc = await firestore.get(`users/${accounts['journey-webhook-revoke'].uid}`);
         const afterRevokedAt = afterDoc?.consent?.marketing?.revokedAt || null;
 
         assert.deepEqual(
@@ -568,7 +572,7 @@ module.exports = {
       auth: 'none',
       async run({ http, assert, accounts, config }) {
         // 'subscription.created' (new signup) is NOT a revoke — should be ignored.
-        const email = accounts.basic.email;
+        const email = accounts['journey-webhook-revoke'].email;
         const publicationId = config.marketing?.newsletter?.publicationId;
         const eventId = `_test-bh-created-${Date.now()}`;
 
@@ -593,8 +597,8 @@ module.exports = {
       name: 'beehiiv-duplicate-event-reprocessed-idempotently',
       auth: 'none',
       async run({ http, firestore, assert, accounts, config, skip }) {
-        const uid = accounts.basic.uid;
-        const email = accounts.basic.email;
+        const uid = accounts['journey-webhook-revoke'].uid;
+        const email = accounts['journey-webhook-revoke'].email;
         const publicationId = config.marketing?.newsletter?.publicationId;
         const eventId = `_test-bh-dup-${Date.now()}`;
 

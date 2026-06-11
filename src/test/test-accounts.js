@@ -530,6 +530,37 @@ const JOURNEY_ACCOUNTS = {
       subscription: { product: { id: 'premium' }, status: 'cancelled', expires: getPastExpires() },
     },
   },
+  // Journey: marketing webhook revocation (test/routes/marketing/webhook.js). The
+  // SendGrid/Beehiiv revoke-event tests repeatedly write consent.marketing.status='revoked'
+  // to the target account — persistent side-effect data, so it must never be the shared
+  // `basic` account (revoked consent would persist for the rest of the run and trip the
+  // email library's consent gate for every later sync of that account).
+  'journey-webhook-revoke': {
+    id: 'journey-webhook-revoke',
+    uid: '_test-journey-webhook-revoke',
+    email: '_test.journey-webhook-revoke@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'basic' }, status: 'active' },
+      personal: { name: { first: 'Webb', last: 'Revoke' } },
+    },
+  },
+  // Journey: live-provider sync round-trip (test/email/marketing-lifecycle.js, extended
+  // mode only). The `_test.allow_*` email prefix bypasses the `_test.*` marketing block so
+  // sync() reaches real SendGrid/Beehiiv; the suite's cleanup DELETE then removes the
+  // contact AND mirrors revoked consent to this account's doc. Dedicated account so that
+  // side effect stays isolated — the shared `consent-granted` sentinel is used by the
+  // signup and consent-lifecycle suites and must keep its granted state.
+  'journey-marketing-sync': {
+    id: 'journey-marketing-sync',
+    uid: '_test-journey-marketing-sync',
+    email: '_test.allow_journey-marketing-sync@{domain}',
+    properties: {
+      roles: {},
+      subscription: { product: { id: 'basic' }, status: 'active' },
+      personal: { name: { first: 'Lifecycle', last: 'Sync' } },
+    },
+  },
 };
 
 /**
