@@ -31,6 +31,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **`docs/testing.md` renamed `docs/test-framework.md`** (H1 `# Testing` → `# Test Framework`) for cross-framework doc-file parity — EM/BXM/UJM all name their test reference `docs/test-framework.md`, and the mirrored docs must match down to the file name. All references updated (`CLAUDE.md`, `README.md`, `docs/*.md` cross-links, `src/defaults/CLAUDE.md`, `src/defaults/test/_init.js`, historical CHANGELOG links).
 - **Log files renamed for cross-framework parity.** `functions/serve.log` → `functions/dev.log` (the `npx mgr serve` dev-server output) and `functions/logs.log` → `functions/production.log` (the `npx mgr logs` Cloud Logging output). The `dev`/`test` names now match EM/BXM/UJM; `emulator.log` and `test.log` are unchanged. BEM logs still live in `functions/` (not `logs/`) — that directory is a deliberate exception so they sit beside firebase-tools' own `*-debug.log` files. The watcher reset sentinel `serve.log.reset` is correspondingly `dev.log.reset` (internal, in `.temp/`).
 
+### Fixed
+- **`npm publish` vs the fixture's runtime symlinks.** New `prepublishOnly` script removes `src/test/fixtures/firebase-project/functions/node_modules` before packing — the self-test's `backend-manager` symlink points back at the repo root, and prepare-package's publish-time cleanup walk (`jetpack.find` with a top-level-only `!node_modules/**` exclusion) followed the cycle until `ENAMETOOLONG`. The symlinks are throwaway runtime artifacts; the next self-test run regenerates them via `linkFixtureDeps()`.
+- **Fixture `.firebaserc` re-included over the global `.gitignore` rule** (`!src/test/fixtures/firebase-project/.firebaserc`) — the emulator boots with no `--project` flag and resolves the demo project from `.firebaserc`, so a fresh clone's self-test would have failed without it.
+
 # [5.5.4] - 2026-06-09
 
 ### Fixed

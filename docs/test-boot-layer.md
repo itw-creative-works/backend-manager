@@ -44,6 +44,8 @@ module.exports = {
 
 **Runtime-only, gitignored** (never committed): before boot, the test command symlinks the local `backend-manager` (+ `firebase-admin`/`firebase-functions` from BEM's own `node_modules`) into the fixture's `functions/node_modules`, injects the fixture admin keys into the env, and generates a **throwaway RSA `service-account.json`** (emulator-only — a `demo-` project never authenticates against Google). All of this lives in `setupSelfTest()` / `linkFixtureDeps()` / `ensureFixtureServiceAccount()` in [src/cli/commands/test.js](../src/cli/commands/test.js).
 
+Two packaging details keep the fixture sound: the fixture's `.firebaserc` is **re-included over the repo's global `.firebaserc` ignore** (the emulator boots with no `--project` flag, so it resolves `demo-backend-manager` from that file — a fresh clone needs it), and a `prepublishOnly` script **removes the runtime symlinks before `npm publish`** (the `backend-manager` symlink points back at the repo root, which would loop prepare-package's publish-time tree walk; the next self-test run relinks them).
+
 ## `BEM_TEST_BOOT_PROJECT`
 
 | Env | Purpose |
