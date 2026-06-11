@@ -60,14 +60,14 @@ class WatchCommand extends BaseCommand {
     // command isn't watching, the file is harmless and gets cleaned up by the next
     // boot's stale-sentinel sweep.
     const triggerFile = config.triggerFile;
-    const serveLogResetPath = this.getTempPath('serve.log.reset');
+    const devLogResetPath = this.getTempPath('dev.log.reset');
     const emulatorLogResetPath = this.getTempPath('emulator.log.reset');
     const nodemon = spawn(nodemonPath, [
       '--on-change-only',
       '--delay', '1',
       '--watch', config.bemSrcDir,
       '--ext', 'js,json',
-      '--exec', `node -e "var f='${triggerFile}',fs=require('fs');if(!fs.existsSync(f)){fs.writeFileSync(f,'// init');require('child_process').execSync('sleep 0.1');}fs.writeFileSync(f,'// '+Date.now());try{fs.writeFileSync('${serveLogResetPath}','');}catch(e){}try{fs.writeFileSync('${emulatorLogResetPath}','');}catch(e){}" && echo "  [BEM] Triggered hot reload"`,
+      '--exec', `node -e "var f='${triggerFile}',fs=require('fs');if(!fs.existsSync(f)){fs.writeFileSync(f,'// init');require('child_process').execSync('sleep 0.1');}fs.writeFileSync(f,'// '+Date.now());try{fs.writeFileSync('${devLogResetPath}','');}catch(e){}try{fs.writeFileSync('${emulatorLogResetPath}','');}catch(e){}" && echo "  [BEM] Triggered hot reload"`,
     ], {
       stdio: 'inherit',
       detached: false,
@@ -104,12 +104,12 @@ class WatchCommand extends BaseCommand {
     // Use nodemon to watch the BEM src directory and touch the trigger file on changes.
     // Also drop <log>.reset sentinels so any sibling serve/emulator command rolls its
     // log file on each reload (mirrors the test runner's log-roll pattern).
-    const serveLogResetPath = this.getTempPath('serve.log.reset');
+    const devLogResetPath = this.getTempPath('dev.log.reset');
     const emulatorLogResetPath = this.getTempPath('emulator.log.reset');
     const nodemon = spawn(nodemonPath, [
       '--watch', config.bemSrcDir,
       '--ext', 'js,json',
-      '--exec', `touch "${config.triggerFile}" "${serveLogResetPath}" "${emulatorLogResetPath}" && echo "  → Triggered hot reload"`,
+      '--exec', `touch "${config.triggerFile}" "${devLogResetPath}" "${emulatorLogResetPath}" && echo "  → Triggered hot reload"`,
     ], {
       stdio: 'inherit',
       cwd: config.bemDir,

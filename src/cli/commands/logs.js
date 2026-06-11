@@ -73,7 +73,7 @@ class LogsCommand extends BaseCommand {
     ].filter(Boolean).join(' ');
 
     // Set up log file in the project's functions/ directory
-    const logPath = this.getLogsPath('logs.log');
+    const logPath = this.getLogsPath('production.log');
 
     this.log(chalk.gray(`  Filter: ${filter || '(none)'}`));
     this.log(chalk.gray(`  Limit: ${limit}`));
@@ -126,7 +126,7 @@ class LogsCommand extends BaseCommand {
     let stopped = false;
 
     // Set up log file in the project's functions/ directory
-    const logPath = this.getLogsPath('logs.log');
+    const logPath = this.getLogsPath('production.log');
     const logStream = fs.createWriteStream(logPath, { flags: 'w' });
 
     const filter = this.buildFilter(argv, { excludeTimestamp: true });

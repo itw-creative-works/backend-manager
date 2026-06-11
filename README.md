@@ -850,18 +850,19 @@ npx mgr test
 
 ### Extended Mode (real APIs)
 
-Set `TEST_EXTENDED_MODE=true` on the **test command** to opt into real external API calls (SendGrid, Beehiiv, Stripe webhook handlers, marketing libraries). The flag flows automatically to the running emulator via `<projectRoot>/.temp/test-mode.json` — no need to set it on the emulator too:
+Pass `--extended` (or set `TEST_EXTENDED_MODE=true`) on the **test command** to opt into real external API calls (SendGrid, Beehiiv, Stripe webhook handlers, marketing libraries). `--extended` is the CLI shorthand for the shared, unprefixed `TEST_EXTENDED_MODE` env var standardized across BEM/BXM/UJM/EM — the two forms are equivalent. The mode flows automatically to BOTH the test-runner subprocess and the running emulator (via `<projectRoot>/.temp/test-mode.json`) — no need to set it on the emulator too:
 
 ```bash
 # Terminal 1 — start once, no flag needed
 npx mgr emulator
 
 # Terminal 2 — toggle freely between runs
-TEST_EXTENDED_MODE=true npx mgr test ...   # extended mode
+npx mgr test --extended ...                 # extended mode (--extended sets TEST_EXTENDED_MODE)
+TEST_EXTENDED_MODE=true npx mgr test ...    # identical — the env-var form
 npx mgr test ...                            # normal mode (next run flips back)
 ```
 
-See [docs/testing.md](docs/testing.md#extended-mode-test_extended_mode) for the full mechanism.
+See [docs/test-framework.md](docs/test-framework.md#extended-mode-test_extended_mode) for the full mechanism.
 
 ### Filtering Tests
 
@@ -875,10 +876,10 @@ npx mgr test user/ admin/       # Multiple paths
 ### Log Files
 
 BEM CLI commands automatically save output to log files in the project's `functions/` directory (alongside firebase-tools' own `*-debug.log` files so everything is grep-able from one place):
-- **`functions/serve.log`** — Output from `npx mgr serve`
+- **`functions/dev.log`** — Output from `npx mgr serve` (BEM's local dev server)
 - **`functions/emulator.log`** — Full emulator + Cloud Functions output (`npx mgr emulator`)
 - **`functions/test.log`** — Test runner output (`npx mgr test`, when running against an existing emulator)
-- **`functions/logs.log`** — Cloud Function logs (`npx mgr logs:read` or `npx mgr logs:tail`)
+- **`functions/production.log`** — Production Cloud Function logs (`npx mgr logs:read` or `npx mgr logs:tail`)
 
 Logs are overwritten on each run and gitignored via `*.log`. Use them to debug failing tests or review function output. Transient internal artifacts (reset sentinels, watch trigger, `test-mode.json`) live separately in `<projectDir>/.temp/`.
 

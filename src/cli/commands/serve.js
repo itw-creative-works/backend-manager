@@ -32,7 +32,7 @@ class ServeCommand extends BaseCommand {
     // Set up log file in the project directory.
     // Mirrors the emulator.js pattern: the file is truncated on boot and on every
     // hot reload. Two reset signals are honored:
-    //   1. Sentinel file (serve.log.reset) — used by the BEM watcher when source
+    //   1. Sentinel file (dev.log.reset) — used by the BEM watcher when source
     //      changes in backend-manager itself trigger a reload.
     //   2. Reload marker on stdout (`Using node@22 from host.`) — catches reloads
     //      triggered by firebase serve's own internal watcher (any change inside
@@ -44,8 +44,8 @@ class ServeCommand extends BaseCommand {
     //      lines on the first cycle (subsequent cycles route those elsewhere), so
     //      we'd end up with a near-empty log. Rolling at the START of the cycle
     //      lets us capture whatever firebase-tools does emit, complete-or-not.
-    const logPath = this.getLogsPath('serve.log');
-    const resetSentinelPath = this.getTempPath('serve.log.reset');
+    const logPath = this.getLogsPath('dev.log');
+    const resetSentinelPath = this.getTempPath('dev.log.reset');
     // Match any node version: "Using node@22 from host.", "Using node@20 from host.", etc.
     const RELOAD_MARKER = /Using node@\d+ from host\./;
     const stripAnsi = (str) => str.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');

@@ -1,6 +1,6 @@
 /**
  * Test lifecycle hook for this project. Runs before any test (not a test itself).
- * See backend-manager/docs/testing.md → "test/_init.js".
+ * See backend-manager/docs/test-framework.md → "test/_init.js".
  */
 
 module.exports = ({ config }) => ({

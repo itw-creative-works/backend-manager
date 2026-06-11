@@ -315,7 +315,7 @@ Most BEM tests are self-contained against the local emulator. The marketing-cons
 
 The validation pipeline (`src/manager/libraries/email/validation.js`) blocks all `_test.*` emails from reaching providers via the `/^_test\.(?!allow_)/` pattern in `blocked-local-patterns.js`. The two `_test.allow_*` sentinels (`_test.allow_consent-granted` and `_test.allow_consent-declined`) used by the lifecycle test bypass that gate intentionally, and the test cleans up after itself (phase-3 removes the granted contact via `Manager.Email().remove()`).
 
-The "all cleanup runs at start, never at the end" rule documented in [docs/testing.md](testing.md) applies to all test data, including third-party providers.
+The "all cleanup runs at start, never at the end" rule documented in [docs/test-framework.md](test-framework.md) applies to all test data, including third-party providers.
 
 ## Frontend pieces (cross-references)
 

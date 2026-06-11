@@ -18,6 +18,8 @@ This project consumes **Backend Manager** (BEM) — a comprehensive framework fo
 cd functions
 npx mgr setup             # validate config + scaffold defaults + run checks
 npx mgr emulator          # start Firebase emulators (auth/firestore/functions/database/storage)
+npx mgr test              # run framework + project test suites (project: → your tests only, mgr:/bem: → framework only)
+npx mgr test --extended   # opt into REAL external APIs (shorthand for the shared TEST_EXTENDED_MODE; default: skipped)
 npx mgr watch             # auto-reload functions on file change
 npx mgr deploy            # deploy to Firebase
 npx mgr logs:read         # read Cloud Functions logs (also: logs:tail to stream)
@@ -78,6 +80,10 @@ Auth events, payment-webhook transitions, and cron jobs are wired automatically 
 
 - **`Manager.require(name)`** resolves from BEM's module context. Consumer code (routes, schemas) can use it to access BEM's bundled dependencies without installing them directly.
 - **web-manager owns Firebase on the client side.** Frontend consumer code (UJM pages, BXM extensions, EM renderers) NEVER imports Firebase directly. BEM backend code uses `firebase-admin` directly (server-side is different).
+
+## Testing
+
+Every feature ships with tests at every surface it exposes: **logic** (`test/routes/`, `test/events/` — handler suites against the real emulator), **wiring** (route round-trips over `http.as(...)` — registration, auth gates, schema validation), and **rules** (`test/rules/` when Firestore rules change). Skip a surface only when the feature genuinely doesn't have one — "the handler test covers it" does not excuse the route round-trip. See `test/README.md` and `node_modules/backend-manager/docs/test-framework.md`.
 
 <!-- Everything above this marker is owned by the framework and rewritten on every `npx mgr setup`. Add your project-specific notes below — they are preserved across setups. -->
 

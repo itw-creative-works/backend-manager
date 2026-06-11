@@ -21,6 +21,9 @@ firebase-debug.log*
 # For a team working on the same Firebase project(s), it is recommended to leave
 # it commented so all members can deploy to the same project(s) in .firebaserc.
 .firebaserc
+# …except the self-test fixture's — the emulator resolves the demo project from it,
+# so a fresh clone needs it committed (no --project flag is passed at boot).
+!src/test/fixtures/firebase-project/.firebaserc
 
 # Runtime data
 pids

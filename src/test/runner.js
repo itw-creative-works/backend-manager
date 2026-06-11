@@ -474,6 +474,13 @@ class TestRunner {
         continue;
       }
 
+      // Skip the boot/ smoke layer except during framework self-test. It targets
+      // the bundled fixture project and would be redundant noise in a real
+      // consumer's run (mirrors EM/BXM/UJM excluding boot/** for consumers).
+      if (item === 'boot' && !this.options.isFrameworkSelfTest) {
+        continue;
+      }
+
       // Skip legacy 'functions' directory unless --legacy flag is set
       if (item === 'functions' && !this.options.includeLegacy) {
         continue;
@@ -494,7 +501,10 @@ class TestRunner {
 
   /**
    * Filter tests based on CLI paths
-   * Supports source prefixes: bem:path/, project:path/
+   * Supports source prefixes (standardized across all OMEGA frameworks):
+   *   mgr:path/ / bem:path/  → framework tests ('mgr:' is the universal alias)
+   *   project:path/          → project tests
+   *   no prefix              → both sources, matched by path
    */
   filterTests(testFiles, source) {
     if (this.options.testPaths.length === 0) {
@@ -505,11 +515,13 @@ class TestRunner {
       const relativePath = this.getRelativeTestPath(testFile, source);
 
       for (const filterPath of this.options.testPaths) {
-        // Check for source prefix (bem: or project:)
-        const prefixMatch = filterPath.match(/^(bem|project):(.*)$/);
+        // Check for source prefix (mgr:/bem: → framework, project: → project)
+        const prefixMatch = filterPath.match(/^(mgr|bem|project):(.*)$/);
 
         if (prefixMatch) {
-          const [, prefix, pathPart] = prefixMatch;
+          const [, rawPrefix, pathPart] = prefixMatch;
+          // 'mgr' is the universal framework alias → normalize to this framework's source id ('bem').
+          const prefix = rawPrefix === 'mgr' ? 'bem' : rawPrefix;
 
           // Skip if source doesn't match prefix
           if (prefix !== source) {

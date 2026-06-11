@@ -19,9 +19,9 @@ npx mgr logs:tail                                     # Stream live logs
 npx mgr logs:tail --fn bm_paymentsWebhookOnWrite      # Stream filtered live logs
 ```
 
-Both commands save output to `functions/logs.log` (overwritten on each run). `logs:read` saves raw JSON; `logs:tail` streams text.
+Both commands save output to `functions/production.log` (overwritten on each run). `logs:read` saves raw JSON; `logs:tail` streams text.
 
-**Cloud Logs vs Local Logs:** These commands query **production** Google Cloud Logging. For **local/dev** logs, read `functions/serve.log` (from `npx mgr serve`) or `functions/emulator.log` (from `npx mgr test`) directly — they are plain text files, not gcloud.
+**Cloud Logs vs Local Logs:** These commands query **production** Google Cloud Logging. For **local/dev** logs, read `functions/dev.log` (from `npx mgr serve`) or `functions/emulator.log` (from `npx mgr test`) directly — they are plain text files, not gcloud.
 
 ## Flags
 

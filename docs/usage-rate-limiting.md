@@ -8,6 +8,21 @@ Usage is tracked per-metric (e.g., `requests`, `sponsorships`) with four fields:
 - `total`: All-time count, never resets
 - `last`: Object with `id`, `timestamp`, `timestampUNIX` of the last usage event
 
+## Core API
+
+Routes receive `usage` in their context object, already initialized for the authenticated user. **Always use these methods** — never manually read/write `usage` fields on Firestore docs; the field path is always `{doc}.usage.{metric}`, and BEM creates the structure on first write (do NOT pre-initialize usage fields on document creation).
+
+| Method | Sync? | What it does |
+|--------|-------|--------------|
+| `usage.validate(metric)` | async | Validates remaining quota; rejects with 429 over limit (daily caps below; hCaptcha fallback supported) |
+| `usage.increment(metric, value?)` | sync | Increments `total`/`monthly`/`daily` + `last` in memory (default value 1) |
+| `usage.update()` | async | Persists pending changes to the user doc AND all mirrors in parallel — **must be called after `increment()`** |
+| `usage.getLimit(name)` | sync | A specific limit from the user's product config (plan-based) |
+| `usage.getProduct(id?)` | sync | The user's resolved product/plan |
+| `usage.getUsage(name?)` | sync | Current usage for a metric, or the whole usage object |
+
+For anonymous-to-owner billing, call `setUser()` BEFORE `validate()` — validation must check the owner's quota, not the visitor's (see [Proxy Usage](#proxy-usage-setuser--mirrors)).
+
 ## Limits & Daily Caps
 
 Limits are always specified as **monthly** values in product config (e.g., `limits.requests = 100` means 100/month).

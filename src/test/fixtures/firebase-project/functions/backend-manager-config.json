@@ -1,0 +1,24 @@
+{
+  "brand": {
+    "id": "backend-manager",
+    "name": "BEM Fixture",
+    "url": "https://example.com",
+    "contact": {
+      "email": "fixture@example.com"
+    }
+  },
+  "backend_manager": {
+    "key": "fixture-admin-key",
+    "webhookKey": "fixture-webhook-key",
+    "namespace": "00000000-0000-0000-0000-000000000000"
+  },
+  "firebaseConfig": {
+    "apiKey": "fixture-api-key",
+    "authDomain": "demo-backend-manager.firebaseapp.com",
+    "projectId": "demo-backend-manager",
+    "storageBucket": "demo-backend-manager.appspot.com",
+    "messagingSenderId": "000000000000",
+    "appId": "1:000000000000:web:0000000000000000000000",
+    "measurementId": "G-0000000000"
+  }
+}

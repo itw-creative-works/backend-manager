@@ -1,0 +1,8 @@
+# The runner symlinks backend-manager/firebase-admin/firebase-functions in here
+# before booting the fixture emulator (see src/cli/commands/test.js). Never committed.
+node_modules/
+*.log
+.temp/
+
+# Runtime-generated throwaway RSA service account (emulator-only). Never committed.
+service-account.json

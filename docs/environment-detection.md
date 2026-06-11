@@ -88,4 +88,4 @@ If you need a new environment-derived helper, add it next to the others on the M
 
 ## See also
 
-- [testing.md](testing.md) — `BEM_TESTING` is set automatically by the test runner; `TEST_EXTENDED_MODE` gates real external APIs.
+- [test-framework.md](test-framework.md) — `BEM_TESTING` is set automatically by the test runner; `TEST_EXTENDED_MODE` gates real external APIs.

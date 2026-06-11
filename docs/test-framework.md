@@ -1,4 +1,4 @@
-# Testing
+# Test Framework
 
 ## 🚫 NEVER mock — test against the real emulator (HARD RULE)
 
@@ -20,16 +20,36 @@ Mock **nothing** by default. There are exactly two narrow cases where the real d
 
 **Rules for both exceptions:** stub the narrowest seam (one method / one module), restore it immediately, and add a comment stating *why the real thing can't run here*. If you can run it for real, you must.
 
+## Test coverage — every surface gets a test (HARD RULE)
+
+A feature is not done when it works — it's done when every surface it exposes is covered:
+
+| Coverage | Where | Proves |
+|---|---|---|
+| **Logic** | `test/routes/` / `test/events/` | The handler does the right thing — exercised against the real emulator (real Manager, `assistant`, Firestore) |
+| **Wiring** | Route round-trips over `http.as(...)` | The route is registered, auth-gated, schema-validated, and answers correctly over the real HTTP surface — this IS BEM's end-to-end |
+| **Rules** | `test/rules/` suites | Firestore security rules permit/deny exactly as intended (required whenever rules change) |
+
+BEM has no UI layer — a feature's UI coverage lives in the consuming frontend (UJM/BXM/EM), which has its own mirrored coverage convention. External-API paths are covered for real via [Extended Mode](#extended-mode-test_extended_mode), never mocked.
+
+**Skipping a surface is the exception, not the default.** Skip ONLY when the feature genuinely doesn't expose that surface (a pure helper has no route; a route that touches no Firestore docs needs no rules test). Convenience is never a reason: "the handler test already covers it" does NOT excuse the route round-trip — handler tests prove the logic, round-trips prove the wiring (a route can be unregistered or mis-gated while every handler test stays green). When in doubt, write the test.
+
 ## Running Tests
+
+**Where to run:** `npx mgr test` runs from a **Firebase project directory** — a consumer project's root or its `functions/` dir (the runner resolves the project from `cwd`, stripping a trailing `/functions`). A single `npx mgr test` **auto-launches the emulator** (Option 2 below) — you don't need to start one first.
 
 ```bash
 # Option 1: Two terminals
 npx mgr emulator  # Terminal 1 - keeps emulator running
 npx mgr test      # Terminal 2 - runs tests
 
-# Option 2: Single command (auto-starts emulator)
+# Option 2: Single command (auto-starts emulator) — the usual way
 npx mgr test
 ```
+
+### Self-test from the framework repo (bundled fixture)
+
+`npx mgr test` run **from the backend-manager repo itself** is a framework self-test: the repo has no `firebase.json`, so the runner boots a **bundled fixture project** ([`src/test/fixtures/firebase-project/`](../src/test/fixtures/firebase-project)) and runs ONLY the `test/boot/` smoke (emulator boots → fixture `Manager.init()` wires `bm_api` → health returns 200). Mirrors BXM's `BXM_TEST_BOOT_PROJECT` / UJM's `UJ_TEST_BOOT_PROJECT`. Set `BEM_TEST_BOOT_PROJECT=<path>` to self-test against a real consumer instead. The full `routes`/`events`/`rules` suites need a real consumer (use the designated test consumer `ultimate-jekyll-backend` after `npx mgr install dev`); the `boot/` smoke is excluded from consumer runs. **Full reference: [test-boot-layer.md](test-boot-layer.md).**
 
 ### Filtering tests
 
@@ -48,8 +68,8 @@ npx mgr test bem:email/templates
 # Run only consumer project tests (from the project's own test/)
 npx mgr test project:routes/custom
 
-# Combine with extended mode for tests that hit real APIs
-TEST_EXTENDED_MODE=true npx mgr test routes/marketing/push-send
+# Combine with extended mode for tests that hit real APIs (--extended sets the shared TEST_EXTENDED_MODE)
+npx mgr test --extended routes/marketing/push-send
 ```
 
 The filter matches against the test file path. `bem:` and `project:` prefixes scope the filter to framework-only or project-only tests respectively. Without a prefix, both are searched.
@@ -141,7 +161,11 @@ module.exports = ({ config }) => ({
 
 ## Extended Mode (`TEST_EXTENDED_MODE`)
 
-Several routes/handlers skip external API calls (SendGrid, Beehiiv, Stripe webhooks, dispute handlers, marketing libraries) when `process.env.TEST_EXTENDED_MODE` is unset, so unit tests don't fire real emails or webhook side effects. Set the flag to opt **in** to those side effects for a full end-to-end run.
+`TEST_EXTENDED_MODE` is the **shared, unprefixed** extended-mode switch standardized across BEM/BXM/UJM/EM. It opts **in** to REAL external services (default: skipped). The CLI shorthand `--extended` sets it for you, so `npx mgr test --extended` is equivalent to `TEST_EXTENDED_MODE=true npx mgr test`. Either form works; the flag is just sugar over the env var.
+
+Several routes/handlers skip external API calls (SendGrid, Beehiiv, Stripe webhooks, dispute handlers, marketing libraries) when `process.env.TEST_EXTENDED_MODE` is unset, so unit tests don't fire real emails or webhook side effects. Set the flag (or pass `--extended`) to opt **in** to those side effects for a full end-to-end run.
+
+**BEM propagates the mode to BOTH spawned environments — the distinctive BEM detail.** The mode reaches (1) the **test-runner subprocess** (spawned with `{ ...process.env }`, so `TEST_EXTENDED_MODE` carries through) AND (2) the **running emulator's function workers** (via the `.temp/test-mode.json` shared state file written pre-flight by `src/test/utils/test-mode-file.js`, allowlisted in `SYNCED_ENV_KEYS`). That's why a single `--extended` on the test command flips both the runner's in-source gates and the live emulator without restarting it.
 
 The marketing library gates at the SSOT level: `Marketing.add()`, `Marketing.sync()`, and `Marketing.remove()` each short-circuit with `if (assistant.isTesting() && !process.env.TEST_EXTENDED_MODE) return {}` before touching any provider. Callers (auth `onDelete`, webhook processors, contact-delete route) inherit the gate for free — do NOT rely on a per-caller guard for provider safety; add the gate to the library method itself when introducing a new provider-touching method.
 
@@ -152,9 +176,10 @@ The marketing library gates at the SSOT level: `Marketing.add()`, `Marketing.syn
 npx mgr emulator
 
 # Terminal 2 — toggle freely between runs:
-TEST_EXTENDED_MODE=true npx mgr test ...   # runs in extended mode
+npx mgr test --extended ...                 # runs in extended mode (--extended sets TEST_EXTENDED_MODE)
+TEST_EXTENDED_MODE=true npx mgr test ...    # identical — the env-var form
 npx mgr test ...                            # runs in normal mode
-TEST_EXTENDED_MODE=true npx mgr test ...   # back to extended
+npx mgr test --extended ...                 # back to extended
 ```
 
 The emulator log shows each flip, e.g.:
@@ -165,7 +190,7 @@ The emulator log shows each flip, e.g.:
 [test-mode] flip TEST_EXTENDED_MODE: true → (unset)            ← test (no flag) fired
 ```
 
-The test command also confirms the mode in its own output (`Test mode: EXTENDED (real APIs)` pre-flight, `Mode: EXTENDED (real APIs)` after the health check). The runner's old "TEST_EXTENDED_MODE mismatch" warning is gone — mismatch is impossible by construction.
+The test command also confirms the mode in its own output (`Test mode: extended (real external APIs)` pre-flight, `Mode: extended (real external APIs)` after the health check) and prints the `⚠️ WARNING: TEST_EXTENDED_MODE IS TRUE ⚠️` block when extended. The runner's old "TEST_EXTENDED_MODE mismatch" warning is gone — mismatch is impossible by construction.
 
 **Allowlist.** Only env vars listed in `SYNCED_ENV_KEYS` (`src/test/utils/test-mode-file.js`) flow through. Today: `TEST_EXTENDED_MODE`. Add a key there to make a new env var live-syncable across terminals. The allowlist exists to prevent accidentally syncing process-specific vars (`FIRESTORE_EMULATOR_HOST`) or sensitive ones (API keys).
 
@@ -174,7 +199,7 @@ The test command also confirms the mode in its own output (`Test mode: EXTENDED 
 ```bash
 # Recommended
 npx mgr emulator                                # boots in normal mode
-TEST_EXTENDED_MODE=true npx mgr test ...        # flips emulator to extended
+npx mgr test --extended ...                      # flips emulator to extended (or: TEST_EXTENDED_MODE=true npx mgr test ...)
 npx mgr test ...                                 # flips emulator back to normal
 ```
 
@@ -188,15 +213,7 @@ npx mgr test ...                                 # ← this still flips it back 
 
 ## Log Files
 
-BEM CLI commands automatically save all output to log files in `<projectDir>/functions/` while still streaming to the console — co-located with firebase-tools' own `*-debug.log` files so everything can be grepped from one directory:
-- **`functions/serve.log`** — Output from `npx mgr serve` (Firebase serve)
-- **`functions/emulator.log`** — Full emulator output (Firebase emulator + Cloud Functions logs)
-- **`functions/test.log`** — Test runner output (when running against an existing emulator)
-- **`functions/logs.log`** — Cloud Function logs from `npx mgr logs:read` or `npx mgr logs:tail` (raw JSON for `read`, streaming text for `tail`)
-
-When `npx mgr test` starts its own emulator, logs go to `emulator.log` (since it delegates to the emulator command). When running against an already-running emulator, logs go to `test.log`.
-
-These files are overwritten on each run and are gitignored via `*.log`. Reset sentinels (`*.log.reset`), the watch trigger file, and `test-mode.json` live separately in `<projectDir>/.temp/` because they're transient internal signals with no debugging value.
+Test runs tee output to `functions/test.log` (own-emulator runs go to `functions/emulator.log` instead, since the test command delegates to the emulator command). Full reference — file table, the `functions/` location exception, `production.log`: [logging.md](logging.md).
 
 ## Filtering Tests
 
@@ -269,9 +286,12 @@ module.exports = {
 | `http` | HTTP client — sends requests to the hosting emulator as-is (see [HTTP Routing](#http-routing)) |
 | `assert` | Assertion helpers (see below) |
 | `accounts` | Test accounts `{ basic, admin, premium-active, ... }` |
-| `firestore` | Direct DB access (`get`, `set`, `delete`, `exists`) |
+| `firestore` | Direct admin DB access (`get`, `set`, `delete`, `exists`) — bypasses security rules |
+| `rules` | Firestore **rules** testing client — `rules.asAccount(id)` returns a DB scoped to that user's auth, `rules.expectSuccess(op)` / `rules.expectFailure(op)` assert rule outcomes (see [Rules Tests](#rules-tests)) |
 | `state` | Shared state (suites only) |
 | `waitFor` | Polling helper `waitFor(condition, timeout, interval)` |
+| `config` | Test configuration |
+| `Manager` | Real booted BEM Manager (+ `Manager.Assistant()` etc.) |
 
 ## HTTP Routing
 
@@ -332,6 +352,113 @@ All email tests live under `test/email/`, mirroring `src/manager/libraries/email
 
 Extended email tests send to `_test-<purpose>@{domain}` addresses (e.g. `_test-email-send@somiibo.com`). See [docs/email-system.md](email-system.md) for the full email system reference.
 
+## Rules Tests
+
+Security-rules tests use the `rules` client (`src/test/utils/firestore-rules-client.js`). Canonical pattern: **seed as admin (bypasses rules), then test operations as different users**:
+
+```javascript
+{
+  name: 'setup-docs',
+  auth: 'none',
+  async run({ rules, accounts }) {
+    const adminDb = rules.asAccount('admin');
+    await rules.expectSuccess(
+      adminDb.doc('items/test-1').set({
+        owner: accounts.basic.uid,
+        data: { name: 'Test' },
+      })
+    );
+  },
+},
+{
+  name: 'owner-can-read',
+  auth: 'none',
+  async run({ rules }) {
+    const db = rules.asAccount('basic');
+    await rules.expectSuccess(db.doc('items/test-1').get());
+  },
+},
+{
+  name: 'other-user-cannot-read',
+  auth: 'none',
+  async run({ rules }) {
+    const db = rules.asAccount('basic');
+    await rules.expectFailure(db.doc('items/admin-owned').get());
+  },
+},
+```
+
+## Test Account Isolation (CRITICAL)
+
+**NEVER use shared accounts (`basic`, `admin`, `premium-active`, …) with the `test` processor or any operation that creates side-effect data** (orders, webhooks, subscriptions). The test processor auto-fires webhooks that upgrade a user's subscription asynchronously — using `basic` for a payment-intent test upgrades `basic` to a paid subscription and breaks every subsequent test that depends on `basic` being a basic user.
+
+**Rule: any test that creates persistent side-effect data MUST use a dedicated `journey-*` account.**
+
+```javascript
+// ❌ WRONG — pollutes the shared 'basic' account
+const response = await http.as('basic').post('payments/intent', { processor: 'test', ... });
+
+// ✅ CORRECT — dedicated journey account
+const response = await http.as('journey-payments-intent-discount').post('payments/intent', { processor: 'test', ... });
+```
+
+**When to create a journey account:** the test uses `processor: 'test'`, creates docs in `payments-orders` / `payments-intents` / `payments-webhooks`, modifies subscription state, or sends webhooks that trigger Firestore onWrite handlers. Add it to `src/test/test-accounts.js` (framework tests) or your project's `test/_init.js` `accounts` array (consumer tests).
+
+**Shared accounts are safe for:** validation-only tests (missing fields, invalid input, auth rejection, unknown processor), read-only operations, and tests with no async side effects.
+
+## Test Naming Conventions
+
+- **Test names:** kebab-case, descriptive: `'user-can-read-own-doc'`, `'duplicate-submission-rejected'`
+- **File names:** match the route method or collection name: `post.js`, `submissions.js`, `signup.js`
+- **Descriptions:** present tense, concise: `'Schema validation'`, `'Submission lifecycle'`
+
+## Common Patterns
+
+**Auth rejection** — always test that unauthenticated requests fail:
+
+```javascript
+{
+  name: 'unauthenticated-rejected',
+  async run({ http, assert }) {
+    const response = await http.as('none').post('user/signup', {});
+    assert.isError(response, 401, 'Should fail without authentication');
+  },
+},
+```
+
+**Duplicate rejection** — send concurrent identical requests; exactly one should win:
+
+```javascript
+{
+  name: 'duplicate-rejected',
+  timeout: 30000,
+  async run({ assert, config }) {
+    const body = JSON.stringify({ name: 'Dupe' });
+    const [a, b] = await Promise.all([
+      fetch(url, { method: 'POST', body }),
+      fetch(url, { method: 'POST', body }),
+    ]);
+    const successes = [a, b].filter(r => r.status === 'success');
+    const failures = [a, b].filter(r => r.status === 'fail');
+    assert.ok(successes.length === 1 && failures.length === 1, 'One should succeed, one should fail');
+  },
+},
+```
+
+**Cleanup** — final suite test deletes what the suite created (see [Test Data Cleanup](#test-data-cleanup--at-the-start-of-every-run) for the start-of-run wipe):
+
+```javascript
+{
+  name: 'cleanup',
+  async run({ firestore, state }) {
+    try {
+      await firestore.delete(`submissions/${state.id}`);
+      await firestore.delete(`forms/${state.formId}`);
+    } catch (e) { /* ignore cleanup errors */ }
+  },
+},
+```
+
 ## Key Test Files
 
 | File | Purpose |
@@ -340,4 +467,8 @@ Extended email tests send to `_test-<purpose>@{domain}` addresses (e.g. `_test-e
 | `test/` | BEM core tests |
 | `src/test/utils/assertions.js` | Assert helpers |
 | `src/test/utils/http-client.js` | HTTP client |
+| `src/test/utils/firestore-rules-client.js` | Rules testing client (`asAccount` / `expectSuccess` / `expectFailure`) |
 | `src/test/test-accounts.js` | Test account definitions |
+| `test/routes/test/schema.js` | Schema-validation reference test |
+| `test/routes/user/signup.js` | Full-lifecycle route suite reference |
+| `test/rules/user.js` | Rules-test reference |

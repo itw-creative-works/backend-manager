@@ -293,7 +293,7 @@ All email tests live under `test/email/`, mirroring the source at `src/manager/l
 | `marketing-lifecycle.js` | Contact lifecycle (add/sync/remove) | Yes |
 | `consent-lifecycle.js` | Consent webhook round-trip | Yes |
 
-Extended tests (`TEST_EXTENDED_MODE`) send real emails to `_test-*@{domain}` addresses. See [testing.md](testing.md) for the full test framework reference.
+Extended tests (`TEST_EXTENDED_MODE`) send real emails to `_test-*@{domain}` addresses. See [test-framework.md](test-framework.md) for the full test framework reference.
 
 ### Test recipient convention
 

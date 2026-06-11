@@ -15,8 +15,30 @@ class TestCommand extends BaseCommand {
     const self = this.main;
     const argv = self.argv;
 
+    // `--extended` CLI shorthand for the shared, unprefixed TEST_EXTENDED_MODE
+    // env var (cross-framework parity with BXM/UJM/EM). Either the flag OR the
+    // env var opts into REAL external services (default skipped). Set this
+    // BEFORE the captureSyncedEnv/writeTestMode pre-flight below so the flag
+    // flows into the emulator's test-mode.json too — making
+    // `npx mgr test --extended` equivalent to `TEST_EXTENDED_MODE=true npx mgr test`.
+    if (argv.extended) {
+      process.env.TEST_EXTENDED_MODE = 'true';
+    }
+
+    // Framework self-test: when `npx mgr test` is run from the backend-manager repo
+    // (no firebase.json in cwd), boot the bundled fixture project under
+    // src/test/fixtures/firebase-project. Mirrors BXM/UJM *_TEST_BOOT_PROJECT.
+    const isSelfTest = this.setupSelfTest();
+
     // Get test paths from CLI args (e.g., "bem test admin/" or "bem test general/generate-uuid")
     const testPaths = (argv._ || []).slice(1); // Remove 'test' from args
+
+    // On self-test with no explicit target, run only the boot smoke suite — the
+    // full routes/events/rules suites need a real consumer backend, not the
+    // minimal fixture.
+    if (isSelfTest && testPaths.length === 0) {
+      testPaths.push('bem:boot');
+    }
 
     // Determine the project directory
     const projectDir = self.firebaseProjectPath;
@@ -57,6 +79,7 @@ class TestCommand extends BaseCommand {
       testPaths,
       emulatorPorts,
       includeLegacy: argv.legacy || false, // Include legacy tests from test/functions/
+      isFrameworkSelfTest: isSelfTest, // gates the boot/ smoke layer (excluded for consumers)
     };
 
     // Build the test command
@@ -168,6 +191,123 @@ class TestCommand extends BaseCommand {
   /**
    * Build the test command with environment variables
    */
+  /**
+   * Framework self-test detection + fixture wiring.
+   *
+   * When `npx mgr test` runs from a directory that is NOT a Firebase project
+   * (no firebase.json) AND is the backend-manager repo (or BEM_TEST_BOOT_PROJECT
+   * is set), point the run at the bundled fixture project and link the local
+   * framework + firebase deps into it so the emulator's function workers resolve
+   * them. This is BEM's equivalent of BXM's BXM_TEST_BOOT_PROJECT / UJM's
+   * UJ_TEST_BOOT_PROJECT. Returns true if self-test wiring was applied.
+   */
+  setupSelfTest() {
+    const self = this.main;
+
+    // Normal consumer run — cwd is already a Firebase project. Nothing to do.
+    if (jetpack.exists(path.join(self.firebaseProjectPath, 'firebase.json'))) {
+      return false;
+    }
+
+    // Self-test if BEM_TEST_BOOT_PROJECT is set, or cwd is the backend-manager repo.
+    let isSelfTest = !!process.env.BEM_TEST_BOOT_PROJECT;
+    if (!isSelfTest) {
+      try {
+        isSelfTest = require(path.join(process.cwd(), 'package.json')).name === 'backend-manager';
+      } catch (_) { /* no package.json — not a self-test */ }
+    }
+    if (!isSelfTest) {
+      return false;
+    }
+
+    const fixture = process.env.BEM_TEST_BOOT_PROJECT
+      ? path.resolve(process.env.BEM_TEST_BOOT_PROJECT)
+      : path.resolve(__dirname, '..', '..', 'test', 'fixtures', 'firebase-project');
+
+    process.env.BEM_TEST_BOOT_PROJECT = fixture;
+    self.firebaseProjectPath = fixture;
+
+    // The test HTTP client authenticates with the fixture's admin keys (the
+    // server reads the same keys from backend-manager-config.json). Inject them
+    // from the fixture config so loadProjectConfig finds them — no committed
+    // .env needed (single source = the fixture config).
+    try {
+      const cfg = require(path.join(fixture, 'functions', 'backend-manager-config.json'));
+      process.env.BACKEND_MANAGER_KEY = process.env.BACKEND_MANAGER_KEY || cfg.backend_manager?.key;
+      process.env.BACKEND_MANAGER_WEBHOOK_KEY = process.env.BACKEND_MANAGER_WEBHOOK_KEY || cfg.backend_manager?.webhookKey;
+    } catch (_) { /* fixture config unreadable — let the normal key check report it */ }
+
+    this.ensureFixtureServiceAccount(fixture);
+    this.linkFixtureDeps(fixture);
+    this.log(chalk.cyan(`  Self-test: booting bundled fixture project (${fixture})`));
+    return true;
+  }
+
+  /**
+   * Write a throwaway service-account.json into the fixture so firebase-admin's
+   * `cert()` can parse it. BEM's manager uses the cert path when
+   * GOOGLE_APPLICATION_CREDENTIALS is unset (as in the functions emulator). The
+   * key is a freshly-generated RSA key — emulator-only, never authenticates
+   * against Google (the project is a `demo-` project), so it is generated at
+   * runtime and gitignored, never committed.
+   */
+  ensureFixtureServiceAccount(fixture) {
+    const crypto = require('crypto');
+    const saPath = path.join(fixture, 'functions', 'service-account.json');
+    const projectId = 'demo-backend-manager';
+    const { privateKey } = crypto.generateKeyPairSync('rsa', {
+      modulusLength: 2048,
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+    });
+    const serviceAccount = {
+      type: 'service_account',
+      project_id: projectId,
+      private_key_id: '0'.repeat(40),
+      private_key: privateKey,
+      client_email: `fixture@${projectId}.iam.gserviceaccount.com`,
+      client_id: '0'.repeat(21),
+      auth_uri: 'https://accounts.google.com/o/oauth2/auth',
+      token_uri: 'https://oauth2.googleapis.com/token',
+      auth_provider_x509_cert_url: 'https://www.googleapis.com/oauth2/v1/certs',
+      client_x509_cert_url: `https://www.googleapis.com/robot/v1/metadata/x509/fixture%40${projectId}.iam.gserviceaccount.com`,
+    };
+    try {
+      fs.writeFileSync(saPath, JSON.stringify(serviceAccount, null, 2) + '\n');
+    } catch (e) {
+      this.logWarning(`Could not write fixture service-account.json: ${e.message}`);
+    }
+  }
+
+  /**
+   * Symlink the local framework + firebase deps into the fixture's
+   * functions/node_modules so the emulator's function workers can resolve them.
+   * Mirrors what `npx mgr install dev` does in a real consumer, but for the
+   * fixture and without an npm install (firebase-admin/firebase-functions come
+   * from BEM's own node_modules; backend-manager points at the repo root).
+   */
+  linkFixtureDeps(fixture) {
+    const fnNodeModules = path.join(fixture, 'functions', 'node_modules');
+    jetpack.dir(fnNodeModules);
+
+    const bemRoot = path.resolve(__dirname, '..', '..', '..'); // src/cli/commands -> repo root
+    const links = {
+      'backend-manager': bemRoot,
+      'firebase-admin': path.join(bemRoot, 'node_modules', 'firebase-admin'),
+      'firebase-functions': path.join(bemRoot, 'node_modules', 'firebase-functions'),
+    };
+
+    for (const [name, target] of Object.entries(links)) {
+      const linkPath = path.join(fnNodeModules, name);
+      try { fs.rmSync(linkPath, { recursive: true, force: true }); } catch (_) { /* nothing to remove */ }
+      try {
+        fs.symlinkSync(target, linkPath, process.platform === 'win32' ? 'junction' : 'dir');
+      } catch (e) {
+        this.logWarning(`Could not link ${name} into fixture: ${e.message}`);
+      }
+    }
+  }
+
   buildTestCommand(testConfig) {
     const testScriptPath = path.join(__dirname, '..', '..', 'test', 'run-tests.js');
 

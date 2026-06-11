@@ -41,8 +41,8 @@ class BaseCommand {
   }
 
   /**
-   * Resolve a path for a human-readable log file. BEM-owned logs (serve.log,
-   * emulator.log, test.log, logs.log) live in `functions/` alongside
+   * Resolve a path for a human-readable log file. BEM-owned logs (dev.log,
+   * emulator.log, test.log, production.log) live in `functions/` alongside
    * firebase-tools' own *-debug.log files so all log output is grep-able from
    * one place. Reset sentinels and other internal-only artifacts use
    * `getTempPath()` instead.
@@ -69,13 +69,13 @@ class BaseCommand {
    */
   sweepStaleLogs() {
     const logFiles = [
-      'serve.log',
+      'dev.log',
       'emulator.log',
       'test.log',
-      'logs.log',
+      'production.log',
     ];
     const resetSentinels = [
-      'serve.log.reset',
+      'dev.log.reset',
       'emulator.log.reset',
     ];
 

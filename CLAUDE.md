@@ -10,7 +10,7 @@ Backend Manager (BEM) is a comprehensive framework for building modern Firebase 
 
 ## Recommended skills
 
-- **`BEM:patterns`** — SSOT for Backend Manager routes, schemas, tests, Firebase functions, Firestore rules, usage tracking patterns. Auto-loads on BEM-specific keywords (`route`, `schema`, `endpoint`, `bm_api`, `Manager.init`, `npx mgr test`, `gcloud logs`, etc.) and when touching files in `functions/routes/`, `functions/schemas/`, `functions/index.js`, `test/`, `src/cli/commands/`.
+- **`omega:bem`** — router skill. Auto-loads on BEM-specific keywords (`route`, `schema`, `endpoint`, `bm_api`, `Manager.init`, `npx mgr test`, `gcloud logs`, etc.) and points back to this CLAUDE.md + `docs/` (the SSOT), carrying only Claude-workflow hard rules and process checklists.
 - **`js:patterns`** — JavaScript/Node.js conventions: file structure, JSDoc, defensive coding (`?.` usage), template literals, `package.json` conventions. Auto-loads when creating new `.js` files or touching JS module structure.
 
 ## Quick Start
@@ -21,11 +21,15 @@ Backend Manager (BEM) is a comprehensive framework for building modern Firebase 
 2. `npx mgr setup` — validates config, scaffolds defaults (CLAUDE.md, CHANGELOG.md, docs/, test/), provisions Firestore indexes
 3. `npx mgr emulator` — start Firebase emulators (auth/firestore/functions/database/storage)
 4. `npx mgr serve` — local serve with Stripe webhook forwarding (if `STRIPE_SECRET_KEY` is set)
-5. `npx mgr test` — runs framework + project test suites against an emulator
-   - `npx mgr test email/transactional` — run a specific test by path (relative to `test/`)
-   - `npx mgr test bem:email/templates` — run only BEM framework tests matching a path
-   - `npx mgr test project:routes/custom` — run only consumer project tests matching a path
-   - Prefix with `TEST_EXTENDED_MODE=true` for tests that hit real external APIs (SendGrid, OpenAI, etc.)
+5. `npx mgr test` — runs framework + project test suites against an emulator. Positional target(s) select which test FILES run, by source + path (multiple space-separated targets compose):
+   - `npx mgr test` — everything (framework + project suites)
+   - `npx mgr test email/transactional` — bare path (no prefix): both sources, matched by path (relative to `test/`)
+   - `npx mgr test mgr:` / `npx mgr test bem:` — ONLY framework tests (`mgr:` is the universal cross-framework alias for the manager's own tests; `bem:` is the equivalent BEM-specific alias)
+   - `npx mgr test mgr:email/templates` / `npx mgr test bem:email/templates` — only framework tests matching a path
+   - `npx mgr test project:` — ONLY project tests (all of them)
+   - `npx mgr test project:routes/custom` — only consumer project tests matching a path
+   - `npx mgr test bem:rules project:routes` — multiple targets compose (runs both selections)
+   - Pass `--extended` (or prefix `TEST_EXTENDED_MODE=true`) for tests that hit real external APIs (SendGrid, OpenAI, etc.). `--extended` is the CLI shorthand for the shared, unprefixed `TEST_EXTENDED_MODE` env var standardized across BEM/BXM/UJM/EM; BEM propagates it to BOTH the runner subprocess and the live emulator. See [docs/test-framework.md](docs/test-framework.md#extended-mode-test_extended_mode).
 6. `npx mgr deploy` — deploy Cloud Functions to Firebase
 7. `npx mgr logs:read` / `npx mgr logs:tail` — Cloud Function logs from Google Cloud Logging
 
@@ -38,13 +42,21 @@ All `npx mgr <cmd>` aliases work: `npx bm <cmd>`, `npx bem <cmd>`, `npx backend-
 1. `npm install` — install BEM's own deps
 2. `npm run prepare` — build once: copies `src/` → `dist/` via prepare-package
 3. `npm run prepare:watch` — watch mode
-4. Test in a consumer project: from inside the consumer, run `npx mgr install dev` to swap BEM to this local repo — required whenever you edit the framework source and want the consumer to pick up the changes (the consumer otherwise keeps its installed `node_modules/backend-manager`). Reverse with `npx mgr install live`. If `npx mgr` then errors with "could not determine executable to run", the local install skipped bin-linking — re-run `npm install` to relink, or call `node node_modules/backend-manager/bin/backend-manager <cmd>` directly.
+4. Test in the **designated test consumer** — `../ultimate-jekyll-backend` is BEM's consumer for validating framework changes end-to-end (exercise any consumer-level flow there freely: emulator, tests, deploy paths). From inside it, run `npx mgr install dev` to swap BEM to this local repo — required whenever you edit the framework source and want the consumer to pick up the changes (the consumer otherwise keeps its installed `node_modules/backend-manager`). Reverse with `npx mgr install live`. If `npx mgr` then errors with "could not determine executable to run", the local install skipped bin-linking — re-run `npm install` to relink, or call `node node_modules/backend-manager/bin/backend-manager <cmd>` directly.
 
 ## Architecture
 
 BEM exposes a single `Manager` class that orchestrates everything: it initializes Firebase Admin, wires built-in functions (`bm_api`, auth events, cron), and hands out helper instances via factory methods. Supports **two deployment modes** — Firebase Functions (`projectType: 'firebase'`) or Custom Server (`projectType: 'custom'`). See [docs/architecture.md](docs/architecture.md) for the full overview of the Manager class, dual-mode support, and helper factory pattern.
 
 For the directory layout of both the BEM library and consumer projects, see [docs/directory-structure.md](docs/directory-structure.md).
+
+### Test framework
+
+`npx mgr test` runs framework + project suites against a **real Firebase emulator** (real Firestore/Auth — never mocked). Suites are organized by concern (`test/routes/`, `test/events/`, `test/rules/`, …) rather than runtime layers. See [docs/test-framework.md](docs/test-framework.md).
+
+### Test coverage
+
+Every feature ships with tests at EVERY surface it exposes — logic (`test/routes/`/`test/events/` handler suites against the real emulator), wiring (route round-trips over `http.as(...)` — registration, auth gates, schema validation; this IS BEM's end-to-end), and rules (Firestore security-rules suites when rules change). BEM has no UI layer — a feature's UI coverage lives in the consuming frontend (UJM/BXM/EM). Skip a surface ONLY when the feature genuinely doesn't have one; "the handler test already covers it" is NOT a reason to skip the route round-trip. See [docs/test-framework.md](docs/test-framework.md).
 
 ## CLI
 
@@ -77,7 +89,8 @@ See [docs/cli-firestore-auth.md](docs/cli-firestore-auth.md) and [docs/cli-logs.
 
 ## Development Workflow
 
-- **🚫 NEVER run `npm start` / `npm test` / `npx mgr emulator`** unless the user explicitly asks. Assume the user is already running the emulator or dev process. Running these commands kills the user's process and wastes time. Instead, **check output logs** after editing files to confirm the change took effect.
+- **🚫 NEVER run `npx mgr serve` / `npx mgr emulator`** — they're the user's long-running dev processes. Assume they're already running; if they aren't, **instruct the user to run them** rather than running them yourself (running them again kills theirs). To see output, **read the `functions/*.log` files** (`dev.log`, `emulator.log`, `test.log`) — never tail/attach to the process. Running `npx mgr test` is fine (it auto-starts its own emulator if needed).
+- **Where the output logs live:** BEM CLI commands tee output to `<projectDir>/functions/` (not `logs/` — BEM's deliberate exception, co-located with firebase-tools' `*-debug.log`): `dev.log` (`npx mgr serve`), `emulator.log` (`npx mgr emulator` / test with own emulator), `test.log` (`npx mgr test`), `production.log` (`npx mgr logs`). The `dev`/`test` names match EM/BXM/UJM; see [docs/test-framework.md](docs/test-framework.md#log-files).
 - **If the user reports an error**, check the emulator/test output for the root cause before guessing.
 - **Live-test UI changes via CDP.** When working on admin dashboards or browser-facing endpoints, use the `chrome-devtools` MCP tools (screenshots, click, evaluate JS, console logs) to verify the change works in the running browser. See `~/.claude/mcp-server/servers/chrome-devtools/CLAUDE.md`.
 
@@ -118,6 +131,7 @@ Deep references live in `docs/`. **Whenever you make a behavioral change, update
 
 - [docs/architecture.md](docs/architecture.md) — Manager class, dual-mode (firebase/custom), helper factory pattern
 - [docs/directory-structure.md](docs/directory-structure.md) — BEM library + consumer project layouts
+- [docs/build-system.md](docs/build-system.md) — no consumer build (deliberate outlier), framework prepare-package, deploy pipeline
 - [docs/code-patterns.md](docs/code-patterns.md) — short-circuit returns, logical operators on new lines, Firestore shorthand, template-string requires, fs-jetpack preference
 - [docs/file-naming.md](docs/file-naming.md) — naming table for routes, schemas, API commands, events, cron jobs, hooks
 - [docs/common-mistakes.md](docs/common-mistakes.md) — anti-pattern checklist (don't modify Manager internals, always await, increment-before-update, etc.)
@@ -128,8 +142,10 @@ Deep references live in `docs/`. **Whenever you make a behavioral change, update
 
 ### Building Routes & Components
 
-- [docs/routes.md](docs/routes.md) — recipes for new API commands, routes, event handlers, cron jobs (with code templates)
-- [docs/schemas.md](docs/schemas.md) — schema definition format, defaults vs premium overrides
+- [docs/routes.md](docs/routes.md) — recipes for new API commands, routes (context-object handlers, CRUD method files, ownership checks, firebase.json rewrites + ordering, functions/index.js entry), event handlers, cron jobs
+- [docs/schemas.md](docs/schemas.md) — schema contract (context object → flat schema, in-function plan branching), field properties, ID generation + path extraction, required-vs-default footgun
+- [docs/firestore.md](docs/firestore.md) — path style, NO subcollections, batch reads (~500 cursor pagination), `metadata.{created,updated}` timestamps, response format + redaction
+- [docs/migration.md](docs/migration.md) — legacy-project migration: runtime config → top-level env vars, `Manager.config.*` → `process.env.*`, constructor routes / tiered schemas → current format
 - [docs/sanitization.md](docs/sanitization.md) — middleware trim-only default; opt-in HTML strip (`{ sanitize: true }`) with per-field opt-out (`sanitize: false`); manual `utilities.sanitize()` for HTML-insertion sites
 - [docs/auth-hooks.md](docs/auth-hooks.md) — consumer hooks for `before-create`/`before-signin`/`on-create`/`on-delete` (blocking + non-blocking examples)
 - [docs/common-operations.md](docs/common-operations.md) — inside-the-handler patterns: authenticate, read/write Firestore, error handling, send response, `bm_api` hook
@@ -152,6 +168,8 @@ Deep references live in `docs/`. **Whenever you make a behavioral change, update
 
 ### Testing & CLI
 
-- [docs/testing.md](docs/testing.md) — running, filtering, log files, test types (standalone/suite/group), context object, assertions, auth levels. **NEVER mock — test against the real emulator.** No `mockManager`/`mockAdmin`/fake `firestore`/stubbed `assistant`; every `run()` gets the real `Manager`/`assistant`/`firestore`/`http`/`accounts` — use them. Pure functions (zero I/O) are the only thing you call directly; anything touching Firestore or an external API runs for real. Real external APIs (OpenAI/PayPal/GitHub/SendGrid/Stripe) are gated behind `TEST_EXTENDED_MODE` in-source (not mocked), and anything an extended test creates externally must be cleaned up by the test. **Each test file `module.exports` a `{ description, type, tests }` object — NOT raw Mocha (`describe`/`it`/`beforeEach`); those globals are not injected and the file fails to load. Split tests one-file-per-concern under `test/<area>/`, never one giant `test/test.js`.** **All cleanup runs at the START of every run, never at the end** — the runner flushes the ENTIRE emulator Firestore before every run, so there's nothing to register; seed any needed fixtures in `test/_init.js`'s `setup()`, and never add a trailing cleanup step. Marketing providers (SendGrid/Beehiiv) don't need a special exception — `_test.*` emails are blocked at the validation layer so test signups never reach providers. The `_test.allow_*` carve-out exists only for the live-provider lifecycle test (`test/marketing/consent-lifecycle.js`), which manages its own teardown.
+- [docs/test-framework.md](docs/test-framework.md) — running, filtering, log files, test types (standalone/suite/group), context object, assertions, auth levels. **NEVER mock — test against the real emulator.** No `mockManager`/`mockAdmin`/fake `firestore`/stubbed `assistant`; every `run()` gets the real `Manager`/`assistant`/`firestore`/`http`/`accounts` — use them. Pure functions (zero I/O) are the only thing you call directly; anything touching Firestore or an external API runs for real. Real external APIs (OpenAI/PayPal/GitHub/SendGrid/Stripe) are gated behind `TEST_EXTENDED_MODE` in-source (not mocked) — opt in with `--extended` or `TEST_EXTENDED_MODE=true` (shared, unprefixed across BEM/BXM/UJM/EM; propagates to BOTH runner + emulator) — and anything an extended test creates externally must be cleaned up by the test. **Each test file `module.exports` a `{ description, type, tests }` object — NOT raw Mocha (`describe`/`it`/`beforeEach`); those globals are not injected and the file fails to load. Split tests one-file-per-concern under `test/<area>/`, never one giant `test/test.js`.** **All cleanup runs at the START of every run, never at the end** — the runner flushes the ENTIRE emulator Firestore before every run, so there's nothing to register; seed any needed fixtures in `test/_init.js`'s `setup()`, and never add a trailing cleanup step. Marketing providers (SendGrid/Beehiiv) don't need a special exception — `_test.*` emails are blocked at the validation layer so test signups never reach providers. The `_test.allow_*` carve-out exists only for the live-provider lifecycle test (`test/marketing/consent-lifecycle.js`), which manages its own teardown.
+- [docs/test-boot-layer.md](docs/test-boot-layer.md) — the `boot/` smoke layer: framework self-test from the repo via the bundled fixture project + `BEM_TEST_BOOT_PROJECT` (BEM's analog of BXM/UJM `*_TEST_BOOT_PROJECT`)
 - [docs/cli-firestore-auth.md](docs/cli-firestore-auth.md) — `npx mgr firestore:*` and `auth:*` commands, shared flags, examples
 - [docs/cli-logs.md](docs/cli-logs.md) — `npx mgr logs:read` / `logs:tail` with full flag reference and built-in Cloud Function names
+- [docs/logging.md](docs/logging.md) — `functions/*.log` file table (the `functions/` location exception), `production.log`
