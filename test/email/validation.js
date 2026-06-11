@@ -1,8 +1,9 @@
 /**
  * Test: Email validation library (libraries/email/validation.js)
- * Unit tests for format, local part, disposable domain, and mailbox checks
+ * Unit tests for format, local part, disposable domain, corporate domain, typo domain, DNS, and mailbox checks
  *
- * Format, local part, and disposable tests always run (free, regex-based).
+ * Format, local part, disposable, corporate, and typo tests always run (free, sync, offline-safe).
+ * DNS negative tests require TEST_EXTENDED_MODE (live DNS resolution).
  * Mailbox verification tests require TEST_EXTENDED_MODE + NEVERBOUNCE_API_KEY or ZEROBOUNCE_API_KEY.
  */
 const { validate, isDisposable, isCorporate, DEFAULT_CHECKS, ALL_CHECKS } = require('../../src/manager/libraries/email/validation.js');
@@ -115,15 +116,17 @@ module.exports = {
     },
 
     {
-      name: 'localpart-all-numeric-blocked',
+      name: 'localpart-all-numeric-allowed',
       timeout: 5000,
 
       async run({ assert }) {
+        // All-numeric local parts are legitimate (QQ emails like 1549482839@qq.com,
+        // student IDs) — the ^\d+$ pattern was removed in v5.5.6 after NeverBounce
+        // confirmed real users were being blocked.
         const result = await validate('123456@gmail.com');
 
-        assert.equal(result.valid, false, 'All-numeric local part should be blocked');
-        assert.propertyEquals(result, 'checks.localPart.blocked', true, 'Should be flagged as blocked');
-        assert.propertyEquals(result, 'checks.localPart.reason', 'Matches junk pattern', 'Should match junk pattern');
+        assert.equal(result.valid, true, 'All-numeric local part should be allowed');
+        assert.propertyEquals(result, 'checks.localPart.valid', true, 'localPart check should pass');
       },
     },
 
@@ -164,14 +167,17 @@ module.exports = {
     },
 
     {
-      name: 'localpart-letter-plus-numbers-blocked',
+      name: 'localpart-letter-plus-numbers-allowed',
       timeout: 5000,
 
       async run({ assert }) {
+        // Short letter + numbers local parts are legitimate (real Gmail users like
+        // mi1925973, hk9526802) — the ^[a-z]{1,2}\d+$ pattern was removed in v5.5.6
+        // after NeverBounce confirmed real users were being blocked.
         const result = await validate('a123@gmail.com');
 
-        assert.equal(result.valid, false, 'Single letter + numbers should be blocked');
-        assert.propertyEquals(result, 'checks.localPart.blocked', true, 'Should be flagged as blocked');
+        assert.equal(result.valid, true, 'Single letter + numbers should be allowed');
+        assert.propertyEquals(result, 'checks.localPart.valid', true, 'localPart check should pass');
       },
     },
 
@@ -370,6 +376,49 @@ module.exports = {
       },
     },
 
+    // --- Typo domain checks ---
+
+    {
+      name: 'typo-gamil-blocked',
+      timeout: 5000,
+
+      async run({ assert }) {
+        const result = await validate('rachel.greene@gamil.com');
+
+        assert.equal(result.valid, false, 'gamil.com should be blocked as a typo of gmail.com');
+        assert.propertyEquals(result, 'checks.typo.valid', false, 'Typo check should fail');
+        assert.propertyEquals(result, 'checks.typo.matchedPrefix', 'gamil.', 'Should report the matched prefix');
+        assert.propertyEquals(result, 'checks.typo.reason', 'Likely misspelled domain', 'Should have human-readable reason');
+      },
+    },
+
+    {
+      name: 'typo-gmail-con-blocked',
+      timeout: 5000,
+
+      async run({ assert }) {
+        const result = await validate('rachel.greene@gmail.con');
+
+        assert.equal(result.valid, false, 'gmail.con should be blocked as a typo TLD');
+        assert.propertyEquals(result, 'checks.typo.valid', false, 'Typo check should fail');
+      },
+    },
+
+    {
+      name: 'typo-correct-domains-pass',
+      timeout: 5000,
+
+      async run({ assert }) {
+        const gmail = await validate('rachel.greene@gmail.com');
+        const hotmail = await validate('rachel.greene@hotmail.com');
+
+        assert.equal(gmail.valid, true, 'gmail.com should pass');
+        assert.propertyEquals(gmail, 'checks.typo.valid', true, 'Typo check should pass for gmail.com');
+        assert.equal(hotmail.valid, true, 'hotmail.com should pass');
+        assert.propertyEquals(hotmail, 'checks.typo.valid', true, 'Typo check should pass for hotmail.com');
+      },
+    },
+
     // --- isCorporate helper ---
 
     {
@@ -529,8 +578,51 @@ module.exports = {
       timeout: 5000,
 
       async run({ assert }) {
-        assert.deepEqual(DEFAULT_CHECKS, ['format', 'disposable', 'corporate', 'localPart'], 'DEFAULT_CHECKS should be format + disposable + corporate + localPart');
-        assert.deepEqual(ALL_CHECKS, ['format', 'disposable', 'corporate', 'localPart', 'mailbox'], 'ALL_CHECKS should include mailbox');
+        assert.deepEqual(DEFAULT_CHECKS, ['format', 'disposable', 'corporate', 'localPart', 'typo'], 'DEFAULT_CHECKS should be all free sync checks (no dns/mailbox)');
+        assert.deepEqual(ALL_CHECKS, ['format', 'disposable', 'corporate', 'localPart', 'typo', 'dns', 'mailbox'], 'ALL_CHECKS should add dns + mailbox');
+      },
+    },
+
+    // --- DNS check behavior ---
+
+    {
+      name: 'dns-not-in-default-checks',
+      timeout: 5000,
+
+      async run({ assert }) {
+        const result = await validate('rachel.greene@gmail.com');
+
+        assert.equal(result.valid, true, 'Should be valid');
+        assert.equal(result.checks.dns, undefined, 'DNS should not run with default checks (async/slow — opt-in)');
+      },
+    },
+
+    {
+      name: 'dns-valid-domain-passes',
+      timeout: 15000,
+
+      async run({ assert }) {
+        // Offline-safe: on network errors the dns check is skipped (valid stays true);
+        // only definitive no-MX/NXDOMAIN answers block.
+        const result = await validate('rachel.greene@gmail.com', { checks: ['format', 'dns'] });
+
+        assert.equal(result.valid, true, 'gmail.com should pass the DNS check');
+        assert.hasProperty(result, 'checks.dns', 'Should have dns check result');
+      },
+    },
+
+    {
+      name: 'dns-nonexistent-domain-fails',
+      timeout: 15000,
+      skip: !process.env.TEST_EXTENDED_MODE
+        ? 'TEST_EXTENDED_MODE not set (requires live DNS resolution)'
+        : false,
+
+      async run({ assert }) {
+        const result = await validate('rachel.greene@thisdomaindoesnotexist99887766.com', { checks: ['format', 'dns'] });
+
+        assert.equal(result.valid, false, 'Nonexistent domain should fail the DNS check');
+        assert.propertyEquals(result, 'checks.dns.valid', false, 'DNS check should fail');
       },
     },
 

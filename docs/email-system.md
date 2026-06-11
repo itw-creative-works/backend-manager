@@ -284,7 +284,7 @@ All email tests live under `test/email/`, mirroring the source at `src/manager/l
 |---|---|---|
 | `templates.js` | MJML rendering for all 4 email templates (11 tests) | No |
 | `transactional.js` | Transactional email building (assertions on output shape) | No |
-| `validation.js` | Email format/disposable/corporate/local-part/typo/dns checks (60+ tests) | No |
+| `validation.js` | Email format/disposable/corporate/local-part/typo/dns checks (52 tests) | No |
 | `transactional-send.js` | Single transactional email send via SendGrid | Yes |
 | `campaign-send.js` | Marketing campaign send with title + CTA + discount code | Yes |
 | `feedback-and-plain-send.js` | Feedback + plain template visual test sends | Yes |

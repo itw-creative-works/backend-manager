@@ -12,6 +12,8 @@
  *
  * SendGrid processor tests:
  *   - Various event types (group_unsubscribe, unsubscribe, spamreport, bounce, dropped)
+ *   - bounce/dropped only revoke on bounce_classification='Invalid Address' (hard bounce);
+ *     technical bounces are sender-side issues and must NOT revoke consent
  *   - Email lookup → user doc mutation with source='sendgrid'
  *   - Silent skip when email doesn't map to a user (shared SendGrid account scenario)
  *   - Batched events processed independently
@@ -25,13 +27,14 @@ function sgEventId(name) {
 }
 
 // Helper — build a SendGrid event payload
-function sgEvent({ id, type, email, timestamp, asmGroupId }) {
+function sgEvent({ id, type, email, timestamp, asmGroupId, bounceClassification }) {
   return {
     sg_event_id: id,
     event: type,
     email,
     timestamp: timestamp || Math.floor(Date.now() / 1000),
     ...(asmGroupId !== undefined ? { asm_group_id: asmGroupId } : {}),
+    ...(bounceClassification !== undefined ? { bounce_classification: bounceClassification } : {}),
   };
 }
 
@@ -167,20 +170,43 @@ module.exports = {
     },
 
     {
-      name: 'sendgrid-bounce-event-handled',
+      name: 'sendgrid-hard-bounce-event-handled',
       auth: 'none',
       async run({ http, firestore, assert, accounts }) {
         const uid = accounts.basic.uid;
         const email = accounts.basic.email;
-        const eventId = sgEventId('bounce');
+        const eventId = sgEventId('hard-bounce');
 
+        // Only hard bounces (bounce_classification='Invalid Address') revoke consent.
         const response = await http.as('none').post(
           `backend-manager/marketing/webhook?provider=sendgrid&key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`,
-          [sgEvent({ id: eventId, type: 'bounce', email })]
+          [sgEvent({ id: eventId, type: 'bounce', email, bounceClassification: 'Invalid Address' })]
         );
 
         assert.isSuccess(response);
-        assert.propertyEquals(response, 'data.processed', 1, 'Bounce should be treated as a revoke');
+        assert.propertyEquals(response, 'data.processed', 1, 'Hard bounce should be treated as a revoke');
+
+        const userDoc = await firestore.get(`users/${uid}`);
+        assert.equal(userDoc?.consent?.marketing?.status, 'revoked');
+      },
+    },
+
+    {
+      name: 'sendgrid-dropped-hard-bounce-handled',
+      auth: 'none',
+      async run({ http, firestore, assert, accounts }) {
+        const uid = accounts.basic.uid;
+        const email = accounts.basic.email;
+        const eventId = sgEventId('dropped');
+
+        // 'dropped' follows the same classification filter as 'bounce'.
+        const response = await http.as('none').post(
+          `backend-manager/marketing/webhook?provider=sendgrid&key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`,
+          [sgEvent({ id: eventId, type: 'dropped', email, bounceClassification: 'Invalid Address' })]
+        );
+
+        assert.isSuccess(response);
+        assert.propertyEquals(response, 'data.processed', 1, 'Dropped with Invalid Address should be treated as a revoke');
 
         const userDoc = await firestore.get(`users/${uid}`);
         assert.equal(userDoc?.consent?.marketing?.status, 'revoked');
@@ -188,6 +214,45 @@ module.exports = {
     },
 
     // ─── SendGrid processor — events we ignore ───
+
+    {
+      name: 'sendgrid-technical-bounce-ignored',
+      auth: 'none',
+      async run({ http, assert, accounts }) {
+        const email = accounts.basic.email;
+        const eventId = sgEventId('technical-bounce');
+
+        // Technical bounces (DMARC, TLS, DNS) are sender-side issues — the recipient's
+        // mailbox is still valid, so consent must NOT be revoked.
+        const response = await http.as('none').post(
+          `backend-manager/marketing/webhook?provider=sendgrid&key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`,
+          [sgEvent({ id: eventId, type: 'bounce', email, bounceClassification: 'Technical Failure' })]
+        );
+
+        assert.isSuccess(response, 'Should accept the request (not error) but ignore the event');
+        assert.propertyEquals(response, 'data.processed', 0, 'Technical bounce should not be processed');
+        assert.propertyEquals(response, 'data.skipped', 1, '1 event should be skipped');
+      },
+    },
+
+    {
+      name: 'sendgrid-bounce-without-classification-ignored',
+      auth: 'none',
+      async run({ http, assert, accounts }) {
+        const email = accounts.basic.email;
+        const eventId = sgEventId('unclassified-bounce');
+
+        // No bounce_classification — can't confirm a hard bounce, so skip.
+        const response = await http.as('none').post(
+          `backend-manager/marketing/webhook?provider=sendgrid&key=${process.env.BACKEND_MANAGER_WEBHOOK_KEY}`,
+          [sgEvent({ id: eventId, type: 'bounce', email })]
+        );
+
+        assert.isSuccess(response, 'Should accept the request (not error) but ignore the event');
+        assert.propertyEquals(response, 'data.processed', 0, 'Unclassified bounce should not be processed');
+        assert.propertyEquals(response, 'data.skipped', 1, '1 event should be skipped');
+      },
+    },
 
     {
       name: 'sendgrid-delivered-event-ignored',

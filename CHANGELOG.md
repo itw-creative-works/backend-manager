@@ -14,6 +14,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.6.2] - 2026-06-11
+
+### Fixed
+- **4 stale framework tests aligned with shipped v5.5.4–v5.5.6 validation behavior.** The default `npx mgr test` run failed 4 tests whose expectations predated intentional source changes: `test/email/validation.js` still expected all-numeric (`123456@`) and short letter+number (`a123@`) local parts to be blocked (both patterns were removed in v5.5.6 after NeverBounce confirmed real users — QQ emails, real Gmail accounts — were being blocked; tests renamed `localpart-all-numeric-allowed` / `localpart-letter-plus-numbers-allowed`) and expected the pre-v5.5.5 `DEFAULT_CHECKS`/`ALL_CHECKS` lists (now include `typo`, and `dns` in `ALL_CHECKS`); `test/routes/marketing/webhook.js`'s bounce test sent no `bounce_classification`, which v5.5.4 deliberately skips (renamed `sendgrid-hard-bounce-event-handled`, now sends `'Invalid Address'`).
+
+### Added
+- **Suite coverage for the v5.5.5 `typo` + `dns` email validation checks** (previously only covered by the standalone `validation.test.js` script): typo-domain blocking (`gamil.com`, `gmail.con`) + correct-domain pass-through, dns-not-in-default-checks, an offline-safe dns positive (network errors skip, never block), and an extended-gated (`TEST_EXTENDED_MODE`) dns negative for nonexistent domains.
+- **Suite coverage for the v5.5.4 bounce-classification filter**: `dropped` + `'Invalid Address'` revokes, technical bounce (`'Technical Failure'`) skipped, and unclassified bounce skipped — locking in that sender-side bounces never revoke recipient consent.
+
 # [5.6.1] - 2026-06-11
 
 ### Added
