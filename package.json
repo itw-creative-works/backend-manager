@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "5.6.0",
+  "version": "5.6.1",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -30,9 +30,15 @@
     "url": "git+https://github.com/itw-creative-works/backend-manager.git"
   },
   "keywords": [
-    "cli",
-    "backend manager",
-    "firebase"
+    "firebase",
+    "firebase-functions",
+    "cloud-functions",
+    "firestore",
+    "backend",
+    "serverless",
+    "api",
+    "express",
+    "cli"
   ],
   "author": "ITW Creative Works",
   "license": "ISC",

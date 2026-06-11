@@ -14,6 +14,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.6.1] - 2026-06-11
+
+### Added
+- **`docs/audit.md` — full-audit check catalog (`/omega:bem audit`).** ID'd, severity-graded checks with scope auto-detect (consumer vs framework via `functions/package.json`): mirrored universal checks (U-01..U-14 — tests at every surface, sanitization, secrets incl. `service-account.json`, config canon, doc parity, dead/legacy patterns, dep health, …), BEM-specific checks (BEM-01..BEM-09 — name-matched context-object schemas, the required-vs-default footgun, ownership checks + `assistant.respond()`, index.js/rewrites wiring, Firestore canon, usage helper + rate limits, composite indexes, auth gates, rules coverage), and framework-repo checks (F-01..F-04). Findings persist to `functions/.temp/audit/claude-audit.md`; fixes run as a severity-ordered TodoWrite loop ending with a green `npx mgr test`. Wired to the `omega:bem` router's Audit process; `docs/audit.md` is mirrored across UJM/BXM/EM. Indexed in CLAUDE.md.
+
+### Changed
+- **package.json `keywords` corrected** — replaced the thin generic set (`cli`, `backend manager`, `firebase`) with accurate, discovery-oriented ones (`firebase`, `firebase-functions`, `cloud-functions`, `firestore`, `backend`, `serverless`, `api`, `express`, `cli`). npm-listing metadata only; no behavior change. Mirrored across UJM/BXM/EM.
+
 # [5.6.0] - 2026-06-11
 
 ### Added
