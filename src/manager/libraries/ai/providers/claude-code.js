@@ -24,6 +24,7 @@
  */
 const _ = require('lodash');
 const JSON5 = require('json5');
+const format = require('./anthropic-format.js');
 
 const DEFAULT_MODEL = 'claude-opus-4-7';
 const OAUTH_BETA = 'oauth-2025-04-20';
@@ -80,7 +81,7 @@ ClaudeCode.prototype.request = async function (options) {
     defaultHeaders: { 'anthropic-beta': OAUTH_BETA },
   });
 
-  const { system, messages } = buildMessages(options);
+  const { system, messages } = format.buildMessages(options);
 
   let systemFinal = system;
 
@@ -102,6 +103,19 @@ ClaudeCode.prototype.request = async function (options) {
     requestBody.temperature = options.temperature;
   }
 
+  // Native tool calling — same normalized interface as the anthropic provider
+  const toolDefs = format.buildToolDefs(options.tools?.list);
+
+  if (toolDefs.length) {
+    requestBody.tools = toolDefs;
+
+    const toolChoice = format.buildToolChoice(options.tools?.choice);
+
+    if (toolChoice) {
+      requestBody.tool_choice = toolChoice;
+    }
+  }
+
   let raw;
 
   try {
@@ -117,6 +131,9 @@ ClaudeCode.prototype.request = async function (options) {
     .join('\n')
     .trim();
 
+  const toolCalls = format.extractToolCalls(raw.content);
+  const stopReason = format.mapStopReason(raw.stop_reason);
+
   const modelConfig = MODEL_TABLE[options.model] || MODEL_TABLE[DEFAULT_MODEL];
 
   self.tokens.input.count  += raw.usage?.input_tokens || 0;
@@ -128,7 +145,7 @@ ClaudeCode.prototype.request = async function (options) {
 
   let parsed = outputText;
 
-  if (options.response === 'json') {
+  if (options.response === 'json' && !toolCalls.length) {
     parsed = parseJsonLoose(outputText);
   }
 
@@ -137,53 +154,10 @@ ClaudeCode.prototype.request = async function (options) {
     content: parsed,
     tokens: self.tokens,
     raw,
+    toolCalls,
+    stopReason,
   };
 };
-
-/**
- * Build Anthropic system + messages from the unified option shape.
- *
- * Accepts either:
- *   - options.messages: [{ role: 'system'|'user'|'assistant', content: string }]
- *   - options.prompt.content (system) + options.message.content (user)
- */
-function buildMessages(options) {
-  if (Array.isArray(options.messages) && options.messages.length) {
-    const system = options.messages.find((m) => m.role === 'system')?.content;
-    const messages = options.messages
-      .filter((m) => m.role !== 'system')
-      .map((m) => ({ role: m.role, content: stringifyContent(m.content) }));
-
-    return { system: stringifyContent(system), messages };
-  }
-
-  const system = stringifyContent(options.prompt?.content || '');
-  const userContent = stringifyContent(options.message?.content || '');
-
-  return {
-    system,
-    messages: [{ role: 'user', content: userContent }],
-  };
-}
-
-function stringifyContent(content) {
-  if (!content) {
-    return '';
-  }
-
-  if (typeof content === 'string') {
-    return content;
-  }
-
-  if (Array.isArray(content)) {
-    return content
-      .filter((c) => c.type === 'input_text' || c.type === 'text')
-      .map((c) => c.text || '')
-      .join('\n');
-  }
-
-  return String(content);
-}
 
 function parseJsonLoose(text) {
   let cleaned = (text || '').trim();

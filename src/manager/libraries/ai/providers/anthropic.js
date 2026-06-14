@@ -9,6 +9,7 @@
  */
 const _ = require('lodash');
 const JSON5 = require('json5');
+const format = require('./anthropic-format.js');
 
 const DEFAULT_MODEL = 'claude-sonnet-4-6';
 
@@ -58,8 +59,9 @@ Anthropic.prototype.request = async function (options) {
   const SDK = require('@anthropic-ai/sdk');
   const client = new SDK({ apiKey: self.key });
 
-  // Build messages from the OpenAI-style option shape (prompt + message) or pass-through messages
-  const { system, messages } = buildMessages(options);
+  // Build messages from the OpenAI-style option shape (prompt + message) or
+  // unified messages turns (incl. assistant toolCalls + role:'tool' results)
+  const { system, messages } = format.buildMessages(options);
 
   // JSON output via system prompt instruction (Anthropic's structured output is via prompt, not a flag)
   let systemFinal = system;
@@ -82,6 +84,20 @@ Anthropic.prototype.request = async function (options) {
     requestBody.temperature = options.temperature;
   }
 
+  // Native tool calling — normalized function tools only ({ name, description,
+  // parameters }); provider-specific hosted tools throw in buildToolDefs
+  const toolDefs = format.buildToolDefs(options.tools?.list);
+
+  if (toolDefs.length) {
+    requestBody.tools = toolDefs;
+
+    const toolChoice = format.buildToolChoice(options.tools?.choice);
+
+    if (toolChoice) {
+      requestBody.tool_choice = toolChoice;
+    }
+  }
+
   let raw;
 
   try {
@@ -91,12 +107,16 @@ Anthropic.prototype.request = async function (options) {
     throw e;
   }
 
-  // Extract text from content blocks (concatenate text blocks; ignore tool_use/etc for now)
+  // Extract text from content blocks (concatenate text blocks) and tool calls
+  // from tool_use blocks — a tool-call turn legitimately has content: ''
   const outputText = (raw.content || [])
     .filter((c) => c.type === 'text')
     .map((c) => c.text.trim())
     .join('\n')
     .trim();
+
+  const toolCalls = format.extractToolCalls(raw.content);
+  const stopReason = format.mapStopReason(raw.stop_reason);
 
   // Update token counters
   const modelConfig = MODEL_TABLE[options.model] || MODEL_TABLE[DEFAULT_MODEL];
@@ -108,10 +128,11 @@ Anthropic.prototype.request = async function (options) {
   self.tokens.output.price  = (self.tokens.output.count * modelConfig.output) / 1_000_000;
   self.tokens.total.price   = self.tokens.input.price + self.tokens.output.price;
 
-  // Parse JSON if requested
+  // Parse JSON if requested — but never on a tool-call turn, where empty/partial
+  // text is the normal intermediate state (the caller continues the loop)
   let parsed = outputText;
 
-  if (options.response === 'json') {
+  if (options.response === 'json' && !toolCalls.length) {
     parsed = parseJsonLoose(outputText);
   }
 
@@ -120,52 +141,10 @@ Anthropic.prototype.request = async function (options) {
     content: parsed,
     tokens: self.tokens,
     raw,
+    toolCalls,
+    stopReason,
   };
 };
-
-/**
- * Build Anthropic system + messages from the unified option shape.
- *
- * Accepts either:
- *   - options.messages: [{ role: 'system'|'user'|'assistant', content: string }]
- *   - options.prompt.content (system) + options.message.content (user)
- */
-function buildMessages(options) {
-  // If caller passed `messages` directly (OpenAI-style), translate it
-  if (Array.isArray(options.messages) && options.messages.length) {
-    const system = options.messages.find((m) => m.role === 'system')?.content;
-    const messages = options.messages
-      .filter((m) => m.role !== 'system')
-      .map((m) => ({ role: m.role, content: stringifyContent(m.content) }));
-
-    return { system, messages };
-  }
-
-  // Otherwise build from prompt/message
-  const system = options.prompt?.content || '';
-  const userContent = stringifyContent(options.message?.content || '');
-
-  return {
-    system,
-    messages: [{ role: 'user', content: userContent }],
-  };
-}
-
-function stringifyContent(content) {
-  if (typeof content === 'string') {
-    return content;
-  }
-
-  // OpenAI sometimes uses [{ type: 'input_text', text: '...' }] — flatten to string
-  if (Array.isArray(content)) {
-    return content
-      .filter((c) => c.type === 'input_text' || c.type === 'text')
-      .map((c) => c.text || '')
-      .join('\n');
-  }
-
-  return String(content || '');
-}
 
 /**
  * Parse JSON from Claude output. Claude usually obeys the "JSON only" instruction

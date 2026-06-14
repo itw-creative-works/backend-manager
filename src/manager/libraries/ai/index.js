@@ -13,6 +13,7 @@
 const OpenAI = require('./providers/openai.js');
 const Anthropic = require('./providers/anthropic.js');
 const ClaudeCode = require('./providers/claude-code.js');
+const TestProvider = require('./providers/test.js');
 
 const DEFAULT_PROVIDER = 'openai';
 
@@ -153,6 +154,25 @@ AI.prototype._getProvider = function (provider, apiKey) {
  */
 function normalizeOptions(opts) {
   const out = { ...opts };
+  const rules = SYSTEM_PROMPT_INJECTIONS.join('\n');
+
+  // Structured conversations (tool-call turns, tool results, raw content
+  // blocks) must NOT be flattened into prompt/message — the provider consumes
+  // messages[] directly. Only the system turn gets the universal rules.
+  if (isStructuredMessages(opts.messages)) {
+    const systemIdx = opts.messages.findIndex((m) => m.role === 'system');
+
+    if (systemIdx >= 0 && typeof opts.messages[systemIdx].content === 'string') {
+      const existing = opts.messages[systemIdx].content;
+      out.messages = opts.messages.map((m, i) => i === systemIdx
+        ? { ...m, content: existing ? `${rules}\n\n${existing}` : rules }
+        : m);
+    } else if (systemIdx < 0) {
+      out.messages = [{ role: 'system', content: rules }, ...opts.messages];
+    }
+
+    return out;
+  }
 
   if (Array.isArray(opts.messages) && opts.messages.length) {
     const system = opts.messages.find((m) => m.role === 'system');
@@ -170,7 +190,6 @@ function normalizeOptions(opts) {
 
   // Prepend universal rules to the system prompt. Patches both representations
   // (prompt.content and messages[]) since providers read from one or the other.
-  const rules = SYSTEM_PROMPT_INJECTIONS.join('\n');
   const existing = stringifyContent(out.prompt?.content || '');
   const merged = existing ? `${rules}\n\n${existing}` : rules;
 
@@ -184,6 +203,21 @@ function normalizeOptions(opts) {
   }
 
   return out;
+}
+
+// A messages[] array is "structured" when it carries turns that cannot survive
+// string-flattening: tool results, assistant tool-call turns, or raw
+// provider content blocks (tool_use / tool_result)
+function isStructuredMessages(messages) {
+  if (!Array.isArray(messages) || !messages.length) {
+    return false;
+  }
+
+  return messages.some((m) =>
+    m.role === 'tool'
+    || (Array.isArray(m.toolCalls) && m.toolCalls.length)
+    || (Array.isArray(m.content) && m.content.some((c) => c && typeof c === 'object' && (c.type === 'tool_use' || c.type === 'tool_result')))
+  );
 }
 
 function stringifyContent(content) {
@@ -205,6 +239,7 @@ const PROVIDERS = {
   openai: OpenAI,
   anthropic: Anthropic,
   'claude-code': ClaudeCode,
+  test: TestProvider,
 };
 
 // Expose the underlying provider classes for advanced callers
@@ -212,5 +247,14 @@ AI.providers = PROVIDERS;
 AI.OpenAI = OpenAI;
 AI.Anthropic = Anthropic;
 AI.ClaudeCode = ClaudeCode;
+AI.TestProvider = TestProvider;
 
 module.exports = AI;
+
+// Exposed for unit tests. Not part of the public API — do not rely on these
+// from consumer code.
+AI._internals = {
+  normalizeOptions,
+  isStructuredMessages,
+  SYSTEM_PROMPT_INJECTIONS,
+};

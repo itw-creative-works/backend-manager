@@ -335,12 +335,12 @@ function OpenAI(assistant, key) {
   const self = this;
 
   self.assistant = assistant;
-  self.Manager = assistant.Manager;
-  self.user = assistant.user;
+  self.Manager = assistant?.Manager;
+  self.user = assistant?.user;
   self.key = key
-    || self.Manager.config?.openai?.key
-    || self.Manager.config?.openai?.global
-    || self.Manager.config?.openai?.main
+    || self.Manager?.config?.openai?.key
+    || self.Manager?.config?.openai?.global
+    || self.Manager?.config?.openai?.main
     || process.env.OPENAI_API_KEY
     || process.env.BACKEND_MANAGER_OPENAI_API_KEY
 
@@ -451,12 +451,19 @@ OpenAI.prototype.request = function (options) {
     _log('Starting', options);
 
 
+    // Direct-messages mode: when a unified messages[] array is passed (incl.
+    // assistant toolCalls turns + role:'tool' results), it IS the full
+    // conversation — prompt/message/history are ignored and the array maps
+    // straight to the Responses API input (see formatMessages). The last user
+    // turn's text still feeds moderation.
+    const useMessages = Array.isArray(options.messages) && options.messages.length > 0;
+
     // Load prompt segments (one entry per role) and the user message
-    const promptSegments = options.prompt.map((segment) => ({
+    const promptSegments = useMessages ? [] : options.prompt.map((segment) => ({
       role: segment.role,
       content: loadContent(segment, _log),
     }));
-    const message = loadContent(options.message, _log);
+    const message = useMessages ? lastUserText(options.messages) : loadContent(options.message, _log);
     const user = options.user?.auth?.uid || assistant.request.geolocation.ip || 'unknown';
 
     // Log
@@ -477,9 +484,10 @@ OpenAI.prototype.request = function (options) {
       return reject(assistant.errorify(`Error loading message: ${message}`, {code: 400}));
     }
 
-    // Moderate if needed
+    // Moderate if needed (skipped in direct-messages mode when the last turn
+    // carries no user text — e.g. a tool-result continuation turn)
     let moderation = null;
-    if (options.moderate) {
+    if (options.moderate && !(useMessages && !message)) {
       moderation = await makeRequest('moderations', options, self, promptSegments, message, user, _log)
       .then(async (r) => {
         // {
@@ -883,6 +891,112 @@ function formatHistory(options, promptSegments, message, _log) {
   return formatted;
 }
 
+/**
+ * Map a unified messages[] array straight to the Responses API input array.
+ *
+ * Unified turn shapes:
+ *   - { role: 'system'|'developer'|'user'|'assistant', content: string }
+ *   - { role: 'assistant', content?, toolCalls: [{ id, name, arguments }] }
+ *     → message item (if content) + function_call items
+ *   - { role: 'tool', toolCallId, content } → function_call_output item
+ */
+function formatMessages(messages, _log) {
+  const input = [];
+
+  for (const m of messages) {
+    // Tool result turn → function_call_output item
+    if (m.role === 'tool') {
+      input.push({
+        type: 'function_call_output',
+        call_id: m.toolCallId,
+        output: typeof m.content === 'string' ? m.content : JSON.stringify(m.content || ''),
+      });
+      continue;
+    }
+
+    // Assistant turn with tool calls → message item (if text) + function_call items
+    if (m.role === 'assistant' && Array.isArray(m.toolCalls) && m.toolCalls.length) {
+      const text = typeof m.content === 'string' ? m.content.trim() : '';
+
+      if (text) {
+        input.push({
+          role: 'assistant',
+          content: formatMessageContent(text, [], _log, 'responses', 'assistant'),
+        });
+      }
+
+      for (const call of m.toolCalls) {
+        input.push({
+          type: 'function_call',
+          call_id: call.id,
+          name: call.name,
+          arguments: typeof call.arguments === 'string' ? call.arguments : JSON.stringify(call.arguments || {}),
+        });
+      }
+
+      continue;
+    }
+
+    // Plain text turn
+    const role = m.role || 'user';
+    const content = typeof m.content === 'string' ? m.content.trim() : String(m.content || '');
+
+    input.push({
+      role: role,
+      content: formatMessageContent(content, m.attachments, _log, 'responses', role),
+    });
+  }
+
+  return input;
+}
+
+// Last user turn's text — feeds moderation in direct-messages mode
+function lastUserText(messages) {
+  const lastUser = [...messages].reverse().find((m) => m.role === 'user' && typeof m.content === 'string');
+  return lastUser?.content || '';
+}
+
+// Normalized function tools ({ name, description, parameters }) get the
+// Responses API envelope; anything carrying another `type` passes verbatim
+// (hosted tools like { type: 'web_search' })
+function normalizeToolEntry(tool) {
+  if (tool && tool.name && (!tool.type || tool.type === 'function')) {
+    return {
+      type: 'function',
+      name: tool.name,
+      description: tool.description || '',
+      parameters: tool.parameters || { type: 'object', properties: {} },
+    };
+  }
+
+  return tool;
+}
+
+// 'auto' | 'required' | 'none' pass through; { name } → a specific function tool
+function normalizeToolChoice(choice) {
+  if (typeof choice === 'object' && choice?.name) {
+    return { type: 'function', name: choice.name };
+  }
+
+  return choice;
+}
+
+function parseArguments(args) {
+  if (args && typeof args === 'object') {
+    return args;
+  }
+
+  if (typeof args === 'string' && args.trim()) {
+    try {
+      return JSON5.parse(args);
+    } catch (e) {
+      return {};
+    }
+  }
+
+  return {};
+}
+
 function attemptRequest(options, self, promptSegments, message, user, moderation, attempt, assistant, resolve, reject, _log) {
   const retries = options.retries;
   const triggers = options.retryTriggers;
@@ -961,6 +1075,14 @@ function attemptRequest(options, self, promptSegments, message, user, moderation
       .join('\n')
       .trim();
 
+    // Normalized tool calls (Responses API function_call items) + stop reason
+    const toolCalls = output
+      .filter((o) => o.type === 'function_call')
+      .map((o) => ({ id: o.call_id, name: o.name, arguments: parseArguments(o.arguments) }));
+    const stopReason = toolCalls.length
+      ? 'tool_use'
+      : (r.status === 'incomplete' && r.incomplete_details?.reason === 'max_output_tokens' ? 'max_tokens' : 'end');
+
     // Get model configuration
     const modelConfig = getModelConfig(options.model);
 
@@ -979,9 +1101,10 @@ function attemptRequest(options, self, promptSegments, message, user, moderation
     _log('Response', outputText.length, typeof outputText, outputText);
     _log('Tokens', self.tokens);
 
-    // Try to parse JSON response if needed
+    // Try to parse JSON response if needed — never on a tool-call turn, where
+    // empty text is the normal intermediate state (the caller continues the loop)
     try {
-      const parsed = options.response === 'json' ? JSON5.parse(outputText) : outputText;
+      const parsed = options.response === 'json' && !toolCalls.length ? JSON5.parse(outputText) : outputText;
 
       // Return
       return resolve({
@@ -989,6 +1112,9 @@ function attemptRequest(options, self, promptSegments, message, user, moderation
         content: parsed,
         tokens: self.tokens,
         moderation: moderation,
+        raw: r,
+        toolCalls: toolCalls,
+        stopReason: stopReason,
       })
     } catch (e) {
       assistant.error('Error parsing response', r, e);
@@ -1055,8 +1181,12 @@ function makeRequest(mode, options, self, promptSegments, message, user, _log) {
         user: user,
       }
     } else if (mode === 'responses') {
-      // Format history for responses API
-      const history = formatHistory(options, promptSegments, message, _log);
+      // Format input for the Responses API — direct-messages mode maps the
+      // unified messages[] straight through; legacy mode builds from
+      // prompt segments + history + message
+      const history = Array.isArray(options.messages) && options.messages.length
+        ? formatMessages(options.messages, _log)
+        : formatHistory(options, promptSegments, message, _log);
 
       // Set request
       request.url = 'https://api.openai.com/v1/responses';
@@ -1080,15 +1210,17 @@ function makeRequest(mode, options, self, promptSegments, message, user, _log) {
         request.body.reasoning = reasoning;
       }
 
-      // Only include tools if `tools.list` is a non-empty array. When present, the
-      // response output may contain tool-call items (e.g. web_search_call)
-      // alongside the message — the message extractor below already ignores
-      // non-message items, so this is purely additive.
+      // Only include tools if `tools.list` is a non-empty array. Normalized
+      // function tools ({ name, description, parameters }) get the Responses
+      // `type: 'function'` envelope; hosted tools (web_search, code_interpreter)
+      // pass verbatim. When present, the response output may contain tool-call
+      // items alongside the message — function_call items are extracted into
+      // the normalized `toolCalls` return field.
       if (Array.isArray(options.tools?.list) && options.tools.list.length) {
-        request.body.tools = options.tools.list;
+        request.body.tools = options.tools.list.map(normalizeToolEntry);
 
         if (options.tools.choice) {
-          request.body.tool_choice = options.tools.choice;
+          request.body.tool_choice = normalizeToolChoice(options.tools.choice);
         }
       }
     }
@@ -1186,5 +1318,8 @@ module.exports = OpenAI;
 module.exports._internals = {
   normalizePrompt,
   formatHistory,
+  formatMessages,
+  normalizeToolEntry,
+  normalizeToolChoice,
   VALID_PROMPT_ROLES,
 };

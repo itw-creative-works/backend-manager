@@ -8,7 +8,7 @@
 | `anthropic` | `claude-sonnet-4-6` | Better at SVG illustrations and creative output |
 | `claude-code` | `claude-opus-4-7` | Same Claude models as `anthropic`, but bills a Claude Pro/Max **subscription** instead of API credits |
 
-Return shape (same for all providers): `{ content, output, tokens, raw }`.
+Return shape (same for all providers): `{ content, output, tokens, raw }` — plus `toolCalls` and `stopReason` when tools are in play (see Tools below).
 
 `options.response: 'json'` triggers JSON parsing — all providers strip fences and parse with JSON5 for robustness. `options.schema` enforces structure on OpenAI (real JSON schema) and is injected into the system prompt on Anthropic / claude-code.
 
@@ -36,14 +36,48 @@ Return shape (single image): `{ buffer, b64, mime, revisedPrompt, model, size, q
 
 API key resolution is the same as `request()` — `BACKEND_MANAGER_OPENAI_API_KEY` / `OPENAI_API_KEY` (process.env or config).
 
-## Tools / web search (OpenAI)
+## Tools — cross-provider function calling (agentic loops)
 
-Tools are nested under `options.tools` and opt-in — when omitted, no tools are sent and behavior is identical to a plain request:
+Tools are nested under `options.tools` and opt-in — when omitted, no tools are sent and behavior is identical to a plain request.
 
-- `tools.list` — array of tool definitions passed to the OpenAI Responses API verbatim. Built-in hosted tools (e.g. `{ type: 'web_search' }`, `{ type: 'code_interpreter' }`) OR custom function tools (`{ type: 'function', name, parameters }`).
-- `tools.choice` *(optional)* — maps to `tool_choice` (`'auto'` | `'required'` | `'none'`, or a specific tool). Omit to let OpenAI default to `auto`.
+- `tools.list` — array of tool definitions. **Normalized function tools** (`{ name, description, parameters }` where `parameters` is a JSON Schema object — `type: 'function'` optional) work on EVERY provider. Provider-specific hosted tools (e.g. `{ type: 'web_search' }`, `{ type: 'code_interpreter' }`) pass verbatim on OpenAI and throw a clear error on Anthropic/claude-code.
+- `tools.choice` *(optional)* — `'auto' | 'required' | 'none'`, or `{ name: 'tool_name' }` to force a specific tool. Mapped per provider (Anthropic: `auto`/`any`/`none`/`tool`).
 
-The most common use is OpenAI's built-in **web search** so the model finds and cites real, currently-live URLs instead of hallucinating them:
+When the model decides to call tools, the response carries them in normalized form:
+
+- `r.toolCalls` — `[{ id, name, arguments }]`, `arguments` already parsed to an object.
+- `r.stopReason` — `'tool_use' | 'end' | 'max_tokens'`.
+
+A tool-call turn legitimately has `content: ''` — `response: 'json'` parsing is skipped on tool-call turns (the caller is expected to continue the loop, not consume a final answer).
+
+### Loop continuation via `options.messages`
+
+Structured conversations pass the full turn history through `options.messages` with two cross-provider conventions:
+
+- Assistant tool-call turn: `{ role: 'assistant', content?, toolCalls: [{ id, name, arguments }] }` — or replay the provider's raw blocks (`{ role: 'assistant', content: r.raw.content }`) on Anthropic.
+- Tool result turn: `{ role: 'tool', toolCallId, content }` — consecutive tool results merge into one Anthropic user turn of `tool_result` blocks; OpenAI gets `function_call_output` items.
+
+```js
+const ai = Manager.AI(assistant);
+const messages = [
+  { role: 'system', content: 'Use tools to answer.' },
+  { role: 'user', content: 'What is the weather in Paris?' },
+];
+const tools = { list: [{ name: 'get_weather', description: '...', parameters: { type: 'object', properties: { city: { type: 'string' } }, required: ['city'] } }] };
+
+const first = await ai.request({ provider: 'anthropic', messages, tools });
+// first.stopReason === 'tool_use'; first.toolCalls = [{ id, name: 'get_weather', arguments: { city: 'Paris' } }]
+
+messages.push({ role: 'assistant', content: first.raw.content });          // or { role: 'assistant', toolCalls: first.toolCalls }
+messages.push({ role: 'tool', toolCallId: first.toolCalls[0].id, content: '{"temp":"21C"}' });
+
+const second = await ai.request({ provider: 'anthropic', messages, tools });
+// second.stopReason === 'end'; second.content is the final answer
+```
+
+`normalizeOptions()` detects structured conversations (tool turns / toolCalls / raw blocks) and leaves them intact — only the system turn gets the universal prompt injections. Plain-text `messages[]` keep their legacy behavior, except OpenAI now sends ALL turns (previously middle turns were dropped in favor of prompt/message/history).
+
+### Hosted web search (OpenAI only)
 
 ```js
 const r = await ai.request({
@@ -56,7 +90,22 @@ const r = await ai.request({
 });
 ```
 
-When tools are active, the response `output` array may contain tool-call items (e.g. `web_search_call`) alongside the `message`; the message-text extractor ignores non-message items, so `r.content` is unaffected. URL citations live in the returned `output` (message content) as `annotations` of type `url_citation`.
+URL citations live in the returned `output` (message content) as `annotations` of type `url_citation`.
+
+## `test` provider — deterministic scripted AI for test suites
+
+`provider: 'test'` is the AI analog of the `test` payment processor: a first-class provider that suites drive with directives in the LAST user message, so consumer routes exercise their full loop (Firestore writes, usage, locks, tool execution) against the real emulator with zero paid API calls. It **refuses to run outside development/testing**.
+
+Directives form a sequence consumed across loop turns (call N executes directive N-1, indexed by assistant turns after the last user turn). Directive values must not contain `]]` internally (a trailing JSON `]` is fine):
+
+| Directive | Behavior |
+|---|---|
+| `[[tool:name {json}]]` | Emit one tool call this step (`stopReason: 'tool_use'`) |
+| `[[tools:[{"name":"a","arguments":{}}, ...]]]` | Emit parallel tool calls this step |
+| `[[reply:{json}]]` | Final reply (parsed when `response: 'json'`) |
+| `[[delay:ms]]` | Modifier — delay the NEXT step (max 30s) |
+| `[[error:msg]]` | Throw at this step |
+| *(none / exhausted)* | Echo reply: `Echo: <message>` (`{ message }` in json mode) |
 
 ## `claude-code` provider — subscription billing
 
@@ -74,8 +123,10 @@ The legacy `src/manager/libraries/openai.js` is a thin compatibility shim that r
 
 | File | Purpose |
 |---|---|
-| `src/manager/libraries/ai/index.js` | Unified `AI` class (dispatches by provider) |
-| `src/manager/libraries/ai/providers/openai.js` | OpenAI provider (original `openai.js` content) |
-| `src/manager/libraries/ai/providers/anthropic.js` | Anthropic provider (Claude Messages API, x-api-key, API credits) |
-| `src/manager/libraries/ai/providers/claude-code.js` | claude-code provider (Claude Messages API, OAuth Bearer, subscription billing) |
+| `src/manager/libraries/ai/index.js` | Unified `AI` class (dispatches by provider; structured-messages detection) |
+| `src/manager/libraries/ai/providers/openai.js` | OpenAI provider (Responses API; direct-messages mode + tool envelopes) |
+| `src/manager/libraries/ai/providers/anthropic.js` | Anthropic provider (Claude Messages API, x-api-key, API credits, native tool_use) |
+| `src/manager/libraries/ai/providers/claude-code.js` | claude-code provider (Claude Messages API, OAuth Bearer, subscription billing, native tool_use) |
+| `src/manager/libraries/ai/providers/anthropic-format.js` | Shared pure formatters for both Claude providers (tool defs, message building, extraction) |
+| `src/manager/libraries/ai/providers/test.js` | Deterministic `test` provider (scripted directives; dev/testing only) |
 | `src/manager/libraries/openai.js` | Back-compat shim → providers/openai.js |
