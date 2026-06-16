@@ -67,18 +67,20 @@ ui.rule();                                       // a bare 70-char rule string (
 
 ### `ui.Summary`
 
-Collects pass/fail outcomes and prints an OMEGA-style summary block (green `✅`
+Collects pass/warn/fail outcomes and prints an OMEGA-style summary block (green `✅`
 when all passed, yellow `⚠` otherwise).
 
 ```js
 const summary = new ui.Summary().start();
-summary.pass();                       // record a pass
+summary.pass();                        // record a pass
+summary.warn('check name', detailsArr);// record a warning (non-blocking)
 summary.fail('check name', detailsArr);// record a fail with pre-formatted detail lines
 summary.print({ hint: 'Fix the above, then run npx mgr setup again.' });
 ```
 
-`fail()`'s second arg is an array of already-styled lines shown indented under the
-failing check in the summary block.
+Results line: `36 passed, 1 warned, 0 failed` (the warned segment only appears
+when > 0). Warnings are listed before failures in the summary block — yellow `⚠`
+lines with their detail arrays indented beneath.
 
 ## How `setup` uses it
 
@@ -94,12 +96,22 @@ from these helpers:
 
 ### Test runner (`Main.prototype.test` in `src/cli/index.js`)
 
-Each setup check prints `    [N] <symbol> <name>`. A check can:
-- **pass** → `✓` (recorded via `setupSummary.pass()`).
-- **fail then auto-fix** → `⚠ … — fixing…` then `✓ fixed`.
-- **fail unfixably** → `✗ Could not fix: <message>`, recorded via
-  `setupSummary.fail(name, details)`, then `haltSetup()` prints the summary and
-  `process.exit(1)`.
+Each setup check prints `    [N] <symbol> <name>`. A check's `run()` can return:
+
+| Return value | Behavior |
+|---|---|
+| `true` | `✓` pass (recorded via `setupSummary.pass()`) |
+| `false` | Attempt `fix()` → `✓ fixed` on success, `✗ Could not fix` + halt on throw |
+| `Error` | `✗` hard halt, no fix attempted |
+| `'warn'` | `⚠` non-blocking warning — reported in summary, does **not** halt |
+
+**`'warn'` return type:** When `run()` returns `'warn'`, the runner prints the
+check as `⚠`, calls `getWarning()` on the test instance for detail lines (array
+of strings), and records it via `setupSummary.warn()`. Setup continues. The
+summary shows `36 passed, 1 warned, 0 failed` with the warning details listed
+at the bottom. Use this for environment prerequisites that don't block dev/deploy
+(e.g. Java, optional CLIs). `BaseTest` provides a default `getWarning()` returning
+`[]`; override it with your detail lines.
 
 A failing check's `fix()` may attach `error.summaryDetails` (an array of styled
 lines) to surface a compact version in the summary block — see

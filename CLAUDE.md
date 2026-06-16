@@ -138,7 +138,7 @@ Deep references live in `docs/`. **Whenever you make a behavioral change, update
 - [docs/audit.md](docs/audit.md) — full-audit check catalog (U-xx universal / BEM-xx / F-xx IDs with severity + scope), protocol + fix loop
 - [docs/cdp-debugging.md](docs/cdp-debugging.md) — launching a controllable Chrome (CDP) to verify the frontend against your routes (network payloads, auth'd flows via the persistent agent profile)
 - [docs/key-files.md](docs/key-files.md) — quick lookup for the most-touched files (Manager, helpers, auth events, cron, payment processors, CLI commands)
-- [docs/cli-output.md](docs/cli-output.md) — shared CLI styling module (`src/cli/utils/ui.js`): OMEGA-style banner/dividers/sections/status symbols + the `Summary` block; used by `setup`, adoptable by other commands
+- [docs/cli-output.md](docs/cli-output.md) — shared CLI styling module (`src/cli/utils/ui.js`): OMEGA-style banner/dividers/sections/status symbols + the `Summary` block (pass/warn/fail); setup check return types (`true`/`false`/`Error`/`'warn'`); used by `setup`, adoptable by other commands
 - [docs/environment-detection.md](docs/environment-detection.md) — `getEnvironment()` returns `'development' | 'testing' | 'production'` (mutually exclusive); gate side effects on the INTENTIONAL check (`isProduction()` for prod-only, `isDevelopment() || isTesting()` for local-or-test) — never `!isDevelopment()`. Plus the URL helper convention (always `Manager.getApiUrl()` — auto-resolves local in dev+test, never read `project.apiUrl`)
 - [docs/response-headers.md](docs/response-headers.md) — automatic `bm-properties` header
 

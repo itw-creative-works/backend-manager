@@ -194,6 +194,20 @@ Main.prototype.test = async function(name, fn, fix, args) {
     return;
   }
 
+  // A check that returns 'warn' is a non-blocking failure — reported in the
+  // summary but does not halt setup. The warning details come from args.details
+  // (an array of pre-formatted lines) set by the caller.
+  if (passed === 'warn') {
+    self.testTotal++;
+    printLine(self.testTotal, 'warn', '');
+    const details = (args && typeof args.details === 'function') ? args.details() : (args && args.details) || [];
+    for (const line of details) {
+      ui.status('warn', chalk.yellow(line), { level: 3 });
+    }
+    if (self.setupSummary) { self.setupSummary.warn(name, details.map(d => chalk.yellow(d))); }
+    return;
+  }
+
   if (passed) {
     self.testCount++;
     self.testTotal++;

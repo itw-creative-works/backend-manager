@@ -291,7 +291,8 @@ class SetupCommand extends BaseCommand {
         },
         async () => {
           return await test.fix();
-        }
+        },
+        { details: () => test.getWarning() },
       );
     }
   }

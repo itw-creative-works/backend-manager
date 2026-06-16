@@ -442,6 +442,14 @@ class TestCommand extends BaseCommand {
    *   - `test.log`     — the test-runner subprocess stdout/stderr (managed here)
    */
   async runEmulatorTests(testCommand, functionsDir) {
+    try {
+      await powertools.execute('java -version', { log: false });
+    } catch (e) {
+      this.logError(`Java is required to run tests (Firebase emulators depend on it).`);
+      this.logError(`Install with: brew install openjdk`);
+      process.exit(1);
+    }
+
     this.log(chalk.gray('  Starting Firebase emulator...\n'));
 
     const emulatorCmd = new EmulatorCommand(this.main);

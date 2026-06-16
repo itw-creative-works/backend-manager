@@ -8,6 +8,8 @@ const IsFirebaseProjectTest = require('./is-firebase-project');
 const NodeVersionTest = require('./node-version');
 const NvmrcVersionTest = require('./nvmrc-version');
 const FirebaseCLITest = require('./firebase-cli');
+const FirebaseAuthTest = require('./firebase-auth');
+const JavaInstalledTest = require('./java-installed');
 const FunctionsPackageTest = require('./functions-package');
 const FirebaseAdminTest = require('./firebase-admin');
 const FirebaseFunctionsTest = require('./firebase-functions');
@@ -51,6 +53,8 @@ function getTests(context) {
     new NodeVersionTest(context),
     new NvmrcVersionTest(context),
     new FirebaseCLITest(context),
+    new FirebaseAuthTest(context),
+    new JavaInstalledTest(context),
     new FunctionsPackageTest(context),
     new FirebaseAdminTest(context),
     new FirebaseFunctionsTest(context),

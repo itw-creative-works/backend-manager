@@ -25,6 +25,14 @@ class BaseTest {
   }
 
   /**
+   * Override to provide warning details when run() returns 'warn'.
+   * @returns {string[]}
+   */
+  getWarning() {
+    return [];
+  }
+
+  /**
    * Get the test name (used for logging)
    * @returns {string}
    */

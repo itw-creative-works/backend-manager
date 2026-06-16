@@ -164,6 +164,7 @@ class Summary {
   constructor() {
     this.startTime = null;
     this.passes = 0;
+    this.warns = [];
     this.fails = [];
   }
 
@@ -178,6 +179,14 @@ class Summary {
 
   /**
    * @param {string} name - Check name.
+   * @param {string[]} [details] - Pre-formatted detail lines to show under the warning.
+   */
+  warn(name, details = []) {
+    this.warns.push({ name, details });
+  }
+
+  /**
+   * @param {string} name - Check name.
    * @param {string[]} [details] - Pre-formatted detail lines to show under the failure.
    */
   fail(name, details = []) {
@@ -185,7 +194,7 @@ class Summary {
   }
 
   get total() {
-    return this.passes + this.fails.length;
+    return this.passes + this.warns.length + this.fails.length;
   }
 
   /**
@@ -214,6 +223,7 @@ class Summary {
    */
   print(opts = {}) {
     const hasErrors = this.fails.length > 0;
+    const hasWarnings = this.warns.length > 0;
     const headerColor = hasErrors ? chalk.yellow : chalk.green;
     const icon = hasErrors ? SYMBOLS.warn : SYMBOLS.done;
     const elapsed = this.startTime ? this._formatDuration(Date.now() - this.startTime) : '0s';
@@ -226,10 +236,22 @@ class Summary {
     blank();
     field('Checks', String(this.total), { pad: 11 });
     field('Duration', elapsed, { pad: 11 });
-    const failText = hasErrors
-      ? chalk.red(`${this.fails.length} failed`)
-      : chalk.dim('0 failed');
-    field('Results', `${chalk.green(`${this.passes} passed`)}${chalk.dim(', ')}${failText}`, { pad: 11 });
+    const parts = [chalk.green(`${this.passes} passed`)];
+    if (hasWarnings) {
+      parts.push(chalk.yellow(`${this.warns.length} warned`));
+    }
+    parts.push(hasErrors ? chalk.red(`${this.fails.length} failed`) : chalk.dim('0 failed'));
+    field('Results', parts.join(chalk.dim(', ')), { pad: 11 });
+
+    if (hasWarnings) {
+      blank();
+      for (const { name, details } of this.warns) {
+        console.log(`${indent(1)}${chalk.yellow(SYMBOLS.warn)} ${chalk.bold(name)}`);
+        for (const line of details) {
+          console.log(`${indent(3)}${line}`);
+        }
+      }
+    }
 
     if (hasErrors) {
       blank();

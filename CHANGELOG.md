@@ -14,6 +14,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.6.6] - 2026-06-15
+
+### Added
+- **`'warn'` return type for setup checks.** `run()` can now return the string `'warn'` for non-blocking failures — the check prints as `⚠` with detail lines from `getWarning()`, is counted in the summary (`36 passed, 1 warned, 0 failed`), but does **not** halt setup. `BaseTest` provides a default `getWarning()` returning `[]`. `Summary` gains a `warn(name, details)` method alongside `pass()` and `fail()`.
+- **Java setup check** (`setup-tests/java-installed.js`). Checks whether Java is installed (required by the Firebase Firestore emulator for testing). Uses the `'warn'` return type — setup continues without Java, but the summary reports it.
+- **Java pre-check in test runner.** `npx mgr test` now checks for Java before starting the emulator and fails fast with a clear message (`Java is required to run tests`) instead of the raw emulator crash.
+
+### Changed
+- **Firebase CLI and auth setup checks no longer halt setup.** Both checks now use the `'warn'` return type instead of throwing from `fix()`. Missing Firebase CLI or unauthenticated state is reported in the summary but does not block the remaining checks.
+
 # [5.6.5] - 2026-06-14
 
 ### Added
