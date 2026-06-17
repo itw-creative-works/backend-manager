@@ -2,13 +2,20 @@
 > Agents and maintainers should update this file regularly to reflect the current state of the project.
 
 ## 🎯 Current Focus
-* **Goal:** MCP role-based tool scoping + consumer extensibility
-* **Current Phase:** Complete — all phases done, 44 tests passing, docs finalized
+* **Goal:** Fix newsletter generation ReferenceError (beehiivConfig → newsletterRoleConfig)
+* **Current Phase:** Fix applied, pending deploy + Firestore sendAt reset
 * **Priority:** High
-* **Last Updated:** 2026-06-17 3:42 AM PDT
-* **Notes:** Ready to ship. Full OAuth flow verified in Claude Desktop. Role reassignment (16 admin / 2 user / 1 public), annotations, HTTPS serve, dynamic client registration all working.
+* **Last Updated:** 2026-06-17 4:10 PM PDT
+* **Notes:** v5.5.0 refactor missed renaming `beehiivConfig` at 3 sites in newsletter.js (lines 331, 336, 340). Fix applied to framework source. Consumer (somiibo-backend) needs deploy + Firestore `_recurring-newsletter.sendAt` advanced to 1782322200 (Jun 24 17:30 UTC). Separate issue: Beehiiv send API requires Enterprise plan — all generated newsletters fail at send step.
 
 ## 📌 Active Task List
+* [ ] Phase 3: Newsletter generation fix (beehiivConfig ReferenceError)
+  * [x] Diagnose: traced prod logs + Firestore to find generation crashes after AI completes
+  * [x] Root cause: v5.5.0 missed renaming `beehiivConfig` → `newsletterRoleConfig` at lines 331/336/340
+  * [x] Fix applied to framework source (`src/manager/libraries/email/generators/newsletter.js`)
+  * [ ] Commit + publish framework fix
+  * [ ] Deploy consumer (somiibo-backend): `cd functions && npx mgr deploy`
+  * [ ] Advance stuck sendAt: `npx mgr firestore:set marketing-campaigns/_recurring-newsletter --merge --data '{"sendAt": 1782322200}'`
 
 ## ✅ Completed Task List
 * [x] Phase 1: MCP role-based tool scoping + consumer extensibility

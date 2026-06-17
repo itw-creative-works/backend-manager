@@ -14,6 +14,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.7.1] - 2026-06-17
+
+### Added
+- **MCP shorthand URL.** MCP endpoint now accessible at `/mcp` in addition to `/backend-manager/mcp`. Hosting rewrites updated; consumer projects pick up on next `npx mgr setup`.
+- **`/register` hosting rewrite.** Dynamic client registration endpoint now included in the default hosting rewrite pattern.
+
 # [5.7.0] - 2026-06-17
 
 ### Added

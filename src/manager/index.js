@@ -1335,7 +1335,7 @@ function requireJSON5(file, throwError) {
  * @returns {string|null} - Normalized MCP route path, or null if not MCP
  */
 function resolveMcpRoutePath(routePath) {
-  // Direct MCP paths (via /backend-manager/mcp/*)
+  // Direct MCP paths (via /mcp/* or /backend-manager/mcp/*)
   if (routePath === 'mcp' || routePath.startsWith('mcp/')) {
     return routePath;
   }

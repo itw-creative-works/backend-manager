@@ -8,7 +8,7 @@
     ],
     "rewrites": [
       {
-        "source": "{/backend-manager,/backend-manager/**,/.well-known/oauth-protected-resource,/.well-known/oauth-authorization-server,/authorize,/token}",
+        "source": "{/backend-manager,/backend-manager/**,/mcp,/mcp/**,/.well-known/oauth-protected-resource,/.well-known/oauth-authorization-server,/authorize,/token,/register}",
         "function": "bm_api"
       }
     ]

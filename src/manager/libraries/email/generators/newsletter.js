@@ -328,16 +328,16 @@ async function generate(Manager, assistant, settings, opts = {}) {
   //     post-creation API requires Enterprise plan), but we ship it anyway
   //     so the day we upgrade to Enterprise it Just Works. Failure is logged,
   //     never thrown — the rest of the pipeline (GH archive, Firestore doc)
-  //     succeeds regardless. beehiivConfig was already resolved at the top
+  //     succeeds regardless. newsletterRoleConfig was already resolved at the top
   //     of the function for the initial enabled-check.
   let beehiivPostId = null;
   let beehiivFailureReason = null;
 
-  if (host === 'github' && beehiivConfig?.enabled) {
+  if (host === 'github' && newsletterRoleConfig?.enabled) {
     try {
       const beehiivProvider = require('../providers/beehiiv.js');
       const result = await beehiivProvider.createPost({
-        publicationId: beehiivConfig.publicationId,  // explicit — avoids singleton-Manager dependency
+        publicationId: newsletterRoleConfig.publicationId,  // explicit — avoids singleton-Manager dependency
         title:         structure.subject,
         subject:       structure.subject,
         preheader:     structure.preheader,
