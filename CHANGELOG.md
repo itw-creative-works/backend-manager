@@ -14,6 +14,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.7.0] - 2026-06-17
+
+### Added
+- **MCP role-based tool scoping.** 25 tools (was 19) with admin/user/public roles. Admin sees all, user sees `get_user` + `get_subscription` + `health_check`, unauthenticated gets 401 triggering OAuth. Defense-in-depth: route-level auth still validates.
+- **MCP OAuth user authentication.** OAuth 2.1 with PKCE + dynamic client registration (RFC 7591). User sign-in via consumer website's `/token` page → Firebase ID token → exchanged for `api.privateKey`. Verified end-to-end in Claude Desktop.
+- **MCP consumer tools.** Consumer projects define custom MCP tools in `functions/mcp.js` — route delegation (works on stdio + HTTP) or handler mode (HTTP only). Consumer tools override same-name built-ins.
+- **MCP tool annotations.** `title`, `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint` on all tools. Claude Desktop shows read/write categorization and human-readable titles.
+- **6 new MCP tools:** `update_post`, `update_campaign`, `delete_campaign`, `create_contact`, `delete_contact`, `get_payment_portal`.
+- **HTTPS local dev.** `npx mgr serve` starts an HTTPS proxy on port 5002 (firebase serve on 5443 internally) with auto-generated mkcert certificates. Claude Desktop requires HTTPS for MCP connectors. Disable with `--no-https`.
+- **MCP CLI `--token` flag.** `npx mgr mcp --token <api-key>` for user-level stdio connections.
+
+### Changed
+- **MCP discovery endpoints** use root-level issuer per RFC 8414 (was path-scoped, broke Claude Desktop's discovery chain).
+- **`getApiUrl()`** returns `https://localhost:<port>` when `BEM_HTTPS_PORT` is set (serve command sets this automatically).
+- **`cancel_subscription`, `refund_payment`, `generate_uuid`** moved from user/public to admin role (destructive operations and dev utilities shouldn't be in user-facing MCP).
+- **`resolveConsumerAuthUrl()`** uses `Manager.getWebsiteUrl()` (auto-resolves localhost in dev) instead of `brand.url` (always production).
+
 # [5.6.6] - 2026-06-15
 
 ### Added

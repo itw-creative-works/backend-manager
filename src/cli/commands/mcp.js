@@ -18,14 +18,20 @@ class McpCommand extends BaseCommand {
       || process.env.BEM_URL
       || 'http://localhost:5002';
 
-    // Resolve the admin key
+    // Resolve auth credentials
     const backendManagerKey = self.argv.key
       || process.env.BACKEND_MANAGER_KEY
       || '';
+    const userToken = self.argv.token || '';
 
     const { startServer } = require('../../mcp/index.js');
 
-    await startServer({ baseUrl, backendManagerKey });
+    await startServer({
+      baseUrl,
+      backendManagerKey: userToken ? '' : backendManagerKey,
+      userToken,
+      cwd: functionsDir,
+    });
   }
 }
 

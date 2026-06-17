@@ -2,6 +2,7 @@
  * BEM HTTP Client
  *
  * Makes authenticated HTTP calls to a running BEM server (local or production).
+ * Supports admin key auth (backendManagerKey) and user token auth (API key from OAuth flow).
  */
 const fetch = require('wonderful-fetch');
 
@@ -11,6 +12,7 @@ class BEMClient {
 
     this.baseUrl = (options.baseUrl || '').replace(/\/+$/, '');
     this.backendManagerKey = options.backendManagerKey || '';
+    this.userToken = options.userToken || '';
   }
 
   /**
@@ -35,24 +37,57 @@ class BEMClient {
       timeout: 120000,
     };
 
-    if (method === 'GET') {
-      // GET: auth + params go in query string
-      url.searchParams.set('backendManagerKey', this.backendManagerKey);
+    if (this.backendManagerKey) {
+      // Admin key auth — key in query/body (existing behavior)
+      if (method === 'GET') {
+        url.searchParams.set('backendManagerKey', this.backendManagerKey);
 
-      for (const [key, value] of Object.entries(params)) {
-        if (value === undefined || value === null) {
-          continue;
+        for (const [key, value] of Object.entries(params)) {
+          if (value === undefined || value === null) {
+            continue;
+          }
+
+          url.searchParams.set(key, typeof value === 'object' ? JSON.stringify(value) : value);
         }
+      } else {
+        fetchOptions.body = JSON.stringify({
+          backendManagerKey: this.backendManagerKey,
+          ...params,
+        });
+      }
+    } else if (this.userToken) {
+      // User token auth — Bearer header + authenticationToken param
+      fetchOptions.headers['Authorization'] = `Bearer ${this.userToken}`;
 
-        // Serialize objects/arrays as JSON strings for query params
-        url.searchParams.set(key, typeof value === 'object' ? JSON.stringify(value) : value);
+      if (method === 'GET') {
+        url.searchParams.set('authenticationToken', this.userToken);
+
+        for (const [key, value] of Object.entries(params)) {
+          if (value === undefined || value === null) {
+            continue;
+          }
+
+          url.searchParams.set(key, typeof value === 'object' ? JSON.stringify(value) : value);
+        }
+      } else {
+        fetchOptions.body = JSON.stringify({
+          authenticationToken: this.userToken,
+          ...params,
+        });
       }
     } else {
-      // POST/PUT/DELETE: auth + params go in body
-      fetchOptions.body = JSON.stringify({
-        backendManagerKey: this.backendManagerKey,
-        ...params,
-      });
+      // Unauthenticated
+      if (method === 'GET') {
+        for (const [key, value] of Object.entries(params)) {
+          if (value === undefined || value === null) {
+            continue;
+          }
+
+          url.searchParams.set(key, typeof value === 'object' ? JSON.stringify(value) : value);
+        }
+      } else {
+        fetchOptions.body = JSON.stringify(params);
+      }
     }
 
     const response = await fetch(url.toString(), fetchOptions);

@@ -14,7 +14,7 @@ open -gna "Google Chrome" --args \
   --disable-background-timer-throttling \
   --disable-backgrounding-occluded-windows \
   --disable-renderer-backgrounding \
-  https://192.168.86.69:4000     # ← the frontend talking to your backend — EXACT URL from the UJM consumer's .temp/_config_browsersync.yml (or any URL)
+  https://localhost:4000          # ← the frontend talking to your backend (or the IP from .temp/_config_browsersync.yml if localhost doesn't connect)
 ```
 
 Verify it's up: `curl -s http://127.0.0.1:9223/json/version`
@@ -39,6 +39,6 @@ Port conventions: **9222** = Electron apps (EM), **9223+** = Chrome instances.
 
 ## BEM specifics
 
-- **The UJM dev site URL is NEVER `localhost`.** BrowserSync serves on the machine's local network IP over HTTPS (e.g. `https://192.168.86.69:4000`) — `localhost:4000` is refused — and the port varies (4001, …) when multiple sites run simultaneously. The exact served URL is written to `.temp/_config_browsersync.yml` at the root of the WEBSITE project being served (the UJM consumer — e.g. `<brand>-website/.temp/_config_browsersync.yml`, NOT this backend repo) — read that file first, every time, before navigating.
+- **The UJM dev site is HTTPS.** BrowserSync serves over HTTPS (self-signed cert). Prefer `https://localhost:4000`; fall back to the machine's local network IP (e.g. `https://192.168.x.x:4000`) if localhost doesn't connect. Port 4000 by default, increments to 4001+ when multiple sites run. The exact URL is in `.temp/_config_browsersync.yml` at the root of the WEBSITE project (the UJM consumer — e.g. `<brand>-website/.temp/_config_browsersync.yml`, NOT this backend repo) — read that file first, every time, before navigating.
 - The network tab is the payoff: `list_network_requests` shows every call the frontend makes to your routes — method, status, and payloads — while you click through the real UI.
 - Backend-side observation stays where it always was: `npx mgr logs` (gcloud logs) and the emulator suite; this doc only covers the browser half of the loop.

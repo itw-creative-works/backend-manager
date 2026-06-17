@@ -2,14 +2,17 @@
  * MCP Tool Definitions
  *
  * Each tool maps to a BEM route with method, path, and JSON Schema for inputs.
+ * annotations.readOnlyHint / destructiveHint control Claude Desktop's read/write categorization.
  */
 module.exports = [
   // --- Firestore ---
   {
     name: 'firestore_read',
     description: 'Read a Firestore document by path (e.g. "users/abc123")',
+    role: 'admin',
     method: 'GET',
     path: 'admin/firestore',
+    annotations: { title: 'Read a Firestore document', readOnlyHint: true },
     inputSchema: {
       type: 'object',
       properties: {
@@ -21,8 +24,10 @@ module.exports = [
   {
     name: 'firestore_write',
     description: 'Write/merge a Firestore document. Set merge=false to overwrite entirely.',
+    role: 'admin',
     method: 'POST',
     path: 'admin/firestore',
+    annotations: { title: 'Write a Firestore document', readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     inputSchema: {
       type: 'object',
       properties: {
@@ -36,8 +41,10 @@ module.exports = [
   {
     name: 'firestore_query',
     description: 'Query a Firestore collection with where clauses, ordering, and limits. Each query in the array has: collection (string), where (array of {field, operator, value}), orderBy (array of {field, order}), limit (number).',
+    role: 'admin',
     method: 'POST',
     path: 'admin/firestore/query',
+    annotations: { title: 'Query a Firestore collection', readOnlyHint: true },
     inputSchema: {
       type: 'object',
       properties: {
@@ -87,8 +94,10 @@ module.exports = [
   {
     name: 'send_email',
     description: 'Send a transactional email via SendGrid. Recipients can be email strings, UIDs (auto-resolves from Firestore), or {email, name} objects.',
+    role: 'admin',
     method: 'POST',
     path: 'admin/email',
+    annotations: { title: 'Send a transactional email', readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     inputSchema: {
       type: 'object',
       properties: {
@@ -111,8 +120,10 @@ module.exports = [
   {
     name: 'send_notification',
     description: 'Send a push notification via FCM to users or topics',
+    role: 'admin',
     method: 'POST',
     path: 'admin/notification',
+    annotations: { title: 'Send a push notification', readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     inputSchema: {
       type: 'object',
       properties: {
@@ -144,8 +155,10 @@ module.exports = [
   {
     name: 'get_user',
     description: 'Get the currently authenticated user info. To look up a specific user, use firestore_read with path "users/{uid}" instead.',
+    role: 'user',
     method: 'GET',
     path: 'user',
+    annotations: { title: 'Get authenticated user info', readOnlyHint: true },
     inputSchema: {
       type: 'object',
       properties: {},
@@ -154,8 +167,10 @@ module.exports = [
   {
     name: 'get_subscription',
     description: 'Get subscription info for a user. Defaults to the authenticated user, or pass a uid to look up another user (admin only).',
+    role: 'user',
     method: 'GET',
     path: 'user/subscription',
+    annotations: { title: 'Get subscription info', readOnlyHint: true },
     inputSchema: {
       type: 'object',
       properties: {
@@ -166,8 +181,10 @@ module.exports = [
   {
     name: 'sync_users',
     description: 'Sync user data across systems (marketing contacts, etc). Processes users in batches.',
+    role: 'admin',
     method: 'POST',
     path: 'admin/users/sync',
+    annotations: { title: 'Sync users across systems', readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     inputSchema: {
       type: 'object',
       properties: {},
@@ -178,8 +195,10 @@ module.exports = [
   {
     name: 'list_campaigns',
     description: 'List marketing campaigns with optional filters by date range, status, and type',
+    role: 'admin',
     method: 'GET',
     path: 'marketing/campaign',
+    annotations: { title: 'List marketing campaigns', readOnlyHint: true },
     inputSchema: {
       type: 'object',
       properties: {
@@ -195,8 +214,10 @@ module.exports = [
   {
     name: 'create_campaign',
     description: 'Create a marketing campaign (email or push notification). Can be immediate or scheduled.',
+    role: 'admin',
     method: 'POST',
     path: 'marketing/campaign',
+    annotations: { title: 'Create a marketing campaign', readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     inputSchema: {
       type: 'object',
       properties: {
@@ -217,12 +238,92 @@ module.exports = [
     },
   },
 
+  {
+    name: 'update_campaign',
+    description: 'Update a pending marketing campaign. Only pending campaigns can be edited.',
+    role: 'admin',
+    method: 'PUT',
+    path: 'marketing/campaign',
+    annotations: { title: 'Update a campaign', readOnlyHint: false, destructiveHint: false },
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Campaign ID to update' },
+        name: { type: 'string', description: 'Campaign name' },
+        subject: { type: 'string', description: 'Email subject line' },
+        preheader: { type: 'string', description: 'Email preheader text' },
+        template: { type: 'string', description: 'Email template name' },
+        data: { type: 'object', description: 'Template data' },
+        segments: { type: 'array', items: { type: 'string' }, description: 'Target segment keys' },
+        excludeSegments: { type: 'array', items: { type: 'string' }, description: 'Exclude segment keys' },
+        all: { type: 'boolean', description: 'Send to all contacts' },
+        sendAt: { description: 'Reschedule time (ISO string or unix timestamp)' },
+        sender: { type: 'string', description: 'Sender preset name' },
+      },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'delete_campaign',
+    description: 'Delete a pending marketing campaign. Only pending campaigns can be deleted.',
+    role: 'admin',
+    method: 'DELETE',
+    path: 'marketing/campaign',
+    annotations: { title: 'Delete a campaign', readOnlyHint: false, destructiveHint: true },
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Campaign ID to delete' },
+      },
+      required: ['id'],
+    },
+  },
+
+  // --- Marketing Contacts ---
+  {
+    name: 'create_contact',
+    description: 'Add a marketing contact to email providers (SendGrid/Beehiiv). Admin mode skips reCAPTCHA and allows tags.',
+    role: 'admin',
+    method: 'POST',
+    path: 'marketing/contact',
+    annotations: { title: 'Add a marketing contact', readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    inputSchema: {
+      type: 'object',
+      properties: {
+        email: { type: 'string', description: 'Contact email address' },
+        firstName: { type: 'string', description: 'First name' },
+        lastName: { type: 'string', description: 'Last name' },
+        source: { type: 'string', description: 'Contact source (e.g. "manual", "import")' },
+        tags: { type: 'array', items: { type: 'string' }, description: 'Contact tags' },
+        skipValidation: { type: 'boolean', description: 'Skip email validation (admin only)', default: false },
+      },
+      required: ['email'],
+    },
+  },
+  {
+    name: 'delete_contact',
+    description: 'Remove a marketing contact from email providers and revoke marketing consent.',
+    role: 'admin',
+    method: 'DELETE',
+    path: 'marketing/contact',
+    annotations: { title: 'Remove a marketing contact', readOnlyHint: false, destructiveHint: true, openWorldHint: true },
+    inputSchema: {
+      type: 'object',
+      properties: {
+        email: { type: 'string', description: 'Contact email to remove' },
+      },
+      required: ['email'],
+    },
+  },
+
   // --- Stats ---
   {
     name: 'get_stats',
     description: 'Get system statistics (user counts, subscription metrics, etc.)',
+    role: 'admin',
     method: 'GET',
     path: 'admin/stats',
+    annotations: { title: 'Get system statistics', readOnlyHint: true },
     inputSchema: {
       type: 'object',
       properties: {
@@ -235,8 +336,10 @@ module.exports = [
   {
     name: 'cancel_subscription',
     description: 'Cancel a subscription at the end of the current billing period. Requires the authenticated user to have an active subscription.',
+    role: 'admin',
     method: 'POST',
     path: 'payments/cancel',
+    annotations: { title: 'Cancel a subscription', readOnlyHint: false, destructiveHint: true },
     inputSchema: {
       type: 'object',
       properties: {
@@ -250,8 +353,10 @@ module.exports = [
   {
     name: 'refund_payment',
     description: 'Process a refund for a subscription. Immediately cancels and refunds the latest payment.',
+    role: 'admin',
     method: 'POST',
     path: 'payments/refund',
+    annotations: { title: 'Refund a payment', readOnlyHint: false, destructiveHint: true },
     inputSchema: {
       type: 'object',
       properties: {
@@ -263,12 +368,29 @@ module.exports = [
     },
   },
 
+  {
+    name: 'get_payment_portal',
+    description: 'Generate a Stripe Billing Portal link for the authenticated user to manage their subscription.',
+    role: 'admin',
+    method: 'POST',
+    path: 'payments/portal',
+    annotations: { title: 'Get payment portal link', readOnlyHint: true, openWorldHint: true },
+    inputSchema: {
+      type: 'object',
+      properties: {
+        returnUrl: { type: 'string', description: 'URL to redirect to after the portal session' },
+      },
+    },
+  },
+
   // --- Cron ---
   {
     name: 'run_cron',
     description: 'Manually trigger a cron job by ID (e.g. "daily", "reset-usage", "marketing-campaigns")',
+    role: 'admin',
     method: 'POST',
     path: 'admin/cron',
+    annotations: { title: 'Trigger a cron job', readOnlyHint: false, destructiveHint: false },
     inputSchema: {
       type: 'object',
       properties: {
@@ -282,8 +404,10 @@ module.exports = [
   {
     name: 'create_post',
     description: 'Create a blog post. Handles image downloading, GitHub upload, and body rewriting.',
+    role: 'admin',
     method: 'POST',
     path: 'admin/post',
+    annotations: { title: 'Create a blog post', readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     inputSchema: {
       type: 'object',
       properties: {
@@ -297,13 +421,33 @@ module.exports = [
       required: ['title', 'body'],
     },
   },
+  {
+    name: 'update_post',
+    description: 'Update an existing blog post. Fetches the post by URL and uploads changes via GitHub.',
+    role: 'admin',
+    method: 'PUT',
+    path: 'admin/post',
+    annotations: { title: 'Update a blog post', readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+    inputSchema: {
+      type: 'object',
+      properties: {
+        url: { type: 'string', description: 'Blog post URL to update' },
+        body: { type: 'string', description: 'Updated post content body' },
+        title: { type: 'string', description: 'Updated post title' },
+        postPath: { type: 'string', description: 'Path to the post (default: "guest")' },
+      },
+      required: ['url', 'body'],
+    },
+  },
 
   // --- Backup ---
   {
     name: 'create_backup',
     description: 'Create a Firestore data backup. Optionally filter with a deletion regex.',
+    role: 'admin',
     method: 'POST',
     path: 'admin/backup',
+    annotations: { title: 'Create a Firestore backup', readOnlyHint: false, destructiveHint: false },
     inputSchema: {
       type: 'object',
       properties: {
@@ -316,8 +460,10 @@ module.exports = [
   {
     name: 'run_hook',
     description: 'Execute a custom hook by path (e.g. "cron/daily/my-job")',
+    role: 'admin',
     method: 'POST',
     path: 'admin/hook',
+    annotations: { title: 'Run a custom hook', readOnlyHint: false, destructiveHint: false },
     inputSchema: {
       type: 'object',
       properties: {
@@ -331,8 +477,10 @@ module.exports = [
   {
     name: 'generate_uuid',
     description: 'Generate a UUID (v4 random or v5 namespace-based)',
+    role: 'admin',
     method: 'POST',
     path: 'general/uuid',
+    annotations: { title: 'Generate a UUID', readOnlyHint: true },
     inputSchema: {
       type: 'object',
       properties: {
@@ -348,8 +496,10 @@ module.exports = [
   {
     name: 'health_check',
     description: 'Check if the BEM server is running and responding',
+    role: 'public',
     method: 'GET',
     path: 'test/health',
+    annotations: { title: 'Check server health', readOnlyHint: true },
     inputSchema: {
       type: 'object',
       properties: {},

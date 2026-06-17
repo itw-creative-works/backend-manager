@@ -70,7 +70,7 @@ Every feature ships with tests at EVERY surface it exposes — logic (`test/rout
 | `watch` | Auto-reload functions on file change |
 | `deploy` | Deploy Cloud Functions to Firebase |
 | `test` | Run framework + project test suites against an emulator |
-| `mcp` | Start the stdio MCP server (for Claude Code / Claude Desktop) |
+| `mcp` | Start the stdio MCP server (for Claude Code / Claude Desktop). Supports `--token <key>` for user-level connections |
 | `firestore:get/set/query/delete` | Direct Firestore reads/writes from the terminal |
 | `auth:get/list/delete/set-claims` | Manage Auth users from the terminal |
 | `logs:read` / `logs:tail` | Cloud Function logs from Google Cloud Logging |
@@ -158,7 +158,7 @@ Deep references live in `docs/`. **Whenever you make a behavioral change, update
 - [docs/payment-system.md](docs/payment-system.md) — full payment pipeline: Intent → Webhook → On-Write → Transition; subscription model, statuses, `resolveSubscription()`, transition handlers, processor interface, product config, test processor
 - [docs/marketing-campaigns.md](docs/marketing-campaigns.md) — campaign CRUD routes, recurring campaigns, generator pipeline (newsletter), newsletter-driven blog article (`content.article.enabled`), template-owned schemas, asset hosting, seed campaigns
 - [docs/consent.md](docs/consent.md) — marketing consent capture: canonical `consent.{legal,marketing}` user-doc shape, signup-form capture, account-page toggle, HMAC unsub link (cross-provider unsub + re-add on resubscribe), admin contact-DELETE revoke mirror, SendGrid+Beehiiv webhook receivers, parent forwarder (`/marketing/webhook/forward`), library-level consent gate in `email.add()`/`email.sync()` (revoked-only skip), migration script template
-- [docs/mcp.md](docs/mcp.md) — Model Context Protocol server: 19 tools, stdio + HTTP transports, OAuth, Claude Chat/Code configuration
+- [docs/mcp.md](docs/mcp.md) — Model Context Protocol server: 25 tools with role-based scoping (22 admin / 2 user / 1 public), tool annotations (title, read/write hints), OAuth 2.1 with PKCE + dynamic client registration + consumer website sign-in, consumer MCP tools (`functions/mcp.js`), HTTPS local dev (mkcert), Claude Desktop/Chat/Code configuration
 
 ### Subsystems & Libraries
 

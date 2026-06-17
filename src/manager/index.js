@@ -254,9 +254,11 @@ Manager.prototype.init = function (exporter, options) {
     // to localhost. NOTE: getParentApiUrl/getParentUrl are intentionally NOT changed —
     // the parent is a real remote server with no localhost equivalent.
     const isDev = env === 'development' || (!env && (self.isDevelopment() || self.isTesting()));
-    return isDev
-      ? 'http://localhost:5002'
-      : `https://api.${(self.config.brand?.url || '').replace(/^https?:\/\//, '')}`;
+    if (isDev) {
+      const httpsPort = process.env.BEM_HTTPS_PORT;
+      return httpsPort ? `https://localhost:${httpsPort}` : 'http://localhost:5002';
+    }
+    return `https://api.${(self.config.brand?.url || '').replace(/^https?:\/\//, '')}`;
   };
 
   self.getWebsiteUrl = function(env) {
@@ -1351,6 +1353,9 @@ function resolveMcpRoutePath(routePath) {
   }
   if (routePath === 'token') {
     return 'mcp/token';
+  }
+  if (routePath === 'register') {
+    return 'mcp/register';
   }
 
   return null;
