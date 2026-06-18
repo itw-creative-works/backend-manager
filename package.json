@@ -1,6 +1,6 @@
 {
   "name": "backend-manager",
-  "version": "5.7.4",
+  "version": "5.7.5",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
   "bin": {
@@ -11,6 +11,7 @@
   },
   "scripts": {
     "start": "node src/manager/index.js",
+    "test": "node bin/backend-manager test",
     "prepare": "node -e \"require('prepare-package')()\"",
     "prepare:watch": "node -e \"require('prepare-package/watch')()\"",
     "prepublishOnly": "node -e \"require('fs').rmSync('src/test/fixtures/firebase-project/functions/node_modules', { recursive: true, force: true })\""
