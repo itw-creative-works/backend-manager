@@ -413,7 +413,7 @@ const JOURNEY_ACCOUNTS = {
     email: '_test.cancel-too-young@{domain}',
     properties: {
       roles: {},
-      subscription: { product: { id: 'premium', name: 'Premium' }, status: 'active', expires: getFutureExpires(), cancellation: { pending: false }, payment: { processor: 'test', resourceId: 'sub_test_fake', startDate: { timestamp: new Date().toISOString(), timestampUNIX: Date.now() } } },
+      subscription: { product: { id: 'premium', name: 'Premium' }, status: 'active', expires: getFutureExpires(), cancellation: { pending: false }, payment: { processor: 'test', resourceId: 'sub_test_fake', startDate: { timestamp: new Date().toISOString(), timestampUNIX: Math.floor(Date.now() / 1000) } } },
     },
   },
   // Dedicated accounts for portal validation tests
@@ -837,47 +837,33 @@ async function deleteTestUsers(admin, extraAccounts) {
   // Wipe the entire emulator Firestore up front (guarded to emulator-only).
   await flushEmulatorFirestore(admin);
 
-  // Delete all known test accounts in parallel (built-in + project-defined).
-  const allAccounts = { ...TEST_ACCOUNTS, ...(extraAccounts || {}) };
-  await Promise.all(
-    Object.values(allAccounts).map(async (account) => {
-      try {
-        // Delete Firebase Auth user (triggers on-delete which handles Firestore doc + count)
-        await admin.auth().deleteUser(account.uid);
+  // Clear auth users via the emulator's bulk-clear REST API instead of
+  // individual deleteUser() calls. Individual deletes trigger auth:on-delete
+  // for EACH user, and those triggers fire asynchronously — a late on-delete
+  // can land AFTER the subsequent createTestAccounts() on-create and clobber
+  // the freshly-written doc (80% repro rate in stress tests). The bulk API
+  // clears the auth store without triggering event handlers at all.
+  const authHost = process.env.FIREBASE_AUTH_EMULATOR_HOST;
+  const projectId = process.env.GCLOUD_PROJECT || 'demo-test';
 
-        // Wait for on-delete handler to delete the Firestore doc
-        const maxWait = 10000;
-        const interval = 200;
-        let waited = 0;
+  if (authHost) {
+    try {
+      const url = `http://${authHost}/emulator/v1/projects/${projectId}/accounts`;
+      await fetch(url, { method: 'DELETE' });
 
-        while (waited < maxWait) {
-          const doc = await admin.firestore().doc(`users/${account.uid}`).get();
-
-          if (!doc.exists) {
-            break;
-          }
-
-          await new Promise(resolve => setTimeout(resolve, interval));
-          waited += interval;
-        }
-
-        // Fallback: if on-delete didn't complete in time, delete the doc directly
-        if (waited >= maxWait) {
-          await admin.firestore().doc(`users/${account.uid}`).delete().catch(() => {});
-        }
-
-        results.deleted.push(account.uid);
-      } catch (error) {
-        if (error.code === 'auth/user-not-found') {
-          // Auth user doesn't exist, but Firestore doc might still exist - clean it up
-          await admin.firestore().doc(`users/${account.uid}`).delete().catch(() => {});
-          results.skipped.push(account.uid);
-        } else {
-          results.failed.push({ uid: account.uid, error: error.message });
-        }
-      }
-    })
-  );
+      // Count all known accounts as deleted (the bulk API doesn't return per-user results)
+      const allAccounts = { ...TEST_ACCOUNTS, ...(extraAccounts || {}) };
+      results.deleted = Object.values(allAccounts).map(a => a.uid);
+    } catch (e) {
+      // Bulk clear failed — fall back to individual deletes
+      const allAccounts = { ...TEST_ACCOUNTS, ...(extraAccounts || {}) };
+      await _deleteAccountsIndividually(admin, allAccounts, results);
+    }
+  } else {
+    // Not running against emulator — fall back to individual deletes
+    const allAccounts = { ...TEST_ACCOUNTS, ...(extraAccounts || {}) };
+    await _deleteAccountsIndividually(admin, allAccounts, results);
+  }
 
   // Realtime Database: wipe the `_test` namespace in full. (The Firestore-wide
   // flush already ran in flushEmulatorFirestore() at the start of this function.)
@@ -896,6 +882,42 @@ async function deleteTestUsers(admin, extraAccounts) {
     failed: results.failed.length,
     errors: results.failed,
   };
+}
+
+async function _deleteAccountsIndividually(admin, allAccounts, results) {
+  await Promise.all(
+    Object.values(allAccounts).map(async (account) => {
+      try {
+        await admin.auth().deleteUser(account.uid);
+
+        const maxWait = 10000;
+        const interval = 200;
+        let waited = 0;
+
+        while (waited < maxWait) {
+          const doc = await admin.firestore().doc(`users/${account.uid}`).get();
+          if (!doc.exists) {
+            break;
+          }
+          await new Promise(resolve => setTimeout(resolve, interval));
+          waited += interval;
+        }
+
+        if (waited >= maxWait) {
+          await admin.firestore().doc(`users/${account.uid}`).delete().catch(() => {});
+        }
+
+        results.deleted.push(account.uid);
+      } catch (error) {
+        if (error.code === 'auth/user-not-found') {
+          await admin.firestore().doc(`users/${account.uid}`).delete().catch(() => {});
+          results.skipped.push(account.uid);
+        } else {
+          results.failed.push({ uid: account.uid, error: error.message });
+        }
+      }
+    })
+  );
 }
 
 /**

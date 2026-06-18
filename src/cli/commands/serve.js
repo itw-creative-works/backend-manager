@@ -38,10 +38,11 @@ class ServeCommand extends BaseCommand {
     // Start Stripe webhook forwarding in background
     this.startStripeWebhookForwarding();
 
-    // Start HTTPS proxy if enabled
-    if (httpsEnabled) {
-      await this._startHttpsProxy(port, internalPort, projectDir);
-    }
+    // Start HTTPS proxy if enabled. If certs can't be obtained, fall back to
+    // plain HTTP — don't set BEM_HTTPS_PORT or redirect to the internal port.
+    const httpsReady = httpsEnabled
+      ? await this._startHttpsProxy(port, internalPort, projectDir)
+      : false;
 
     // Set up log file in the project directory.
     const logPath = this.getLogsPath('dev.log');
@@ -88,13 +89,13 @@ class ServeCommand extends BaseCommand {
     this.log(chalk.gray(`  Logs saving to: ${logPath}\n`));
 
     // Execute with tee to log file
-    const firebasePort = httpsEnabled ? internalPort : port;
+    const firebasePort = httpsReady ? internalPort : port;
     const firebaseEnv = {
       ...process.env,
       FORCE_COLOR: '1',
     };
 
-    if (httpsEnabled) {
+    if (httpsReady) {
       // Internal calls (getApiUrl → BEMClient) loop through the HTTPS proxy with a self-signed cert
       firebaseEnv.NODE_TLS_REJECT_UNAUTHORIZED = '0';
       firebaseEnv.BEM_HTTPS_PORT = String(port);
@@ -148,7 +149,7 @@ class ServeCommand extends BaseCommand {
     if (!certs) {
       this.log(chalk.yellow('  HTTPS disabled — could not obtain certificates.'));
       this.log(chalk.yellow('  Install mkcert for trusted local HTTPS: brew install mkcert && mkcert -install\n'));
-      return;
+      return false;
     }
 
     const options = {
@@ -190,6 +191,8 @@ class ServeCommand extends BaseCommand {
     proxy.on('error', (err) => {
       this.log(chalk.red(`  HTTPS proxy error: ${err.message}`));
     });
+
+    return true;
   }
 
   async _getHttpsCerts(projectDir) {

@@ -41,6 +41,7 @@ Main.prototype.process = async function (args) {
   self.firebaseProjectPath = self.firebaseProjectPath.match(/\/functions$/) ? self.firebaseProjectPath.replace(/\/functions$/, '') : self.firebaseProjectPath;
   self.testCount = 0;
   self.testTotal = 0;
+  self.warnCount = 0;
   self.default = {};
   self.packageJSON = require('../../package.json');
   self.default.version = self.packageJSON.version;
@@ -199,6 +200,7 @@ Main.prototype.test = async function(name, fn, fix, args) {
   // (an array of pre-formatted lines) set by the caller.
   if (passed === 'warn') {
     self.testTotal++;
+    self.warnCount++;
     printLine(self.testTotal, 'warn', '');
     const details = (args && typeof args.details === 'function') ? args.details() : (args && args.details) || [];
     for (const line of details) {

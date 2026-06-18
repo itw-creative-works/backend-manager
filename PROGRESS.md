@@ -2,20 +2,31 @@
 > Agents and maintainers should update this file regularly to reflect the current state of the project.
 
 ## 🎯 Current Focus
-* **Goal:** Fix newsletter generation ReferenceError (beehiivConfig → newsletterRoleConfig)
-* **Current Phase:** Fix applied, pending deploy + Firestore sendAt reset
-* **Priority:** High
-* **Last Updated:** 2026-06-17 4:10 PM PDT
-* **Notes:** v5.5.0 refactor missed renaming `beehiivConfig` at 3 sites in newsletter.js (lines 331, 336, 340). Fix applied to framework source. Consumer (somiibo-backend) needs deploy + Firestore `_recurring-newsletter.sendAt` advanced to 1782322200 (Jun 24 17:30 UTC). Separate issue: Beehiiv send API requires Enterprise plan — all generated newsletters fail at send step.
+* **Goal:** Root package.json proxy for running scripts from project root
+* **Current Phase:** Implementation complete, untested in consumer
+* **Priority:** Medium
+* **Last Updated:** 2026-06-17 7:40 PM PDT
+* **Notes:** New setup test `root-package-json` generates a root `package.json` with proxy scripts so `npm test`/`npm start`/etc. work from the Firebase project root (not just `functions/`). Includes `preinstall` guard to block accidental `npm install` at root. Prior audit fixes still pending commit.
 
 ## 📌 Active Task List
-* [ ] Phase 3: Newsletter generation fix (beehiivConfig ReferenceError)
-  * [x] Diagnose: traced prod logs + Firestore to find generation crashes after AI completes
-  * [x] Root cause: v5.5.0 missed renaming `beehiivConfig` → `newsletterRoleConfig` at lines 331/336/340
-  * [x] Fix applied to framework source (`src/manager/libraries/email/generators/newsletter.js`)
-  * [ ] Commit + publish framework fix
-  * [ ] Deploy consumer (somiibo-backend): `cd functions && npx mgr deploy`
-  * [ ] Advance stuck sendAt: `npx mgr firestore:set marketing-campaigns/_recurring-newsletter --merge --data '{"sendAt": 1782322200}'`
+* [ ] Phase 3: Post-audit bug fixes
+  * [x] Newsletter ReferenceError: `beehiivConfig` → `newsletterRoleConfig` (committed v5.7.1)
+  * [x] HTTPS proxy: `serve.js` returns boolean, caller uses `httpsReady` not `httpsEnabled`
+  * [x] AI normalizeOptions: array-content system messages now get rules injected
+  * [x] Setup warn handling: `warnCount` tracked separately, warns don't trigger retry
+  * [x] Copy-paste fix: `sender: 'electron-manager'` → `'backend-manager'`
+  * [x] Test: AI array-content-blocks test added + passing (20/20)
+  * [x] Fix: consent rules test — write `'forged'` instead of `'granted'` to avoid value collision with prior email-preferences tests
+  * [x] Fix: `cancel-too-young` account `timestampUNIX` uses seconds (was ms)
+  * [x] Fix: auth on-delete race condition — `deleteTestUsers` uses emulator bulk-clear REST API instead of individual `deleteUser()` calls (eliminates async on-delete triggers that clobbered freshly-created accounts)
+  * [x] Diagnostic: auth-delete-race test — proved the race condition (80-100% clobber rate without mitigation), removed after fix verified
+  * [ ] Commit + publish framework fixes
+  * [ ] Deploy somiibo-backend + advance stuck sendAt
+* [ ] Phase 4: Root package.json proxy scripts
+  * [x] Task 4.1: Create `root-package-json.js` setup test (proxies `projectScripts` with `cd functions &&` prefix + `preinstall` guard)
+  * [x] Task 4.2: Register in setup test index (after `npm-project-scripts`)
+  * [ ] Task 4.3: Test in consumer project (`npx mgr setup` from ultimate-jekyll-backend)
+  * [ ] Task 4.4: Verify `npm test` / `npm start` work from project root
 
 ## ✅ Completed Task List
 * [x] Phase 1: MCP role-based tool scoping + consumer extensibility

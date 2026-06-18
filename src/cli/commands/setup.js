@@ -31,10 +31,11 @@ class SetupCommand extends BaseCommand {
       // Reset counters so each attempt starts fresh
       self.testCount = 0;
       self.testTotal = 0;
+      self.warnCount = 0;
 
       await this.runSetup();
 
-      const allPassed = self.testCount === self.testTotal;
+      const allPassed = self.testCount + self.warnCount === self.testTotal;
       if (allPassed) {
         return;
       }
@@ -142,10 +143,10 @@ class SetupCommand extends BaseCommand {
     // Notify parent if exists
     if (process.send) {
       process.send({
-        sender: 'electron-manager',
+        sender: 'backend-manager',
         command: 'setup:complete',
         payload: {
-          passed: self.testCount === self.testTotal,
+          passed: self.testCount + self.warnCount === self.testTotal,
         }
       });
     }

@@ -246,10 +246,13 @@ module.exports = {
         // Should fail - consent is protected (only signup route + webhook
         // processors can mutate it server-side; a client write would let a
         // user retroactively forge their own consent record).
+        // Use a value that can't match any prior state — earlier tests
+        // (email-preferences) may have set marketing.status to 'granted',
+        // and writing the SAME value is a no-op the rules correctly allow.
         await rules.expectFailure(
           db.doc(`users/${uid}`).set({
             consent: {
-              marketing: { status: 'granted' },
+              marketing: { status: 'forged' },
             },
           }, { merge: true })
         );

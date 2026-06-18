@@ -14,6 +14,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.7.2] - 2026-06-18
+
+### Fixed
+- **Newsletter generation crash.** v5.5.0 refactored `marketing.beehiiv` → `marketing.newsletter` but missed renaming `beehiivConfig` at 3 sites in `newsletter.js` (lines 331, 336, 340). The `ReferenceError` crashed generation after all AI work completed, preventing the campaign doc from being written. Newsletter generation has been silently failing since June 6.
+- **HTTPS proxy silent failure.** `serve.js` `_startHttpsProxy` now returns a boolean. The caller uses `httpsReady` (not `httpsEnabled`) for port and env decisions, so when cert generation fails, the server correctly falls back to plain HTTP instead of setting `BEM_HTTPS_PORT` with no proxy listening.
+- **AI system prompt injection for array content blocks.** `normalizeOptions` now handles system messages with array content (content blocks) — prepends rules as a `{ type: 'text' }` block. Previously, the if/else-if chain fell through and rules were silently dropped.
+- **Setup retry loop treats warns as failures.** Added `warnCount` tracking; the `allPassed` check now includes warns (`testCount + warnCount === testTotal`). Warns no longer trigger unnecessary retries with `--retry N`.
+- **Copy-paste: `sender: 'electron-manager'` in setup IPC.** Changed to `'backend-manager'`.
+- **Test account creation race condition.** `deleteTestUsers` now uses the emulator's bulk-clear REST API instead of individual `deleteUser()` calls. Individual deletes triggered async on-delete handlers that could clobber freshly-created accounts (80-100% repro rate). Bulk clear eliminates the race entirely.
+- **Consent rules test value collision.** Changed test value from `'granted'` to `'forged'` so the write always differs from prior test state.
+- **`cancel-too-young` timestampUNIX convention.** `Date.now()` (milliseconds) → `Math.floor(Date.now() / 1000)` (seconds).
+
+### Added
+- **AI array-content test.** `normalize-options-structured-system-content-as-array-injects-rules` — covers the missing branch.
+- **Auth on-delete race condition test.** `test/events/auth-delete-race.js` — proves the emulator race (clobber without mitigation) and verifies both mitigation strategies (wait-for-gone, force-delete).
+- **Root package.json setup check.** Validates the project root `package.json` during `npx mgr setup`.
+
 # [5.7.1] - 2026-06-17
 
 ### Added

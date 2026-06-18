@@ -346,5 +346,38 @@ module.exports = {
         assert.equal(out.message?.content, 'hello', 'message carries last user turn');
       },
     },
+
+    {
+      name: 'normalize-options-structured-system-content-as-array-injects-rules',
+      async run({ assert }) {
+        const messages = [
+          {
+            role: 'system',
+            content: [
+              { type: 'text', text: 'existing instruction' },
+              { type: 'image', source: { type: 'url', url: 'https://example.com/img.png' } },
+            ],
+          },
+          { role: 'user', content: 'check order 1' },
+          { role: 'assistant', toolCalls: [{ id: 'c1', name: 'check_order', arguments: {} }] },
+          { role: 'tool', toolCallId: 'c1', content: 'shipped' },
+        ];
+        const out = normalizeOptions({ messages });
+
+        assert.equal(out.messages.length, 4, 'no turns added or dropped');
+        assert.equal(Array.isArray(out.messages[0].content), true, 'system content stays as array');
+        assert.equal(out.messages[0].content[0].type, 'text', 'rules prepended as text block');
+        assert.equal(
+          out.messages[0].content[0].text.includes(SYSTEM_PROMPT_INJECTIONS[0]),
+          true,
+          'system rules injected into prepended text block',
+        );
+        assert.equal(out.messages[0].content[1].type, 'text', 'original text block preserved');
+        assert.equal(out.messages[0].content[1].text, 'existing instruction', 'original text content intact');
+        assert.equal(out.messages[0].content[2].type, 'image', 'original image block preserved');
+        assert.deepEqual(out.messages[2], messages[2], 'toolCalls turn untouched');
+        assert.deepEqual(out.messages[3], messages[3], 'tool result turn untouched');
+      },
+    },
   ],
 };

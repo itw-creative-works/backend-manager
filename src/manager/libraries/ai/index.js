@@ -167,7 +167,12 @@ function normalizeOptions(opts) {
       out.messages = opts.messages.map((m, i) => i === systemIdx
         ? { ...m, content: existing ? `${rules}\n\n${existing}` : rules }
         : m);
-    } else if (systemIdx < 0) {
+    } else if (systemIdx >= 0) {
+      // Content is an array of content blocks — prepend rules as a text block
+      out.messages = opts.messages.map((m, i) => i === systemIdx
+        ? { ...m, content: [{ type: 'text', text: rules }, ...(Array.isArray(m.content) ? m.content : [])] }
+        : m);
+    } else {
       out.messages = [{ role: 'system', content: rules }, ...opts.messages];
     }
 
