@@ -6,7 +6,7 @@
 * **Current Phase:** Implementation complete, untested in consumer
 * **Priority:** Medium
 * **Last Updated:** 2026-06-17 7:40 PM PDT
-* **Notes:** New setup test `root-package-json` generates a root `package.json` with proxy scripts so `npm test`/`npm start`/etc. work from the Firebase project root (not just `functions/`). Includes `preinstall` guard to block accidental `npm install` at root. Prior audit fixes still pending commit.
+* **Notes:** v5.7.2 shipped (npm + GitHub release). New setup test `root-package-json` generates a root `package.json` with proxy scripts so `npm test`/`npm start`/etc. work from the Firebase project root (not just `functions/`). Includes `preinstall` guard to block accidental `npm install` at root.
 
 ## 📌 Active Task List
 * [ ] Phase 3: Post-audit bug fixes
@@ -20,7 +20,7 @@
   * [x] Fix: `cancel-too-young` account `timestampUNIX` uses seconds (was ms)
   * [x] Fix: auth on-delete race condition — `deleteTestUsers` uses emulator bulk-clear REST API instead of individual `deleteUser()` calls (eliminates async on-delete triggers that clobbered freshly-created accounts)
   * [x] Diagnostic: auth-delete-race test — proved the race condition (80-100% clobber rate without mitigation), removed after fix verified
-  * [ ] Commit + publish framework fixes
+  * [x] Commit + publish framework fixes (v5.7.2)
   * [ ] Deploy somiibo-backend + advance stuck sendAt
 * [ ] Phase 4: Root package.json proxy scripts
   * [x] Task 4.1: Create `root-package-json.js` setup test (proxies `projectScripts` with `cd functions &&` prefix + `preinstall` guard)

@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.7.3] - 2026-06-18
+
+### Changed
+- **Root proxy preinstall forwards to functions/.** `npm install` at the project root now runs `cd functions && npm install` (forwarding deps to where they live) instead of just rejecting. Still exits 1 afterward to prevent npm from creating root-level artifacts.
+
 # [5.7.2] - 2026-06-18
 
 ### Fixed
