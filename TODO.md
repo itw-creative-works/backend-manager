@@ -9,6 +9,12 @@
     console.log('*** req.assistant', req.assistant);
     console.log('*** res.assistant', res.assistant);
 
+# OAUTH2 (INBOUND + OUTBOUND)
+UJM + BEM CHANGE
+* UJM /oauth2 = for conencting OTHER accounts to user account
+* UJM /token = for connecting user account to OTHER accounts
+  * we should rename this (requires backend change too)
+  * /authorize (most common says claude) or /connect
 
 # PAYMETNS
 https://github.com/invertase/stripe-firebase-extensions/tree/next/firestore-stripe-payments
@@ -27,9 +33,6 @@ TODO
 Update deps!!!! theres lots
 * we culd have a test that TRIES EACH IMPORT ?? incase updating it fails due to ESM VULLSHIT?
 
-
-ADD HEALTHCHECK TO BEM!!!
-  ✗ https://api.clockii.com/backend-manager?command=healthcheck → fetch failed
 
 TODO
 PAYMENT

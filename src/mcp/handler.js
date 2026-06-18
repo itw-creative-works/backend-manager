@@ -316,8 +316,34 @@ async function handleMcpProtocol(req, res, options) {
     return;
   }
 
-  // Classify the token
+  // Classify the token — fast check first, then DB lookup if needed
   const authInfo = resolveAuthInfo(token);
+
+  // If token is a user API key, check if the user has admin role in Firestore
+  if (authInfo.role === 'user') {
+    try {
+      const admin = Manager.libraries?.admin;
+
+      if (admin) {
+        const snapshot = await admin.firestore()
+          .collection('users')
+          .where('api.privateKey', '==', token)
+          .limit(1)
+          .get();
+
+        if (!snapshot.empty) {
+          const userData = snapshot.docs[0].data();
+
+          if (userData?.roles?.admin === true) {
+            authInfo.role = 'admin';
+            authInfo.authType = 'userAdmin';
+          }
+        }
+      }
+    } catch (e) {
+      // DB lookup failed — proceed with user role (safe fallback)
+    }
+  }
 
   // Load and merge consumer tools (consumer overrides win)
   const cwd = Manager.cwd || '';

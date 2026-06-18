@@ -77,6 +77,26 @@ module.exports = {
     },
 
     {
+      name: 'user with roles.admin sees all tools (DB role promotion)',
+      async run({ assert, accounts }) {
+        const adminUserKey = accounts.admin?.privateKey;
+        assert.ok(adminUserKey, 'Admin test account should have a privateKey');
+
+        const response = await mcpRequest('tools/list', {}, adminUserKey);
+
+        assert.ok(response?.result?.tools, 'Should return tools list');
+
+        const tools = response.result.tools;
+        assert.equal(tools.length, 25, `Admin-role user should see all 25 tools, got ${tools.length}`);
+
+        const names = tools.map((t) => t.name);
+        assert.ok(names.includes('firestore_read'), 'Should see admin tool firestore_read');
+        assert.ok(names.includes('get_user'), 'Should see user tool get_user');
+        assert.ok(names.includes('health_check'), 'Should see public tool health_check');
+      },
+    },
+
+    {
       name: 'user sees only user + public tools',
       async run({ assert, accounts }) {
         const userKey = accounts.basic?.privateKey;

@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.7.6] - 2026-06-18
+
+### Fixed
+- **MCP admin role promotion.** Users with `roles.admin=true` on their Firestore doc now see all 25 admin tools when connecting via OAuth. Previously only the `BACKEND_MANAGER_KEY` granted admin MCP access; user-role admins were limited to 3 tools.
+
 # [5.7.4] - 2026-06-18
 
 ### Added
