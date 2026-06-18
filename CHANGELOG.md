@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.7.4] - 2026-06-18
+
+### Added
+- **Gitignore root proxy artifacts.** Default `.gitignore` template now excludes `/package.json` and `/package-lock.json` at the repo root, so the setup-generated root proxy and any lockfile are not tracked.
+
 # [5.7.3] - 2026-06-18
 
 ### Changed
