@@ -3,10 +3,10 @@
 
 ## 🎯 Current Focus
 * **Goal:** RSS/Atom feed-based article generation for the Ghostii system
-* **Current Phase:** Implementation complete, pending deploy
-* **Priority:** High
-* **Last Updated:** 2026-06-18 6:45 PM PDT
-* **Notes:** All code + tests complete. Found and fixed humanizer bug — `injectBurstiness` was destroying markdown links by splitting on commas inside `[text](url)` syntax. Fixed with protect-and-restore pattern. Also fixed 403 links treated as "working" in verification step. Ghostii backend needs deploy.
+* **Current Phase:** Shipped
+* **Priority:** Complete
+* **Last Updated:** 2026-06-18 7:30 PM PDT
+* **Notes:** BEM v5.8.0 published to npm. Ghostii-backend v1.0.5 deployed to Firebase. All code, tests, and docs shipped.
 
 ## 📌 Active Task List
 * [ ] Phase 5: Ghostii feed-based article system
@@ -28,7 +28,8 @@
   * [x] Task 5.16: Fix humanizer stripping links — `injectBurstiness` was breaking `[text](url)` syntax; added protect-and-restore pattern + tests
   * [x] Task 5.17: Fix 403 links treated as "working" in link verification step
   * [x] Task 5.18: Add detective-level `[LINKS]` diagnostic logging to article pipeline
-  * [ ] Task 5.19: Deploy Ghostii backend
+  * [x] Task 5.19: Ship BEM v5.8.0 to npm
+  * [x] Task 5.20: Ship Ghostii-backend v1.0.5 + deploy to Firebase
   * [ ] Task 5.17: Publish BEM with feed support
   * [ ] Task 5.12: Publish BEM with feed support
   * [ ] Task 5.13: Configure consumer project(s) with `$feed:` sources
