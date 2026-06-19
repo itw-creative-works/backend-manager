@@ -198,12 +198,22 @@
   // Standalone Ghostii article publisher (daily cron). OPT-IN: disabled by
   // default (articles: 0). Set articles >= 1 to auto-publish independent blog
   // posts. For newsletter-linked articles, use marketing.newsletter.content.article.enabled instead.
+  //
+  // Source types:
+  //   '$app'                            — generic brand-topic generation
+  //   '$feed:https://example.com/feed'  — RSS/Atom/JSON feed: pick one unprocessed article per run
+  //   'https://example.com/page'        — fetch URL content as prompt seed
+  //   'Write about topic X'             — text: use directly as prompt seed
+  //
+  // Feed items are tracked in Firestore (ghostii-feed-items) so the same article
+  // is never reprocessed. When a feed is unreachable or exhausted, falls back to $app.
   ghostii: [
     {
       articles: 0,
       sources: [
         '$app',
-        // Add more sources here
+        // '$feed:https://techcrunch.com/feed/',
+        // '$feed:https://feeds.arstechnica.com/arstechnica/technology-lab',
       ],
       links: [
         // ...
@@ -211,8 +221,20 @@
       prompt: '',
       chance: 1.0,
       author: null,
-      // app: 'other-app-id',              // Optional: target a different app
-      // appUrl: 'https://api.otherapp.com', // Required if app is set (fetches /backend-manager/app)
+      postPath: 'ghostii',
+      // Per-entry Ghostii API overrides (all optional, fall back to framework defaults)
+      overrides: {
+        // keywords: ['AI', 'technology'],
+        // length: 'long',              // short | medium | long | comprehensive
+        // research: true,              // web search for real external links
+        // insertImages: true,          // section images from Unsplash
+        // headerImageUrl: 'unsplash',  // disabled | unsplash | generate
+        // maxLinks: 6,
+        // sectionQuantity: 5,
+        // feedUrl: '',                 // brand blog feed for title dedup
+      },
+      // brand: 'other-app-id',                // Optional: target a different brand
+      // brandUrl: 'https://api.otherapp.com',  // Required if brand is set
     }
   ],
   reviews: {

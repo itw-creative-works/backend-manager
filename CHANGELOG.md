@@ -14,6 +14,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.8.0] - 2026-06-19
+
+### Added
+- **RSS/Atom feed sources for Ghostii.** New `$feed:<url>` source type in `config.ghostii[]` entries. Parses RSS 2.0, Atom 1.0, and JSON Feed formats, selects unprocessed articles, extracts content, and passes it to the Ghostii API as `sourceContent` for AI-assisted original article generation. Feed items tracked in Firestore (`ghostii-feed-items`) to prevent re-processing. Falls back to `$app` when feeds are unreachable or exhausted.
+- **Per-entry Ghostii API overrides.** `config.ghostii[].overrides` object lets each entry customize keywords, length, research, insertImages, headerImageUrl, maxLinks, sectionQuantity, and feedUrl — previously hardcoded in `writeArticle()`.
+- **Configurable postPath.** `config.ghostii[].postPath` controls the `_posts/{year}/` sub-folder for published articles (default: `'ghostii'`).
+- **Feed parser library.** New `src/manager/libraries/content/feed-parser.js` — `parseFeed()` and `extractArticleContent()` via Cheerio for parsing syndication feeds and extracting readable article text from URLs.
+- **New dependencies:** `fast-xml-parser` for RSS/Atom parsing, `cheerio` for article content extraction.
+
+### Changed
+- **`writeArticle()` accepts overrides and sourceContent.** Signature changed from `({ brand, description, links })` to `({ brand, description, links, sourceContent, overrides })`. Existing callers (newsletter generator) pass no new args and get identical behavior.
+- **Newsletter fact paraphrasing.** Newsletter writer prompt now instructs the AI to paraphrase all facts, figures, and statistics from sources — never copy exact numbers or phrasing.
+
 # [5.7.6] - 2026-06-18
 
 ### Fixed

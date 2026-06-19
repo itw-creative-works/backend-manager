@@ -30,32 +30,42 @@ const powertools = require('node-powertools');
  * @param {object} args.brand - Public brand config ({ brand: { url, ... }, github: { ... } })
  * @param {string} args.description - The article brief / prompt content
  * @param {string[]} [args.links] - Optional links to inject into the article body
+ * @param {string} [args.sourceContent] - Reference article text for source-based generation
+ * @param {object} [args.overrides] - Per-entry overrides for Ghostii API params
  * @returns {Promise<object>} Ghostii's generic article response:
  *   { title, description, body, json, headerImageUrl, images, categories, keywords, links, outline }
  *   where `json` is the structured block array ([{ name, content }]) that
  *   blocksToPost() consumes to build BEM's post shape.
  */
-function writeArticle({ brand, description, links }) {
+function writeArticle({ brand, description, links, sourceContent, overrides }) {
+  const o = overrides || {};
+
+  const body = {
+    backendManagerKey: process.env.BACKEND_MANAGER_KEY,
+    keywords: o.keywords || [''],
+    description: description,
+    insertLinks: o.insertLinks ?? true,
+    research: o.research ?? true,
+    insertImages: o.insertImages ?? true,
+    length: o.length || 'long',
+    maxLinks: o.maxLinks || 6,
+    headerImageUrl: o.headerImageUrl || 'unsplash',
+    url: brand.brand.url,
+    sectionQuantity: o.sectionQuantity || powertools.random(3, 6, { mode: 'gaussian' }),
+    feedUrl: o.feedUrl || `${brand.brand.url}/feeds/posts.json`,
+    links: links || [],
+  };
+
+  if (sourceContent) {
+    body.sourceContent = sourceContent;
+  }
+
   return fetch('https://api.ghostii.ai/write/article', {
     method: 'post',
     timeout: 180000,
     tries: 1,
     response: 'json',
-    body: {
-      backendManagerKey: process.env.BACKEND_MANAGER_KEY,
-      keywords: [''],
-      description: description,
-      insertLinks: true,
-      research: true,
-      insertImages: true,
-      length: 'long',
-      maxLinks: 6,
-      headerImageUrl: 'unsplash',
-      url: brand.brand.url,
-      sectionQuantity: powertools.random(3, 6, { mode: 'gaussian' }),
-      feedUrl: `${brand.brand.url}/feeds/posts.json`,
-      links: links || [],
-    },
+    body: body,
   });
 }
 

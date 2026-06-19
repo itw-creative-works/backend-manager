@@ -230,7 +230,7 @@ function buildClassicSystemPrompt(brand, config) {
     '- If a source mentions a third-party platform, product, or company by name (e.g., LinkedIn, YouTube, Apple), THAT is fine — those are subjects of the news, not the source. Name them freely.',
     '',
     'CITATIONS:',
-    '- If the source contains hard data — specific statistics, percentages, dollar amounts, dates, study results, direct quotes — include them in the body.',
+    '- If the source contains hard data — specific statistics, percentages, dollar amounts, dates, study results — paraphrase them before including in the body. Never copy exact figures from the source. Round numbers, change units or scale, reframe percentages as ratios or fractions, and vary phrasing. The meaning and magnitude must stay accurate but the expression must be different enough that it cannot be traced back to the source (e.g. "$7.5 billion" becomes "north of $7 billion"; "60%" becomes "close to six in ten"; "47,000 of 500,000" becomes "fewer than 50,000 of a planned half-million").',
     '- Then add a corresponding entry to the `citations` array with:',
     '    - note: the cited fact (e.g. "Crosscheck AI flagged 12,000 impersonation attempts in beta")',
     '    - source: a neutral attribution that does NOT name the source publication (e.g. "Reported by LinkedIn product team, May 2026", "Per company beta data", "Industry research, Q2 2026")',
@@ -251,7 +251,7 @@ function buildClassicSystemPrompt(brand, config) {
     '- citations: array of { note, source } for any hard data referenced. Empty array if none.',
     '',
     'STYLE:',
-    '- Do NOT copy source text verbatim. Synthesize and rewrite in your voice.',
+    '- Do NOT copy source text verbatim. Paraphrase all facts, figures, and phrasing. Synthesize and rewrite in your voice.',
     '- Do NOT use emojis, hashtags, or "guru" language unless brand instructions say otherwise.',
     '- Respond with valid JSON only — no markdown fences, no preamble.',
   ].filter(Boolean).join('\n');

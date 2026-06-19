@@ -2,13 +2,36 @@
 > Agents and maintainers should update this file regularly to reflect the current state of the project.
 
 ## 🎯 Current Focus
-* **Goal:** Root package.json proxy for running scripts from project root
-* **Current Phase:** Implementation complete, untested in consumer
-* **Priority:** Medium
-* **Last Updated:** 2026-06-17 7:40 PM PDT
-* **Notes:** v5.7.2 shipped (npm + GitHub release). New setup test `root-package-json` generates a root `package.json` with proxy scripts so `npm test`/`npm start`/etc. work from the Firebase project root (not just `functions/`). Includes `preinstall` guard to block accidental `npm install` at root.
+* **Goal:** RSS/Atom feed-based article generation for the Ghostii system
+* **Current Phase:** Implementation complete, pending deploy
+* **Priority:** High
+* **Last Updated:** 2026-06-18 6:45 PM PDT
+* **Notes:** All code + tests complete. Found and fixed humanizer bug — `injectBurstiness` was destroying markdown links by splitting on commas inside `[text](url)` syntax. Fixed with protect-and-restore pattern. Also fixed 403 links treated as "working" in verification step. Ghostii backend needs deploy.
 
 ## 📌 Active Task List
+* [ ] Phase 5: Ghostii feed-based article system
+  * [x] Task 5.1: Create `feed-parser.js` (RSS 2.0, Atom 1.0, JSON Feed parser + article extractor)
+  * [x] Task 5.2: Add `fast-xml-parser` dependency to BEM
+  * [x] Task 5.3: Add `sourceContent` field to Ghostii backend schema (16KB)
+  * [x] Task 5.4: Update Ghostii outline prompt (Step 2 only) with sourceContent for efficient spinning
+  * [x] Task 5.5: Update `writeArticle()` to accept `sourceContent` and per-entry `overrides`
+  * [x] Task 5.6: Upgrade `ghostii-auto-publisher.js` — `$feed:` source type, feed processing, Firestore tracking, fallback
+  * [x] Task 5.7: Update config template with new source types and overrides
+  * [x] Task 5.8: Write extensive test suite (4 test files: unit, integration, extended E2E)
+  * [x] Task 5.9: Verify all tests pass (84 standard + 8 extended against real RSS feeds)
+  * [x] Task 5.10: Create `docs/ghostii.md` deep reference, update CLAUDE.md + CHANGELOG.md
+  * [x] Task 5.11: Verify all recommended feed URLs work (The Verge removed — CDN blocks programmatic access)
+  * [x] Task 5.12: Write ghostii-backend tests for sourceContent (4 schema + 1 extended generation)
+  * [x] Task 5.13: Ghostii sourceContent accepts URL (auto-fetches + extracts article text)
+  * [x] Task 5.14: Add fact paraphrasing to outline prompt + newsletter writer
+  * [x] Task 5.15: Fix Step 3 prompts — assertive link insertion + blockquote in every body section
+  * [x] Task 5.16: Fix humanizer stripping links — `injectBurstiness` was breaking `[text](url)` syntax; added protect-and-restore pattern + tests
+  * [x] Task 5.17: Fix 403 links treated as "working" in link verification step
+  * [x] Task 5.18: Add detective-level `[LINKS]` diagnostic logging to article pipeline
+  * [ ] Task 5.19: Deploy Ghostii backend
+  * [ ] Task 5.17: Publish BEM with feed support
+  * [ ] Task 5.12: Publish BEM with feed support
+  * [ ] Task 5.13: Configure consumer project(s) with `$feed:` sources
 * [ ] Phase 3: Post-audit bug fixes
   * [x] Newsletter ReferenceError: `beehiivConfig` → `newsletterRoleConfig` (committed v5.7.1)
   * [x] HTTPS proxy: `serve.js` returns boolean, caller uses `httpsReady` not `httpsEnabled`
