@@ -2,11 +2,11 @@
 > Agents and maintainers should update this file regularly to reflect the current state of the project.
 
 ## 🎯 Current Focus
-* **Goal:** Fix setup crash on fresh projects missing config files
-* **Current Phase:** Phase 6 — in progress (code done, needs docs + publish)
+* **Goal:** Ghostii feed sources cleanup + Somiibo consumer config
+* **Current Phase:** Fixes applied + tested, pending commit + publish
 * **Priority:** High
-* **Last Updated:** 2026-06-18 11:30 PM PDT
-* **Notes:** Setup now fully bootstraps a bare project (just package.json + .nvmrc). Scaffolds configs, engines.node, everything — stops cleanly at service-account with a Firebase console link. Still needs docs + publish.
+* **Last Updated:** 2026-06-19 3:05 AM PDT
+* **Notes:** Renamed Firestore collection `ghostii-feed-items` → `ghostii-sources`. Fixed `FieldValue.serverTimestamp()` → BEM metadata pattern. Added 5 marketing/social feeds to extended tests. All tests passing (20/20 standard, 9/9 extended). Somiibo consumer has feeds configured + `ghostii-sources.md` evaluation doc. Needs BEM publish + consumer deploy.
 
 ## 📌 Active Task List
 * [ ] Phase 6: Setup scaffolds essential configs for fresh projects

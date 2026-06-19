@@ -46,27 +46,30 @@ Each `ghostii[]` entry has a `sources` array. The cron picks one at random per a
 ### Feed source flow
 
 1. Fetch and parse the RSS/Atom/JSON feed via `feed-parser.parseFeed()`
-2. Query `ghostii-feed-items` in Firestore for already-processed items
+2. Query `ghostii-sources` in Firestore for already-processed items
 3. Filter to unprocessed items, pick the newest
 4. Extract full article content from the item URL via `feed-parser.extractArticleContent()`
 5. Pass extracted text as `sourceContent` to the Ghostii API (separate from the `description` prompt)
-6. After publish, write a tracking doc to `ghostii-feed-items/{hash}`
+6. After publish, write a tracking doc to `ghostii-sources/{hash}`
 7. On failure (feed unreachable, unparseable, exhausted): fall back to `$app` behavior
 
 ### Feed item tracking
 
-Collection: `ghostii-feed-items` (consumer project Firestore)
+Collection: `ghostii-sources` (consumer project Firestore)
 
 ```js
-ghostii-feed-items/{sha256(feedUrl + '::' + itemId).slice(0,20)}: {
+ghostii-sources/{sha256(feedUrl + '::' + itemId).slice(0,20)}: {
   feedUrl: 'https://...',
   itemId: 'guid-or-url',
   itemUrl: 'https://...',
   itemTitle: '...',
-  processedAt: Timestamp,
   brandId: '...',
   postUrl: '...',
   postSlug: '...',
+  metadata: {
+    created: { timestamp: '...ISO...', timestampUNIX: 1234567890 },
+    updated: { timestamp: '...ISO...', timestampUNIX: 1234567890 },
+  },
   metadata: { created: Timestamp },
 }
 ```

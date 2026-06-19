@@ -14,6 +14,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.8.3] - 2026-06-19
+
+### Fixed
+- **Ghostii feed tracking timestamps.** `trackFeedItem` now uses BEM's standard `metadata.{created,updated}` with `timestamp` (ISO) and `timestampUNIX` (seconds) instead of `FieldValue.serverTimestamp()`, which failed in the emulator context.
+
+### Changed
+- **Firestore collection rename.** `ghostii-feed-items` → `ghostii-sources` for clarity and consistency with the OMEGA naming convention.
+- **Extended feed test coverage.** Added 5 marketing/social feeds (Social Media Examiner, Hootsuite, Sprout Social, Buffer, Digiday) to the real-feed integration test. Threshold bumped from 2/3 to 5/7.
+
 # [5.8.2] - 2026-06-19
 
 ### Fixed

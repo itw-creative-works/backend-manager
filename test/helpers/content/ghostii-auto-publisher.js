@@ -176,7 +176,7 @@ module.exports = {
           postSlug: 'test-article',
         });
 
-        const doc = await admin.firestore().doc(`ghostii-feed-items/${docId}`).get();
+        const doc = await admin.firestore().doc(`ghostii-sources/${docId}`).get();
         assert.ok(doc.exists, 'tracking doc created');
 
         const data = doc.data();
@@ -188,6 +188,13 @@ module.exports = {
         assert.equal(data.postUrl, 'https://test-brand.com/blog/test-article');
         assert.equal(data.postSlug, 'test-article');
         assert.ok(data.metadata, 'has metadata object');
+        assert.ok(data.metadata.created, 'has metadata.created');
+        assert.ok(data.metadata.updated, 'has metadata.updated');
+        assert.equal(typeof data.metadata.created.timestamp, 'string', 'created.timestamp is ISO string');
+        assert.equal(typeof data.metadata.created.timestampUNIX, 'number', 'created.timestampUNIX is number');
+        assert.equal(typeof data.metadata.updated.timestamp, 'string', 'updated.timestamp is ISO string');
+        assert.equal(typeof data.metadata.updated.timestampUNIX, 'number', 'updated.timestampUNIX is number');
+        assert.ok(!data.processedAt, 'no legacy processedAt field');
       },
     },
 

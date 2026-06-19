@@ -26,22 +26,15 @@ const TEMP_DIR = path.join(BEM_ROOT, '.temp', 'ghostii-feed', `run-${new Date().
 
 // --- Real feed URLs for extended tests ---
 // Chosen for stability and confirmed to work with wonderful-fetch.
+// Includes generic tech feeds + marketing/social feeds used by OMEGA consumers.
 const REAL_FEEDS = [
-  {
-    name: 'Ars Technica',
-    url: 'https://feeds.arstechnica.com/arstechnica/technology-lab',
-    format: 'rss',
-  },
-  {
-    name: 'TechCrunch',
-    url: 'https://techcrunch.com/feed/',
-    format: 'rss',
-  },
-  {
-    name: 'Politico',
-    url: 'https://rss.politico.com/politics-news.xml',
-    format: 'rss',
-  },
+  { name: 'Ars Technica', url: 'https://feeds.arstechnica.com/arstechnica/technology-lab', format: 'rss' },
+  { name: 'TechCrunch', url: 'https://techcrunch.com/feed/', format: 'rss' },
+  { name: 'Social Media Examiner', url: 'https://www.socialmediaexaminer.com/feed/', format: 'rss' },
+  { name: 'Hootsuite Blog', url: 'https://blog.hootsuite.com/feed/', format: 'rss' },
+  { name: 'Sprout Social Insights', url: 'https://sproutsocial.com/insights/feed/', format: 'rss' },
+  { name: 'Buffer Resources', url: 'https://buffer.com/resources/feed/', format: 'rss' },
+  { name: 'Digiday', url: 'https://digiday.com/feed/', format: 'rss' },
 ];
 
 /**
@@ -333,7 +326,7 @@ module.exports = {
 
         // Verify the doc was stored with the expected hash ID
         const expectedDocId = feedItemHash(realFeedUrl, firstItem.id || firstItem.url);
-        const doc = await admin.firestore().doc(`ghostii-feed-items/${expectedDocId}`).get();
+        const doc = await admin.firestore().doc(`ghostii-sources/${expectedDocId}`).get();
 
         assert.ok(doc.exists, 'tracking doc exists at expected hash-based ID');
 
@@ -375,11 +368,11 @@ module.exports = {
           saveArtifact(`feed-${feed.name.toLowerCase().replace(/\s+/g, '-')}-raw.xml`, text);
         }
 
-        // At least 2 of 3 feeds should parse successfully
+        // At least 5 of 7 feeds should parse successfully
         const successful = results.filter((r) => r.items > 0);
         assert.ok(
-          successful.length >= 2,
-          `at least 2 of ${REAL_FEEDS.length} real feeds parsed successfully: ${JSON.stringify(results)}`,
+          successful.length >= 5,
+          `at least 5 of ${REAL_FEEDS.length} real feeds parsed successfully: ${JSON.stringify(results)}`,
         );
 
         // Save summary

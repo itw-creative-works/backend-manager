@@ -12,7 +12,7 @@
  *   'https://...'       — fetch URL content as prompt seed
  *   '<text>'            — use directly as prompt seed
  *
- * Feed items are tracked in Firestore (`ghostii-feed-items`) so the same
+ * Feed items are tracked in Firestore (`ghostii-sources`) so the same
  * article is never processed twice. When a feed is unreachable or exhausted,
  * the entry falls back to $app behavior.
  */
@@ -381,7 +381,7 @@ async function getProcessedItemIds(admin, feedUrl) {
   }
 
   const snapshot = await admin.firestore()
-    .collection('ghostii-feed-items')
+    .collection('ghostii-sources')
     .where('feedUrl', '==', feedUrl)
     .select('itemId', 'itemUrl')
     .get();
@@ -413,18 +413,20 @@ async function getProcessedItemIds(admin, feedUrl) {
  */
 async function trackFeedItem(admin, { feedUrl, item, brandId, postUrl, postSlug }) {
   const docId = feedItemHash(feedUrl, item.id || item.url);
+  const nowISO = new Date().toISOString();
+  const nowUNIX = Math.round(Date.now() / 1000);
 
-  await admin.firestore().doc(`ghostii-feed-items/${docId}`).set({
+  await admin.firestore().doc(`ghostii-sources/${docId}`).set({
     feedUrl: feedUrl,
     itemId: item.id || item.url,
     itemUrl: item.url,
     itemTitle: item.title,
-    processedAt: admin.firestore.FieldValue.serverTimestamp(),
     brandId: brandId,
     postUrl: postUrl || null,
     postSlug: postSlug || null,
     metadata: {
-      created: admin.firestore.FieldValue.serverTimestamp(),
+      created: { timestamp: nowISO, timestampUNIX: nowUNIX },
+      updated: { timestamp: nowISO, timestampUNIX: nowUNIX },
     },
   });
 }
