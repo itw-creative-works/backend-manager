@@ -37,7 +37,7 @@ const powertools = require('node-powertools');
  *   where `json` is the structured block array ([{ name, content }]) that
  *   blocksToPost() consumes to build BEM's post shape.
  */
-function writeArticle({ brand, description, links, sourceContent, overrides }) {
+async function writeArticle({ brand, description, links, sourceContent, overrides }) {
   const o = overrides || {};
 
   const body = {
@@ -60,13 +60,24 @@ function writeArticle({ brand, description, links, sourceContent, overrides }) {
     body.sourceContent = sourceContent;
   }
 
-  return fetch('https://api.ghostii.ai/write/article', {
+  const start = Date.now();
+
+  // Original URL: https://api.ghostii.ai/write/article
+  // Firebase Hosting rewrites have a hard 60s proxy timeout that causes 502s
+  // on slow AI pipelines. The raw Cloud Functions URL uses the function's own
+  // 5-minute timeout instead.
+  const result = await fetch('https://us-central1-ghostii.cloudfunctions.net/writeGlobal/write/article', {
     method: 'post',
     timeout: 180000,
     tries: 1,
     response: 'json',
     body: body,
   });
+
+  const duration = Date.now() - start;
+  console.log(`[ghostii] writeArticle() completed in ${duration}ms (${(duration / 1000).toFixed(1)}s)`);
+
+  return result;
 }
 
 /**

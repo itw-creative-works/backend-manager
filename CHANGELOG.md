@@ -14,6 +14,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.8.1] - 2026-06-19
+
+### Fixed
+- **Ghostii 502 timeout fix.** Switched `writeArticle()` from the Firebase Hosting URL (`api.ghostii.ai`) to the raw Cloud Functions URL. Firebase Hosting rewrites have a hard 60-second proxy timeout that caused 502 errors when the AI article pipeline exceeded that limit. The raw URL uses the function's own 5-minute timeout.
+
+### Added
+- **Ghostii call duration logging.** `writeArticle()` now logs the round-trip time of each Ghostii API call (`[ghostii] writeArticle() completed in Xms`).
+
 # [5.8.0] - 2026-06-19
 
 ### Added
