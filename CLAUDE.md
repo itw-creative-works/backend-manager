@@ -162,7 +162,7 @@ Deep references live in `docs/`. **Whenever you make a behavioral change, update
 
 ### Subsystems & Libraries
 
-- [docs/ghostii.md](docs/ghostii.md) — Ghostii article publisher: source types (`$app` / `$feed:` / URL / text), per-entry API overrides, RSS/Atom feed parser, Firestore feed-item tracking, `sourceContent` pass-through to Ghostii API
+- [docs/ghostii.md](docs/ghostii.md) — Blog auto-publisher (Ghostii provider): source types (`$brand` / `$feed:` / `$parent` / URL / text), provider-based architecture, per-entry API overrides, RSS/Atom feed parser, unified `content-sources` Firestore tracking, `sourceContent` pass-through to Ghostii API
 - [docs/email-system.md](docs/email-system.md) — unified MJML email rendering pipeline: shared preparation (`prepare.js`), composable template system (`base.js` blocks), 4 email templates (card, plain, order, feedback), no SendGrid dynamic templates — everything rendered server-side
 - [docs/usage-rate-limiting.md](docs/usage-rate-limiting.md) — usage tracking, monthly/daily caps, `setUser()` + mirrors for proxy usage, reset schedule
 - [docs/ai-library.md](docs/ai-library.md) — `Manager.AI()` unified entry for OpenAI + Anthropic (text via `.request()`, images via `.image()` → `gpt-image-2`)

@@ -14,8 +14,8 @@
  * adds those itself from the separate `title`/`headerImageURL` fields).
  *
  * Two consumers:
- *   - events/cron/daily/ghostii-auto-publisher.js — standalone daily article job
- *   - libraries/email/generators/newsletter.js    — newsletter-driven linked article
+ *   - events/cron/daily/blog-auto-publisher.js — standalone daily article job
+ *   - libraries/email/generators/newsletter.js — newsletter-driven linked article
  *
  * Both call writeArticle() then publishArticle(). Kept here as the single source
  * of truth for the Ghostii request shape and the admin/post payload.
@@ -42,7 +42,7 @@ async function writeArticle({ brand, description, links, sourceContent, override
 
   const body = {
     backendManagerKey: process.env.BACKEND_MANAGER_KEY,
-    keywords: o.keywords || [''],
+    keywords: o.keywords || [],
     description: description,
     insertLinks: o.insertLinks ?? true,
     research: o.research ?? true,

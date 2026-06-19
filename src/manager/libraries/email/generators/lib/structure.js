@@ -211,6 +211,8 @@ async function generateStructure({ sources, brand, newsletterConfig, ai, assista
 function buildClassicSystemPrompt(brand, config) {
   const tone = config?.tone || 'professional';
   const instructions = config?.instructions || '';
+  const links = config?.links || [];
+  const keywords = config?.keywords || [];
   const taglineLine    = brand?.tagline     ? `\nTagline: ${brand.tagline}`            : '';
   const descriptionLine = brand?.description ? `\nDescription: ${brand.description}` : '';
 
@@ -218,6 +220,8 @@ function buildClassicSystemPrompt(brand, config) {
     `You are a newsletter writer for ${brand?.name || 'a tech company'}.${taglineLine}${descriptionLine}`,
     instructions ? `\nBrand instructions:\n${instructions}` : '',
     `\nTone: ${tone}`,
+    keywords.length ? `\nKeywords to weave in naturally: ${keywords.join(', ')}` : '',
+    links.length ? `\nBrand links to incorporate where relevant: ${links.join(', ')}` : '',
     '',
     'You will be given a set of "source articles" — these are background research, NOT publications you are writing for or about.',
     'Treat them as raw information. Synthesize the IDEAS into original content written as if you are the original author.',
@@ -246,7 +250,7 @@ function buildClassicSystemPrompt(brand, config) {
     '- 3-5 sections — each is ONE topic, rewritten in your voice as original content',
     '- Each section: title (compelling, scannable), body (80-150 words, markdown OK)',
     '- Each section: image_prompt — one-sentence visual description for an illustrator. Be specific about subject/style.',
-    '- Do NOT include CTAs, "read more" links, or any URLs in section bodies. The newsletter is a self-contained read — never invent links or send readers off-property.',
+    '- Do NOT invent URLs or "read more" links. The newsletter is a self-contained read. The ONLY URLs allowed in section bodies are the brand links listed above (if any) — weave them in naturally where relevant, do not force them.',
     `- Signoff: a SHORT human sign-off, formatted as two lines with \\n between them. First line is a closing phrase like "Best,", "Cheers,", "Until next week,", or "Stay sharp,". Second line is the team name like "The ${brand?.name || 'Team'} Team". Example: "Best,\\nThe ${brand?.name || 'Team'} Team". Do NOT write a summary, tagline, motto, or thematic conclusion sentence — this is the literal way you sign off the email, like the end of a letter.`,
     '- citations: array of { note, source } for any hard data referenced. Empty array if none.',
     '',

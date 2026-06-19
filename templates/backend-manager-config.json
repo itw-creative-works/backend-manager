@@ -146,41 +146,29 @@
       enabled: false,
       platform: 'beehiiv',
       publicationId: '',  // Beehiiv publication ID (e.g., 'pub_xxxxx'). Populated by OMEGA's beehiiv/ensure/publication.js. Required for marketing sync to Beehiiv.
-      content: {
-        categories: [],  // e.g., ['social-media', 'marketing'] — content categories to pull from parent server
-        // AI-customization fields below are all optional with sensible defaults
-        instructions: '',  // free-form text passed to the AI ("focus on X", "avoid Y", brand voice notes)
-        tone: 'professional',  // 'professional', 'casual', 'actionable', 'witty', etc. — passed to AI prompt
-        template: 'clean',   // 'clean' | 'editorial' | 'field-report' — layout template (each owns its own content shape and aesthetic)
-        article: {
-          enabled: false,  // when true, the newsletter's lead section is expanded into a full blog post via Ghostii, published to the website repo, and linked from the newsletter with a "Read the full article" CTA
-          author: null,  // author slug for the linked article (Ghostii/admin-post picks a default if unset)
+      // Content: single object or array (matches blog config shape). Generator uses the first entry.
+      content: [
+        {
+          sources: ['$parent'],    // '$parent' | '$feed:https://...' | '$brand'
+          categories: [],          // e.g., ['social-media', 'marketing'] — topic constraints + AI categorization
+          links: [],               // links to inject into generated content
+          instructions: '',        // free-form text passed to the AI
+          tone: 'professional',    // 'professional' | 'casual' | 'actionable' | 'witty' | etc.
+          keywords: [],            // SEO keywords to weave in
+          template: 'clean',       // 'clean' | 'editorial' | 'field-report' — layout template
+          article: {
+            enabled: false,        // expand lead section into a full blog post via Ghostii
+            author: null,
+          },
+          theme: {
+            primaryColor: '#5B5BFF',
+            secondaryColor: '#1E1E2A',
+            accentColor: '#F6F7FB',
+            font: 'Inter, system-ui, sans-serif',
+          },
+          sponsorships: [],
         },
-        theme: {
-          primaryColor: '#5B5BFF',   // accent color: buttons, links, brand text
-          secondaryColor: '#1E1E2A', // body text color
-          accentColor: '#F6F7FB',    // page background outside the 600px body
-          font: 'Inter, system-ui, sans-serif',
-        },
-        // AI provider defaults are hard-coded in the library (openai for structure,
-        // anthropic for SVG — each chosen for what each model does best). Override
-        // per-run only via env: NEWSLETTER_PROVIDER_STRUCTURE / NEWSLETTER_PROVIDER_SVG.
-        // Brand-owned sponsorship/promo slots — rendered as "sponsored" blocks inline
-        // with the newsletter. Use for promoting your own products, affiliate offers,
-        // or paid placements. Each entry can be positioned at 'top', 'middle', or 'end'.
-        // Per-campaign overrides via settings.sponsorships on a marketing-campaigns doc.
-        sponsorships: [
-          // {
-          //   label:       'Sponsored',                 // optional eyebrow label (defaults to "Sponsored")
-          //   headline:    'Grow your audience faster', // bold headline
-          //   body:        'Short pitch text…',         // 1-2 sentence body
-          //   url:         'https://somiibo.com/promo', // click destination
-          //   image:       'https://...png',            // optional image URL
-          //   ctaLabel:    'Try Somiibo',               // button text (default: "Learn more")
-          //   position:    'middle',                    // 'top' | 'middle' | 'end' (default: 'middle')
-          // },
-        ],
-      },
+      ],
     },
     prune: {
       enabled: true,
@@ -195,48 +183,56 @@
     appId: '1:123:web:456',
     measurementId: 'G-0123456789',
   },
-  // Standalone Ghostii article publisher (daily cron). OPT-IN: disabled by
-  // default (articles: 0). Set articles >= 1 to auto-publish independent blog
-  // posts. For newsletter-linked articles, use marketing.newsletter.content.article.enabled instead.
+  // Standalone blog auto-publisher (daily cron). OPT-IN: disabled by default.
+  // Set enabled: true and quantity >= 1 to auto-publish independent blog posts.
+  // For newsletter-linked articles, use marketing.newsletter.content.article.enabled instead.
+  //
+  // `platform` selects the article-generation provider (only 'ghostii' for now).
   //
   // Source types:
-  //   '$app'                            — generic brand-topic generation
+  //   '$brand'                          — generic brand-topic generation
   //   '$feed:https://example.com/feed'  — RSS/Atom/JSON feed: pick one unprocessed article per run
+  //   '$parent'                         — fetch sources from parent server's source pool (without claiming)
   //   'https://example.com/page'        — fetch URL content as prompt seed
   //   'Write about topic X'             — text: use directly as prompt seed
   //
-  // Feed items are tracked in Firestore (ghostii-feed-items) so the same article
-  // is never reprocessed. When a feed is unreachable or exhausted, falls back to $app.
-  ghostii: [
-    {
-      articles: 0,
-      sources: [
-        '$app',
-        // '$feed:https://techcrunch.com/feed/',
-        // '$feed:https://feeds.arstechnica.com/arstechnica/technology-lab',
-      ],
-      links: [
-        // ...
-      ],
-      prompt: '',
-      chance: 1.0,
-      author: null,
-      postPath: 'ghostii',
-      // Per-entry Ghostii API overrides (all optional, fall back to framework defaults)
-      overrides: {
-        // keywords: ['AI', 'technology'],
-        // length: 'long',              // short | medium | long | comprehensive
-        // research: true,              // web search for real external links
-        // insertImages: true,          // section images from Unsplash
-        // headerImageUrl: 'unsplash',  // disabled | unsplash | generate
-        // maxLinks: 6,
-        // sectionQuantity: 5,
-        // feedUrl: '',                 // brand blog feed for title dedup
+  // All feed/parent sources are tracked in Firestore (`content-sources`) so the same
+  // article is never reprocessed. When a feed is unreachable or exhausted, falls back to $brand.
+  blog: {
+    enabled: false,
+    platform: 'ghostii',
+    content: [
+      {
+        sources: [             // '$brand' | '$feed:https://...' | '$parent'
+          '$brand',
+          // '$feed:https://techcrunch.com/feed/',
+          // '$parent',
+        ],
+        categories: [],        // topic constraints + output tags
+        links: [],             // links to inject into generated content
+        instructions: '',      // free-form text passed to the AI
+        tone: 'professional',  // 'professional' | 'casual' | 'actionable' | 'witty' | etc.
+        keywords: [],          // SEO keywords to weave in
+        quantity: 0,           // number of articles to generate per run
+        chance: 1.0,
+        author: null,
+        postPath: 'ghostii',  // defaults to platform name; sub-folder under _posts/{year}/
+        // Per-entry Ghostii API overrides (all optional, fall back to framework defaults)
+        overrides: {
+          // keywords: ['AI', 'technology'],
+          // length: 'long',              // short | medium | long | comprehensive
+          // research: true,              // web search for real external links
+          // insertImages: true,          // section images from Unsplash
+          // headerImageUrl: 'unsplash',  // disabled | unsplash | generate
+          // maxLinks: 6,
+          // sectionQuantity: 5,
+          // feedUrl: '',                 // brand blog feed for title dedup
+        },
+        // brand: 'other-app-id',                // Optional: target a different brand
+        // brandUrl: 'https://api.otherapp.com',  // Required if brand is set
       },
-      // brand: 'other-app-id',                // Optional: target a different brand
-      // brandUrl: 'https://api.otherapp.com',  // Required if brand is set
-    }
-  ],
+    ],
+  },
   reviews: {
     enabled: true,
     sites: [

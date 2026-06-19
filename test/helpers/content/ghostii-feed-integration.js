@@ -13,9 +13,9 @@
 const path = require('path');
 const jetpack = require('fs-jetpack');
 const fetch = require('wonderful-fetch');
-const publisherPath = path.resolve(__dirname, '../../../src/manager/events/cron/daily/ghostii-auto-publisher.js');
+const publisherPath = path.resolve(__dirname, '../../../src/manager/events/cron/daily/blog-auto-publisher.js');
 const { parseFeed, extractArticleContent } = require('../../../src/manager/libraries/content/feed-parser.js');
-const { feedItemHash, getProcessedItemIds, trackFeedItem } = require(publisherPath);
+const { contentSourceHash, getProcessedItemIds, trackContentSource } = require(publisherPath);
 
 const EXTENDED = !!process.env.TEST_EXTENDED_MODE;
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
@@ -69,9 +69,13 @@ module.exports = {
 
         // Pre-track one item so the pipeline has to skip it
         const testFeedUrl = 'https://integration-test.example.com/feed.xml';
-        await trackFeedItem(admin, {
+        await trackContentSource(admin, {
+          url: 'https://integration-test.example.com/old-article',
+          origin: `$feed:${testFeedUrl}`,
           feedUrl: testFeedUrl,
-          item: { id: 'already-tracked', url: 'https://integration-test.example.com/old-article', title: 'Old Article' },
+          itemId: 'already-tracked',
+          itemTitle: 'Old Article',
+          usedBy: 'blog',
           brandId: 'test-brand',
           postUrl: null,
           postSlug: null,
@@ -120,9 +124,13 @@ module.exports = {
         }
 
         // Track the "newly processed" item
-        await trackFeedItem(admin, {
+        await trackContentSource(admin, {
+          url: 'https://integration-test.example.com/new-1',
+          origin: `$feed:${state.testFeedUrl}`,
           feedUrl: state.testFeedUrl,
-          item: { id: 'new-item-1', url: 'https://integration-test.example.com/new-1', title: 'New Article 1' },
+          itemId: 'new-item-1',
+          itemTitle: 'New Article 1',
+          usedBy: 'blog',
           brandId: 'test-brand',
           postUrl: 'https://test-brand.com/blog/new-article-1',
           postSlug: 'new-article-1',
@@ -279,9 +287,13 @@ module.exports = {
         const firstItem = state.realFeedItems[0];
 
         // Run 1: track the first item
-        await trackFeedItem(admin, {
+        await trackContentSource(admin, {
+          url: firstItem.url || firstItem.id,
+          origin: `$feed:${realFeedUrl}`,
           feedUrl: realFeedUrl,
-          item: firstItem,
+          itemId: firstItem.id,
+          itemTitle: firstItem.title,
+          usedBy: 'blog',
           brandId: 'integration-test',
           postUrl: 'https://test.com/blog/article-1',
           postSlug: 'article-1',
@@ -325,8 +337,8 @@ module.exports = {
         const firstItem = state.realFeedItems[0];
 
         // Verify the doc was stored with the expected hash ID
-        const expectedDocId = feedItemHash(realFeedUrl, firstItem.id || firstItem.url);
-        const doc = await admin.firestore().doc(`ghostii-sources/${expectedDocId}`).get();
+        const expectedDocId = contentSourceHash(`$feed:${realFeedUrl}`, firstItem.url || firstItem.id);
+        const doc = await admin.firestore().doc(`content-sources/${expectedDocId}`).get();
 
         assert.ok(doc.exists, 'tracking doc exists at expected hash-based ID');
 

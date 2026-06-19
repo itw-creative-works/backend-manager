@@ -14,6 +14,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.9.0] - 2026-06-19
+
+### BREAKING
+- **Config key `ghostii` renamed to `blog`.** Consumer projects must migrate their `backend-manager-config.json`: `ghostii[]` → `blog.content[]` with `blog.enabled` and `blog.platform: 'ghostii'`.
+- **Field renames in blog content entries.** `articles` → `quantity`, `prompt` → `instructions`, `$app` → `$brand`.
+- **Newsletter `claimSources()` removed.** Parent server now serves sources read-only (no claiming). Children track usage locally in `content-sources`.
+
+### Added
+- **Provider-based blog architecture.** `blog.platform` selects the article-generation provider (dispatched via `require(../content/${platform}.js)`). Only `ghostii` for now.
+- **`$parent` source type.** Blog entries can fetch sources from the parent server's pool, filtered by categories, with local dedup tracking.
+- **`$brand` source type.** Renamed from `$app` — generic brand-topic generation.
+- **New content entry fields.** `tone`, `categories`, `keywords` added to both blog and newsletter content entries. Injected into AI prompts for better content targeting.
+- **`links` and `keywords` support in newsletter.** Newsletter AI prompt now weaves in brand links and SEO keywords from content config.
+- **`sources` field on newsletter content.** Newsletter entries now explicitly declare source types (default: `['$parent']`), matching blog config shape.
+- **Newsletter `content` supports array format.** Matches blog config shape for structural parity.
+- **Unified `content-sources` Firestore collection.** Both blog and newsletter track used sources in the same collection with `usedBy` field (`'blog'` or `'newsletter'`).
+
+### Changed
+- **Cron renamed.** `ghostii-auto-publisher.js` → `blog-auto-publisher.js`.
+- **`postPath` defaults to platform name.** Instead of hardcoded `'blog'`, defaults to the platform value (e.g. `'ghostii'`).
+- **Consistent field ordering.** `sources → categories → links → instructions → tone → keywords` across blog and newsletter config templates.
+
+### Removed
+- **`ghostii-auto-publisher.js`** — replaced by `blog-auto-publisher.js`.
+- **`claimSources()` from newsletter generator** — parent no longer tracks claim state.
+
 # [5.8.3] - 2026-06-19
 
 ### Fixed

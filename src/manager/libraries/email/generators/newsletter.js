@@ -7,7 +7,7 @@
  *
  * Pipeline:
  *   1. Read newsletter categories from Manager.config.marketing.newsletter.content.categories
- *   2. Fetch ready sources from parent server (atomic claim via claimFor=brandId)
+ *   2. Fetch ready sources from parent server (no claiming — child tracks locally)
  *   3. structure.js → AI authors subject, preheader, intro, sections, signoff
  *   4. image-illustrator.js → AI generates one flat-vector PNG per section via
  *      gpt-image-2 (default). Set content.method.image = 'svg' to use the legacy
@@ -41,6 +41,7 @@ const { renderMarkdown } = require('./lib/markdown-renderer.js');
 const { uploadAssets, RAW_BASE } = require('./lib/image-host.js');
 const { buildPublicConfig } = require('../../../routes/brand/get.js');
 const { writeArticle, publishArticle } = require('../../../libraries/content/ghostii.js');
+const { trackContentSource, contentSourceHash } = require('../../../events/cron/daily/blog-auto-publisher.js');
 
 /**
  * Generate newsletter content from parent server sources.
@@ -69,38 +70,52 @@ const { writeArticle, publishArticle } = require('../../../libraries/content/gho
  */
 async function generate(Manager, assistant, settings, opts = {}) {
   const newsletterRoleConfig = Manager.config?.marketing?.newsletter;
-  const config = newsletterRoleConfig?.content;
+  const rawContent = newsletterRoleConfig?.content;
 
   if (!newsletterRoleConfig?.enabled) {
     assistant.log('Newsletter generator: newsletter disabled in config');
     return null;
   }
 
-  if (!config) {
+  if (!rawContent) {
     assistant.log('Newsletter generator: no marketing.newsletter.content config block');
     return null;
   }
 
-  // Either use pre-fetched sources (iteration test) or fetch from parent
+  // Content can be an array or single object (matches blog config shape)
+  const contentArray = powertools.arrayify(rawContent);
+  const config = contentArray[0];
+
+  if (!config) {
+    assistant.log('Newsletter generator: empty content array');
+    return null;
+  }
+
+  // Default sources to ['$parent'] if not specified
+  const contentSources = config.sources || ['$parent'];
+
+  // Either use pre-fetched sources (iteration test) or resolve from config
   let sources = opts.sources;
 
   if (!sources) {
-    const categories = config.categories || [];
+    // For now, newsletter resolves $parent sources via the parent server
+    if (contentSources.includes('$parent')) {
+      const categories = config.categories || [];
 
-    if (!categories.length) {
-      assistant.log('Newsletter generator: no categories configured');
-      return null;
+      if (!categories.length) {
+        assistant.log('Newsletter generator: no categories configured');
+        return null;
+      }
+
+      const parentUrl = Manager.getParentApiUrl();
+
+      if (!parentUrl) {
+        assistant.log('Newsletter generator: no parent URL configured');
+        return null;
+      }
+
+      sources = await fetchSources(parentUrl, categories, assistant);
     }
-
-    const parentUrl = Manager.getParentApiUrl();
-
-    if (!parentUrl) {
-      assistant.log('Newsletter generator: no parent URL configured');
-      return null;
-    }
-
-    const brandId = Manager.config?.brand?.id;
-    sources = await fetchSources(parentUrl, categories, brandId, assistant);
   }
 
   if (!sources?.length) {
@@ -382,12 +397,20 @@ async function generate(Manager, assistant, settings, opts = {}) {
     });
   }
 
-  // 4. Mark sources as used on parent server (unless caller opted out)
-  if (!opts.skipClaim) {
-    const parentUrl = Manager.getParentApiUrl();
-
-    if (parentUrl) {
-      await claimSources(parentUrl, sources, brand?.id, assistant);
+  // 4. Track all sources in the unified content-sources collection
+  const admin = Manager.libraries?.admin;
+  if (admin) {
+    for (const source of sources) {
+      await trackContentSource(admin, {
+        url: source.url || source.id,
+        origin: '$parent',
+        itemId: source.id,
+        itemTitle: source.title || '',
+        usedBy: 'newsletter',
+        brandId: brand?.id || '',
+      }).catch((e) => {
+        assistant.error(`Newsletter generator: Error tracking content source (non-fatal): ${e.message}`);
+      });
     }
   }
 
@@ -675,7 +698,7 @@ function aggregateTotals(filterMeta, structureMeta, images) {
 /**
  * Fetch ready newsletter sources from the parent server.
  */
-async function fetchSources(parentUrl, categories, brandId, assistant) {
+async function fetchSources(parentUrl, categories, assistant) {
   const allSources = [];
 
   for (const category of categories) {
@@ -687,7 +710,6 @@ async function fetchSources(parentUrl, categories, brandId, assistant) {
         query: {
           category,
           limit: 3,
-          claimFor: brandId,
           backendManagerKey: process.env.BACKEND_MANAGER_KEY,
         },
       });
@@ -703,27 +725,6 @@ async function fetchSources(parentUrl, categories, brandId, assistant) {
   return allSources;
 }
 
-/**
- * Mark sources as used on the parent server.
- */
-async function claimSources(parentUrl, sources, brandId, assistant) {
-  for (const source of sources) {
-    try {
-      await fetch(`${parentUrl}/newsletter-sources`, {
-        method: 'put',
-        response: 'json',
-        timeout: 60000,
-        body: {
-          id: source.id,
-          usedBy: brandId || 'unknown',
-          backendManagerKey: process.env.BACKEND_MANAGER_KEY,
-        },
-      });
-    } catch (e) {
-      assistant.error(`Newsletter generator: Failed to claim source ${source.id}: ${e.message}`);
-    }
-  }
-}
 
 /**
  * Generate a 20-character Firebase push ID (RTDB-style).
@@ -776,4 +777,4 @@ function generatePushId() {
   return id;
 }
 
-module.exports = { generate, fetchSources, claimSources, generatePushId };
+module.exports = { generate, fetchSources, generatePushId };

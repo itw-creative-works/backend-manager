@@ -2,7 +2,7 @@
  * Feed Parser — RSS 2.0, Atom 1.0, and JSON Feed parser + article content extractor.
  *
  * Parses standard syndication feeds into a normalized item array and extracts
- * readable article text from URLs. Used by the ghostii-auto-publisher cron to
+ * readable article text from URLs. Used by the blog-auto-publisher cron to
  * select individual articles from third-party feeds for AI-assisted content
  * generation.
  *

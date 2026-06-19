@@ -10,7 +10,7 @@ module.exports = async ({ assistant, Manager }) => {
 
 /**
  * Build a public-safe config object from Manager.config
- * Excludes sensitive fields: sentry, analytics, ghostii, etc.
+ * Excludes sensitive fields: sentry, analytics, blog, etc.
  */
 function buildPublicConfig(config) {
   return {

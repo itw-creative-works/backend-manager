@@ -57,7 +57,7 @@ module.exports = {
         await writeArticle({ brand: MOCK_BRAND, description: 'Test prompt', links: ['https://link.com'] });
 
         assert.ok(capturedBody, 'request body captured');
-        assert.deepEqual(capturedBody.keywords, [''], 'default keywords');
+        assert.deepEqual(capturedBody.keywords, [], 'default keywords');
         assert.equal(capturedBody.length, 'long', 'default length');
         assert.equal(capturedBody.research, true, 'default research');
         assert.equal(capturedBody.insertImages, true, 'default insertImages');

@@ -174,7 +174,7 @@ Flow (runs in parallel with SVG generation, between structure and render):
 
 **Failure is isolated** — if the article build throws, it resolves to `null`, no CTA is injected, and the newsletter ships normally. The newsletter never depends on the article succeeding.
 
-The published URL is surfaced on the return as `assets.articleUrl` and `meta.article`. Config block: `marketing.newsletter.content.article = { enabled, author }` (`enabled` default `false`; `author` is the post author slug). Standalone article publishing (independent of the newsletter) still lives in the daily `ghostii-auto-publisher.js` cron, which now shares the same `libraries/content/ghostii.js` engine — see [docs/admin-post-route.md](admin-post-route.md). Standalone Ghostii is **disabled by default** (`ghostii[0].articles: 0`).
+The published URL is surfaced on the return as `assets.articleUrl` and `meta.article`. Config block: `marketing.newsletter.content.article = { enabled, author }` (`enabled` default `false`; `author` is the post author slug). Standalone article publishing (independent of the newsletter) lives in the daily `blog-auto-publisher.js` cron, which uses the same `libraries/content/ghostii.js` engine — see [docs/admin-post-route.md](admin-post-route.md). Standalone blog publishing is **disabled by default** (`blog.enabled: false`).
 
 ## Template-owned schemas
 
@@ -360,7 +360,7 @@ marketing: {
 | Newsletter asset host (GitHub upload — PNGs + newsletter.html + newsletter.md + summary.md) | `src/manager/libraries/email/generators/lib/image-host.js` |
 | Newsletter markdown renderer (programmatic, no AI) | `src/manager/libraries/email/generators/lib/markdown-renderer.js` |
 | Ghostii article engine (writeArticle + publishArticle) | `src/manager/libraries/content/ghostii.js` |
-| Standalone Ghostii article cron (off by default) | `src/manager/events/cron/daily/ghostii-auto-publisher.js` |
+| Standalone blog article cron (off by default) | `src/manager/events/cron/daily/blog-auto-publisher.js` |
 | Unified AI library | `src/manager/libraries/ai/index.js` (OpenAI + Anthropic via `Manager.AI(assistant).request({ provider, ... })`) |
 | Notification library | `src/manager/libraries/notification.js` |
 | SendGrid provider | `src/manager/libraries/email/providers/sendgrid.js` |
