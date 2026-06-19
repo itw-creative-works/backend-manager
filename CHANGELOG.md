@@ -14,6 +14,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.8.2] - 2026-06-19
+
+### Fixed
+- **Setup crash on fresh projects.** `npx mgr setup` crashed with `Cannot read properties of undefined (reading 'default')` when `.firebaserc`, `firebase.json`, or `backend-manager-config.json` didn't exist. Setup now scaffolds all three from templates before reading from them.
+- **`engines.node` hard crash.** Missing `engines.node` in `package.json` threw an unrecoverable error. Now auto-fixes it using the current Node.js major version.
+- **`dependencies['backend-manager']` crash.** The local-BEM detection crashed when `backend-manager` was listed in `devDependencies` instead of `dependencies`.
+
+### Changed
+- **Unified scaffold pass.** Consolidated config scaffolding, `engines.node` fix, and doc defaults into one `[DEFAULTS]` section with a single file reload afterwards. Eliminates scattered scaffolding steps and conditional re-loads.
+
+### Added
+- **`templates/firebase.json`** — standard Firebase config template (hosting, functions, firestore, database, storage, emulators) scaffolded into new projects by `npx mgr setup`.
+
 # [5.8.1] - 2026-06-19
 
 ### Fixed

@@ -70,14 +70,8 @@ class SetupCommand extends BaseCommand {
     // prints it on a hard failure; we print it here on success).
     self.setupSummary = new ui.Summary().start();
 
-    // Load files
-    self.package = loadJSON(`${self.firebaseProjectPath}/functions/package.json`);
-    self.firebaseJSON = loadJSON(`${self.firebaseProjectPath}/firebase.json`);
-    self.firebaseRC = loadJSON(`${self.firebaseProjectPath}/.firebaserc`);
-    self.remoteconfigJSON = loadJSON(`${self.firebaseProjectPath}/functions/remoteconfig.template.json`);
-    self.projectPackage = loadJSON(`${self.firebaseProjectPath}/package.json`);
-    self.bemConfigJSON = loadJSON(`${self.firebaseProjectPath}/functions/backend-manager-config.json`);
-    self.gitignore = jetpack.read(`${self.firebaseProjectPath}/.gitignore`) || '';
+    // Initial load — returns {} for missing files so scaffold checks can run.
+    this.loadFiles();
 
     // Check if package exists
     if (!hasContent(self.package)) {
@@ -93,12 +87,23 @@ class SetupCommand extends BaseCommand {
       process.exit(1);
     }
 
-    // Load the rules files
-    this.getRulesFile();
+    // One unified scaffold pass: config files, package.json fixes, doc defaults.
+    // Everything that creates/fixes files goes here, BEFORE any code reads from
+    // them. One reload afterwards picks up the final state.
+    ui.section('Defaults');
+    this.scaffoldConfigs();
+    this.scaffoldPackageJson();
+    this.copyDefaults();
+    this.loadFiles();
 
+    // Clean up leftover trigger files + stale log files from older BEM versions
+    this.cleanupGeneratedArtifacts();
+
+    // Load the rules files (reads from BEM's own templates/, not consumer files)
+    this.getRulesFile();
     self.default.rulesVersionRegex = new RegExp(`///---version=${self.default.version}---///`);
 
-    // Set project info
+    // Resolve project info — safe now, scaffoldConfigs guarantees these exist.
     self.projectId = self.firebaseRC.projects.default;
     self.projectUrl = `https://console.firebase.google.com/project/${self.projectId}`;
     self.apiUrl = `https://api.${(self.bemConfigJSON.brand?.url || '').replace(/^https?:\/\//, '')}`;
@@ -110,24 +115,15 @@ class SetupCommand extends BaseCommand {
     ui.field('Project', self.projectId, { pad: 9 });
     ui.field('API', self.apiUrl, { pad: 9, valueColor: chalk.cyan });
 
-    if (!self.package || !self.package.engines || !self.package.engines.node) {
-      throw new Error('Missing <engines.node> in package.json');
-    }
-
-    // Clean up leftover trigger files + stale log files from older BEM versions
-    this.cleanupGeneratedArtifacts();
-
-    // Copy / merge defaults into consumer project root (matches EM/BXM/UJM pattern).
-    // Runs BEFORE tests so any test that inspects scaffolded files sees the merged state.
-    ui.section('Defaults');
-    this.copyDefaults();
-
     // Run all tests
     ui.section('Checks');
     await this.runTests();
 
     // Warn if using local backend-manager
-    if (self.package.dependencies['backend-manager'].includes('file:')) {
+    const bemDep = self.package.dependencies?.['backend-manager']
+      || self.package.devDependencies?.['backend-manager']
+      || '';
+    if (bemDep.includes('file:')) {
       ui.section('Notices');
       ui.status('warn', `Using the local ${chalk.bold('backend-manager')} source (file: dependency)`, { level: 2 });
     }
@@ -243,6 +239,84 @@ class SetupCommand extends BaseCommand {
     if (touched === 0) {
       ui.note('All defaults up to date', 2);
     }
+  }
+
+  loadFiles() {
+    const self = this.main;
+    self.package = loadJSON(`${self.firebaseProjectPath}/functions/package.json`);
+    self.firebaseJSON = loadJSON(`${self.firebaseProjectPath}/firebase.json`);
+    self.firebaseRC = loadJSON(`${self.firebaseProjectPath}/.firebaserc`);
+    self.remoteconfigJSON = loadJSON(`${self.firebaseProjectPath}/functions/remoteconfig.template.json`);
+    self.projectPackage = loadJSON(`${self.firebaseProjectPath}/package.json`);
+    self.bemConfigJSON = loadJSON(`${self.firebaseProjectPath}/functions/backend-manager-config.json`);
+    self.gitignore = jetpack.read(`${self.firebaseProjectPath}/.gitignore`) || '';
+  }
+
+  scaffoldPackageJson() {
+    const self = this.main;
+    const ui = this.ui;
+
+    if (!self.package.engines || !self.package.engines.node) {
+      const nodeVer = String(parseInt(process.versions.node, 10));
+      self.package.engines = self.package.engines || {};
+      self.package.engines.node = nodeVer;
+      jetpack.write(`${self.firebaseProjectPath}/functions/package.json`, JSON.stringify(self.package, null, 2));
+      ui.status('add', `Added ${chalk.cyan('engines.node')} = ${chalk.bold(nodeVer)} to package.json`, { level: 2 });
+    }
+  }
+
+  scaffoldConfigs() {
+    const self = this.main;
+    const ui = this.ui;
+    const templatesDir = path.resolve(`${__dirname}/../../../templates`);
+    let touched = 0;
+
+    // .firebaserc — resolve project ID from service account or env
+    const firebasercPath = `${self.firebaseProjectPath}/.firebaserc`;
+    if (!hasContent(self.firebaseRC)) {
+      const projectId = this.resolveProjectId();
+      jetpack.write(firebasercPath, JSON.stringify({ projects: { default: projectId } }, null, 2) + '\n');
+      ui.status('add', `Created ${chalk.cyan('.firebaserc')} (project: ${chalk.bold(projectId)})`, { level: 2 });
+      touched++;
+    }
+
+    // firebase.json
+    const firebaseJsonPath = `${self.firebaseProjectPath}/firebase.json`;
+    if (!hasContent(self.firebaseJSON)) {
+      const templatePath = path.join(templatesDir, 'firebase.json');
+      jetpack.copy(templatePath, firebaseJsonPath);
+      ui.status('add', `Created ${chalk.cyan('firebase.json')}`, { level: 2 });
+      touched++;
+    }
+
+    // backend-manager-config.json
+    const bemConfigPath = `${self.firebaseProjectPath}/functions/backend-manager-config.json`;
+    if (!hasContent(self.bemConfigJSON)) {
+      const templatePath = path.join(templatesDir, 'backend-manager-config.json');
+      jetpack.copy(templatePath, bemConfigPath);
+      ui.status('add', `Created ${chalk.cyan('functions/backend-manager-config.json')}`, { level: 2 });
+      touched++;
+    }
+
+    return touched;
+  }
+
+  resolveProjectId() {
+    const self = this.main;
+    const saPath = `${self.firebaseProjectPath}/functions/service-account.json`;
+
+    if (jetpack.exists(saPath)) {
+      try {
+        const sa = JSON.parse(jetpack.read(saPath));
+        if (sa.project_id) {
+          return sa.project_id;
+        }
+      } catch (e) {
+        // Fall through
+      }
+    }
+
+    return process.env.GCLOUD_PROJECT || 'demo-project';
   }
 
   cleanupGeneratedArtifacts() {

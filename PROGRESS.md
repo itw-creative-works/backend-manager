@@ -2,13 +2,23 @@
 > Agents and maintainers should update this file regularly to reflect the current state of the project.
 
 ## 🎯 Current Focus
-* **Goal:** RSS/Atom feed-based article generation for the Ghostii system
-* **Current Phase:** Shipped
-* **Priority:** Complete
-* **Last Updated:** 2026-06-18 7:30 PM PDT
-* **Notes:** BEM v5.8.0 published to npm. Ghostii-backend v1.0.5 deployed to Firebase. All code, tests, and docs shipped.
+* **Goal:** Fix setup crash on fresh projects missing config files
+* **Current Phase:** Phase 6 — in progress (code done, needs docs + publish)
+* **Priority:** High
+* **Last Updated:** 2026-06-18 11:30 PM PDT
+* **Notes:** Setup now fully bootstraps a bare project (just package.json + .nvmrc). Scaffolds configs, engines.node, everything — stops cleanly at service-account with a Firebase console link. Still needs docs + publish.
 
 ## 📌 Active Task List
+* [ ] Phase 6: Setup scaffolds essential configs for fresh projects
+  * [x] Task 6.1: Add `templates/firebase.json` standard template
+  * [x] Task 6.2: Add `scaffoldConfigs()` + `resolveProjectId()` to setup.js (runs before config resolution)
+  * [x] Task 6.3: Auto-fix `engines.node` instead of throwing
+  * [x] Task 6.4: Fix `dependencies['backend-manager']` crash when BEM is in devDependencies
+  * [x] Task 6.5: Verify fix on truly bare project (dailyembers-backend — 13/14 pass, only service-account expected)
+  * [x] Task 6.6: Optimize — consolidate scattered scaffolding into one `[DEFAULTS]` pass with `loadFiles()` DRY extraction
+  * [x] Task 6.7: Regression test on existing project (ultimate-jekyll-backend — all pass)
+  * [x] Task 6.8: Update docs (CLAUDE.md, CHANGELOG.md)
+  * [ ] Task 6.9: Publish new BEM version
 * [ ] Phase 5: Ghostii feed-based article system
   * [x] Task 5.1: Create `feed-parser.js` (RSS 2.0, Atom 1.0, JSON Feed parser + article extractor)
   * [x] Task 5.2: Add `fast-xml-parser` dependency to BEM

@@ -18,7 +18,7 @@ Backend Manager (BEM) is a comprehensive framework for building modern Firebase 
 ### For Consuming Projects
 
 1. `npm install backend-manager --save-dev` (inside `functions/`)
-2. `npx mgr setup` — validates config, scaffolds defaults (CLAUDE.md, CHANGELOG.md, docs/, test/), provisions Firestore indexes
+2. `npx mgr setup` — bootstraps a new project (scaffolds `.firebaserc`, `firebase.json`, `backend-manager-config.json`, `engines.node`, CLAUDE.md, CHANGELOG.md, docs/, test/), validates config, provisions Firestore indexes
 3. `npx mgr emulator` — start Firebase emulators (auth/firestore/functions/database/storage)
 4. `npx mgr serve` — local serve with Stripe webhook forwarding (if `STRIPE_SECRET_KEY` is set)
 5. `npx mgr test` — runs framework + project test suites against an emulator. Positional target(s) select which test FILES run, by source + path (multiple space-separated targets compose):
@@ -64,7 +64,7 @@ Every feature ships with tests at EVERY surface it exposes — logic (`test/rout
 
 | Command | Description |
 |---|---|
-| `setup` | Validate config, scaffold defaults (CLAUDE.md, CHANGELOG.md, docs/, test/), provision Firestore indexes |
+| `setup` | Bootstrap new projects (scaffolds config files + doc defaults), validate config, provision Firestore indexes |
 | `emulator` | Start Firebase emulators (auth/firestore/functions/database/storage) |
 | `serve` | Local Firebase serve (with auto Stripe webhook forwarding if keys set) |
 | `watch` | Auto-reload functions on file change |
