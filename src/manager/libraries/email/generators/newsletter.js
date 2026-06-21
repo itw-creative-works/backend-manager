@@ -21,6 +21,7 @@
  * the markdown pipeline (content) if needed.
  */
 const fetch = require('wonderful-fetch');
+const powertools = require('node-powertools');
 
 const { filterSources } = require('./lib/filter.js');
 const { generateStructure } = require('./lib/structure.js');

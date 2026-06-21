@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.9.1] - 2026-06-20
+
+### Fixed
+- Missing `require('node-powertools')` in newsletter generator — broke `powertools.arrayify()` for array content support added in v5.9.0
+
 # [5.9.0] - 2026-06-19
 
 ### BREAKING
