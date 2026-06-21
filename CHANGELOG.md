@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.9.2] - 2026-06-20
+
+### Added
+- Blog generation extended test (`test/content/blog-generate.js`). Run `npx mgr test mgr:content/blog-generate --extended` to exercise the full blog auto-publisher pipeline (source resolution → Ghostii → publish). Supports `BLOG_SOURCE`, `BLOG_NO_PUBLISH`, `BLOG_OPEN` env vars.
+
 # [5.9.1] - 2026-06-20
 
 ### Fixed
