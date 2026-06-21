@@ -1,75 +1,96 @@
 /**
- * POST /admin/hook - Run hook manually
- * Admin-only endpoint to trigger hooks
+ * POST /admin/hook - Run a hook or cron job manually
+ *
+ * Resolves the hook from multiple locations:
+ *   1. BEM internal crons (e.g. path="cron/daily/blog-auto-publisher")
+ *   2. BEM internal functions/core hooks
+ *   3. Consumer project root
+ *   4. Consumer hooks/ directory
+ *
+ * Supports both calling conventions:
+ *   - Function export: module.exports = async ({ Manager, assistant, ... }) => {}
+ *   - Class export: module.exports = class { main(assistant) {} }
  */
 module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
 
-  // Require authentication (allow in dev)
   if (!user.authenticated && assistant.isProduction()) {
     return assistant.respond('Authentication required', { code: 401 });
   }
 
-  // Require admin (allow in dev)
   if (!user.roles.admin && assistant.isProduction()) {
     return assistant.respond('Admin required.', { code: 403 });
   }
 
-  // Check for required parameter
   if (!settings.path) {
     return assistant.respond('Missing required parameter: path', { code: 400 });
   }
 
   assistant.log('Running hook:', settings.path);
 
-  // Load the hook
-  const hook = loadHook(assistant, settings.path);
+  const loaded = loadHook(assistant, settings.path);
 
-  if (!hook) {
+  if (!loaded) {
     return assistant.respond(`Hook not found: ${settings.path}`, { code: 404 });
   }
 
-  // Run the hook
+  const hookName = settings.path.split('/').pop();
+  assistant.setLogPrefix(`hook/${hookName}()`);
+
   try {
-    // Set variables
-    hook.Manager = Manager;
-    hook.assistant = assistant;
-    hook.context = null;
-    hook.libraries = Manager.libraries;
+    let result;
 
-    // Get hook name
-    const hookName = settings.path.split('/').pop();
+    if (loaded.type === 'function') {
+      result = await loaded.handler({
+        Manager,
+        assistant,
+        context: {},
+        libraries: Manager.libraries,
+      });
+    } else {
+      const instance = loaded.handler;
+      instance.Manager = Manager;
+      instance.assistant = assistant;
+      instance.context = null;
+      instance.libraries = Manager.libraries;
+      result = await instance.main(assistant);
+    }
 
-    // Set log prefix
-    assistant.setLogPrefix(`cron/daily/${hookName}()`);
-
-    // Run the hook
-    const result = await hook.main(assistant);
-
-    // Track analytics
     analytics.event('admin/hook', { path: settings.path });
 
-    return assistant.respond(result);
+    return assistant.respond(result || { success: true });
   } catch (e) {
+    assistant.error(`Hook error: ${e.message}`, e);
     return assistant.respond(e.message, { code: 500 });
   }
 };
 
-// Helper: Load hook from multiple paths
 function loadHook(assistant, hookPath) {
   const Manager = assistant.Manager;
-  const paths = [
-    `${Manager.rootDirectory}/functions/core/${hookPath}`,
-    `${Manager.cwd}/${hookPath}`,
-    `${Manager.cwd}/hooks/${hookPath}`,
+  const path = require('path');
+
+  const searchPaths = [
+    // BEM internal crons + events (e.g. "cron/daily/blog-auto-publisher")
+    path.join(Manager.rootDirectory, 'events', hookPath),
+    // BEM internal functions/core
+    path.join(Manager.rootDirectory, '..', '..', 'functions', 'core', hookPath),
+    // Consumer project root
+    path.join(Manager.cwd, hookPath),
+    // Consumer hooks/ directory
+    path.join(Manager.cwd, 'hooks', hookPath),
   ];
 
-  for (let i = 0; i < paths.length; i++) {
-    const current = pathify(paths[i]);
-
-    assistant.log('Trying path:', current);
+  for (const searchPath of searchPaths) {
+    const resolved = pathify(searchPath);
+    assistant.log('Trying path:', resolved);
 
     try {
-      return (new (require(current))());
+      const mod = require(resolved);
+
+      if (typeof mod === 'function' && !mod.prototype?.main) {
+        return { type: 'function', handler: mod };
+      }
+
+      return { type: 'class', handler: new mod() };
     } catch (e) {
       // Continue to next path
     }
@@ -78,7 +99,6 @@ function loadHook(assistant, hookPath) {
   return null;
 }
 
-// Helper: Normalize path
-function pathify(path) {
-  return `${path.replace('.js', '')}.js`;
+function pathify(p) {
+  return `${p.replace(/\.js$/, '')}.js`;
 }

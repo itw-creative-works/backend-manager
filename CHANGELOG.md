@@ -14,6 +14,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.9.3] - 2026-06-21
+
+### Changed
+- **`admin/hook` route now triggers BEM internal crons.** Path resolution searches BEM's events directory (crons), consumer project root, and consumer hooks/ directory. Supports both function exports (`module.exports = async (opts) => {}`) and class-based hooks. Example: `POST /admin/hook { path: "cron/daily/blog-auto-publisher" }`.
+- **MCP `run_hook` tool updated** with expanded description and example paths for all built-in cron jobs.
+
+### Available hook paths (built-in BEM crons)
+- `cron/daily/blog-auto-publisher` — generate + publish blog articles
+- `cron/daily/marketing-newsletter-generate` — pre-generate newsletter content
+- `cron/daily/marketing-prune` — prune inactive marketing contacts
+- `cron/daily/reset-usage` — reset monthly usage counters
+- `cron/daily/data-requests` — process GDPR data export requests
+- `cron/daily/expire-paypal-cancellations` — expire pending PayPal cancellations
+- `cron/frequent/marketing-campaigns` — send pending marketing campaigns
+
 # [5.9.2] - 2026-06-20
 
 ### Added

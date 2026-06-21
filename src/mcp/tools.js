@@ -459,15 +459,15 @@ module.exports = [
   // --- Hooks ---
   {
     name: 'run_hook',
-    description: 'Execute a custom hook by path (e.g. "cron/daily/my-job")',
+    description: 'Execute a hook or BEM cron job by path. Searches: BEM internal crons (e.g. "cron/daily/blog-auto-publisher", "cron/daily/marketing-newsletter-generate"), consumer hooks/ directory, and consumer project root. Supports both function exports and class-based hooks.',
     role: 'admin',
     method: 'POST',
     path: 'admin/hook',
-    annotations: { title: 'Run a custom hook', readOnlyHint: false, destructiveHint: false },
+    annotations: { title: 'Run hook or cron', readOnlyHint: false, destructiveHint: false },
     inputSchema: {
       type: 'object',
       properties: {
-        path: { type: 'string', description: 'Hook path to execute' },
+        path: { type: 'string', description: 'Hook path (e.g. "cron/daily/blog-auto-publisher", "cron/daily/marketing-newsletter-generate", "cron/daily/reset-usage", "cron/frequent/marketing-campaigns", or a consumer hook path)' },
       },
       required: ['path'],
     },
