@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.9.4] - 2026-06-21
+
+### Fixed
+- **Download-app-link email had blank body.** Template passed `data: {}` so the card rendered logo + signoff + footer but no content. Now populates title, message, and "Download Now" button linking to `{brand.url}/download`.
+
 # [5.9.3] - 2026-06-21
 
 ### Changed
