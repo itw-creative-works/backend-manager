@@ -26,8 +26,8 @@ module.exports = async ({ assistant, user, settings }) => {
 
   const subscription = user.subscription;
 
-  // Require an active, paid subscription
-  if (!subscription || subscription.status !== 'active' || subscription.product?.id === 'basic') {
+  // Require an active or suspended paid subscription
+  if (!subscription || (subscription.status !== 'active' && subscription.status !== 'suspended') || subscription.product?.id === 'basic') {
     assistant.log(`Cancel rejected: uid=${uid}, status=${subscription?.status}, product=${subscription?.product?.id}`);
     return assistant.respond('No active paid subscription found', { code: 400 });
   }
@@ -69,6 +69,26 @@ module.exports = async ({ assistant, user, settings }) => {
   try {
     await processorModule.cancelAtPeriodEnd({ resourceId, uid, subscription, assistant });
   } catch (e) {
+    // If the subscription is suspended and the processor rejects (subscription already dead/gone),
+    // directly reset the user's subscription to cancelled so they can re-subscribe
+    if (subscription.status === 'suspended') {
+      assistant.log(`Processor cancel failed for suspended subscription (${e.message}), resetting directly`);
+      const admin = assistant.Manager.libraries.admin;
+      const now = powertools.timestamp(new Date(), { output: 'string' });
+      const nowUNIX = powertools.timestamp(now, { output: 'unix' });
+
+      await admin.firestore().doc(`users/${uid}`).set({
+        subscription: {
+          status: 'cancelled',
+          product: { id: 'basic', name: 'Basic' },
+          cancellation: { pending: false, date: { timestamp: now, timestampUNIX: nowUNIX } },
+        },
+      }, { merge: true });
+
+      assistant.log(`Directly cancelled suspended subscription for uid=${uid}`);
+      return assistant.respond({ success: true });
+    }
+
     assistant.log(`Failed to cancel subscription via ${processor}: ${e.message}`);
     return assistant.respond(`Failed to cancel subscription: ${e.message}`, { code: 500, sentry: true });
   }

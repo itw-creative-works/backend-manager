@@ -2,11 +2,11 @@
 > Agents and maintainers should update this file regularly to reflect the current state of the project.
 
 ## 🎯 Current Focus
-* **Goal:** Ghostii feed sources cleanup + Somiibo consumer config
-* **Current Phase:** Fixes applied + tested, pending commit + publish
+* **Goal:** Fix suspended subscription dead zone — users with `suspended` status couldn't cancel or re-subscribe
+* **Current Phase:** Fix applied + tested (24/24 passing), pending commit + publish
 * **Priority:** High
-* **Last Updated:** 2026-06-19 3:05 AM PDT
-* **Notes:** Renamed Firestore collection `ghostii-feed-items` → `ghostii-sources`. Fixed `FieldValue.serverTimestamp()` → BEM metadata pattern. Added 5 marketing/social feeds to extended tests. All tests passing (20/20 standard, 9/9 extended). Somiibo consumer has feeds configured + `ghostii-sources.md` evaluation doc. Needs BEM publish + consumer deploy.
+* **Last Updated:** 2026-06-21 5:50 PM PDT
+* **Notes:** Cancel endpoint now accepts `suspended` subscriptions. Added fallback: if processor rejects (subscription already dead on their end), directly resets user doc to `cancelled`. Traced from live Somiibo user `t9AeAe7QUhNXAUYRV1vUbOU0QVV2` stuck in limbo. Needs BEM publish + Somiibo deploy.
 
 ## 📌 Active Task List
 * [ ] Phase 6: Setup scaffolds essential configs for fresh projects
@@ -43,6 +43,13 @@
   * [ ] Task 5.17: Publish BEM with feed support
   * [ ] Task 5.12: Publish BEM with feed support
   * [ ] Task 5.13: Configure consumer project(s) with `$feed:` sources
+* [x] Phase 7: Fix suspended subscription cancel dead zone
+  * [x] Task 7.1: Trace user `t9AeAe7QUhNXAUYRV1vUbOU0QVV2` — identified asymmetric status gates
+  * [x] Task 7.2: Update cancel gate to accept `suspended` alongside `active`
+  * [x] Task 7.3: Add fallback — direct Firestore reset when processor rejects suspended cancel
+  * [x] Task 7.4: Add `cancel-suspended` test account + `allows-suspended-subscription` test
+  * [x] Task 7.5: All 24 payment tests passing
+  * [ ] Task 7.6: Publish BEM + deploy Somiibo
 * [ ] Phase 3: Post-audit bug fixes
   * [x] Newsletter ReferenceError: `beehiivConfig` → `newsletterRoleConfig` (committed v5.7.1)
   * [x] HTTPS proxy: `serve.js` returns boolean, caller uses `httpsReady` not `httpsEnabled`

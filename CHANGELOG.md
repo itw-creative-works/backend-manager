@@ -14,6 +14,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.9.5] - 2026-06-21
+
+### Fixed
+- **Suspended subscription cancel dead zone.** Users with `subscription.status: 'suspended'` were trapped — the subscribe endpoint required them to cancel first, but the cancel endpoint only accepted `active` subscriptions. Cancel now accepts both `active` and `suspended`. When the processor rejects a suspended cancel (subscription already dead on their end), falls back to directly resetting the user doc to `cancelled`.
+
+### Security
+- **Supply-chain audited installs.** All `npm install` calls in CLI commands (`install`, setup-tests) now route through `safeInstall()` which prefixes Socket Firewall (`sfw`) when available, blocking confirmed malware before packages reach disk.
+
 # [5.9.4] - 2026-06-21
 
 ### Fixed

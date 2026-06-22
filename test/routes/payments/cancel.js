@@ -91,6 +91,29 @@ module.exports = {
     },
 
     {
+      name: 'allows-suspended-subscription',
+      async run({ http, assert, config, accounts, firestore, waitFor, skip }) {
+        const uid = accounts['cancel-suspended'].uid;
+
+        const response = await http.as('cancel-suspended').post('backend-manager/payments/cancel', {
+          confirmed: true,
+          reason: 'Subscription was suspended',
+          skipGuards: true,
+        });
+
+        assert.isSuccess(response, 'Should allow cancelling a suspended subscription');
+        assert.equal(response.data.success, true, 'Should return success: true');
+
+        // Verify the subscription was reset to cancelled (via fallback or webhook)
+        await waitFor(async () => {
+          const userDoc = await firestore.get(`users/${uid}`);
+          return userDoc?.subscription?.status === 'cancelled'
+            || userDoc?.subscription?.cancellation?.pending === true;
+        }, 15000, 500);
+      },
+    },
+
+    {
       name: 'succeeds-with-test-processor',
       async run({ http, assert, config, accounts, firestore, waitFor, skip }) {
         const uid = accounts['route-cancel-success'].uid;

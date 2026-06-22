@@ -2,6 +2,8 @@
 
 > **Note for contributors and Claude:** This file is the architectural overview — identity, top-level conventions, and a map to deep references. The **meat** (per-subsystem APIs, behavior tables, recipes) lives in `docs/<topic>.md`. When extending or adding content, write it in the matching `docs/*.md` file and cross-link from here — do NOT inline it. If a topic doesn't have a doc yet, create one. Goal: keep this file under 250 lines.
 
+> **Mirrored structure:** BEM, UJM, BXM, and EM CLAUDE.md files mirror each other — shared sections (Supply-Chain Security, Development Workflow, File Conventions, etc.) appear in the **same order at the same position** across all four. When adding a section that applies to multiple frameworks, insert it in the same spot in all of them.
+
 ## Identity
 
 Backend Manager (BEM) is a comprehensive framework for building modern Firebase Cloud Functions backends. Sister project to Electron Manager (EM), Browser Extension Manager (BXM), and Ultimate Jekyll Manager (UJM). Provides a single `Manager.init(exports, {...})` bootstrap that wires built-in functions (`bm_api`, auth events, cron jobs), helper classes (Assistant, User, Analytics, Usage, Middleware, Settings, Utilities, Metadata), payment processor integrations (Stripe / PayPal), Firestore-trigger pipelines, marketing campaign automation, an MCP server, and a CLI for emulator/deploy/logs/auth/Firestore operations.
@@ -93,6 +95,10 @@ See [docs/cli-firestore-auth.md](docs/cli-firestore-auth.md) and [docs/cli-logs.
 - **Where the output logs live:** BEM CLI commands tee output to `<projectDir>/functions/` (not `logs/` — BEM's deliberate exception, co-located with firebase-tools' `*-debug.log`): `dev.log` (`npx mgr serve`), `emulator.log` (`npx mgr emulator` / test with own emulator), `test.log` (`npx mgr test`), `production.log` (`npx mgr logs`). The `dev`/`test` names match EM/BXM/UJM; see [docs/test-framework.md](docs/test-framework.md#log-files).
 - **If the user reports an error**, check the emulator/test output for the root cause before guessing.
 - **Live-test UI changes via CDP.** When working on admin dashboards or browser-facing endpoints, use the `chrome-devtools` MCP tools (screenshots, click, evaluate JS, console logs) to verify the change works in the running browser. See `~/.claude/mcp-server/servers/chrome-devtools/CLAUDE.md`.
+
+## Supply-Chain Security
+
+All `npm install` calls in CLI commands (`npx mgr i`, `npx mgr setup`, setup-tests) route through the `safeInstall()` helper (`src/cli/utils/safe-install.js`). It prefixes `sfw` (Socket Firewall) when installed — blocking confirmed malware at the network level before packages reach disk. Falls back to plain npm if sfw isn't available. CI workflows install sfw globally and run `sfw npm install`/`sfw npm ci`. Installs will **fail if sfw detects confirmed malware** in any package in the dependency tree; non-critical CVEs and quality warnings pass through.
 
 ## File Conventions
 

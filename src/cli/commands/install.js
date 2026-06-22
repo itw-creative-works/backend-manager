@@ -5,6 +5,7 @@ const powertools = require('node-powertools');
 const Npm = require('npm-api');
 const jetpack = require('fs-jetpack');
 const wonderfulVersion = require('wonderful-version');
+const { safeInstall } = require('../utils/safe-install');
 
 class InstallCommand extends BaseCommand {
   async execute(type) {
@@ -110,12 +111,12 @@ class InstallCommand extends BaseCommand {
       const command = name;
       this.log('Running ', command);
       
-      return await powertools.execute(command, { log: true })
+      return await safeInstall(command, { log: true })
         .catch((e) => {
           throw e;
         });
     }
-    
+
     if (name.indexOf('file:') > -1) {
       v = '';
     } else if (!version) {
@@ -133,7 +134,7 @@ class InstallCommand extends BaseCommand {
     const command = `npm i ${name}${v}${t}`;
     this.log('Running ', command);
 
-    return await powertools.execute(command, { log: true })
+    return await safeInstall(command, { log: true })
       .catch((e) => {
         throw e;
       });

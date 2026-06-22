@@ -4,6 +4,7 @@ const wonderfulVersion = require('wonderful-version');
 const powertools = require('node-powertools');
 const Npm = require('npm-api');
 const helpers = require('./helpers');
+const { safeInstall } = require('../../utils/safe-install');
 
 class BackendManagerTest extends BaseTest {
   getName() {
@@ -72,7 +73,7 @@ class BackendManagerTest extends BaseTest {
     console.log('Running ', command);
 
     // Execute
-    await powertools.execute(command, { log: true });
+    await safeInstall(command);
   }
 }
 

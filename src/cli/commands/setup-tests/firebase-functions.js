@@ -3,6 +3,7 @@ const chalk = require('chalk').default;
 const wonderfulVersion = require('wonderful-version');
 const powertools = require('node-powertools');
 const helpers = require('./helpers');
+const { safeInstall } = require('../../utils/safe-install');
 
 class FirebaseFunctionsTest extends BaseTest {
   getName() {
@@ -64,7 +65,7 @@ class FirebaseFunctionsTest extends BaseTest {
     console.log('Running ', command);
 
     // Execute
-    await powertools.execute(command, { log: true });
+    await safeInstall(command);
   }
 }
 
