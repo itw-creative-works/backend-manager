@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.9.6] - 2026-06-23
+
+### Added
+- **Explicit `files` field in package.json.** Limits the npm tarball to `src/`, `dist/`, `bin/`, `docs/`, and `CLAUDE.md` — excludes tests, fixtures, scripts, and other dev-only files from published installs, reducing package size.
+
 # [5.9.5] - 2026-06-21
 
 ### Fixed

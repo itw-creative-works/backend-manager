@@ -1,8 +1,15 @@
 {
   "name": "backend-manager",
-  "version": "5.9.5",
+  "version": "5.9.6",
   "description": "Quick tools for developing Firebase functions",
   "main": "src/manager/index.js",
+  "files": [
+    "src/",
+    "dist/",
+    "bin/",
+    "docs/",
+    "CLAUDE.md"
+  ],
   "bin": {
     "bm": "./bin/backend-manager",
     "bem": "./bin/backend-manager",
