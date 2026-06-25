@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.9.7] - 2026-06-24
+
+### Fixed
+- **Cron runner error isolation.** A failing cron handler (e.g. newsletter generator) no longer kills the entire daily cron — each handler's error is logged and reported to Sentry, but execution continues to the next handler. Previously, a `throw e` in the runner caused all subsequent handlers (including `reset-usage.js`) to be skipped, which silently broke daily usage counter resets across all consumer projects.
+
 # [5.9.6] - 2026-06-23
 
 ### Added

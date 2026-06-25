@@ -54,7 +54,6 @@ async function loadAndExecuteJobs(name, jobsPath, Manager, context) {
       assistant.log('Completed!');
     } catch (e) {
       assistant.errorify(`Error executing: ${e}`, { code: 500, sentry: true });
-      throw e;
     }
   }
 }

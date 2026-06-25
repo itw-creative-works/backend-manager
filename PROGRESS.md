@@ -2,11 +2,11 @@
 > Agents and maintainers should update this file regularly to reflect the current state of the project.
 
 ## 🎯 Current Focus
-* **Goal:** Fix suspended subscription dead zone — users with `suspended` status couldn't cancel or re-subscribe
-* **Current Phase:** Fix applied + tested (24/24 passing), pending commit + publish
+* **Goal:** Fix cron runner error propagation blocking daily usage reset
+* **Current Phase:** Fix applied, pending BEM publish + Chatsy redeploy
 * **Priority:** High
-* **Last Updated:** 2026-06-21 5:50 PM PDT
-* **Notes:** Cancel endpoint now accepts `suspended` subscriptions. Added fallback: if processor rejects (subscription already dead on their end), directly resets user doc to `cancelled`. Traced from live Somiibo user `t9AeAe7QUhNXAUYRV1vUbOU0QVV2` stuck in limbo. Needs BEM publish + Somiibo deploy.
+* **Last Updated:** 2026-06-24 7:37 PM PDT
+* **Notes:** `throw e` in `runner.js` caused one failing handler (`marketing-newsletter-generate` with `beehiivConfig` ReferenceError) to kill the entire daily cron, preventing `reset-usage.js` from ever running. Chatsy's Somiibo agent (owner `98WVIFYdGrUbjL4jgyXLPe8ICFt1`) had daily counter stuck at 334 since June 19. Fix: removed `throw e` so handlers fail independently. Also need to manually reset the user's daily counter or wait for midnight UTC cron.
 
 ## 📌 Active Task List
 * [ ] Phase 6: Setup scaffolds essential configs for fresh projects
@@ -50,6 +50,12 @@
   * [x] Task 7.4: Add `cancel-suspended` test account + `allows-suspended-subscription` test
   * [x] Task 7.5: All 24 payment tests passing
   * [ ] Task 7.6: Publish BEM + deploy Somiibo
+* [ ] Phase 8: Fix cron runner error propagation blocking usage reset
+  * [x] Task 8.1: Diagnose — `beehiivConfig` crash in newsletter generator blocks `reset-usage.js` (alphabetical order: m < r)
+  * [x] Task 8.2: Remove `throw e` from `src/manager/events/cron/runner.js` — handlers now fail independently
+  * [ ] Task 8.3: Publish new BEM version
+  * [ ] Task 8.4: Update Chatsy to new BEM + redeploy
+  * [ ] Task 8.5: Reset stuck daily counter on user `98WVIFYdGrUbjL4jgyXLPe8ICFt1`
 * [ ] Phase 3: Post-audit bug fixes
   * [x] Newsletter ReferenceError: `beehiivConfig` → `newsletterRoleConfig` (committed v5.7.1)
   * [x] HTTPS proxy: `serve.js` returns boolean, caller uses `httpsReady` not `httpsEnabled`
