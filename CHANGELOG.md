@@ -14,6 +14,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.9.8] - 2026-06-24
+
+### Fixed
+- **npm tarball missing `templates/` and `test/` directories.** Setup command crashed with `Cannot read properties of undefined (reading 'replace')` because `firestore.rules` and `database.rules.json` templates were not included in the published package. Framework tests (`npx mgr test mgr:`) also couldn't find the top-level `test/` directory in consumer projects.
+
+### Changed
+- Alphabetized `files` array in package.json (dirs first, then files).
+
 # [5.9.7] - 2026-06-24
 
 ### Fixed
