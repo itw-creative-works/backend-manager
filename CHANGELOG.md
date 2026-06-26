@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.9.14] - 2026-06-26
+
+### Added
+- **Post-deploy public invoker** — `npx mgr deploy` now ensures HTTP functions (`bm_api`, `bm_authBeforeCreate`, `bm_authBeforeSignIn`) have `allUsers` as `cloudfunctions.invoker` after `firebase deploy` completes. Firebase CLI used to set this automatically but stopped around the Node 10 runtime transition — without it, all HTTP requests get a 403 at the GCP IAM level before BEM's application-level auth runs.
+
 # [5.9.13] - 2026-06-26
 
 ### Added
