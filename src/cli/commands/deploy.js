@@ -3,15 +3,23 @@ const chalk = require('chalk').default;
 const powertools = require('node-powertools');
 const attachLogFile = require('../utils/attach-log-file');
 const { execSync } = require('child_process');
+const { homedir } = require('os');
 const path = require('path');
 const jetpack = require('fs-jetpack');
 
 const DEFAULT_REGION = 'us-central1';
-const PUBLIC_HTTP_FUNCTIONS = [
-  'bm_api',
-  'bm_authBeforeCreate',
-  'bm_authBeforeSignIn',
-];
+
+function gcloudExec(cmd, options = {}) {
+  const env = { ...process.env };
+  env.PATH = `${path.join(homedir(), 'google-cloud-sdk', 'bin')}:${env.PATH}`;
+
+  return execSync(cmd, {
+    encoding: 'utf8',
+    timeout: options.timeout || 30000,
+    stdio: ['pipe', 'pipe', 'pipe'],
+    env,
+  });
+}
 
 class DeployCommand extends BaseCommand {
   async execute() {
@@ -49,11 +57,14 @@ class DeployCommand extends BaseCommand {
   }
 
   /**
-   * Ensure HTTP-triggered functions have allUsers as cloudfunctions.invoker.
+   * Ensure all HTTP-triggered functions have allUsers as cloudfunctions.invoker.
    *
    * Firebase CLI used to set this automatically but stopped around the Node 10
    * runtime transition. Without it, HTTP requests get a 403 at the IAM level
    * before BEM's application-level auth (backendManagerKey) can run.
+   *
+   * Dynamically discovers all deployed functions and fixes any HTTP-triggered
+   * function missing the allUsers invoker binding.
    */
   async ensurePublicInvoker() {
     const projectId = this.getProjectId();
@@ -62,10 +73,24 @@ class DeployCommand extends BaseCommand {
       return;
     }
 
-    const gcloud = this.findGcloud();
+    // Discover all deployed HTTP-triggered functions
+    let httpFunctions;
 
-    if (!gcloud) {
-      this.log(chalk.gray('\n  Skipping public invoker check (gcloud not found)\n'));
+    try {
+      const output = gcloudExec(
+        `gcloud functions list --project ${projectId} --regions ${DEFAULT_REGION} --format="json(name,httpsTrigger)"`,
+      );
+
+      const allFunctions = JSON.parse(output);
+
+      httpFunctions = allFunctions
+        .filter((fn) => fn.httpsTrigger)
+        .map((fn) => fn.name.split('/').pop());
+    } catch {
+      return;
+    }
+
+    if (!httpFunctions.length) {
       return;
     }
 
@@ -74,12 +99,11 @@ class DeployCommand extends BaseCommand {
     let fixed = 0;
     let ok = 0;
 
-    for (const fnName of PUBLIC_HTTP_FUNCTIONS) {
+    for (const fnName of httpFunctions) {
       try {
-        // Check current IAM policy
-        const policyOutput = execSync(
-          `${gcloud} functions get-iam-policy ${fnName} --project ${projectId} --region ${DEFAULT_REGION} --format=json`,
-          { encoding: 'utf8', timeout: 15000, stdio: ['pipe', 'pipe', 'pipe'] },
+        const policyOutput = gcloudExec(
+          `gcloud functions get-iam-policy ${fnName} --project ${projectId} --region ${DEFAULT_REGION} --format=json`,
+          { timeout: 15000 },
         );
 
         const policy = JSON.parse(policyOutput);
@@ -93,16 +117,14 @@ class DeployCommand extends BaseCommand {
           continue;
         }
 
-        // Add allUsers as invoker
-        execSync(
-          `${gcloud} functions add-iam-policy-binding ${fnName} --project ${projectId} --region ${DEFAULT_REGION} --member="allUsers" --role="roles/cloudfunctions.invoker"`,
-          { encoding: 'utf8', timeout: 30000, stdio: ['pipe', 'pipe', 'pipe'] },
+        gcloudExec(
+          `gcloud functions add-iam-policy-binding ${fnName} --project ${projectId} --region ${DEFAULT_REGION} --member="allUsers" --role="roles/cloudfunctions.invoker"`,
         );
 
         this.log(`  ${chalk.green('✓')} Set public invoker on ${chalk.cyan(fnName)}`);
         fixed++;
       } catch {
-        // Function might not exist (not all projects use all functions) — skip silently
+        // Skip silently — function may be in a transient state
       }
     }
 
@@ -117,23 +139,6 @@ class DeployCommand extends BaseCommand {
     try {
       const firebaserc = jetpack.read(path.join(this.main.firebaseProjectPath, '.firebaserc'), 'json');
       return firebaserc?.projects?.default;
-    } catch {
-      return null;
-    }
-  }
-
-  findGcloud() {
-    const homeDir = require('os').homedir();
-    const sdkPath = path.join(homeDir, 'google-cloud-sdk', 'bin', 'gcloud');
-
-    if (jetpack.exists(sdkPath)) {
-      return sdkPath;
-    }
-
-    // Try PATH
-    try {
-      execSync('which gcloud', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
-      return 'gcloud';
     } catch {
       return null;
     }
