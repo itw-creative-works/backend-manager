@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.9.11] - 2026-06-26
+
+### Fixed
+- **Setup auto-moves `backend-manager` from devDependencies to dependencies.** Cloud Functions only installs dependencies at deploy time. Projects with BEM in devDeps would fail with `Cannot find module 'backend-manager'` on first deploy.
+
 # [5.9.10] - 2026-06-26
 
 ### Added
