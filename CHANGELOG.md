@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.9.12] - 2026-06-26
+
+### Changed
+- Reverted scaffoldPackageJson dep-move logic — the template now ships BEM in `dependencies` directly, no migration needed.
+
 # [5.9.11] - 2026-06-26
 
 ### Fixed

@@ -255,29 +255,13 @@ class SetupCommand extends BaseCommand {
   scaffoldPackageJson() {
     const self = this.main;
     const ui = this.ui;
-    let changed = false;
-
-    // Ensure backend-manager is in dependencies (Cloud Functions only installs deps, not devDeps)
-    if (self.package.devDependencies?.['backend-manager'] && !self.package.dependencies?.['backend-manager']) {
-      const version = self.package.devDependencies['backend-manager'];
-      self.package.dependencies = self.package.dependencies || {};
-      self.package.dependencies['backend-manager'] = version;
-      delete self.package.devDependencies['backend-manager'];
-      if (Object.keys(self.package.devDependencies).length === 0) {
-        delete self.package.devDependencies;
-      }
-      changed = true;
-    }
 
     if (!self.package.engines || !self.package.engines.node) {
       const nodeVer = String(parseInt(process.versions.node, 10));
       self.package.engines = self.package.engines || {};
       self.package.engines.node = nodeVer;
-      changed = true;
-    }
-
-    if (changed) {
       jetpack.write(`${self.firebaseProjectPath}/functions/package.json`, JSON.stringify(self.package, null, 2));
+      ui.status('add', `Added ${chalk.cyan('engines.node')} = ${chalk.bold(nodeVer)} to package.json`, { level: 2 });
     }
   }
 
