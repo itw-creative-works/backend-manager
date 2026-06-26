@@ -2,6 +2,7 @@ const BaseTest = require('./base-test');
 const jetpack = require('fs-jetpack');
 const JSON5 = require('json5');
 const chalk = require('chalk').default;
+const helpers = require('./helpers');
 
 /**
  * Ensures projectId is consistent across all configuration files:
@@ -142,7 +143,7 @@ class ProjectIdConsistencyTest extends BaseTest {
       bemConfigData.firebaseConfig = bemConfigData.firebaseConfig || {};
       bemConfigData.firebaseConfig.projectId = expectedProjectId;
 
-      jetpack.write(bemConfigPath, JSON.stringify(bemConfigData, null, 2));
+      helpers.saveJSON5(bemConfigPath, bemConfigData);
       console.log(chalk.green(`Fixed: backend-manager-config.json → firebaseConfig.projectId = ${expectedProjectId}`));
     }
 

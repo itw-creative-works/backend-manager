@@ -40,9 +40,10 @@ class BemConfigTest extends BaseTest {
   async fix() {
     const ui = require('../../utils/ui');
 
-    // Write if it doesn't exist
+    // Copy template if config doesn't exist or is empty
     if (!this.context.hasContent(this.self.bemConfigJSON)) {
-      jetpack.write(`${this.self.firebaseProjectPath}/functions/backend-manager-config.json`, {});
+      const templatePath = path.resolve(__dirname, '../../../../templates/backend-manager-config.json');
+      jetpack.copy(templatePath, `${this.self.firebaseProjectPath}/functions/backend-manager-config.json`, { overwrite: true });
     }
 
     // Collect the keys that are still missing (these are what the user must fill in).

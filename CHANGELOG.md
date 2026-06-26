@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.9.9] - 2026-06-25
+
+### Fixed
+- **Setup command outputs standard JSON instead of JSON5 for `backend-manager-config.json`.** The `bem-config` test fix wrote `{}` via `jetpack.write()` (standard JSON) instead of copying the JSON5 template. The `project-id-consistency` test fix re-serialized with `JSON.stringify()`, converting the entire file to standard JSON. Both now preserve JSON5 format.
+
 # [5.9.8] - 2026-06-24
 
 ### Fixed

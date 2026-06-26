@@ -9,6 +9,10 @@ function loadJSON(path) {
   return JSON5.parse(contents);
 }
 
+function saveJSON5(filePath, data) {
+  jetpack.write(filePath, JSON5.stringify(data, null, 2) + '\n');
+}
+
 function hasContent(object) {
   return Object.keys(object).length > 0;
 }
@@ -19,6 +23,7 @@ function isLocal(name) {
 
 module.exports = {
   loadJSON,
+  saveJSON5,
   hasContent,
   isLocal,
 };
