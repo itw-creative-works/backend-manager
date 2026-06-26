@@ -48,7 +48,7 @@ class RootPackageJsonTest extends BaseTest {
       scripts[name] = `cd functions && ${command}`;
     }
 
-    scripts.preinstall = `cd functions && npm install && echo "\\n  ✓ Dependencies installed in functions/ (not project root)\\n" && exit 1`;
+    scripts.preinstall = `cd functions && npm install && echo "\\n  ✓ Dependencies installed in functions/ (not project root)\\n"`;
 
     return scripts;
   }

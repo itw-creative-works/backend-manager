@@ -70,6 +70,7 @@ class BaseCommand {
   sweepStaleLogs() {
     const logFiles = [
       'dev.log',
+      'deploy.log',
       'emulator.log',
       'test.log',
       'production.log',

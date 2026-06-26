@@ -14,6 +14,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.9.13] - 2026-06-26
+
+### Added
+- **`deploy.log`** — `npx mgr deploy` now tees all output to `functions/deploy.log` (ANSI-stripped, overwritten each run). Completes the log file matrix: every major BEM operation (serve, deploy, emulator, test, logs) now has a dedicated log file.
+- **`attach-log-file.js` shared utility** — DRY tee utility (`src/cli/utils/attach-log-file.js`) matching BXM/UJM/EM cross-framework pattern. Singleton + factory + stackable.
+
+### Fixed
+- **Setup: firebase-admin/firebase-functions not in package.json** — `undefined` version was treated as a "major" diff, skipping `fix()` entirely. Now returns `false` immediately when the package is missing so setup installs it.
+- **Setup: `preinstall` script no longer exits with code 1** — the `exit 1` blocked `npm install` at project root during onboarding. Removed so the informational message prints without failing the install.
+
 # [5.9.12] - 2026-06-26
 
 ### Changed

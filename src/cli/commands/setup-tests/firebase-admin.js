@@ -16,6 +16,11 @@ class FirebaseAdminTest extends BaseTest {
     const mine = this.context.package.dependencies[pkg];
     const bemv = this.context.packageJSON.peerDependencies[pkg];
 
+    // Not in package.json at all — must install
+    if (!mine) {
+      return false;
+    }
+
     // Get level difference
     const levelDifference = wonderfulVersion.levelDifference(latest, mine);
 
