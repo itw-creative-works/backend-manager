@@ -2,24 +2,10 @@ const BaseCommand = require('./base-command');
 const chalk = require('chalk').default;
 const powertools = require('node-powertools');
 const attachLogFile = require('../utils/attach-log-file');
-const { execSync } = require('child_process');
-const { homedir } = require('os');
 const path = require('path');
 const jetpack = require('fs-jetpack');
 
 const DEFAULT_REGION = 'us-central1';
-
-function gcloudExec(cmd, options = {}) {
-  const env = { ...process.env };
-  env.PATH = `${path.join(homedir(), 'google-cloud-sdk', 'bin')}:${env.PATH}`;
-
-  return execSync(cmd, {
-    encoding: 'utf8',
-    timeout: options.timeout || 30000,
-    stdio: ['pipe', 'pipe', 'pipe'],
-    env,
-  });
-}
 
 class DeployCommand extends BaseCommand {
   async execute() {
@@ -63,8 +49,8 @@ class DeployCommand extends BaseCommand {
    * runtime transition. Without it, HTTP requests get a 403 at the IAM level
    * before BEM's application-level auth (backendManagerKey) can run.
    *
-   * Dynamically discovers all deployed functions and fixes any HTTP-triggered
-   * function missing the allUsers invoker binding.
+   * Dynamically discovers all deployed functions via gcloud and fixes any
+   * HTTP-triggered function missing the allUsers invoker binding.
    */
   async ensurePublicInvoker() {
     const projectId = this.getProjectId();
@@ -77,13 +63,12 @@ class DeployCommand extends BaseCommand {
     let httpFunctions;
 
     try {
-      const output = gcloudExec(
+      const output = await powertools.execute(
         `gcloud functions list --project ${projectId} --regions ${DEFAULT_REGION} --format="json(name,httpsTrigger)"`,
+        { log: false },
       );
 
-      const allFunctions = JSON.parse(output);
-
-      httpFunctions = allFunctions
+      httpFunctions = JSON.parse(output)
         .filter((fn) => fn.httpsTrigger)
         .map((fn) => fn.name.split('/').pop());
     } catch {
@@ -101,9 +86,9 @@ class DeployCommand extends BaseCommand {
 
     for (const fnName of httpFunctions) {
       try {
-        const policyOutput = gcloudExec(
+        const policyOutput = await powertools.execute(
           `gcloud functions get-iam-policy ${fnName} --project ${projectId} --region ${DEFAULT_REGION} --format=json`,
-          { timeout: 15000 },
+          { log: false },
         );
 
         const policy = JSON.parse(policyOutput);
@@ -117,8 +102,9 @@ class DeployCommand extends BaseCommand {
           continue;
         }
 
-        gcloudExec(
+        await powertools.execute(
           `gcloud functions add-iam-policy-binding ${fnName} --project ${projectId} --region ${DEFAULT_REGION} --member="allUsers" --role="roles/cloudfunctions.invoker"`,
+          { log: false },
         );
 
         this.log(`  ${chalk.green('✓')} Set public invoker on ${chalk.cyan(fnName)}`);

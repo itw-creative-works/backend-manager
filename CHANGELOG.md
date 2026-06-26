@@ -14,16 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
-# [5.9.15] - 2026-06-26
-
-### Changed
-- **Post-deploy public invoker** — dynamically discovers all deployed HTTP-triggered functions instead of checking a hardcoded list. Uses `gcloud functions list` to enumerate, then fixes any missing `allUsers` invoker bindings.
-- **gcloud resolution** — adds `~/google-cloud-sdk/bin` to `PATH` in the subprocess env instead of hardcoding the binary path. Works with any gcloud installation.
-
-# [5.9.14] - 2026-06-26
+# [5.9.16] - 2026-06-26
 
 ### Added
-- **Post-deploy public invoker** — `npx mgr deploy` now ensures HTTP functions have `allUsers` as `cloudfunctions.invoker` after `firebase deploy` completes. Firebase CLI used to set this automatically but stopped around the Node 10 runtime transition — without it, all HTTP requests get a 403 at the GCP IAM level before BEM's application-level auth runs.
+- **Post-deploy public invoker** — `npx mgr deploy` now ensures all HTTP-triggered functions have `allUsers` as `cloudfunctions.invoker` after `firebase deploy` completes. Dynamically discovers deployed functions via `gcloud functions list`. Firebase CLI used to set this automatically but stopped around the Node 10 runtime transition — without it, HTTP requests get a 403 at the GCP IAM level before BEM's application-level auth runs.
+- **gcloud CLI setup check** — `npx mgr setup` now warns if `gcloud` is not installed (required by deploy's public invoker step).
 
 # [5.9.13] - 2026-06-26
 

@@ -10,6 +10,7 @@ const NvmrcVersionTest = require('./nvmrc-version');
 const FirebaseCLITest = require('./firebase-cli');
 const FirebaseAuthTest = require('./firebase-auth');
 const JavaInstalledTest = require('./java-installed');
+const GcloudCliTest = require('./gcloud-cli');
 const FunctionsPackageTest = require('./functions-package');
 const FirebaseAdminTest = require('./firebase-admin');
 const FirebaseFunctionsTest = require('./firebase-functions');
@@ -56,6 +57,7 @@ function getTests(context) {
     new FirebaseCLITest(context),
     new FirebaseAuthTest(context),
     new JavaInstalledTest(context),
+    new GcloudCliTest(context),
     new FunctionsPackageTest(context),
     new FirebaseAdminTest(context),
     new FirebaseFunctionsTest(context),
