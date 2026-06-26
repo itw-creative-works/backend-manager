@@ -298,6 +298,15 @@ class SetupCommand extends BaseCommand {
       touched++;
     }
 
+    // index.js — entry point for Cloud Functions
+    const indexPath = `${self.firebaseProjectPath}/functions/index.js`;
+    if (!jetpack.exists(indexPath)) {
+      const templatePath = path.join(templatesDir, 'index.js');
+      jetpack.copy(templatePath, indexPath);
+      ui.status('add', `Created ${chalk.cyan('functions/index.js')}`, { level: 2 });
+      touched++;
+    }
+
     return touched;
   }
 

@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.9.10] - 2026-06-26
+
+### Added
+- **`index.js` template** — `npx bm setup` now auto-creates `functions/index.js` if missing. Minimal BEM entry point that's deploy-ready out of the box (init + built-in routes, no custom routes needed).
+
 # [5.9.9] - 2026-06-25
 
 ### Fixed
