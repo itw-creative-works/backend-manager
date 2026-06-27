@@ -154,14 +154,17 @@ async function harvest(assistant, entry, admin, provider, Manager) {
 
     assistant.log('harvest(): Article', article);
 
-    const uploadedPost = await provider.publishArticle(assistant, {
+    const publishArgs = {
       brand: entry.brand,
       article,
       id: postId++,
       author: entry.author,
       postPath: entry.postPath,
       source: resolved.trackingData?.url || null,
-    }).catch((e) => e);
+    };
+    assistant.log('harvest(): publishArgs', publishArgs);
+
+    const uploadedPost = await provider.publishArticle(assistant, publishArgs).catch((e) => e);
     if (uploadedPost instanceof Error) {
       assistant.error('harvest(): Error uploading post to blog', uploadedPost);
       break;

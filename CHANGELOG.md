@@ -14,6 +14,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.9.19] - 2026-06-26
+
+### Fixed
+- **`post.source` now persists** — `source` field was missing from the admin/post schema, so the middleware stripped it before the route handler ever saw it. Added to `schemas/admin/post/post.js`.
+- **`publishArticle()` respects environment** — was hardcoding `https://api.{brand.url}` (always production). Now uses `assistant.Manager.getApiUrl()`, which routes to the local emulator in dev/test mode. This also means `post.source` works in test runs without requiring a production deploy first.
+
 # [5.9.18] - 2026-06-26
 
 ### Added

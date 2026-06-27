@@ -131,8 +131,7 @@ function blocksToPost(json) {
  * @returns {Promise<object>} { post, url, slug, path } — `url` is the public blog URL
  */
 async function publishArticle(assistant, { brand, article, id, author, postPath, source }) {
-  const baseUrl = (brand.brand.url || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
-  const apiUrl = `https://api.${baseUrl}`;
+  const apiUrl = assistant.Manager.getApiUrl();
 
   // Transform Ghostii's generic JSON into BEM's post shape (title + header image
   // as separate fields, body = content only). Fall back to the legacy flat fields
@@ -142,27 +141,31 @@ async function publishArticle(assistant, { brand, article, id, author, postPath,
   const headerImageUrl = post.headerImageUrl || article.headerImageUrl;
   const body = article.json ? post.body : article.body;
 
+  const postBody = {
+    backendManagerKey: process.env.BACKEND_MANAGER_KEY,
+    title: title,
+    url: title,
+    description: article.description,
+    headerImageURL: headerImageUrl,
+    body: body,
+    id: id,
+    author: author,
+    categories: article.categories,
+    tags: article.keywords,
+    postPath: postPath || 'ghostii',
+    source: source || null,
+    githubUser: brand.github.user,
+    githubRepo: brand.github.repo,
+  };
+
+  console.log(`[ghostii] publishArticle() source=${postBody.source}`);
+
   const result = await fetch(`${apiUrl}/backend-manager/admin/post`, {
     method: 'POST',
     timeout: 90000,
     tries: 1,
     response: 'json',
-    body: {
-      backendManagerKey: process.env.BACKEND_MANAGER_KEY,
-      title: title,
-      url: title, // Slugified on the admin/post endpoint
-      description: article.description,
-      headerImageURL: headerImageUrl,
-      body: body,
-      id: id,
-      author: author,
-      categories: article.categories,
-      tags: article.keywords,
-      postPath: postPath || 'ghostii',
-      source: source || null,
-      githubUser: brand.github.user,
-      githubRepo: brand.github.repo,
-    },
+    body: postBody,
   });
 
   // admin/post returns the resolved `settings` (incl. the slugified `url` and repo `path`).

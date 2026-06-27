@@ -15,6 +15,7 @@ module.exports = () => ({
   date: { types: ['string'], default: undefined },
   id: { types: ['number'], default: undefined },
   postPath: { types: ['string'], default: 'guest' },
+  source: { types: ['string'], default: null },
   githubUser: { types: ['string'], default: undefined },
   githubRepo: { types: ['string'], default: undefined },
 });
