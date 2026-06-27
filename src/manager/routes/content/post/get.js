@@ -100,6 +100,7 @@ module.exports = async ({ assistant, Manager, settings, analytics }) => {
     id: parsed.post.id,
     tags: parsed.post.tags,
     categories: parsed.post.categories,
+    source: parsed.post.source || null,
 
     // Derived
     headerImageURL: `${url.origin}/assets/images/blog/post-${parsed.post.id}/${filename}.jpg`,

@@ -130,7 +130,7 @@ function blocksToPost(json) {
  * @param {string} [args.postPath='ghostii'] - Sub-folder under _posts/{year}/
  * @returns {Promise<object>} { post, url, slug, path } — `url` is the public blog URL
  */
-async function publishArticle(assistant, { brand, article, id, author, postPath }) {
+async function publishArticle(assistant, { brand, article, id, author, postPath, source }) {
   const baseUrl = (brand.brand.url || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
   const apiUrl = `https://api.${baseUrl}`;
 
@@ -159,6 +159,7 @@ async function publishArticle(assistant, { brand, article, id, author, postPath 
       categories: article.categories,
       tags: article.keywords,
       postPath: postPath || 'ghostii',
+      source: source || null,
       githubUser: brand.github.user,
       githubRepo: brand.github.repo,
     },

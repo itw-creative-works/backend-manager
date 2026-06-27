@@ -87,6 +87,7 @@ module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
   settings.tags = settings.tags;
   settings.categories = settings.categories;
   settings.layout = settings.layout;
+  settings.source = settings.source || null;
   settings.date = moment(settings.date || now).subtract(1, 'days').format('YYYY-MM-DD');
   settings.id = settings.id || Math.round(new Date(now).getTime() / 1000);
   settings.directory = `src/_posts/${moment(now).format('YYYY')}/${settings.postPath}`;

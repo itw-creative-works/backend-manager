@@ -222,6 +222,7 @@ async function harvest(assistant, entry, admin, provider, Manager) {
       id: postId++,
       author: entry.author,
       postPath: entry.postPath,
+      source: resolved.trackingData?.url || null,
     }).catch((e) => e);
     if (uploadedPost instanceof Error) {
       assistant.error('harvest(): Error uploading post to blog', uploadedPost);

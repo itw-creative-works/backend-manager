@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.9.17] - 2026-06-26
+
+### Added
+- **`post.source` frontmatter field** — blog posts now track the source article URL used during generation. Template, admin/post route, content/post GET, ghostii library, and auto-publisher all wired. Defaults to `null`. Populated automatically for `$feed:` and `$parent` content sources.
+
 # [5.9.16] - 2026-06-26
 
 ### Added
