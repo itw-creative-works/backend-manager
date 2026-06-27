@@ -505,39 +505,39 @@ async function _sendCampaignSendGrid(Manager, settings, contentHtml) {
   // --- Audience ---
   const { sendTo, excludeSegments, cleanup } = await _resolveAudience(settings, brand);
 
-  // --- Create Single Send ---
-  const createResult = await sendgridProvider.createSingleSend({
-    name: settings.name,
-    subject: settings.subject,
-    from,
-    sendTo,
-    excludeSegments,
-    asmGroupId: groupId,
-    categories,
-    htmlContent: rendered.html,
-  });
+  try {
+    // --- Create Single Send ---
+    const createResult = await sendgridProvider.createSingleSend({
+      name: settings.name,
+      subject: settings.subject,
+      from,
+      sendTo,
+      excludeSegments,
+      asmGroupId: groupId,
+      categories,
+      htmlContent: rendered.html,
+    });
 
-  if (!createResult.success) {
+    if (!createResult.success) {
+      return createResult;
+    }
+
+    // --- Schedule ---
+    if (!settings.sendAt) {
+      return { success: true, id: createResult.id, scheduled: false };
+    }
+
+    const sendAt = settings.sendAt === 'now' ? 'now' : new Date(settings.sendAt).toISOString();
+    const scheduleResult = await sendgridProvider.scheduleSingleSend(createResult.id, sendAt);
+
+    if (!scheduleResult.success) {
+      return { success: false, id: createResult.id, error: scheduleResult.error };
+    }
+
+    return { success: true, id: createResult.id, scheduled: true };
+  } finally {
     await cleanup();
-    return createResult;
   }
-
-  // --- Schedule ---
-  if (!settings.sendAt) {
-    await cleanup();
-    return { success: true, id: createResult.id, scheduled: false };
-  }
-
-  const sendAt = settings.sendAt === 'now' ? 'now' : new Date(settings.sendAt).toISOString();
-  const scheduleResult = await sendgridProvider.scheduleSingleSend(createResult.id, sendAt);
-
-  await cleanup();
-
-  if (!scheduleResult.success) {
-    return { success: false, id: createResult.id, error: scheduleResult.error };
-  }
-
-  return { success: true, id: createResult.id, scheduled: true };
 }
 
 /**

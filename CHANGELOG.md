@@ -14,6 +14,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.9.20] - 2026-06-27
+
+### Changed
+- **Pruning segments check opens + clicks + minimum sends** — `engagement_inactive_5m` and `engagement_inactive_6m` now use `not_opened_or_clicked` (only prune if neither opened NOR clicked) and require `received_gte: 5` (at least 5 emails delivered). Previously only checked opens, which unfairly pruned contacts who clicked but didn't register opens, or who were never emailed enough to judge.
+
+### Fixed
+- **Campaign temp segment cleanup leak** — wrapped SendGrid campaign send flow in `try/finally` so brand-scoped temp segments are always deleted, even when `createSingleSend` or `scheduleSingleSend` throws. Previously, exceptions skipped cleanup, leaving orphaned `__temp_*` segments in SendGrid.
+
 # [5.9.19] - 2026-06-26
 
 ### Fixed
