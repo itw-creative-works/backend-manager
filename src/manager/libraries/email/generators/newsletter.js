@@ -42,7 +42,7 @@ const { renderMarkdown } = require('./lib/markdown-renderer.js');
 const { uploadAssets, RAW_BASE } = require('./lib/image-host.js');
 const { buildPublicConfig } = require('../../../routes/brand/get.js');
 const { writeArticle, publishArticle } = require('../../../libraries/content/ghostii.js');
-const { trackContentSource, contentSourceHash } = require('../../../events/cron/daily/blog-auto-publisher.js');
+const { trackContentSource, contentSourceHash, resolveNewsletterSources } = require('../../../libraries/content/source-resolver.js');
 
 /**
  * Generate newsletter content from parent server sources.
@@ -99,24 +99,22 @@ async function generate(Manager, assistant, settings, opts = {}) {
   let sources = opts.sources;
 
   if (!sources) {
-    // For now, newsletter resolves $parent sources via the parent server
-    if (contentSources.includes('$parent')) {
-      const categories = config.categories || [];
+    const categories = config.categories || [];
 
-      if (!categories.length) {
-        assistant.log('Newsletter generator: no categories configured');
-        return null;
-      }
-
-      const parentUrl = Manager.getParentApiUrl();
-
-      if (!parentUrl) {
-        assistant.log('Newsletter generator: no parent URL configured');
-        return null;
-      }
-
-      sources = await fetchSources(parentUrl, categories, assistant);
+    if (!categories.length) {
+      assistant.log('Newsletter generator: no categories configured');
+      return null;
     }
+
+    const admin = Manager.libraries?.admin;
+
+    sources = await resolveNewsletterSources({
+      sources: contentSources,
+      categories,
+      admin,
+      Manager,
+      assistant,
+    });
   }
 
   if (!sources?.length) {
@@ -402,9 +400,11 @@ async function generate(Manager, assistant, settings, opts = {}) {
   const admin = Manager.libraries?.admin;
   if (admin) {
     for (const source of sources) {
+      const origin = source.source?.from?.startsWith?.('http') ? `$feed:${source.source.from}` : '$parent';
       await trackContentSource(admin, {
         url: source.url || source.id,
-        origin: '$parent',
+        origin,
+        feedUrl: origin.startsWith('$feed:') ? origin.slice(6) : undefined,
         itemId: source.id,
         itemTitle: source.title || '',
         usedBy: 'newsletter',
@@ -696,35 +696,7 @@ function aggregateTotals(filterMeta, structureMeta, images) {
   };
 }
 
-/**
- * Fetch ready newsletter sources from the parent server.
- */
-async function fetchSources(parentUrl, categories, assistant) {
-  const allSources = [];
-
-  for (const category of categories) {
-    try {
-      const data = await fetch(`${parentUrl}/newsletter-sources`, {
-        method: 'get',
-        response: 'json',
-        timeout: 60000,
-        query: {
-          category,
-          limit: 3,
-          backendManagerKey: process.env.BACKEND_MANAGER_KEY,
-        },
-      });
-
-      if (data.sources?.length) {
-        allSources.push(...data.sources);
-      }
-    } catch (e) {
-      assistant.error(`Newsletter generator: Failed to fetch ${category} sources: ${e.message}`);
-    }
-  }
-
-  return allSources;
-}
+// fetchSources() removed — replaced by resolveNewsletterSources() from source-resolver.js
 
 
 /**

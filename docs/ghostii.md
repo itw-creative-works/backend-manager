@@ -27,9 +27,10 @@ trackContentSource() -- Firestore (for $feed:, $parent sources)
 
 | File | Purpose |
 |---|---|
+| `src/manager/libraries/content/source-resolver.js` | **Shared SSOT**: prompt templates, anti-traceability rules, feed/parent resolution, Firestore tracking, fallback chain. Used by both blog + newsletter. |
 | `src/manager/libraries/content/ghostii.js` | `writeArticle()`, `publishArticle()`, `blocksToPost()` -- Ghostii API client + post transform |
 | `src/manager/libraries/content/feed-parser.js` | `parseFeed()`, `extractArticleContent()` -- RSS/Atom/JSON parser + article extractor |
-| `src/manager/events/cron/daily/blog-auto-publisher.js` | Daily cron: source resolution, feed processing, Firestore tracking, provider dispatch |
+| `src/manager/events/cron/daily/blog-auto-publisher.js` | Daily cron: imports from source-resolver, manages harvest loop + provider dispatch |
 | `src/manager/routes/admin/post/post.js` | Publishing endpoint: image download + resize, GitHub commit |
 
 ## Source Types
@@ -145,11 +146,68 @@ When a `$feed:` or `$parent` source provides extracted article text, it's passed
 
 - **`extractArticleContent(url)`** -- Fetch URL, extract readable text from `<article>` -> `<main>` -> `<body>`, strip scripts/styles/nav/footer/header/aside, normalize whitespace, truncate to 14KB.
 
+## Prompt Templates (source-resolver.js)
+
+Both blog and newsletter use shared prompt constants from `source-resolver.js`:
+
+- **`PROMPT_SOURCE`** — used when a `$feed:` or `$parent` source is resolved. Directs the AI to cover the SAME topic with a different angle, title, and structure. Includes anti-traceability rules.
+- **`PROMPT`** — used for `$brand`, URL, and text sources. Open-ended topic generation.
+- **`ANTI_TRACEABILITY`** — shared rules: never name the source publication, paraphrase all data. Embedded in `PROMPT_SOURCE`, also used by the newsletter's system prompt.
+
+The brand's `instructions` field is injected into both templates and can override the default behavior (e.g. a brand that WANTS genericized output can say so in instructions).
+
 ## Tests
 
+### Unit tests (fast, free)
+
 ```bash
-npx mgr test bem:helpers/content/feed-parser          # 32 tests: RSS/Atom/JSON parsing, edge cases, HTML extraction
-npx mgr test bem:helpers/content/ghostii-write-article # 15 tests: override pass-through, sourceContent, backwards compat
-npx mgr test bem:helpers/content/blog-auto-publisher   # 25+ tests: source detection, feed processing, Firestore tracking
-npx mgr test bem:helpers/content/ghostii-blocks        # 8 tests: blocksToPost() (unchanged)
+npx mgr test mgr:helpers/content/feed-parser          # 32 tests: RSS/Atom/JSON parsing, edge cases
+npx mgr test mgr:helpers/content/ghostii-write-article # 15 tests: override pass-through, sourceContent
+npx mgr test mgr:helpers/content/blog-auto-publisher   # 25+ tests: source detection, feed processing, tracking
+npx mgr test mgr:helpers/content/ghostii-blocks        # 8 tests: blocksToPost()
 ```
+
+### Blog generation (full AI pipeline)
+
+```bash
+# Config check only (fast, free)
+npx mgr test mgr:content/blog-generate
+
+# Full AI pipeline — generates article, does NOT publish
+BLOG_NO_PUBLISH=1 TEST_EXTENDED_MODE=1 npx mgr test mgr:content/blog-generate
+
+# Override source type
+BLOG_SOURCE='$feed:https://feeds.arstechnica.com/arstechnica/index' \
+  BLOG_NO_PUBLISH=1 TEST_EXTENDED_MODE=1 npx mgr test mgr:content/blog-generate
+```
+
+| Env var | Description |
+|---|---|
+| `TEST_EXTENDED_MODE=1` | Enable full AI pipeline (costs ~$0.10-0.50 per run) |
+| `BLOG_NO_PUBLISH=1` | Generate but do NOT publish to website repo |
+| `BLOG_SOURCE=<type>` | Override source: `$brand`, `$parent`, `$feed:<url>`, URL, or text |
+| `BLOG_OPEN=1` | Auto-open generated article (macOS only) |
+
+### Newsletter generation (full AI pipeline)
+
+```bash
+# Fixture render only (fast, free)
+npx mgr test mgr:email/newsletter-generate
+
+# Full AI pipeline with feed source — generates newsletter, does NOT publish article
+NEWSLETTER_SOURCE='$feed:https://feeds.arstechnica.com/arstechnica/index' \
+  NEWSLETTER_NO_IMAGES=1 TEST_EXTENDED_MODE=1 npx mgr test mgr:email/newsletter-generate
+```
+
+| Env var | Description |
+|---|---|
+| `TEST_EXTENDED_MODE=1` | Enable full AI pipeline |
+| `NEWSLETTER_SOURCE=<type>` | Override source: `$feed:<url>`, `$parent`. Bypasses parent-server fetch, lets the generator's resolver run. |
+| `NEWSLETTER_NO_IMAGES=1` | Skip image generation (fast iteration on copy) |
+| `NEWSLETTER_CREATE_ARTICLE=1` | Publish linked blog article (OFF by default) |
+| `NEWSLETTER_FIXTURE=<name>` | Load specific fixture for render test |
+| `NEWSLETTER_TEMPLATE=<name>` | Override layout template |
+| `NEWSLETTER_OPEN=1` | Auto-open preview (macOS only) |
+| `NEWSLETTER_PEEK=1` | List ready parent sources, don't generate |
+| `NEWSLETTER_SOURCE_ID=<id>` | Test specific parent source |
+| `NEWSLETTER_CAMPAIGN_ID=<id>` | Override campaign folder name |

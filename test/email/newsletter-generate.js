@@ -41,6 +41,11 @@
  *   NEWSLETTER_OPEN=1                  Auto-open the rendered preview in the default browser (macOS only).
  *
  *   --- AI-mode-only env vars (require TEST_EXTENDED_MODE=1) ---
+ *   NEWSLETTER_SOURCE=<type>           Override the source type for this run. Bypasses parent-server
+ *                                       fetch and lets the generator's built-in resolver run.
+ *                                       Values: '$feed:<url>', '$parent'. When set, sources[] in the
+ *                                       config is replaced with this single source.
+ *                                       Example: NEWSLETTER_SOURCE='$feed:https://feeds.arstechnica.com/arstechnica/index'
  *   NEWSLETTER_PEEK=1                  Fetch + list ready sources, do not claim, exit.
  *   NEWSLETTER_SOURCE_ID=<id>          Generate from one specific source WITHOUT claiming it.
  *   NEWSLETTER_LIMIT=10                Sources per category for PEEK (default 10).
@@ -325,60 +330,57 @@ module.exports = {
     // `api.` subdomain (e.g. 'https://itwcreativeworks.com'); the helper
     // inserts `api.` at call time. PARENT_API_URL env override is honored
     // verbatim for one-off testing against a different parent.
-    const parentUrl = env.PARENT_API_URL || Manager.getParentApiUrl();
-    assert.ok(parentUrl, 'PARENT_API_URL (env) or parent (config) must be set for the AI pipeline. Set TEST_EXTENDED_MODE=1 to run it, or omit TEST_EXTENDED_MODE for the fast fixture preview.');
+    // When NEWSLETTER_SOURCE is set, skip parent URL checks and source fetching —
+    // the generator's built-in resolver (resolveNewsletterSources) handles everything.
+    let sources = [];
 
-    // --- Peek mode (early return) ---
-    if (env.NEWSLETTER_PEEK) {
-      const sources = await peekSources({
+    if (!env.NEWSLETTER_SOURCE) {
+      const parentUrl = env.PARENT_API_URL || Manager.getParentApiUrl();
+      assert.ok(parentUrl, 'PARENT_API_URL (env) or parent (config) must be set for the AI pipeline. Set TEST_EXTENDED_MODE=1 to run it, or omit TEST_EXTENDED_MODE for the fast fixture preview.');
+
+      // --- Peek mode (early return) ---
+      if (env.NEWSLETTER_PEEK) {
+        const peeked = await peekSources({
+          parentUrl,
+          categories: newsletterConfig.categories || [],
+          limit: parseInt(env.NEWSLETTER_LIMIT, 10) || 10,
+          key: env.BACKEND_MANAGER_KEY,
+        });
+
+        console.log(`\nPeek mode — ${peeked.length} ready source(s):\n`);
+        peeked.forEach((s, i) => {
+          const raw = s.source || {};
+          const cats = (s.categories || []).join(', ') || s.category || '(none)';
+          console.log(`[${i + 1}] ${s.id}`);
+          console.log(`    Categories: ${cats}`);
+          console.log(`    From:       ${raw.from || s.from || '(unknown)'}`);
+          console.log(`    Subject:    ${raw.subject || s.subject || '(none)'}`);
+          console.log(`    Headline:   ${s.ai?.headline || '(none — not yet AI-processed)'}`);
+          console.log('');
+        });
+
+        assert.ok(true, `Peeked ${peeked.length} sources`);
+        return;
+      }
+
+      // --- Fetch sources ---
+      const claim = !!env.NEWSLETTER_CLAIM;
+      sources = await fetchSourcesForRun({
         parentUrl,
-        categories: newsletterConfig.categories || [],
-        limit: parseInt(env.NEWSLETTER_LIMIT, 10) || 10,
+        newsletterConfig,
+        brandId: config.brand?.id,
+        sourceId: env.NEWSLETTER_SOURCE_ID,
         key: env.BACKEND_MANAGER_KEY,
+        claim,
       });
 
-      console.log(`\nPeek mode — ${sources.length} ready source(s):\n`);
-      sources.forEach((s, i) => {
-        const raw = s.source || {};
-        const cats = (s.categories || []).join(', ') || s.category || '(none)';
-        console.log(`[${i + 1}] ${s.id}`);
-        console.log(`    Categories: ${cats}`);
-        console.log(`    From:       ${raw.from || s.from || '(unknown)'}`);
-        console.log(`    Subject:    ${raw.subject || s.subject || '(none)'}`);
-        console.log(`    Headline:   ${s.ai?.headline || '(none — not yet AI-processed)'}`);
-        console.log('');
-      });
+      if (sources.length === 0) {
+        return skip('No ready newsletter sources available on parent server (environmental)');
+      }
 
-      assert.ok(true, `Peeked ${sources.length} sources`);
-      return;
-    }
-
-    // --- Fetch sources ---
-    // By DEFAULT the test does NOT claim sources — it fetches them without
-    // claimFor, so they stay 'ready' and available for the real newsletter.
-    // This keeps test runs repeatable and non-destructive (a test should never
-    // silently consume production resources). Set NEWSLETTER_CLAIM=1 to exercise
-    // the real claim/consume path (then use NEWSLETTER_RELEASE=1 to put them back).
-    const claim = !!env.NEWSLETTER_CLAIM;
-    const sources = await fetchSourcesForRun({
-      parentUrl,
-      newsletterConfig,
-      brandId: config.brand?.id,
-      sourceId: env.NEWSLETTER_SOURCE_ID,
-      key: env.BACKEND_MANAGER_KEY,
-      claim,
-    });
-
-    // Environmental precondition: the parent server must have ready sources in
-    // at least one configured category. Skip cleanly when the pool is empty
-    // (transient state — no point hard-failing CI on an external queue).
-    if (sources.length === 0) {
-      return skip('No ready newsletter sources available on parent server (environmental)');
-    }
-
-    // Track claimed IDs for later --release-all (only when we actually claimed)
-    if (claim && !env.NEWSLETTER_SOURCE_ID) {
-      appendClaimed(claimedFile, sources.map((s) => s.id));
+      if (claim && !env.NEWSLETTER_SOURCE_ID) {
+        appendClaimed(claimedFile, sources.map((s) => s.id));
+      }
     }
 
     // Force `newsletter.enabled: true` and inject the per-run newsletter config
@@ -432,12 +434,25 @@ module.exports = {
 
     console.log(`[extended] uploading to itw-creative-works/newsletter-assets/${config.brand?.id}/${campaignId || '<auto-id>'}/ + Beehiiv draft`);
 
+    // NEWSLETTER_SOURCE overrides the configured sources[] and lets the
+    // generator's built-in resolver run (resolveNewsletterSources). Without
+    // this, the test always passes pre-fetched parent sources via opts.sources,
+    // bypassing feed resolution entirely.
+    //   NEWSLETTER_SOURCE='$feed:https://feeds.arstechnica.com/arstechnica/index'
+    //   NEWSLETTER_SOURCE='$parent'   (default behavior, explicit)
+    const useResolverSources = !!env.NEWSLETTER_SOURCE;
+
+    if (useResolverSources) {
+      newsletterConfig.sources = [env.NEWSLETTER_SOURCE];
+      Manager.config.marketing.newsletter.content = newsletterConfig;
+    }
+
     const result = await generator.generate(
       Manager,
       assistant,
-      { name: `Somiibo Newsletter — Iteration ${stamp}` },
+      { name: `${config.brand?.name || 'Brand'} Newsletter — Iteration ${stamp}` },
       {
-        sources,
+        sources: useResolverSources ? undefined : sources,
         skipClaim: true, // We manage the claim/release lifecycle ourselves
         skipImages: !!env.NEWSLETTER_NO_IMAGES,
         // The article is GENERATED whenever the brand's config.article.enabled is on

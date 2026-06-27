@@ -14,6 +14,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.9.18] - 2026-06-26
+
+### Added
+- **`source-resolver.js` shared library** — single source of truth for content-source resolution across blog + newsletter. Prompt templates (`PROMPT_SOURCE`, `PROMPT`), anti-traceability rules, feed/parent resolution, Firestore tracking, newsletter source normalization. Both pipelines import from here.
+- **Newsletter `$feed:` support** — newsletter generator now resolves `$feed:` sources via `resolveNewsletterSources()`, same fallback chain as blog (feeds → parent → empty). Previously only supported `$parent`.
+- **`NEWSLETTER_SOURCE` test env var** — override newsletter source type for testing (like `BLOG_SOURCE` for blog). Bypasses parent-server fetch, lets the generator's resolver run.
+
+### Changed
+- **Blog `PROMPT_SOURCE` tightened** — "Write an original article inspired by" → "Write an article covering the SAME topic... as if written by a completely different author." Articles now stay on-topic instead of genericizing into tangentially related think-pieces.
+- **Anti-traceability rules added to blog prompts** — never name the source publication, paraphrase all data. Newsletter already had these; now both systems share the same rules via `ANTI_TRACEABILITY` constant.
+- **Blog auto-publisher refactored** — source resolution, tracking, and prompt constants extracted to `source-resolver.js`. ~300 lines removed from blog-auto-publisher.
+
 # [5.9.17] - 2026-06-26
 
 ### Added
