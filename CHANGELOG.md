@@ -14,6 +14,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.9.21] - 2026-06-27
+
+### Fixed
+- **Prune cron brand-scoped** — monthly marketing prune was querying account-global `engagement_inactive_6m` segment, so every brand's cron deleted the same contacts. Now uses `createBrandScopedSegment()` to AND the segment query with `brand_id`, so each brand only prunes its own contacts. Hard abort added if `brand.id` is missing.
+- **Prune cron excludes paying customers** — exports the `subscription_paid` segment (brand-scoped) and subtracts those contacts before deletion. Previously mentioned in JSDoc but never implemented.
+- **Stage 1 failure no longer aborts Stage 2** — re-engagement email (`sendCampaign`) is now wrapped in try/catch so a sender identity error doesn't prevent the prune from running.
+
+### Added
+- **Prune cron Firestore logging** — deleted email addresses are logged to `marketing-prune-logs/{brandId}/runs/{YYYY-MM}` for recoverability. Non-fatal — a failed write doesn't abort the run.
+
 # [5.9.20] - 2026-06-27
 
 ### Changed
