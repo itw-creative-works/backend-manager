@@ -390,8 +390,8 @@ OpenAI.prototype.request = function (options) {
     // Custom options
     options.dedupeConsecutiveRoles = typeof options.dedupeConsecutiveRoles === 'undefined' ? true : options.dedupeConsecutiveRoles;
 
-    // Format schema
-    options.schema = options.schema || undefined;
+    // Format schema — accept inline object or { path: '...' } to load from a JSON file
+    options.schema = resolveSchema(options.schema, _log);
 
     // Reasons
     options.reasoning = options.reasoning || undefined;
@@ -656,6 +656,33 @@ function normalizePrompt(input) {
       settings: segment.settings || {},
     };
   });
+}
+
+function resolveSchema(schema, _log) {
+  if (!schema) {
+    return undefined;
+  }
+
+  // Already an inline schema object (has "type" or "properties")
+  if (!schema.path) {
+    return schema;
+  }
+
+  const filePath = schema.path;
+  const exists = jetpack.exists(filePath);
+
+  _log('Reading schema from path:', filePath);
+
+  if (!exists) {
+    throw new Error(`Schema path ${filePath} not found`);
+  }
+
+  if (exists === 'dir') {
+    throw new Error(`Schema path ${filePath} is a directory`);
+  }
+
+  const raw = jetpack.read(filePath);
+  return JSON5.parse(raw);
 }
 
 function loadContent(input, _log) {
@@ -1321,5 +1348,6 @@ module.exports._internals = {
   formatMessages,
   normalizeToolEntry,
   normalizeToolChoice,
+  resolveSchema,
   VALID_PROMPT_ROLES,
 };

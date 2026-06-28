@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.9.22] - 2026-06-28
+
+### Added
+- **AI schema file loading** — `ai.request({ schema: { path: '...' } })` loads a JSON Schema from a file, mirroring the existing `prompt: { path }` pattern. Supports JSON5 parsing, validates file exists and is not a directory.
+
 # [5.9.21] - 2026-06-27
 
 ### Fixed
