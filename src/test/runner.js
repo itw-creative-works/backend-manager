@@ -464,13 +464,9 @@ class TestRunner {
     const items = jetpack.list(dir) || [];
 
     for (const item of items) {
-      // Skip _legacy directory
-      if (item === '_legacy') {
-        continue;
-      }
-
-      // Skip the _init.js lifecycle hook — it's run by setupAccounts(), not as a test.
-      if (item === '_init.js') {
+      // Skip _-prefixed files and directories (fixtures, helpers, internal data).
+      // Matches EM/BXM/UJM convention — `test/_fixtures/`, `test/_helpers/`, etc.
+      if (item.startsWith('_')) {
         continue;
       }
 

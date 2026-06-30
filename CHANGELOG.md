@@ -14,6 +14,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.9.23] - 2026-06-29
+
+### Fixed
+- **Test runner `_` prefix exclusion** — `discoverTests()` now skips `_`-prefixed files and directories at any depth under `test/`, matching the existing convention in EM/BXM/UJM. Previously only `_init.js` and `_legacy` were excluded, causing fixture `.js` files in directories like `test/_fixtures/` to be loaded as tests.
+
+### Changed
+- **Disposable domain list** — refreshed to 7860 domains (added 18 new entries).
+
 # [5.9.22] - 2026-06-28
 
 ### Added

@@ -231,6 +231,8 @@ npx mgr test user/ admin/       # Multiple paths
 
 Use `bem:` or `project:` prefix to filter by source. **Mirror the source path so a test reads like what it tests.** Route tests live under `test/routes/<route-path>/<concern>.js`, mirroring `functions/routes/<route-path>/` — e.g. `functions/routes/write/article/` → `test/routes/write/article/generate.js`, `functions/routes/sponsorship/post.js` → `test/routes/sponsorship/post.js`. Split each route into **one file per concern** under its mirrored dir (`test/routes/sponsorship/post.js`, `.../manual-validation.js`), never one giant `test/test.js`. The runner discovers files by directory, so the split also drives the `project:<path>` filter: `npx mgr test project:routes/write` runs a whole route's tests, `project:routes/write/markdown` runs one concern.
 
+**The underscore convention:** `_`-prefixed files and directories at any depth under `test/` are excluded from suite discovery. Put shared helpers, fixture data, and non-test support files in `_`-prefixed paths — e.g. `test/_fixtures/`, `test/_helpers/`, `test/routes/_shared-utils.js`. The runner still specifically loads `test/_init.js` as the lifecycle hook. Matches the same convention in EM/BXM/UJM.
+
 ## Test Types
 
 > **The runner reads each file's `module.exports` object — it does NOT inject Mocha/Jest globals.** A test file that calls `describe`/`it`/`before`/`beforeEach`/`after` at top level throws `ReferenceError: beforeEach is not defined` and shows as `Failed to load`. There is no global `assert` either — use the `assert` passed into `run({ assert })`. Every test file MUST export one of the shapes below.
