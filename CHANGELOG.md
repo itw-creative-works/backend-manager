@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.9.27] - 2026-06-30
+
+### Fixed
+- **Email-queue infinite retry loop** — queued emails for deleted users (or with invalid data) retried every 10 minutes forever because `doc.ref.delete()` only ran on success. Now classifies failures: 400-level errors (missing recipient, validation) delete the entry immediately; 500-level/network errors retry up to 5 times (~50 min) before dropping.
+
 # [5.9.26] - 2026-06-30
 
 ### Changed

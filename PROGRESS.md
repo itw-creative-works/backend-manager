@@ -2,11 +2,11 @@
 > Agents and maintainers should update this file regularly to reflect the current state of the project.
 
 ## 🎯 Current Focus
-* **Goal:** Fix blog auto-publisher duplicate posts + unauthorized $brand fallback
+* **Goal:** Fix email-queue infinite retry loop for orphaned entries
 * **Current Phase:** Code complete, pending test + publish
-* **Priority:** High
-* **Last Updated:** 2026-06-30 2:10 AM PDT
-* **Notes:** Daily Embers getting duplicate articles (Apple price hike from Guardian+NYT) and unauthorized $brand articles (lifestyle tech posts with `source: null` despite $brand not being in sources array). Three fixes: (1) conditional $brand fallback — only if in sources, (2) cross-feed title dedup via word-overlap similarity, (3) stronger topic avoidance prompt. Also added source retry loop in harvest() so exhausted feeds try other sources before skipping.
+* **Priority:** Medium
+* **Last Updated:** 2026-06-30 4:33 AM PDT
+* **Notes:** Discovered 22 stuck email-queue entries on `itw-creative-works` production — all for deleted user `xPiS99bRnyN92g1HQEt1Cf0iyH02`. The cron retried them every 10 minutes forever because `doc.ref.delete()` only ran on success. Fix: catch failures, delete immediately on 400-level (permanent), retry with counter for 500-level (temporary), drop after 5 retries. Also investigated a mystery "Payment received for order #" email — traced to NOT being from ITW CW Cloud Functions (zero payment webhook logs in 24h, empty payments-webhooks collection).
 
 ## 📌 Active Task List
 * [ ] Phase 9: Blog auto-publisher dedup + fallback fixes
@@ -63,6 +63,11 @@
   * [x] Task 7.4: Add `cancel-suspended` test account + `allows-suspended-subscription` test
   * [x] Task 7.5: All 24 payment tests passing
   * [ ] Task 7.6: Publish BEM + deploy Somiibo
+* [ ] Phase 10: Fix email-queue infinite retry for orphaned entries
+  * [x] Task 10.1: Diagnose — `doc.ref.delete()` only runs on success, failed entries retry forever
+  * [x] Task 10.2: Add retry counter + permanent/temporary failure classification to email-queue cron
+  * [ ] Task 10.3: Publish new BEM version
+  * [ ] Task 10.4: Deploy ITW Creative Works to clear 22 stuck entries
 * [ ] Phase 8: Fix cron runner error propagation blocking usage reset
   * [x] Task 8.1: Diagnose — `beehiivConfig` crash in newsletter generator blocks `reset-usage.js` (alphabetical order: m < r)
   * [x] Task 8.2: Remove `throw e` from `src/manager/events/cron/runner.js` — handlers now fail independently

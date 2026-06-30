@@ -3,6 +3,11 @@ const moment = require('moment');
 // Must match the SEND_AT_LIMIT in email.js
 const SEND_AT_LIMIT = 71;
 
+// Permanent failures (bad data, deleted user) are removed immediately.
+// Temporary failures (network, SendGrid outage) retry up to MAX_RETRIES
+// before being removed. With the 10-minute cron cycle, 5 retries ≈ 50 minutes.
+const MAX_RETRIES = 5;
+
 /**
  * Email queue processor cron job
  *
@@ -32,25 +37,35 @@ module.exports = async ({ Manager, assistant, context, libraries }) => {
   assistant.log(`Processing ${snapshot.size} queued email(s)...`);
 
   const email = Manager.Email(assistant);
+  let sent = 0;
+  let dropped = 0;
+  let retried = 0;
 
-  const results = await Promise.allSettled(snapshot.docs.map(async (doc) => {
-    const { settings } = doc.data();
+  await Promise.allSettled(snapshot.docs.map(async (doc) => {
+    const data = doc.data();
+    const { settings } = data;
     const emailId = doc.id;
+    const retries = data.retries || 0;
 
-    const result = await email.send(settings);
-    assistant.log(`Queued email ${emailId} ${result.status}`);
+    try {
+      const result = await email.send(settings);
+      assistant.log(`Queued email ${emailId} ${result.status}`);
+      await doc.ref.delete();
+      sent++;
+    } catch (e) {
+      const isPermanent = e.code >= 400 && e.code < 500;
 
-    await doc.ref.delete();
+      if (isPermanent || retries >= MAX_RETRIES) {
+        assistant.error(`Dropping queued email ${emailId} after ${retries} retries: ${e.message}`);
+        await doc.ref.delete();
+        dropped++;
+      } else {
+        assistant.warn(`Queued email ${emailId} failed (retry ${retries + 1}/${MAX_RETRIES}): ${e.message}`);
+        await doc.ref.set({ retries: retries + 1, lastError: e.message }, { merge: true });
+        retried++;
+      }
+    }
   }));
 
-  const sent = results.filter(r => r.status === 'fulfilled').length;
-  const failed = results.filter(r => r.status === 'rejected').length;
-
-  for (const r of results) {
-    if (r.status === 'rejected') {
-      assistant.error(`Failed to send queued email: ${r.reason?.message}`, r.reason);
-    }
-  }
-
-  assistant.log(`Completed! (${sent} sent, ${failed} failed)`);
+  assistant.log(`Completed! (${sent} sent, ${dropped} dropped, ${retried} retried)`);
 };
