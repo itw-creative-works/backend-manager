@@ -459,7 +459,7 @@ module.exports = [
   // --- Hooks ---
   {
     name: 'run_hook',
-    description: 'Execute a hook or BEM cron job by path. Searches: BEM internal crons (e.g. "cron/daily/blog-auto-publisher", "cron/daily/marketing-newsletter-generate"), consumer hooks/ directory, and consumer project root. Supports both function exports and class-based hooks.',
+    description: 'Execute a hook or BEM cron job by path. Searches: BEM internal crons (e.g. "cron/daily/blog-auto-publisher", "cron/daily/reset-usage"), consumer hooks/ directory, and consumer project root. Supports both function exports and class-based hooks.',
     role: 'admin',
     method: 'POST',
     path: 'admin/hook',
@@ -467,7 +467,7 @@ module.exports = [
     inputSchema: {
       type: 'object',
       properties: {
-        path: { type: 'string', description: 'Hook path (e.g. "cron/daily/blog-auto-publisher", "cron/daily/marketing-newsletter-generate", "cron/daily/reset-usage", "cron/frequent/marketing-campaigns", or a consumer hook path)' },
+        path: { type: 'string', description: 'Hook path (e.g. "cron/daily/blog-auto-publisher", "cron/daily/reset-usage", "cron/frequent/marketing-campaigns", or a consumer hook path)' },
       },
       required: ['path'],
     },

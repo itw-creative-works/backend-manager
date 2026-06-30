@@ -43,16 +43,18 @@ Recurrence patterns: `daily`, `weekly`, `monthly`, `monthly-weekday`, `quarterly
 
 The `monthly-weekday` pattern targets the Nth weekday of each month (e.g., 2nd Wednesday). Requires `nth` (1-4) and `day` (0=Sun–6=Sat) in the recurrence object. All other patterns use simple interval addition from the current `sendAt`.
 
-All scheduling helpers live in `constants.js` (SSOT): `nextWeekday()`, `nextNthWeekday()`, `nextMonthDay()`, `getNextOccurrence()`. Both cron jobs import from there — no duplicated logic.
+All scheduling helpers live in `constants.js` (SSOT): `nextWeekday()`, `nextNthWeekday()`, `nextMonthDay()`, `getNextOccurrence()`. The cron job imports from there — no duplicated logic.
 
 ## Generator Campaigns
 
-Campaigns with a `generator` field don't send directly. A daily cron pre-generates content 24 hours before `sendAt`:
-1. Daily cron finds generator campaigns due within 24 hours
+Campaigns with a `generator` field (e.g. `generator: 'newsletter'`) are handled by the frequent cron inline — generate content and send in one shot when `sendAt` is due:
+1. Frequent cron finds the generator campaign past its `sendAt`
 2. Runs the generator module (e.g., `generators/newsletter.js`)
-3. Creates a NEW standalone `pending` campaign with generated content
-4. Advances the recurring template's `sendAt`
-5. Generated campaign appears on calendar for review, sent by frequent cron when due
+3. Sends the generated content immediately
+4. Stores a history record with generated content + send results
+5. Advances the recurring template's `sendAt` to the next occurrence
+
+In production, Beehiiv posts are published (`status: 'confirmed'`). In testing, they're forced to draft (`status: 'draft'`). If Beehiiv upload fails, a fallback alert email is sent to `alerts@{brandDomain}` with all asset links for manual upload.
 
 ## Email Rendering
 
@@ -229,7 +231,7 @@ AI provider defaults live in code (openai for structure, anthropic for SVG — e
 
 ## Asset hosting (production cron flow)
 
-The daily cron uploads per-section PNGs + the rendered `newsletter.html` + `newsletter.md` + `summary.md` to the public `itw-creative-works/newsletter-assets` repo as two atomic Git Trees commits per issue (PNGs first so URLs exist for embedding, then HTML/MD/summary in a second commit). Folder layout:
+The frequent cron uploads per-section PNGs + the rendered `newsletter.html` + `newsletter.md` + `summary.md` to the public `itw-creative-works/newsletter-assets` repo as two atomic Git Trees commits per issue (PNGs first so URLs exist for embedding, then HTML/MD/summary in a second commit). Folder layout:
 
 ```
 {brandId}/{campaignId}/
@@ -366,7 +368,6 @@ marketing: {
 | SendGrid provider | `src/manager/libraries/email/providers/sendgrid.js` |
 | Beehiiv provider | `src/manager/libraries/email/providers/beehiiv.js` |
 | Campaign routes | `src/manager/routes/marketing/campaign/{get,post,put,delete}.js` |
-| Campaign cron | `src/manager/cron/frequent/marketing-campaigns.js` |
-| Newsletter pre-gen cron | `src/manager/cron/daily/marketing-newsletter-generate.js` |
-| Pruning cron | `src/manager/cron/daily/marketing-prune.js` |
+| Campaign + newsletter cron | `src/manager/events/cron/frequent/marketing-campaigns.js` |
+| Pruning cron | `src/manager/events/cron/daily/marketing-prune.js` |
 | Seed campaigns | `src/cli/commands/setup-tests/helpers/seed-campaigns.js` |

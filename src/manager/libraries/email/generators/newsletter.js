@@ -1,7 +1,7 @@
 /**
  * Newsletter generator — pulls content from parent server and assembles a branded newsletter.
  *
- * Called by the daily pre-generation cron (and the iteration test) when a campaign has
+ * Called by the frequent cron (and the iteration test) when a campaign has
  * `generator: 'newsletter'`. Produces a fully rendered email-safe HTML newsletter ready
  * to ship to Beehiiv / SendGrid.
  *
@@ -267,14 +267,14 @@ async function generate(Manager, assistant, settings, opts = {}) {
 
   const [, articleResult] = await Promise.all([buildImages(), buildArticle()]);
 
-  // Inject the "Read the full article" CTA onto the lead section BEFORE render.
-  // sectionCard (MJML) renders section.cta = { label, url } automatically; the
-  // markdown renderer emits it too. The URL is the post's public blog URL —
-  // present whether the article was actually published or only generated
-  // (derived from the title slug), so the newsletter links correctly either way.
-  if (articleResult?.url) {
+  // Inject the "Read the full article" CTA onto the lead section BEFORE render,
+  // but ONLY if the article was actually published. A CTA pointing to a
+  // non-existent post is worse than no CTA at all.
+  if (articleResult?.url && articleResult.published) {
     structure.sections[0].cta = { label: 'Read the full article', url: articleResult.url };
-    assistant.log(`Newsletter generator: linked article ${articleResult.published ? 'published' : 'generated (not published)'} — ${articleResult.url}`);
+    assistant.log(`Newsletter generator: linked article published — ${articleResult.url}`);
+  } else if (articleResult?.url) {
+    assistant.log(`Newsletter generator: linked article generated (not published, CTA omitted) — ${articleResult.url}`);
   }
 
   // 3. MJML → HTML
@@ -337,13 +337,10 @@ async function generate(Manager, assistant, settings, opts = {}) {
     }
   }
 
-  // 3c. Upload to Beehiiv as a draft. Uses the same complete HTML with
-  //     CDN image URLs already embedded. Today this will fail (Beehiiv's
-  //     post-creation API requires Enterprise plan), but we ship it anyway
-  //     so the day we upgrade to Enterprise it Just Works. Failure is logged,
-  //     never thrown — the rest of the pipeline (GH archive, Firestore doc)
-  //     succeeds regardless. newsletterRoleConfig was already resolved at the top
-  //     of the function for the initial enabled-check.
+  // 3c. Upload to Beehiiv. Published in production, forced to draft in
+  //     testing so real subscribers never receive test newsletters. Failure
+  //     is logged, never thrown — the rest of the pipeline (GH archive,
+  //     Firestore doc) succeeds regardless.
   let beehiivPostId = null;
   let beehiivFailureReason = null;
 
@@ -351,22 +348,21 @@ async function generate(Manager, assistant, settings, opts = {}) {
     try {
       const beehiivProvider = require('../providers/beehiiv.js');
       const result = await beehiivProvider.createPost({
-        publicationId: newsletterRoleConfig.publicationId,  // explicit — avoids singleton-Manager dependency
+        publicationId: newsletterRoleConfig.publicationId,
         title:         structure.subject,
         subject:       structure.subject,
         preheader:     structure.preheader,
         content:       html,
         contentTags:   Array.isArray(structure.tags) ? structure.tags : [],
-        status:        'draft',
+        status:        assistant.isTesting() ? 'draft' : 'confirmed',
       });
 
       if (result?.success && result.id) {
         beehiivPostId = result.id;
-        assistant.log(`Newsletter generator: Beehiiv draft created — ${beehiivPostId}`);
+        assistant.log(`Newsletter generator: Beehiiv ${assistant.isTesting() ? 'draft' : 'post'} created — ${beehiivPostId}`);
       } else {
-        // Expected today until Enterprise plan — log, do not throw.
         beehiivFailureReason = result?.error || 'unknown error';
-        assistant.log(`Newsletter generator: Beehiiv draft upload skipped/failed — ${beehiivFailureReason}`);
+        assistant.log(`Newsletter generator: Beehiiv upload failed — ${beehiivFailureReason}`);
       }
     } catch (e) {
       beehiivFailureReason = e.message;
@@ -750,4 +746,4 @@ function generatePushId() {
   return id;
 }
 
-module.exports = { generate, fetchSources, generatePushId };
+module.exports = { generate, generatePushId };

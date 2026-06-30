@@ -6,6 +6,12 @@
  *   - email: fires through mailer.sendCampaign()
  *   - push: fires through notification.send()
  *
+ * Generator campaigns (has `generator` field, e.g. 'newsletter'):
+ *   - Runs the content generation pipeline (AI content, images, uploads)
+ *   - Sends the generated content immediately
+ *   - Stores a history record with the generated content + send results
+ *   - Advances the recurring template's sendAt to the next occurrence
+ *
  * Recurring campaigns (has `recurrence` field):
  *   - Creates a history doc in the same collection with results
  *   - Advances the recurring doc's sendAt to the next occurrence
@@ -46,9 +52,81 @@ module.exports = async ({ Manager, assistant, libraries }) => {
 
     assistant.log(`Processing campaign ${campaignId} (${type}): ${settings.name}`);
 
-    // --- Generator campaigns are handled by the daily pre-generation cron, not here ---
+    // --- Generator campaigns: generate content + send in one shot ---
     if (generator) {
-      assistant.log(`Skipping generator campaign ${campaignId} — handled by daily pre-generation cron`);
+      const generators = {
+        newsletter: require('../../../libraries/email/generators/newsletter.js'),
+      };
+
+      if (!generators[generator]) {
+        assistant.log(`Unknown generator "${generator}" on ${campaignId}, skipping`);
+        return;
+      }
+
+      assistant.log(`Running generator "${generator}" for ${campaignId}...`);
+
+      const generatedId = pushid();
+      const generated = await generators[generator].generate(Manager, assistant, settings, {
+        campaignId: generatedId,
+        imageHost: 'github',
+        publishArticle: Manager.isProduction(),
+      });
+
+      if (!generated) {
+        assistant.log(`Generator "${generator}" returned no content for ${campaignId}, will retry next run`);
+        return;
+      }
+
+      const {
+        images: _images,
+        mjml: _mjml,
+        structure: _structure,
+        contentMarkdown: _contentMarkdown,
+        assets,
+        meta,
+        ...generatedSettings
+      } = generated;
+
+      assistant.log(`Generated content for ${campaignId}: "${generated.subject}"`);
+
+      // Send immediately
+      const campaignResults = await email.sendCampaign({ ...generatedSettings, sendAt: 'now' });
+      const success = Object.values(campaignResults).some(r => r.success || r.sent > 0);
+
+      const nowISO = new Date().toISOString();
+      const nowUNIX = Math.round(Date.now() / 1000);
+
+      // Store history record
+      const historyId = pushid();
+      await admin.firestore().doc(`marketing-campaigns/${historyId}`).set({
+        settings: generatedSettings,
+        assets: assets || null,
+        meta: meta || null,
+        type,
+        sendAt: data.sendAt,
+        status: success ? 'sent' : 'failed',
+        results: campaignResults,
+        generatedFrom: campaignId,
+        metadata: {
+          created: { timestamp: nowISO, timestampUNIX: nowUNIX },
+          updated: { timestamp: nowISO, timestampUNIX: nowUNIX },
+        },
+      });
+
+      // Advance sendAt to next occurrence
+      if (recurrence) {
+        const nextSendAt = getNextOccurrence(data.sendAt, recurrence);
+        await doc.ref.set({
+          sendAt: nextSendAt,
+          metadata: {
+            updated: { timestamp: nowISO, timestampUNIX: nowUNIX },
+          },
+        }, { merge: true });
+        assistant.log(`${success ? 'Sent' : 'Failed'} generator campaign ${campaignId}, next: ${moment.unix(nextSendAt).toISOString()}`);
+      } else {
+        assistant.log(`${success ? 'Sent' : 'Failed'} generator campaign ${campaignId} (one-off)`);
+      }
+
       return;
     }
 

@@ -2,13 +2,27 @@
 > Agents and maintainers should update this file regularly to reflect the current state of the project.
 
 ## 🎯 Current Focus
-* **Goal:** Fix email-queue infinite retry loop for orphaned entries
-* **Current Phase:** Code complete, pending test + publish
-* **Priority:** Medium
-* **Last Updated:** 2026-06-30 4:33 AM PDT
-* **Notes:** Discovered 22 stuck email-queue entries on `itw-creative-works` production — all for deleted user `xPiS99bRnyN92g1HQEt1Cf0iyH02`. The cron retried them every 10 minutes forever because `doc.ref.delete()` only ran on success. Fix: catch failures, delete immediately on 400-level (permanent), retry with counter for 500-level (temporary), drop after 5 retries. Also investigated a mystery "Payment received for order #" email — traced to NOT being from ITW CW Cloud Functions (zero payment webhook logs in 24h, empty payments-webhooks collection).
+* **Goal:** Fix newsletter generator never firing — frequent cron skipped generator campaigns
+* **Current Phase:** Code complete + tests pass, pending publish + deploy
+* **Priority:** High
+* **Last Updated:** 2026-06-30 4:57 AM PDT
+* **Notes:** Newsletter campaigns were dead in the water: the frequent cron explicitly skipped campaigns with a `generator` field (deferring to `bm_cronDaily`), but `bm_cronDaily` hadn't fired in 7+ days (Cloud Scheduler issue). Also found a stale `fetchSources` export in `newsletter.js` that crashed on `require()`. Fix: frequent cron now handles generator campaigns inline — generate + send in one shot, no intermediate docs. Added `test/email/campaign-cron-pipeline.js` (7 tests, all pass). Somiibo's `_recurring-newsletter` has `sendAt` stuck 6.7 days in the past — will self-heal on first cron run after deploy.
 
 ## 📌 Active Task List
+* [ ] Phase 11: Fix newsletter generator never firing in frequent cron
+  * [x] Task 11.1: Diagnose — frequent cron skips generator campaigns, `bm_cronDaily` not running (7+ days)
+  * [x] Task 11.2: Fix stale `fetchSources` export in `newsletter.js` (ReferenceError on require)
+  * [x] Task 11.3: Replace generator skip with inline generation logic in `marketing-campaigns.js`
+  * [x] Task 11.4: Write `test/email/campaign-cron-pipeline.js` (7 tests — oneoff, recurring, generator paths)
+  * [x] Task 11.5: Verify all 7 tests pass on somiibo-backend
+  * [x] Task 11.6: Beehiiv upload: default to `confirmed` (published) in production, force `draft` in `isTesting()`
+  * [x] Task 11.7: Article CTA only injected when article is actually published (no dead links in testing)
+  * [x] Task 11.8: Remove redundant `marketing-newsletter-generate.js` from daily cron (SSOT: frequent cron is the sole handler)
+  * [x] Task 11.9: Update all stale docs/comments referencing old daily pre-generation pipeline
+  * [x] Task 11.10: SSOT/DRY audit — no duplication, all references updated
+  * [ ] Task 11.11: Publish new BEM version
+  * [ ] Task 11.12: Update + deploy somiibo-backend with new BEM
+  * [ ] Task 11.7: Update + deploy somiibo-backend with new BEM
 * [ ] Phase 9: Blog auto-publisher dedup + fallback fixes
   * [x] Task 9.1: Diagnose — $brand fallback ignoring user config, per-feed-only dedup, weak prompt
   * [x] Task 9.2: Add `getRecentTitles` to source-resolver.js (collects both postTitle + itemTitle)

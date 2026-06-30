@@ -257,7 +257,7 @@ module.exports = {
 
         // Wait for cron to reset daily counter.
         // bm_cronDaily executes every registered daily job sequentially. In EXTENDED
-        // mode the real-API jobs (marketing-newsletter-generate, expire-paypal-cancellations,
+        // mode the real-API jobs (expire-paypal-cancellations,
         // blog-auto-publisher, etc.) can take 40-50s combined before reset-usage
         // (alphabetical tail) gets its turn. 70s gives that the headroom it needs;
         // the per-test `timeout` below matches.

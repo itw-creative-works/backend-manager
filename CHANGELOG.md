@@ -14,6 +14,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.10.0] - 2026-06-30
+
+### Changed
+- **Newsletter generation moved to frequent cron** — generator campaigns (e.g. `generator: 'newsletter'`) are now handled inline by `bm_cronFrequent` instead of a separate `bm_cronDaily` pre-generation step. When `sendAt` is due, the frequent cron generates content and sends in one shot — no intermediate campaign docs, no dependency on Cloud Scheduler for a second function.
+- **Beehiiv uploads publish by default** — newsletter posts are now created with `status: 'confirmed'` (published) in production. In testing mode (`isTesting()`), forced to `status: 'draft'` to prevent real subscriber sends.
+- **Article CTA only appears when published** — the "Read the full article" button in newsletters is now gated on `articleResult.published`. If the linked blog article wasn't committed (e.g. test mode), the CTA is omitted to avoid dead links.
+
+### Added
+- **Campaign cron pipeline test** (`test/email/campaign-cron-pipeline.js`) — 7-test suite verifying one-off campaigns, recurring campaigns (sendAt advance + history doc), and generator campaigns are all processed correctly by `bm_cronFrequent`.
+
+### Removed
+- **`cron/daily/marketing-newsletter-generate.js`** — redundant after the frequent cron now handles generator campaigns directly. Eliminates DRY violation and potential double-processing if both crons fired.
+
+### Fixed
+- **Newsletter generator stale export** — `module.exports` referenced deleted `fetchSources` function, causing `ReferenceError` on `require()`. Removed the dead export.
+
 # [5.9.27] - 2026-06-30
 
 ### Fixed
