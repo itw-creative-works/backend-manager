@@ -2,13 +2,24 @@
 > Agents and maintainers should update this file regularly to reflect the current state of the project.
 
 ## 🎯 Current Focus
-* **Goal:** Fix cron runner error propagation blocking daily usage reset
-* **Current Phase:** Fix applied, pending BEM publish + Chatsy redeploy
+* **Goal:** Fix blog auto-publisher duplicate posts + unauthorized $brand fallback
+* **Current Phase:** Code complete, pending test + publish
 * **Priority:** High
-* **Last Updated:** 2026-06-24 7:37 PM PDT
-* **Notes:** `throw e` in `runner.js` caused one failing handler (`marketing-newsletter-generate` with `beehiivConfig` ReferenceError) to kill the entire daily cron, preventing `reset-usage.js` from ever running. Chatsy's Somiibo agent (owner `98WVIFYdGrUbjL4jgyXLPe8ICFt1`) had daily counter stuck at 334 since June 19. Fix: removed `throw e` so handlers fail independently. Also need to manually reset the user's daily counter or wait for midnight UTC cron.
+* **Last Updated:** 2026-06-30 2:10 AM PDT
+* **Notes:** Daily Embers getting duplicate articles (Apple price hike from Guardian+NYT) and unauthorized $brand articles (lifestyle tech posts with `source: null` despite $brand not being in sources array). Three fixes: (1) conditional $brand fallback — only if in sources, (2) cross-feed title dedup via word-overlap similarity, (3) stronger topic avoidance prompt. Also added source retry loop in harvest() so exhausted feeds try other sources before skipping.
 
 ## 📌 Active Task List
+* [ ] Phase 9: Blog auto-publisher dedup + fallback fixes
+  * [x] Task 9.1: Diagnose — $brand fallback ignoring user config, per-feed-only dedup, weak prompt
+  * [x] Task 9.2: Add `getRecentTitles` to source-resolver.js (collects both postTitle + itemTitle)
+  * [x] Task 9.3: Conditional $brand fallback in `resolveSource()` — only if in entry.sources
+  * [x] Task 9.4: Source retry loop in `harvest()` — shuffle + try all sources before skipping
+  * [x] Task 9.5: Strengthen topic dedup prompt (STRICT, forbid same theme/keyword combo)
+  * [x] Task 9.6: Track item titles in runTitles for within-run prompt dedup
+  * [x] Task 9.7: Update docs (ghostii.md — feed flow, fallback behavior, dedup levels)
+  * [x] Task 9.8: Remove cross-feed title similarity check (too fragile — word-overlap heuristic)
+  * [ ] Task 9.9: Run tests (`npx mgr test mgr:helpers/content/blog-auto-publisher`)
+  * [ ] Task 9.10: Publish BEM + deploy Daily Embers
 * [ ] Phase 6: Setup scaffolds essential configs for fresh projects
   * [x] Task 6.1: Add `templates/firebase.json` standard template
   * [x] Task 6.2: Add `scaffoldConfigs()` + `resolveProjectId()` to setup.js (runs before config resolution)

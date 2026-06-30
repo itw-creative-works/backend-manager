@@ -15,7 +15,8 @@
  *
  * All feed/parent sources are tracked in Firestore (`content-sources`) so the
  * same article is never processed twice. When a feed is unreachable or
- * exhausted, the entry falls back to $brand behavior.
+ * exhausted, harvest() tries the next source in the pool. Only falls
+ * back to $brand if '$brand' is explicitly listed in the entry's sources.
  *
  * Source resolution, tracking, and prompt constants live in the shared
  * source-resolver library (src/manager/libraries/content/source-resolver.js).
@@ -32,6 +33,7 @@ const {
   trackContentSource,
   contentSourceHash,
   getProcessedItemIds,
+  getRecentTitles,
   getURLContent,
   isURL,
 } = require('../../../libraries/content/source-resolver.js');
@@ -118,19 +120,49 @@ function fetchRemoteBrand(brandUrl) {
 }
 
 async function harvest(assistant, entry, admin, provider, Manager) {
-  const date = moment().format('MMMM YYYY');
-
   assistant.log(`harvest(): Starting ${entry.brand.brand.id}...`);
 
+  const recentTitles = admin
+    ? await getRecentTitles(admin, entry.brand.brand.id).catch((e) => {
+        assistant.error('harvest(): Error fetching recent titles (continuing)', e);
+        return [];
+      })
+    : [];
+  const runTitles = [];
+
+  if (recentTitles.length) {
+    assistant.log(`harvest(): ${recentTitles.length} recent titles loaded for topic dedup`);
+  }
+
   for (let index = 0; index < entry.quantity; index++) {
-    const source = powertools.random(entry.sources);
+    const allKnownTitles = [...recentTitles, ...runTitles];
 
-    assistant.log(`harvest(): Processing ${index + 1}/${entry.quantity}`, source);
+    let resolved = null;
+    const shuffled = randomize([...entry.sources]);
+    for (const source of shuffled) {
+      assistant.log(`harvest(): Processing ${index + 1}/${entry.quantity}`, source);
 
-    const resolved = await resolveSource(assistant, source, entry, admin, Manager).catch((e) => e);
-    if (resolved instanceof Error) {
-      assistant.error('harvest(): Error resolving source', resolved);
-      break;
+      resolved = await resolveSource(assistant, source, entry, admin, Manager).catch((e) => {
+        assistant.error('harvest(): Error resolving source', e);
+        return null;
+      });
+      if (resolved) { break; }
+    }
+
+    if (!resolved) {
+      assistant.log('harvest(): All sources exhausted for this article, skipping');
+      continue;
+    }
+
+    if (allKnownTitles.length) {
+      resolved.description += '\n\nTOPIC DEDUPLICATION (STRICT):\n'
+        + 'These articles were RECENTLY published on our blog. You MUST NOT write about the same topic, theme, or subject area as ANY of them.\n'
+        + 'Do NOT cover the same story from a different angle, do NOT write about the same theme with different examples, '
+        + 'and do NOT reuse the same primary keyword/category combination. '
+        + 'If a recent article covers "lifestyle tech + habits", do NOT write about "lifestyle tech + policy" — that is the SAME theme. '
+        + 'Pick an entirely different domain.\n'
+        + 'Recent articles:\n'
+        + allKnownTitles.slice(0, 25).map((t) => `- ${t}`).join('\n');
     }
 
     assistant.log('harvest(): Resolved source', resolved);
@@ -154,6 +186,9 @@ async function harvest(assistant, entry, admin, provider, Manager) {
 
     assistant.log('harvest(): Article', article);
 
+    const post = provider.blocksToPost?.(article.json);
+    const generatedTitle = post?.title || article.title || '';
+
     const publishArgs = {
       brand: entry.brand,
       article,
@@ -172,12 +207,28 @@ async function harvest(assistant, entry, admin, provider, Manager) {
 
     assistant.log('harvest(): Uploaded post', uploadedPost);
 
-    if (resolved.trackingData && admin) {
+    if (generatedTitle) {
+      runTitles.push(generatedTitle);
+    }
+    if (resolved.trackingData?.itemTitle) {
+      runTitles.push(resolved.trackingData.itemTitle);
+    }
+
+    if (!resolved.trackingData) {
+      resolved.trackingData = {
+        url: uploadedPost.slug || `brand-${postId}`,
+        origin: '$brand',
+        usedBy: 'blog',
+      };
+    }
+
+    if (admin) {
       await trackContentSource(admin, {
         ...resolved.trackingData,
         brandId: entry.brand.brand.id,
         postUrl: uploadedPost.url,
         postSlug: uploadedPost.slug,
+        postTitle: generatedTitle || null,
       }).catch((e) => {
         assistant.error('harvest(): Error tracking content source (non-fatal)', e);
       });
@@ -205,8 +256,11 @@ async function resolveSource(assistant, source, entry, admin, Manager) {
     const feedResult = await processFeedSource(assistant, feedUrl, entry.brand.brand.id, admin).catch((e) => e);
 
     if (feedResult instanceof Error || !feedResult) {
-      assistant.log('resolveSource(): Feed failed or exhausted, falling back to $brand');
-      return resolveSource(assistant, '$brand', entry, admin, Manager);
+      assistant.log('resolveSource(): Feed failed or exhausted');
+      if (entry.sources.includes('$brand')) {
+        return resolveSource(assistant, '$brand', entry, admin, Manager);
+      }
+      return null;
     }
 
     const description = powertools.template(PROMPT_SOURCE, {
@@ -235,8 +289,11 @@ async function resolveSource(assistant, source, entry, admin, Manager) {
     const parentResults = await processParentSource(assistant, entry, admin, Manager).catch((e) => e);
 
     if (parentResults instanceof Error || !parentResults?.length) {
-      assistant.log('resolveSource(): Parent source failed or exhausted, falling back to $brand');
-      return resolveSource(assistant, '$brand', entry, admin, Manager);
+      assistant.log('resolveSource(): Parent source failed or exhausted');
+      if (entry.sources.includes('$brand')) {
+        return resolveSource(assistant, '$brand', entry, admin, Manager);
+      }
+      return null;
     }
 
     const parentResult = parentResults[0];
@@ -275,7 +332,10 @@ async function resolveSource(assistant, source, entry, admin, Manager) {
 
     if (suggestion instanceof Error) {
       assistant.error(`resolveSource(): Error fetching URL ${source}`, suggestion);
-      return resolveSource(assistant, '$brand', entry, admin, Manager);
+      if (entry.sources.includes('$brand')) {
+        return resolveSource(assistant, '$brand', entry, admin, Manager);
+      }
+      return null;
     }
 
     const description = powertools.template(PROMPT, {

@@ -49,18 +49,19 @@ Each `blog.content[]` entry has a `sources` array. The cron picks one at random 
 
 1. Fetch and parse the RSS/Atom/JSON feed via `feed-parser.parseFeed()`
 2. Query `content-sources` in Firestore for already-processed items
-3. Filter to unprocessed items, pick the newest
-4. Extract full article content from the item URL via `feed-parser.extractArticleContent()`
-5. Pass extracted text as `sourceContent` to the provider API (separate from the `description` prompt)
-6. After publish, write a tracking doc to `content-sources/{hash}`
-7. On failure (feed unreachable, unparseable, exhausted): fall back to `$brand` behavior
+3. Filter to unprocessed items; also filter items whose title is too similar to recently published articles (cross-feed dedup via `isTitleTooSimilar`)
+4. Pick the first remaining item
+5. Extract full article content from the item URL via `feed-parser.extractArticleContent()`
+6. Pass extracted text as `sourceContent` to the provider API (separate from the `description` prompt)
+7. After publish, write a tracking doc to `content-sources/{hash}`
+8. On failure (feed unreachable, unparseable, exhausted): return null so `harvest()` tries the next source. Only falls back to `$brand` if `$brand` is explicitly in the entry's `sources` array.
 
 ### Parent source flow
 
 1. Fetch available sources from parent server via `GET {parentUrl}/newsletter-sources` (no `claimFor` -- read-only)
 2. Query `content-sources` in Firestore for already-used sources with `origin: '$parent'`
 3. Filter out already-used sources, pick the first available
-4. On failure (no parent URL, no sources, all exhausted): fall back to `$brand` behavior
+4. On failure (no parent URL, no sources, all exhausted): return null so `harvest()` tries the next source. Only falls back to `$brand` if `$brand` is explicitly in the entry's `sources` array.
 
 ### Content source tracking
 
@@ -74,7 +75,8 @@ content-sources/{sha256(origin + '::' + url).slice(0,20)}: {
   origin: '$feed:https://...',   // or '$parent', '$brand'
   feedUrl: 'https://...',        // for feed sources
   itemId: 'guid-or-url',
-  itemTitle: '...',
+  itemTitle: '...',              // source article title
+  postTitle: '...',              // generated article title (for topic dedup)
   usedBy: 'blog',               // or 'newsletter'
   brandId: '...',
   postUrl: '...',
@@ -85,6 +87,24 @@ content-sources/{sha256(origin + '::' + url).slice(0,20)}: {
   },
 }
 ```
+
+### Topic deduplication
+
+The blog auto-publisher prevents near-duplicate articles at three levels:
+
+1. **Per-feed dedup**: `processFeedSource()` queries `content-sources` by `feedUrl` to skip items already used from that specific feed.
+
+2. **Cross-feed dedup** (structural): Before picking a feed item, `processFeedSource()` compares each candidate's title against ALL recent titles (from any source) using `isTitleTooSimilar()` — a word-overlap check with basic stemming. This catches the same news event reported by different publications (e.g. Guardian and NYT both covering Apple's price hike). Items with >= 50% significant-word overlap are skipped.
+
+3. **Topic dedup** (prompt-based): Before generating each article, `harvest()` appends all recent titles (Firestore history + same-run) to the Ghostii prompt as a strict avoidance list. The prompt forbids writing about the same topic, theme, or keyword combination — not just the same story.
+
+Within a single cron run, both generated post titles AND source item titles are tracked in `runTitles` and fed into levels 2 and 3 for subsequent articles.
+
+All source types (`$feed`, `$parent`, `$brand`, URL, text) are tracked in `content-sources` after publishing.
+
+### Source fallback behavior
+
+When a source fails or is exhausted, `resolveSource()` only falls back to `$brand` if `$brand` is explicitly listed in the entry's `sources` array. Otherwise it returns null, and `harvest()` tries the next source in a shuffled copy of the pool. If all sources are exhausted, that article slot is skipped.
 
 ## Configuration
 

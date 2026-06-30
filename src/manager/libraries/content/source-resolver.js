@@ -269,7 +269,7 @@ async function resolveNewsletterSources({ sources, categories, admin, Manager, a
 
 // ── Firestore tracking ──────────────────────────────────────────────
 
-async function trackContentSource(admin, { url, origin, feedUrl, itemId, itemTitle, usedBy, brandId, postUrl, postSlug }) {
+async function trackContentSource(admin, { url, origin, feedUrl, itemId, itemTitle, usedBy, brandId, postUrl, postSlug, postTitle }) {
   const docId = contentSourceHash(origin || '', url || '');
   const nowISO = new Date().toISOString();
   const nowUNIX = Math.round(Date.now() / 1000);
@@ -280,6 +280,7 @@ async function trackContentSource(admin, { url, origin, feedUrl, itemId, itemTit
     feedUrl: feedUrl || null,
     itemId: itemId || null,
     itemTitle: itemTitle || null,
+    postTitle: postTitle || null,
     usedBy: usedBy || null,
     brandId: brandId || null,
     postUrl: postUrl || null,
@@ -374,6 +375,33 @@ function tryParse(json) {
   }
 }
 
+// ── Recent title loading (topic dedup) ───────────────────────────────
+
+async function getRecentTitles(admin, brandId, days) {
+  if (!admin) { return []; }
+
+  days = days || 14;
+  const cutoff = Math.round(Date.now() / 1000) - (days * 86400);
+
+  const snapshot = await admin.firestore()
+    .collection(CONTENT_SOURCES_COLLECTION)
+    .where('brandId', '==', brandId)
+    .select('postTitle', 'itemTitle', 'metadata')
+    .get();
+
+  const titles = new Set();
+  snapshot.docs.forEach((doc) => {
+    const data = doc.data();
+    const created = data.metadata?.created?.timestampUNIX || 0;
+    if (created < cutoff) { return; }
+
+    if (data.postTitle) { titles.add(data.postTitle); }
+    if (data.itemTitle) { titles.add(data.itemTitle); }
+  });
+
+  return [...titles];
+}
+
 // ── Exports ─────────────────────────────────────────────────────────
 
 module.exports = {
@@ -391,6 +419,7 @@ module.exports = {
   trackContentSource,
   contentSourceHash,
   getProcessedItemIds,
+  getRecentTitles,
   getURLContent,
   isURL,
   extractBodyContent,

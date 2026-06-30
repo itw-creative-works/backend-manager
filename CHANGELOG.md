@@ -14,6 +14,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.9.25] - 2026-06-30
+
+### Fixed
+- **Unauthorized `$brand` fallback** — `resolveSource()` unconditionally fell back to `$brand` when a feed or parent source failed/exhausted, even when `$brand` was not in the entry's `sources` array. Now only falls back to `$brand` if explicitly listed; otherwise returns null.
+- **Source retry on exhaustion** — `harvest()` now shuffles and tries all sources in the pool before skipping an article slot. Previously, a single failed random pick would trigger the `$brand` fallback with no retry.
+
+### Changed
+- **Stronger topic dedup prompt** — the avoidance instruction now explicitly forbids same theme/keyword combinations, not just same story from a different angle.
+- **`getRecentTitles` moved to source-resolver** — shared between blog + newsletter pipelines. Collects both `postTitle` and `itemTitle` from content-sources (was `postTitle || itemTitle`). Item titles also tracked in `runTitles` for within-run prompt dedup.
+
 # [5.9.24] - 2026-06-29
 
 ### Fixed
