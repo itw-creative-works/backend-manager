@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.9.24] - 2026-06-29
+
+### Fixed
+- **Campaign route test blank email** — `test/routes/marketing/campaign.js` was passing `content` as a top-level field, but the schema only accepts `data`. Moved content into `data.content.message` with the `card` template so the test email renders with visible body text.
+
 # [5.9.23] - 2026-06-29
 
 ### Fixed

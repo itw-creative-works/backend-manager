@@ -22,7 +22,14 @@ module.exports = {
         const response = await http.post('backend-manager/marketing/campaign', {
           name: 'BEM Test Campaign',
           subject: 'Test Marketing Email',
-          content: '# Hello\n\nThis is a **test marketing email** sent from the BEM test suite.\n\nIf you received this, the SendGrid Single Send pipeline is working.',
+          template: 'card',
+          data: {
+            content: {
+              title: 'Test Marketing Email',
+              message: 'This is a **test marketing email** sent from the BEM test suite.\n\nIf you received this, the SendGrid Single Send pipeline is working correctly.',
+              button: { text: 'Visit Dashboard →', url: '{brand.url}' },
+            },
+          },
           test: true,
           sendAt: 'now',
         });
