@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.9.26] - 2026-06-30
+
+### Changed
+- **"NEVER use npx mgr from framework repo" rule** — added to CLAUDE.md Quick Start + Development Workflow sections. `npx mgr` is for consumer projects only; framework repos use `npm test` / `npm run *` which call the local `bin/` directly. Mirrored across all four OMEGA frameworks (BEM/UJM/BXM/EM).
+
 # [5.9.25] - 2026-06-30
 
 ### Fixed

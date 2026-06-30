@@ -18,8 +18,10 @@
   * [x] Task 9.6: Track item titles in runTitles for within-run prompt dedup
   * [x] Task 9.7: Update docs (ghostii.md — feed flow, fallback behavior, dedup levels)
   * [x] Task 9.8: Remove cross-feed title similarity check (too fragile — word-overlap heuristic)
-  * [ ] Task 9.9: Run tests (`npx mgr test mgr:helpers/content/blog-auto-publisher`)
-  * [ ] Task 9.10: Publish BEM + deploy Daily Embers
+  * [x] Task 9.9: Run tests (26 passing via `npm test -- mgr:helpers/content/blog-auto-publisher`)
+  * [x] Task 9.10: Publish BEM v5.9.25 to npm + GitHub release
+  * [x] Task 9.11: Add "NEVER use npx mgr from framework repo" rule to ALL four OMEGA frameworks (BEM/UJM/BXM/EM CLAUDE.md + skills)
+  * [ ] Task 9.12: Deploy Daily Embers with new BEM version
 * [ ] Phase 6: Setup scaffolds essential configs for fresh projects
   * [x] Task 6.1: Add `templates/firebase.json` standard template
   * [x] Task 6.2: Add `scaffoldConfigs()` + `resolveProjectId()` to setup.js (runs before config resolution)

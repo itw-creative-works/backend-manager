@@ -41,10 +41,13 @@ All `npx mgr <cmd>` aliases work: `npx bm <cmd>`, `npx bem <cmd>`, `npx backend-
 
 ### For Framework Development (This Repository)
 
+> **🚫 NEVER use `npx mgr ...` from the framework repo.** `npx mgr` is for CONSUMER projects (where the bin is linked in `functions/node_modules/.bin/`). From the framework repo, use `npm test`, `npm run prepare`, etc. — the `scripts` in `package.json` call the local `bin/` directly.
+
 1. `npm install` — install BEM's own deps
 2. `npm run prepare` — build once: copies `src/` → `dist/` via prepare-package
 3. `npm run prepare:watch` — watch mode
-4. Test in the **designated test consumer** — `../ultimate-jekyll-backend` is BEM's consumer for validating framework changes end-to-end (exercise any consumer-level flow there freely: emulator, tests, deploy paths). From inside it, run `npx mgr install dev` to swap BEM to this local repo — required whenever you edit the framework source and want the consumer to pick up the changes (the consumer otherwise keeps its installed `node_modules/backend-manager`). Reverse with `npx mgr install live`. If `npx mgr` then errors with "could not determine executable to run", the local install skipped bin-linking — re-run `npm install` to relink, or call `node node_modules/backend-manager/bin/backend-manager <cmd>` directly.
+4. `npm test` — run framework tests via the bundled fixture project (equivalent to `node bin/backend-manager test`). Accepts the same target syntax: `npm test -- mgr:helpers/content/blog-auto-publisher`
+5. Test in the **designated test consumer** — `../ultimate-jekyll-backend` is BEM's consumer for validating framework changes end-to-end (exercise any consumer-level flow there freely: emulator, tests, deploy paths). From inside it, run `npx mgr install dev` to swap BEM to this local repo — required whenever you edit the framework source and want the consumer to pick up the changes (the consumer otherwise keeps its installed `node_modules/backend-manager`). Reverse with `npx mgr install live`. If `npx mgr` then errors with "could not determine executable to run", the local install skipped bin-linking — re-run `npm install` to relink, or call `node node_modules/backend-manager/bin/backend-manager <cmd>` directly.
 
 ## Architecture
 
@@ -91,7 +94,8 @@ See [docs/cli-firestore-auth.md](docs/cli-firestore-auth.md) and [docs/cli-logs.
 
 ## Development Workflow
 
-- **🚫 NEVER run `npx mgr serve` / `npx mgr emulator`** — they're the user's long-running dev processes. Assume they're already running; if they aren't, **instruct the user to run them** rather than running them yourself (running them again kills theirs). To see output, **read the `functions/*.log` files** (`dev.log`, `emulator.log`, `test.log`) — never tail/attach to the process. Running `npx mgr test` is fine (it auto-starts its own emulator if needed).
+- **🚫 NEVER use `npx mgr ...` from the framework repo** — `npx mgr` is for CONSUMER projects only (where the bin lives in `functions/node_modules/.bin/`). From the framework repo, use `npm test`, `npm run prepare`, etc. — the `scripts` in `package.json` call `node bin/backend-manager` directly. This applies to ALL four OMEGA frameworks (BEM/UJM/BXM/EM).
+- **🚫 NEVER run `npx mgr serve` / `npx mgr emulator`** (consumer projects) — they're the user's long-running dev processes. Assume they're already running; if they aren't, **instruct the user to run them** rather than running them yourself (running them again kills theirs). To see output, **read the `functions/*.log` files** (`dev.log`, `emulator.log`, `test.log`) — never tail/attach to the process. Running `npx mgr test` is fine (it auto-starts its own emulator if needed).
 - **Where the output logs live:** BEM CLI commands tee output to `<projectDir>/functions/` (not `logs/` — BEM's deliberate exception, co-located with firebase-tools' `*-debug.log`): `dev.log` (`npx mgr serve`), `deploy.log` (`npx mgr deploy`), `emulator.log` (`npx mgr emulator` / test with own emulator), `test.log` (`npx mgr test`), `production.log` (`npx mgr logs`). The `dev`/`test` names match EM/BXM/UJM; see [docs/logging.md](docs/logging.md).
 - **If the user reports an error**, check the emulator/test output for the root cause before guessing.
 - **Live-test UI changes via CDP.** When working on admin dashboards or browser-facing endpoints, use the `chrome-devtools` MCP tools (screenshots, click, evaluate JS, console logs) to verify the change works in the running browser. See `~/.claude/mcp-server/servers/chrome-devtools/CLAUDE.md`.
