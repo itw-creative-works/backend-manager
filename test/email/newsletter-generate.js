@@ -96,8 +96,10 @@ module.exports = {
     const env = process.env;
 
     // --- Apply env overrides into newsletterConfig ---
-    // Newsletter config now lives under marketing.newsletter.content.
-    const newsletterConfig = JSON.parse(JSON.stringify(config.marketing?.newsletter?.content || {}));
+    // Newsletter config lives under marketing.newsletter.content (array or object).
+    const rawContent = config.marketing?.newsletter?.content;
+    const contentEntry = Array.isArray(rawContent) ? rawContent[0] : rawContent;
+    const newsletterConfig = JSON.parse(JSON.stringify(contentEntry || {}));
 
     if (env.NEWSLETTER_PROVIDER_STRUCTURE) {
       newsletterConfig.provider = { ...(newsletterConfig.provider || {}), structure: env.NEWSLETTER_PROVIDER_STRUCTURE };

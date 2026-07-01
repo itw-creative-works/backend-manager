@@ -3,18 +3,23 @@
  * rendered `newsletter.html`) to the public `itw-creative-works/newsletter-assets`
  * GitHub repo as a single atomic commit.
  *
+ * Each brand pushes to its own branch (branch name = brandId). This
+ * eliminates race conditions — 30+ brands can upload concurrently with
+ * zero contention. The `main` branch hosts only the viewer page
+ * (index.html on GitHub Pages) for browser-renderable previews.
+ *
  * Returns publicly resolvable URLs:
- *   - Image URLs (`raw.githubusercontent.com`): embedded in the HTML via
- *     <img src=...> so Beehiiv / SendGrid / any inbox can render them
+ *   - Image URLs (`raw.githubusercontent.com/{owner}/{repo}/{brandId}/...`):
+ *     embedded in the HTML via <img src=...>
  *   - HTML URL (`raw.githubusercontent.com`): download link for manual paste
- *     into Beehiiv (and a stable archive of every issue's final rendered form)
- *   - Preview URL (`*.github.io`): browser-renderable HTML via GitHub Pages
+ *   - Preview URL (`*.github.io/?path=...`): viewer page that fetches and
+ *     renders the newsletter HTML in-browser
  *
  * Public-safety guarantees baked in:
  *   - Only accepts PNG buffers for images — verified by magic-byte check
  *   - HTML must be a non-empty string (no buffers, no other types)
  *   - Path validated against a strict allowlist regex per file kind
- *   - Repo / branch hardcoded (no env override) so a misconfigured caller
+ *   - Repo owner hardcoded (no env override) so a misconfigured caller
  *     can't redirect uploads elsewhere
  *   - One atomic commit per newsletter (Git Trees API)
  *
@@ -25,19 +30,18 @@ const { Octokit } = require('@octokit/rest');
 
 const REPO_OWNER = 'itw-creative-works';
 const REPO_NAME  = 'newsletter-assets';
-const REPO_BRANCH = 'main';
 
-const RAW_BASE = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REPO_BRANCH}`;
 const PAGES_BASE = `https://${REPO_OWNER}.github.io/${REPO_NAME}`;
 
-// `{brandId}/{campaignId}/section-N.png` — both ids are kebab/alphanumeric
-const IMAGE_PATH_REGEX = /^[a-z0-9-]+\/[A-Za-z0-9_-]+\/section-\d+\.png$/;
-// `{brandId}/{campaignId}/newsletter.html` — fixed file name, same folder
-const HTML_PATH_REGEX  = /^[a-z0-9-]+\/[A-Za-z0-9_-]+\/newsletter\.html$/;
-// `{brandId}/{campaignId}/newsletter.md` — markdown view, same folder
-const MARKDOWN_PATH_REGEX = /^[a-z0-9-]+\/[A-Za-z0-9_-]+\/newsletter\.md$/;
-// `{brandId}/{campaignId}/summary.md` — short editorial recap, same folder
-const SUMMARY_PATH_REGEX  = /^[a-z0-9-]+\/[A-Za-z0-9_-]+\/summary\.md$/;
+// Fallback RAW_BASE for callers that don't have a brand context
+const RAW_BASE = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main`;
+
+// `content/{campaignId}/section-N.png` — brand is the branch, not the path
+const CONTENT_DIR = 'content';
+const IMAGE_PATH_REGEX = /^content\/[A-Za-z0-9_-]+\/section-\d+\.png$/;
+const HTML_PATH_REGEX  = /^content\/[A-Za-z0-9_-]+\/newsletter\.html$/;
+const MARKDOWN_PATH_REGEX = /^content\/[A-Za-z0-9_-]+\/newsletter\.md$/;
+const SUMMARY_PATH_REGEX  = /^content\/[A-Za-z0-9_-]+\/summary\.md$/;
 
 // PNG magic bytes: 89 50 4E 47 0D 0A 1A 0A
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -50,11 +54,11 @@ const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
  *                                                Optional — pass an empty array or omit if
  *                                                you only want to upload the HTML (rare).
  * @param {string} [args.html] - The final rendered newsletter HTML. Uploaded as
- *                                `{brandId}/{campaignId}/newsletter.html`.
+ *                                `content/{campaignId}/newsletter.html`.
  * @param {string} [args.markdown] - Programmatic markdown view of the newsletter.
- *                                    Uploaded as `{brandId}/{campaignId}/newsletter.md`.
+ *                                    Uploaded as `content/{campaignId}/newsletter.md`.
  * @param {string} [args.summary] - Short editorial recap (2-3 sentences). Uploaded
- *                                   as `{brandId}/{campaignId}/summary.md`.
+ *                                   as `content/{campaignId}/summary.md`.
  * @param {string} args.brandId - lowercase brand slug (e.g. 'somiibo')
  * @param {string} args.campaignId - Consumer-side `marketing-campaigns/{id}` Firestore doc ID.
  *                                   Folder names use this verbatim — stable forever.
@@ -86,13 +90,17 @@ async function uploadAssets({ images, html, markdown, summary, brandId, campaign
 
   const log = (msg) => assistant?.log ? assistant.log(`[image-host] ${msg}`) : null;
 
+  // Brand branch — each brand gets its own branch, zero cross-brand contention
+  const branch = brandId;
+  const rawBase = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${branch}`;
+
   // 1. Build the list of files to commit. Validate each before we touch GitHub.
   const files = [];
 
   if (hasImages) {
     for (let i = 0; i < images.length; i++) {
       const img = images[i];
-      const path = `${brandId}/${campaignId}/section-${i + 1}.png`;
+      const path = `${CONTENT_DIR}/${campaignId}/section-${i + 1}.png`;
 
       if (!IMAGE_PATH_REGEX.test(path)) {
         throw new Error(`image-host: refusing to upload — invalid image path "${path}"`);
@@ -115,7 +123,7 @@ async function uploadAssets({ images, html, markdown, summary, brandId, campaign
   }
 
   if (hasHtml) {
-    const path = `${brandId}/${campaignId}/newsletter.html`;
+    const path = `${CONTENT_DIR}/${campaignId}/newsletter.html`;
 
     if (!HTML_PATH_REGEX.test(path)) {
       throw new Error(`image-host: refusing to upload — invalid html path "${path}"`);
@@ -129,7 +137,7 @@ async function uploadAssets({ images, html, markdown, summary, brandId, campaign
   }
 
   if (hasMarkdown) {
-    const path = `${brandId}/${campaignId}/newsletter.md`;
+    const path = `${CONTENT_DIR}/${campaignId}/newsletter.md`;
 
     if (!MARKDOWN_PATH_REGEX.test(path)) {
       throw new Error(`image-host: refusing to upload — invalid markdown path "${path}"`);
@@ -143,7 +151,7 @@ async function uploadAssets({ images, html, markdown, summary, brandId, campaign
   }
 
   if (hasSummary) {
-    const path = `${brandId}/${campaignId}/summary.md`;
+    const path = `${CONTENT_DIR}/${campaignId}/summary.md`;
 
     if (!SUMMARY_PATH_REGEX.test(path)) {
       throw new Error(`image-host: refusing to upload — invalid summary path "${path}"`);
@@ -164,26 +172,41 @@ async function uploadAssets({ images, html, markdown, summary, brandId, campaign
     hasSummary ? 'summary.md' : null,
   ].filter(Boolean).join(' + ');
 
-  log(`uploading ${fileSummary} to ${REPO_OWNER}/${REPO_NAME} → ${brandId}/${campaignId}/`);
+  log(`uploading ${fileSummary} to ${REPO_OWNER}/${REPO_NAME}:${branch} → ${CONTENT_DIR}/${campaignId}/`);
 
   const octokit = new Octokit({ auth: githubToken });
 
-  // 2. Get current main branch ref + tree
-  const { data: refData } = await octokit.rest.git.getRef({
-    owner: REPO_OWNER,
-    repo: REPO_NAME,
-    ref: `heads/${REPO_BRANCH}`,
-  });
+  // 2. Ensure the brand branch exists. New branches start empty (orphan
+  //    commit with an empty tree) — no files from main, no shared history.
+  let branchSha;
+  try {
+    const { data } = await octokit.rest.git.getRef({ owner: REPO_OWNER, repo: REPO_NAME, ref: `heads/${branch}` });
+    branchSha = data.object.sha;
+  } catch (e) {
+    if (e.status === 404) {
+      // Create an empty tree → orphan commit → brand branch
+      const { data: emptyTree } = await octokit.rest.git.createTree({
+        owner: REPO_OWNER, repo: REPO_NAME, tree: [],
+      });
+      const { data: orphanCommit } = await octokit.rest.git.createCommit({
+        owner: REPO_OWNER, repo: REPO_NAME,
+        message: `Initialize ${branch} branch`,
+        tree: emptyTree.sha,
+        parents: [],
+      });
+      await octokit.rest.git.createRef({
+        owner: REPO_OWNER, repo: REPO_NAME,
+        ref: `refs/heads/${branch}`,
+        sha: orphanCommit.sha,
+      });
+      branchSha = orphanCommit.sha;
+      log(`created empty branch "${branch}"`);
+    } else {
+      throw e;
+    }
+  }
 
-  const baseCommitSha = refData.object.sha;
-
-  const { data: baseCommit } = await octokit.rest.git.getCommit({
-    owner: REPO_OWNER,
-    repo: REPO_NAME,
-    commit_sha: baseCommitSha,
-  });
-
-  // 3. Create a blob per file
+  // 3. Create blobs (content-addressed — safe to reuse if we ever add retries)
   const treeItems = [];
 
   for (const file of files) {
@@ -202,7 +225,13 @@ async function uploadAssets({ images, html, markdown, summary, brandId, campaign
     });
   }
 
-  // 4. Build new tree on top of base
+  // 4. Build tree on top of the branch tip
+  const { data: baseCommit } = await octokit.rest.git.getCommit({
+    owner: REPO_OWNER,
+    repo: REPO_NAME,
+    commit_sha: branchSha,
+  });
+
   const { data: newTree } = await octokit.rest.git.createTree({
     owner: REPO_OWNER,
     repo: REPO_NAME,
@@ -210,8 +239,7 @@ async function uploadAssets({ images, html, markdown, summary, brandId, campaign
     tree: treeItems,
   });
 
-  // 5. Commit. Default message format: "[brand] campaignId — Subject" so
-  //    `git log` doubles as a human-readable index of the (opaque) folder names.
+  // 5. Commit
   const defaultSubject = subject ? subject.trim() : `${files.length} newsletter asset${files.length === 1 ? '' : 's'}`;
   const message = commitMessage || `[${brandId}] ${campaignId} — ${defaultSubject}`;
 
@@ -220,14 +248,17 @@ async function uploadAssets({ images, html, markdown, summary, brandId, campaign
     repo: REPO_NAME,
     message,
     tree: newTree.sha,
-    parents: [baseCommitSha],
+    parents: [branchSha],
   });
 
-  // 6. Update branch ref
+  // 6. Update brand branch ref. Since each brand has its own branch,
+  //    the only possible race is the SAME brand uploading images and HTML
+  //    at the same time — which is sequential in the newsletter pipeline.
+  //    No retry/jitter needed.
   await octokit.rest.git.updateRef({
     owner: REPO_OWNER,
     repo: REPO_NAME,
-    ref: `heads/${REPO_BRANCH}`,
+    ref: `heads/${branch}`,
     sha: newCommit.sha,
   });
 
@@ -238,29 +269,29 @@ async function uploadAssets({ images, html, markdown, summary, brandId, campaign
   const summaryFile = files.find((f) => f.kind === 'summary');
 
   const result = {
-    urls: imageFiles.map((f) => `${RAW_BASE}/${f.path}`),
+    urls: imageFiles.map((f) => `${rawBase}/${f.path}`),
     paths: imageFiles.map((f) => f.path),
-    folderUrl: `https://github.com/${REPO_OWNER}/${REPO_NAME}/tree/${REPO_BRANCH}/${brandId}/${campaignId}`,
+    folderUrl: `https://github.com/${REPO_OWNER}/${REPO_NAME}/tree/${branch}/${CONTENT_DIR}/${campaignId}`,
     commitSha: newCommit.sha,
   };
 
   if (htmlFile) {
-    result.htmlUrl = `${RAW_BASE}/${htmlFile.path}`;
+    result.htmlUrl = `${rawBase}/${htmlFile.path}`;
     result.htmlPath = htmlFile.path;
-    result.previewUrl = `${PAGES_BASE}/${htmlFile.path}`;
+    result.previewUrl = `${PAGES_BASE}/?path=${encodeURIComponent(htmlFile.path)}&branch=${encodeURIComponent(branch)}`;
   }
 
   if (markdownFile) {
-    result.markdownUrl = `${RAW_BASE}/${markdownFile.path}`;
+    result.markdownUrl = `${rawBase}/${markdownFile.path}`;
     result.markdownPath = markdownFile.path;
   }
 
   if (summaryFile) {
-    result.summaryUrl = `${RAW_BASE}/${summaryFile.path}`;
+    result.summaryUrl = `${rawBase}/${summaryFile.path}`;
     result.summaryPath = summaryFile.path;
   }
 
-  log(`committed ${newCommit.sha.slice(0, 7)} — folder: ${result.folderUrl}`);
+  log(`committed ${newCommit.sha.slice(0, 7)} to ${branch} — folder: ${result.folderUrl}`);
 
   return result;
 }
@@ -281,7 +312,6 @@ module.exports = {
   uploadAssets,
   REPO_OWNER,
   REPO_NAME,
-  REPO_BRANCH,
   RAW_BASE,
   PAGES_BASE,
 };

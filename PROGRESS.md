@@ -2,11 +2,11 @@
 > Agents and maintainers should update this file regularly to reflect the current state of the project.
 
 ## 🎯 Current Focus
-* **Goal:** Fix newsletter generator never firing — frequent cron skipped generator campaigns
-* **Current Phase:** Code complete + tests pass, pending publish + deploy
+* **Goal:** Fix newsletter pipeline end-to-end — cron, generation, asset hosting, delivery
+* **Current Phase:** Per-brand branch architecture verified, pending BEM publish + deploy
 * **Priority:** High
-* **Last Updated:** 2026-06-30 4:57 AM PDT
-* **Notes:** Newsletter campaigns were dead in the water: the frequent cron explicitly skipped campaigns with a `generator` field (deferring to `bm_cronDaily`), but `bm_cronDaily` hadn't fired in 7+ days (Cloud Scheduler issue). Also found a stale `fetchSources` export in `newsletter.js` that crashed on `require()`. Fix: frequent cron now handles generator campaigns inline — generate + send in one shot, no intermediate docs. Added `test/email/campaign-cron-pipeline.js` (7 tests, all pass). Somiibo's `_recurring-newsletter` has `sendAt` stuck 6.7 days in the past — will self-heal on first cron run after deploy.
+* **Last Updated:** 2026-06-30 5:50 PM PDT
+* **Notes:** v5.10.0 published + deployed but hit two more issues: (1) somiibo config had `newsletter.content` as object instead of array — lodash merge left template defaults (empty categories) at index 0, (2) GitHub asset uploads raced when multiple brands deployed simultaneously ("not a fast forward"). Fixed both: config format corrected, image-host.js rewritten for per-brand branches (zero contention). E2E test verified — images + HTML upload to `somiibo` branch, fallback email fires. Ready for v5.10.1.
 
 ## 📌 Active Task List
 * [ ] Phase 11: Fix newsletter generator never firing in frequent cron
@@ -20,9 +20,22 @@
   * [x] Task 11.8: Remove redundant `marketing-newsletter-generate.js` from daily cron (SSOT: frequent cron is the sole handler)
   * [x] Task 11.9: Update all stale docs/comments referencing old daily pre-generation pipeline
   * [x] Task 11.10: SSOT/DRY audit — no duplication, all references updated
-  * [ ] Task 11.11: Publish new BEM version
-  * [ ] Task 11.12: Update + deploy somiibo-backend with new BEM
-  * [ ] Task 11.7: Update + deploy somiibo-backend with new BEM
+  * [x] Task 11.11: Publish BEM v5.10.0
+  * [x] Task 11.12: Deploy somiibo/optiic/studymonkey — hit config format + GitHub race issues
+  * [x] Task 11.13: Fix config format — `newsletter.content` must be array (matches BEM template)
+  * [x] Task 11.14: Per-brand branches for newsletter-assets repo (zero contention on concurrent uploads)
+  * [x] Task 11.15: Migrate all 11 brand folders to brand-specific branches, clean `main` to viewer hub
+  * [x] Task 11.16: Fix newsletter-generate test to handle array content format
+  * [x] Task 11.17: E2E test — full newsletter upload to `somiibo` branch verified (images + HTML + fallback email)
+  * [x] Task 11.18: Rebuild all 11 brand branches as clean orphans (only own content, no cross-brand bloat)
+  * [x] Task 11.19: Update newsletter-assets README with architecture diagram + viewer link
+  * [x] Task 11.20: Per-brand branches — `content/` folder structure, orphan main, orphan brand branches (1 commit each)
+  * [x] Task 11.21: Dynamic branch count badge + eye preview badge on README
+  * [x] Task 11.22: Fix newsletter-generate test for array content format
+  * [x] Task 11.23: New brand branches created as empty orphans (zero files, zero history)
+  * [x] Task 11.24: E2E verified — images to `somiibo` branch `content/` dir, CTA omitted (test mode), fallback email fires
+  * [ ] Task 11.25: Publish BEM v5.10.1
+  * [ ] Task 11.26: Update + deploy all consumer backends with new BEM + array config format
 * [ ] Phase 9: Blog auto-publisher dedup + fallback fixes
   * [x] Task 9.1: Diagnose — $brand fallback ignoring user config, per-feed-only dedup, weak prompt
   * [x] Task 9.2: Add `getRecentTitles` to source-resolver.js (collects both postTitle + itemTitle)

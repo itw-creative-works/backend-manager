@@ -14,6 +14,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.10.1] - 2026-06-30
+
+### Changed
+- **Per-brand asset branches** — newsletter assets now upload to brand-specific branches (branch name = brandId) instead of sharing `main`. Eliminates race conditions when multiple brands upload concurrently. New branches are created as empty orphans on first upload (zero files, no history from main). Asset paths changed from `{brandId}/{campaignId}/` to `content/{campaignId}/` (brand is the branch, not the path).
+- **Newsletter-generate test** handles array content format for `marketing.newsletter.content`.
+
 # [5.10.0] - 2026-06-30
 
 ### Changed

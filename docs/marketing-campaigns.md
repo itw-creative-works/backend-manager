@@ -231,15 +231,18 @@ AI provider defaults live in code (openai for structure, anthropic for SVG — e
 
 ## Asset hosting (production cron flow)
 
-The frequent cron uploads per-section PNGs + the rendered `newsletter.html` + `newsletter.md` + `summary.md` to the public `itw-creative-works/newsletter-assets` repo as two atomic Git Trees commits per issue (PNGs first so URLs exist for embedding, then HTML/MD/summary in a second commit). Folder layout:
+The frequent cron uploads per-section PNGs + the rendered `newsletter.html` + `newsletter.md` + `summary.md` to the public `itw-creative-works/newsletter-assets` repo. Each brand pushes to its own branch (branch name = brandId) — zero contention when multiple brands upload concurrently. New brand branches are created automatically as empty orphans on first upload. Folder layout:
 
 ```
-{brandId}/{campaignId}/
-  section-N.png       — per-section illustration (embedded in HTML)
-  newsletter.html     — final rendered email-safe HTML
-  newsletter.md       — programmatic markdown view (per-section ## blocks, ready for Beehiiv paste)
-  summary.md          — short editorial recap (2-3 sentences)
+Branch: {brandId}
+  content/{campaignId}/
+    section-N.png       — per-section illustration (embedded in HTML)
+    newsletter.html     — final rendered email-safe HTML
+    newsletter.md       — programmatic markdown view (per-section ## blocks, ready for Beehiiv paste)
+    summary.md          — short editorial recap (2-3 sentences)
 ```
+
+The `main` branch is a viewer hub (GitHub Pages) — no newsletter content.
 
 `newsletter.md` is built programmatically from the same `structure` JSON the HTML is rendered from (no AI cost) by `lib/markdown-renderer.js`. Each section/dispatch becomes a standalone `## heading` block — drop it into the Beehiiv editor one block at a time and insert ad blocks between dispatches.
 
@@ -252,7 +255,7 @@ marketing-campaigns/{newId}: {
   settings:    { subject, preheader, contentHtml, ... },
   assets: {
     campaignId,           // same as the doc id
-    folderUrl,            // https://github.com/itw-creative-works/newsletter-assets/tree/main/{brandId}/{campaignId}
+    folderUrl,            // https://github.com/itw-creative-works/newsletter-assets/tree/{brandId}/content/{campaignId}
     htmlUrl,              // https://raw.githubusercontent.com/.../newsletter.html  — paste this into Beehiiv as one block
     markdownUrl,          // https://raw.githubusercontent.com/.../newsletter.md    — per-section blocks (ads between)
     summaryUrl,           // https://raw.githubusercontent.com/.../summary.md       — share-snippet recap
