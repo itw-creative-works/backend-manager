@@ -14,6 +14,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.10.2] - 2026-06-30
+
+### Changed
+- **Single-commit asset upload** — images + HTML + markdown + summary now upload in one atomic commit instead of two sequential commits. Image URLs are pre-computed from the deterministic path (`raw.githubusercontent.com/{branch}/content/{campaignId}/...`), eliminating the race condition between image and HTML uploads entirely.
+- **CDN asset URLs** — when `USE_CDN_URLS` is enabled (default: true), asset URLs use `cdn.{parentDomain}/newsletters/{brandId}/content/...` instead of raw.githubusercontent.com. Requires a Cloudflare redirect rule on the CDN domain. Toggle the `USE_CDN_URLS` constant in `image-host.js` to revert.
+- **Fallback email formatting** — reorganized into separate labeled sections (failure reason, newsletter details, full HTML, markdown, summary, linked articles, all assets) with indented links under each heading.
+- **Fallback email fires unconditionally** — no longer gated on `htmlUrl` existing; fires whenever Beehiiv upload fails regardless of whether the HTML upload also failed.
+
+### Fixed
+- **Article CTA + fallback email only reference published articles** — unpublished articles (test mode or publish failure) are excluded from both the newsletter CTA button and the fallback email's "Linked articles" section.
+- **publishArticle error handling** — `published: true` is now only set when `publishArticle()` succeeds AND returns a confirmed path. Exceptions and missing paths both resolve to `published: false`.
+
 # [5.10.1] - 2026-06-30
 
 ### Changed

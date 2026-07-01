@@ -39,7 +39,7 @@ function resolveSectionImageFn(newsletterConfig) {
   return method === 'svg' ? generateSvgSection : generateImageSection;
 }
 const { renderMarkdown } = require('./lib/markdown-renderer.js');
-const { uploadAssets, RAW_BASE } = require('./lib/image-host.js');
+const { uploadAssets, USE_CDN_URLS, REPO_OWNER, REPO_NAME, RAW_BASE } = require('./lib/image-host.js');
 const { buildPublicConfig } = require('../../../routes/brand/get.js');
 const { writeArticle, publishArticle } = require('../../../libraries/content/ghostii.js');
 const { trackContentSource, contentSourceHash, resolveNewsletterSources } = require('../../../libraries/content/source-resolver.js');
@@ -162,6 +162,23 @@ async function generate(Manager, assistant, settings, opts = {}) {
   // Defaults to 'github' so production cron path "just works" without flag fiddling.
   const host = opts.imageHost || 'github';
 
+  // CDN base URL — resolves from the parent config.
+  // parent: 'https://itwcreativeworks.com' → cdn.itwcreativeworks.com
+  // parent: 'self' / '' / null             → falls back to brand.url
+  let cdnBase = null;
+  if (USE_CDN_URLS && host === 'github') {
+    const parentUrl = Manager.config?.parent;
+    let cdnDomain;
+    if (parentUrl && parentUrl !== 'self' && parentUrl !== '$self' && parentUrl.startsWith('http')) {
+      cdnDomain = new URL(parentUrl).hostname;
+    } else {
+      cdnDomain = brand?.url ? new URL(brand.url).hostname : null;
+    }
+    if (cdnDomain) {
+      cdnBase = `https://cdn.${cdnDomain}/newsletters`;
+    }
+  }
+
   // campaignId — used as the GitHub folder name (and as the doc ID in production).
   // Resolution priority (most-specific first):
   //   1. opts.campaignId            — explicit override (test runs, cron paths)
@@ -181,6 +198,7 @@ async function generate(Manager, assistant, settings, opts = {}) {
   //    the article build expands the lead section into a full blog post and
   //    returns its public URL, which we inject as a "Read more" CTA before render.
   let imagePaths = [];
+  let generatedImages = null;
 
   const buildImages = async () => {
     if (opts.skipImages) {
@@ -188,7 +206,7 @@ async function generate(Manager, assistant, settings, opts = {}) {
     }
 
     const generateSectionImage = resolveSectionImageFn(config);
-    const images = await Promise.all(
+    generatedImages = await Promise.all(
       structure.sections.map((s) => generateSectionImage({
         imagePrompt: s.image_prompt,
         brand,
@@ -198,35 +216,23 @@ async function generate(Manager, assistant, settings, opts = {}) {
       }))
     );
 
-    // Run persistImage side-effects first (writes to disk, etc.). The local
-    // paths it returns are used as a fallback if no host produces URLs.
+    // Run persistImage side-effects (writes to disk for iteration test).
     const persistedPaths = typeof opts.persistImage === 'function'
-      ? await Promise.all(images.map((img, i) => opts.persistImage(img, i)))
+      ? await Promise.all(generatedImages.map((img, i) => opts.persistImage(img, i)))
       : null;
 
     if (host === 'github') {
-      try {
-        const { urls } = await uploadAssets({
-          images,
-          brandId: brand?.id,
-          campaignId,
-          subject: structure.subject,
-          assistant,
-        });
-        imagePaths = urls;
-      } catch (e) {
-        assistant.error(`Newsletter generator: image upload failed — ${e.message}`);
-        imagePaths = persistedPaths || images.map((_, i) => `about:blank#section-${i + 1}`);
-      }
+      // Compute image URLs from the deterministic path — no upload needed yet.
+      // The URLs are based on branch + path, not commit SHA, so they're valid
+      // before the commit exists. Everything uploads in one atomic commit later.
+      const imgBase = cdnBase ? `${cdnBase}/${brand?.id}` : `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${brand?.id}`;
+      imagePaths = generatedImages.map((_, i) => `${imgBase}/content/${campaignId}/section-${i + 1}.png`);
     } else {
-      // 'local' — use persisted paths if available, else placeholder
-      imagePaths = persistedPaths || images.map((_, i) => `about:blank#section-${i + 1}`);
+      imagePaths = persistedPaths || generatedImages.map((_, i) => `about:blank#section-${i + 1}`);
     }
 
-    assistant.log(`Newsletter generator: ${images.length} images rendered`);
-
-    // Stash images on the return for callers that want to access raw buffers
-    opts._lastImages = images;
+    assistant.log(`Newsletter generator: ${generatedImages.length} images rendered`);
+    opts._lastImages = generatedImages;
   };
 
   // The linked-article build is gated by config.article.enabled and needs a lead
@@ -307,9 +313,9 @@ async function generate(Manager, assistant, settings, opts = {}) {
 
   const summaryText = (structure.summary || '').trim();
 
-  // 3b. Upload the rendered HTML + markdown + summary to GitHub alongside the
-  //     images. All four kinds live in the same {brandId}/{campaignId}/ folder.
-  //     The folder URL becomes the canonical archive of the issue.
+  // 3b. Upload EVERYTHING to GitHub in one atomic commit — images + HTML +
+  //     markdown + summary. Image URLs were pre-computed from the deterministic
+  //     path, so the HTML already embeds the correct URLs before the commit exists.
   let assetsFolderUrl = null;
   let htmlUrl = null;
   let previewUrl = null;
@@ -319,12 +325,14 @@ async function generate(Manager, assistant, settings, opts = {}) {
   if (host === 'github') {
     try {
       const upload = await uploadAssets({
+        images: generatedImages,
         html,
         markdown,
         summary: summaryText || undefined,
         brandId: brand?.id,
         campaignId,
         subject: structure.subject,
+        cdnBase,
         assistant,
       });
       assetsFolderUrl = upload.folderUrl;
@@ -333,7 +341,7 @@ async function generate(Manager, assistant, settings, opts = {}) {
       markdownUrl = upload.markdownUrl || null;
       summaryUrl = upload.summaryUrl || null;
     } catch (e) {
-      assistant.error(`Newsletter generator: HTML upload failed — ${e.message}`);
+      assistant.error(`Newsletter generator: asset upload failed — ${e.message}`);
     }
   }
 
@@ -377,7 +385,7 @@ async function generate(Manager, assistant, settings, opts = {}) {
   //     paste), markdown URL (per-section blocks for ad insertion), summary
   //     URL, and the tags to set. Failure of THIS email is logged but never
   //     blocks the cron — the campaign doc is still written either way.
-  if (beehiivFailureReason && htmlUrl) {
+  if (beehiivFailureReason) {
     await sendBeehiivFallbackEmail(Manager, assistant, {
       brand,
       subject: structure.subject,
@@ -389,6 +397,7 @@ async function generate(Manager, assistant, settings, opts = {}) {
       summaryUrl,
       folderUrl: assetsFolderUrl,
       reason: beehiivFailureReason,
+      articles: (articleResult?.published) ? [{ title: articleResult.article?.title || structure.sections?.[0]?.title, url: articleResult.url }] : [],
     });
   }
 
@@ -545,15 +554,25 @@ async function buildLinkedArticle({ Manager, assistant, brand, config, structure
     return { url, slug, path: null, published: false, article };
   }
 
-  const result = await publishArticle(assistant, {
-    brand: publicConfig,
-    article,
-    id: Math.round(Date.now() / 1000),
-    author: config?.article?.author,
-    postPath: 'newsletter',
-  });
+  try {
+    const result = await publishArticle(assistant, {
+      brand: publicConfig,
+      article,
+      id: Math.round(Date.now() / 1000),
+      author: config?.article?.author,
+      postPath: 'newsletter',
+    });
 
-  return { url: result.url || url, slug: result.slug || slug, path: result.path, published: true, article };
+    if (result?.path) {
+      return { url: result.url || url, slug: result.slug || slug, path: result.path, published: true, article };
+    }
+
+    assistant.log(`Newsletter generator: publishArticle returned no path — treating as unpublished`);
+    return { url, slug, path: null, published: false, article };
+  } catch (e) {
+    assistant.error(`Newsletter generator: publishArticle failed — ${e.message}`);
+    return { url, slug, path: null, published: false, article };
+  }
 }
 
 /**
@@ -599,39 +618,73 @@ async function sendBeehiivFallbackEmail(Manager, assistant, args) {
     const email = Manager.Email(assistant);
     const messageLines = [];
 
-    messageLines.push(`<strong>Beehiiv draft creation failed</strong> — the newsletter is generated and archived, but needs to be manually uploaded to Beehiiv.`);
+    messageLines.push(`The newsletter is generated and archived, but Beehiiv draft creation failed. It needs to be manually uploaded.`);
     messageLines.push('');
-    messageLines.push(`<strong>Failure reason:</strong> ${args.reason}`);
-    messageLines.push('');
-    messageLines.push('<strong>Newsletter details:</strong>');
+
+    // --- Failure ---
+    messageLines.push('<strong>Failure reason</strong>');
     messageLines.push('<ul>');
-    messageLines.push(`<li><strong>Subject:</strong> ${args.subject}</li>`);
-    messageLines.push(`<li><strong>Preheader:</strong> ${args.preheader || '(none)'}</li>`);
+    messageLines.push(`<li>${args.reason}</li>`);
+    messageLines.push('</ul>');
+    messageLines.push('');
+
+    // --- Details ---
+    messageLines.push('<strong>Newsletter details</strong>');
+    messageLines.push('<ul>');
+    messageLines.push(`<li>Subject: ${args.subject}</li>`);
+    messageLines.push(`<li>Preheader: ${args.preheader || '(none)'}</li>`);
     if (args.tags?.length) {
-      messageLines.push(`<li><strong>Tags:</strong> ${args.tags.join(', ')}</li>`);
+      messageLines.push(`<li>Tags: ${args.tags.join(', ')}</li>`);
     }
     messageLines.push('</ul>');
     messageLines.push('');
-    messageLines.push('<strong>Assets:</strong>');
-    messageLines.push('<ul>');
-    messageLines.push('<li><strong>Full HTML</strong> (one-shot paste into Beehiiv)');
+
+    // --- Full HTML ---
+    messageLines.push('<strong>Full HTML</strong> — one-shot paste into Beehiiv');
     messageLines.push('<ul>');
     if (args.previewUrl) {
       messageLines.push(`<li><a href="${args.previewUrl}">Preview in browser</a></li>`);
     }
     messageLines.push(`<li><a href="${args.htmlUrl}">View raw HTML</a></li>`);
     messageLines.push('</ul>');
-    messageLines.push('</li>');
+    messageLines.push('');
+
+    // --- Markdown ---
     if (args.markdownUrl) {
-      messageLines.push(`<li><a href="${args.markdownUrl}"><strong>Per-section markdown</strong></a> — paste as separate blocks, ads between</li>`);
+      messageLines.push('<strong>Per-section markdown</strong> — paste as separate blocks, ads between');
+      messageLines.push('<ul>');
+      messageLines.push(`<li><a href="${args.markdownUrl}">View markdown</a></li>`);
+      messageLines.push('</ul>');
+      messageLines.push('');
     }
+
+    // --- Summary ---
     if (args.summaryUrl) {
-      messageLines.push(`<li><a href="${args.summaryUrl}"><strong>Summary</strong></a> — 2-3 sentence recap</li>`);
+      messageLines.push('<strong>Summary</strong> — 2-3 sentence recap');
+      messageLines.push('<ul>');
+      messageLines.push(`<li><a href="${args.summaryUrl}">View summary</a></li>`);
+      messageLines.push('</ul>');
+      messageLines.push('');
     }
+
+    // --- Linked articles (only published ones) ---
+    if (args.articles?.length) {
+      messageLines.push('');
+      messageLines.push('<strong>Linked articles</strong>');
+      messageLines.push('<ul>');
+      for (const article of args.articles) {
+        messageLines.push(`<li><a href="${article.url}">${article.title || 'Article'}</a></li>`);
+      }
+      messageLines.push('</ul>');
+    }
+
+    // --- All assets ---
     if (args.folderUrl) {
-      messageLines.push(`<li><a href="${args.folderUrl}"><strong>All assets</strong></a> — GitHub folder</li>`);
+      messageLines.push('<strong>All assets</strong> — full GitHub archive');
+      messageLines.push('<ul>');
+      messageLines.push(`<li><a href="${args.folderUrl}">Browse folder</a></li>`);
+      messageLines.push('</ul>');
     }
-    messageLines.push('</ul>');
 
     await email.send({
       sender: 'internal',  // resolves to alerts@{brandDomain}

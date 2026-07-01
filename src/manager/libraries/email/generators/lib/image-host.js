@@ -31,6 +31,12 @@ const { Octokit } = require('@octokit/rest');
 const REPO_OWNER = 'itw-creative-works';
 const REPO_NAME  = 'newsletter-assets';
 
+// When true, asset URLs use the parent CDN (cdn.{parentDomain}/newsletters/...)
+// instead of raw.githubusercontent.com. Requires a Cloudflare redirect rule
+// on the CDN domain that maps /newsletters/* to raw.githubusercontent.com.
+// Set to false to revert to direct GitHub URLs.
+const USE_CDN_URLS = true;
+
 const PAGES_BASE = `https://${REPO_OWNER}.github.io/${REPO_NAME}`;
 
 // Fallback RAW_BASE for callers that don't have a brand context
@@ -65,11 +71,14 @@ const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
  * @param {string} [args.subject] - Newsletter subject. Embedded in the commit message so
  *                                  `git log` reads as a human-browseable history.
  * @param {string} [args.commitMessage] - Full override of the default commit message
+ * @param {string} [args.cdnBase] - CDN base URL (e.g. 'https://cdn.itwcreativeworks.com/newsletters').
+ *                                  When provided and USE_CDN_URLS is true, asset URLs use this
+ *                                  instead of raw.githubusercontent.com.
  * @param {string} [args.token] - GitHub token (defaults to process.env.GH_TOKEN)
  * @param {object} [args.assistant] - logger
  * @returns {Promise<{ urls: string[], paths: string[], htmlUrl?: string, htmlPath?: string, previewUrl?: string, folderUrl: string, commitSha: string }>}
  */
-async function uploadAssets({ images, html, markdown, summary, brandId, campaignId, subject, commitMessage, token, assistant }) {
+async function uploadAssets({ images, html, markdown, summary, brandId, campaignId, subject, commitMessage, cdnBase, token, assistant }) {
   const hasImages = Array.isArray(images) && images.length > 0;
   const hasHtml = typeof html === 'string' && html.length > 0;
   const hasMarkdown = typeof markdown === 'string' && markdown.length > 0;
@@ -92,7 +101,11 @@ async function uploadAssets({ images, html, markdown, summary, brandId, campaign
 
   // Brand branch — each brand gets its own branch, zero cross-brand contention
   const branch = brandId;
-  const rawBase = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${branch}`;
+  const gitRawBase = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${branch}`;
+
+  // CDN URLs: cdn.{parentDomain}/newsletters/{brandId}/content/{campaignId}/...
+  // The CDN redirect maps /newsletters/{brandId}/* → raw.githubusercontent.com/{brandId}/*
+  const assetBase = (USE_CDN_URLS && cdnBase) ? `${cdnBase}/${brandId}` : gitRawBase;
 
   // 1. Build the list of files to commit. Validate each before we touch GitHub.
   const files = [];
@@ -225,42 +238,55 @@ async function uploadAssets({ images, html, markdown, summary, brandId, campaign
     });
   }
 
-  // 4. Build tree on top of the branch tip
-  const { data: baseCommit } = await octokit.rest.git.getCommit({
-    owner: REPO_OWNER,
-    repo: REPO_NAME,
-    commit_sha: branchSha,
-  });
-
-  const { data: newTree } = await octokit.rest.git.createTree({
-    owner: REPO_OWNER,
-    repo: REPO_NAME,
-    base_tree: baseCommit.tree.sha,
-    tree: treeItems,
-  });
-
-  // 5. Commit
+  // 4. Commit + push with retry. The newsletter pipeline calls uploadAssets
+  //    twice sequentially (images then HTML). GitHub's API can return a stale
+  //    ref on the second getRef if the first updateRef hasn't fully propagated.
+  //    Retry with a fresh ref read + jitter handles this.
   const defaultSubject = subject ? subject.trim() : `${files.length} newsletter asset${files.length === 1 ? '' : 's'}`;
   const message = commitMessage || `[${brandId}] ${campaignId} — ${defaultSubject}`;
+  const MAX_RETRIES = 3;
+  let newCommit;
 
-  const { data: newCommit } = await octokit.rest.git.createCommit({
-    owner: REPO_OWNER,
-    repo: REPO_NAME,
-    message,
-    tree: newTree.sha,
-    parents: [branchSha],
-  });
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    const { data: refData } = await octokit.rest.git.getRef({
+      owner: REPO_OWNER, repo: REPO_NAME, ref: `heads/${branch}`,
+    });
+    const tipSha = refData.object.sha;
 
-  // 6. Update brand branch ref. Since each brand has its own branch,
-  //    the only possible race is the SAME brand uploading images and HTML
-  //    at the same time — which is sequential in the newsletter pipeline.
-  //    No retry/jitter needed.
-  await octokit.rest.git.updateRef({
-    owner: REPO_OWNER,
-    repo: REPO_NAME,
-    ref: `heads/${branch}`,
-    sha: newCommit.sha,
-  });
+    const { data: baseCommit } = await octokit.rest.git.getCommit({
+      owner: REPO_OWNER, repo: REPO_NAME, commit_sha: tipSha,
+    });
+
+    const { data: newTree } = await octokit.rest.git.createTree({
+      owner: REPO_OWNER, repo: REPO_NAME,
+      base_tree: baseCommit.tree.sha,
+      tree: treeItems,
+    });
+
+    newCommit = (await octokit.rest.git.createCommit({
+      owner: REPO_OWNER, repo: REPO_NAME,
+      message,
+      tree: newTree.sha,
+      parents: [tipSha],
+    })).data;
+
+    try {
+      await octokit.rest.git.updateRef({
+        owner: REPO_OWNER, repo: REPO_NAME,
+        ref: `heads/${branch}`,
+        sha: newCommit.sha,
+      });
+      break;
+    } catch (e) {
+      if (attempt < MAX_RETRIES && /fast.forward/i.test(e.message)) {
+        const jitter = 500 + Math.floor(Math.random() * 1500);
+        log(`updateRef race (attempt ${attempt}/${MAX_RETRIES}), retrying in ${jitter}ms...`);
+        await new Promise(r => setTimeout(r, jitter));
+        continue;
+      }
+      throw e;
+    }
+  }
 
   // 7. Split the URL list by kind so callers can grab each independently.
   const imageFiles = files.filter((f) => f.kind === 'image');
@@ -269,25 +295,25 @@ async function uploadAssets({ images, html, markdown, summary, brandId, campaign
   const summaryFile = files.find((f) => f.kind === 'summary');
 
   const result = {
-    urls: imageFiles.map((f) => `${rawBase}/${f.path}`),
+    urls: imageFiles.map((f) => `${assetBase}/${f.path}`),
     paths: imageFiles.map((f) => f.path),
     folderUrl: `https://github.com/${REPO_OWNER}/${REPO_NAME}/tree/${branch}/${CONTENT_DIR}/${campaignId}`,
     commitSha: newCommit.sha,
   };
 
   if (htmlFile) {
-    result.htmlUrl = `${rawBase}/${htmlFile.path}`;
+    result.htmlUrl = `${assetBase}/${htmlFile.path}`;
     result.htmlPath = htmlFile.path;
     result.previewUrl = `${PAGES_BASE}/?path=${encodeURIComponent(htmlFile.path)}&branch=${encodeURIComponent(branch)}`;
   }
 
   if (markdownFile) {
-    result.markdownUrl = `${rawBase}/${markdownFile.path}`;
+    result.markdownUrl = `${assetBase}/${markdownFile.path}`;
     result.markdownPath = markdownFile.path;
   }
 
   if (summaryFile) {
-    result.summaryUrl = `${rawBase}/${summaryFile.path}`;
+    result.summaryUrl = `${assetBase}/${summaryFile.path}`;
     result.summaryPath = summaryFile.path;
   }
 
@@ -310,6 +336,7 @@ function validateCampaignId(campaignId) {
 
 module.exports = {
   uploadAssets,
+  USE_CDN_URLS,
   REPO_OWNER,
   REPO_NAME,
   RAW_BASE,
