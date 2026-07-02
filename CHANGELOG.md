@@ -14,6 +14,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.11.5] - 2026-07-02
+
+### Fixed
+- **`FieldValue.delete()` crash in the campaign cron's generator paths** — `marketing-campaigns.js` (new in 5.11.4) read `admin.firestore.FieldValue`, a static firebase-admin v13 no longer exposes, so every branch clearing `generatorAttempts` threw `Cannot read properties of undefined (reading 'delete')`. Test-visible: the recurring retry-cap branch never advanced (`generator-retry-cap-fails-oneoff-and-skips-recurring` timed out — shipped failing in 5.11.4). Production-critical: BOTH post-send branches had the same crash — a successful recurring generator send would write its history doc + send the campaign, then die before advancing `sendAt`, leaving the doc `processing` until the stale-lease reclaim re-ran it: one duplicate send per 30-min lease window. Now imports `{ FieldValue } = require('firebase-admin/firestore')` (the modular pattern `admin/send-email.js` already uses).
+- **Race in `campaign-cron-pipeline`'s `trigger-frequent-cron` wait** — the one-off condition was `status !== 'pending'`, which the claim's intermediate `processing` state satisfies, so the suite could proceed mid-send and `oneoff-campaign-processed` read `processing` (flaked in full consumer runs). Now waits for a terminal `sent`/`failed` like the stale-processing condition already did.
+- **`no-wait-gets-clobbered` (auth-delete-race, since 5.7.2) no longer flakes on benign scheduler ordering** — the test asserts the late-on-delete clobber manifests, but when the emulator finishes the on-delete BEFORE the re-create's onCreate write, the dangerous ordering never materializes that run and the assertion failed on scheduler luck. The benign ordering now runtime-`skip`s (with teardown); only the clobber outcome is asserted.
+
+### Changed
+- **`bm_cronFrequent` memory back to 256MB** — 5.11.4 doubled it to 512MB for newsletter-generator image buffers; reverted per review (the 540s timeout stays). An OOM'd generator run is retried safely by the campaign lease reclaim, same as a timeout.
+
 # [5.11.4] - 2026-07-02
 
 ### Fixed

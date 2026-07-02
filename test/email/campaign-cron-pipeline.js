@@ -255,7 +255,11 @@ module.exports = {
             const unknownGenerator = await firestore.get('marketing-campaigns/_test-unknown-generator');
             const unknownType = await firestore.get('marketing-campaigns/_test-unknown-type');
 
-            return oneoff?.status !== 'pending'
+            // 'sent'/'failed' — NOT merely !== 'pending': the claim flips the
+            // doc to 'processing' first, and proceeding on that mid-flight
+            // state races the send (oneoff-campaign-processed then reads
+            // 'processing' and fails).
+            return ['sent', 'failed'].includes(oneoff?.status)
               && recurring?.sendAt !== state.pastSendAt
               && recurringStale?.sendAt !== state.staleSendAt
               && ['sent', 'failed'].includes(staleProcessing?.status)

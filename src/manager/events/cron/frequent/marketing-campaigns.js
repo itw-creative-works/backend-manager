@@ -39,6 +39,9 @@ const moment = require('moment');
 const pushid = require('pushid');
 const notification = require('../../../libraries/notification.js');
 const { getNextFutureOccurrence } = require('../../../libraries/email/constants.js');
+// firebase-admin v13 dropped the admin.firestore.FieldValue static — import
+// the modular way (same pattern as admin/send-email.js).
+const { FieldValue } = require('firebase-admin/firestore');
 
 // How long a 'processing' lease is honored before the campaign of a crashed or
 // timed-out run is reclaimed for retry. Must comfortably exceed the function
@@ -147,7 +150,7 @@ module.exports = async ({ Manager, assistant, libraries }) => {
             await doc.ref.set({
               status: 'pending',
               sendAt: nextSendAt,
-              generatorAttempts: admin.firestore.FieldValue.delete(),
+              generatorAttempts: FieldValue.delete(),
               metadata: { updated: stamp() },
             }, { merge: true });
 
@@ -216,7 +219,7 @@ module.exports = async ({ Manager, assistant, libraries }) => {
         await doc.ref.set({
           status: 'pending',
           sendAt: nextSendAt,
-          generatorAttempts: admin.firestore.FieldValue.delete(),
+          generatorAttempts: FieldValue.delete(),
           metadata: { updated: stamp() },
         }, { merge: true });
 
@@ -226,7 +229,7 @@ module.exports = async ({ Manager, assistant, libraries }) => {
         await doc.ref.set({
           status: success ? 'sent' : 'failed',
           results: campaignResults,
-          generatorAttempts: admin.firestore.FieldValue.delete(),
+          generatorAttempts: FieldValue.delete(),
           metadata: { updated: stamp() },
         }, { merge: true });
 
