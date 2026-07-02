@@ -39,6 +39,19 @@ module.exports = {
     },
 
     {
+      name: 'isURL-rejects-colon-prefixed-text-and-non-http-schemes',
+      async run({ assert }) {
+        // "AI:" parses as a URL scheme via new URL() — these are text seeds,
+        // not URLs, and must NOT be fetched (the fetch fails and the seed is
+        // silently lost)
+        assert.equal(isURL('AI: the future of work'), false);
+        assert.equal(isURL('Growth: 10 tactics for creators'), false);
+        assert.equal(isURL('mailto:someone@example.com'), false);
+        assert.equal(isURL('ftp://example.com/file'), false);
+      },
+    },
+
+    {
       name: 'isURL-rejects-empty-and-null',
       async run({ assert }) {
         assert.equal(isURL(''), false);

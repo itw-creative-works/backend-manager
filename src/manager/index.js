@@ -1126,8 +1126,12 @@ Manager.prototype.setupFunctions = function (exporter, options) {
   .pubsub.schedule('0 0 * * *')
   .onRun((context) => self.EventMiddleware({ context }).run(`${cron}/daily.js`));
 
+  // Frequent cron runs the inline newsletter generator (AI structure + section
+  // images + article + uploads) — needs the v1 max timeout and headroom for
+  // image buffers. If a run still times out, the campaign lease reclaim in
+  // marketing-campaigns.js retries it safely.
   exporter.bm_cronFrequent =
-  fn({memory: '256MB', timeoutSeconds: 60 * 5})
+  fn({memory: '512MB', timeoutSeconds: 540})
   .pubsub.schedule('*/10 * * * *')
   .onRun((context) => self.EventMiddleware({ context }).run(`${cron}/frequent.js`));
 };

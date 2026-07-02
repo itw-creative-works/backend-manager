@@ -69,6 +69,15 @@ const { trackContentSource, contentSourceHash, resolveSources } = require('../..
  * @returns {object|null} Updated settings with content filled in, or null if unavailable
  */
 async function generate(Manager, assistant, settings, opts = {}) {
+  // Same convention as the marketing providers (email/marketing/index.js):
+  // default test runs never hit the real pipeline (AI calls + GitHub commit +
+  // Beehiiv post + report email). TEST_EXTENDED_MODE opts into
+  // production-equivalent side effects.
+  if (assistant.isTesting() && !process.env.TEST_EXTENDED_MODE) {
+    assistant.log('Newsletter generator: skipped in test mode (set TEST_EXTENDED_MODE to run the real pipeline)');
+    return null;
+  }
+
   const newsletterRoleConfig = Manager.config?.marketing?.newsletter;
   const rawContent = newsletterRoleConfig?.content;
 
@@ -270,6 +279,7 @@ async function generate(Manager, assistant, settings, opts = {}) {
       brand,
       config,
       structure,
+      sources: filteredSources,
       publish: !!opts.publishArticle,
     }).catch((e) => {
       assistant.error(`Newsletter generator: linked article failed — ${e.message}`);
@@ -523,10 +533,12 @@ async function generate(Manager, assistant, settings, opts = {}) {
  * @param {object} args.brand - { id, name, url, ... }
  * @param {object} args.config - marketing.newsletter.content (tone, instructions, article.author)
  * @param {object} args.structure - newsletter structure (sections[0] is the lead)
+ * @param {object[]} [args.sources] - The brand-fit sources that fed the issue. Their URLs are
+ *                                    passed to admin/post as the article's `source` attribution.
  * @param {boolean} [args.publish] - Commit the post to GitHub via admin/post. Default false.
  * @returns {Promise<{url, slug, path, published}|null>}
  */
-async function buildLinkedArticle({ Manager, assistant, brand, config, structure, publish }) {
+async function buildLinkedArticle({ Manager, assistant, brand, config, structure, sources, publish }) {
   const lead = structure.sections[0] || {};
   const publicConfig = buildPublicConfig(Manager.config);
 
@@ -566,7 +578,7 @@ async function buildLinkedArticle({ Manager, assistant, brand, config, structure
   }
 
   try {
-    const sourceUrls = sources.map(s => s.url || s.id).filter(Boolean);
+    const sourceUrls = (sources || []).map(s => s.url || s.id).filter(Boolean);
     const result = await publishArticle(assistant, {
       brand: publicConfig,
       article,

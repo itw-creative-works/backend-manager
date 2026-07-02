@@ -3,10 +3,10 @@
 
 ## 🎯 Current Focus
 * **Goal:** Fix newsletter pipeline end-to-end — cron, generation, asset hosting, delivery
-* **Current Phase:** Unified source resolution complete — pending v5.11.0 publish + Cloudflare CDN rule + consumer deploys.
+* **Current Phase:** Phase 12 (campaign pipeline hardening) complete + validated — unshipped in working tree; ship + consumer deploys next.
 * **Priority:** High
-* **Last Updated:** 2026-07-01 3:00 PM PDT
-* **Notes:** resolveSources() in source-resolver.js is now the SSOT for blog + newsletter source picking: random picks from the entry's sources array, type-hierarchy fallback ($feed → other feeds → $parent; $parent → parent only; NOTHING falls back to $brand), Firestore + session dedup (fixes duplicate parent sources + missing used-check in old newsletter path), mark-used only after success. Newsletter sourceCount config (default 6). 31 resolver tests + 7 cron tests + extended e2e all passing. Docs updated (ghostii.md, marketing-campaigns.md).
+* **Last Updated:** 2026-07-02 1:45 AM PDT
+* **Notes:** Full-system review found + fixed: (1) `sources` ReferenceError in buildLinkedArticle — article publishing silently broken in prod since 5.11.0; (2) one-off generator campaigns never finalized (re-fired every 10 min); (3) no claim/lease → double-send risk (now transactional pending→processing + 30-min stale reclaim); (4) catch-up bursts on stalled recurring (now getNextFutureOccurrence); (5) generator empty-run retry cap (36); (6) newsletter generate() test-mode gate (default test runs were firing the REAL pipeline in background); (7) isURL http(s)-only. bm_cronFrequent → 512MB/540s. Cron suite 7→13 tests, all green; extended e2e published a real article + CTA verified; CDN rule live (302→200). CHANGELOG [Unreleased] + docs updated. NOT yet shipped/published.
 
 ## 📌 Active Task List
 * [x] One-off: CDP doc rewrite for the per-session isolated browser (2026-07-01)
@@ -45,8 +45,20 @@
   * [x] Task 11.30: Newsletter sourceCount config (default 6) — replaces process-every-feed + 9-parent-sources behavior
   * [x] Task 11.31: Tests rewritten for new hierarchy (31 passing) + extended e2e verified (resolver picks 6/6, dedupes 9→7 parent pool)
   * [x] Task 11.32: Publish BEM v5.11.0
-  * [ ] Task 11.33: Set up Cloudflare redirect rule for cdn.itwcreativeworks.com/newsletters/*
+  * [x] Task 11.33: Set up Cloudflare redirect rule for cdn.itwcreativeworks.com/newsletters/* (verified: cdn URLs 302 → raw.githubusercontent → 200)
   * [ ] Task 11.34: Update + deploy all consumer backends with new BEM + array config format
+* [ ] Phase 12: Campaign pipeline hardening (from full-system review)
+  * [x] Task 12.1: Fix `sources` ReferenceError in buildLinkedArticle — article publishing silently broken in prod since 5.11.0 (swallowed by try/catch); pass filteredSources in
+  * [x] Task 12.2: Finalize one-off generator campaigns (were re-firing every 10 min forever); unknown type/generator → status 'failed' + error field
+  * [x] Task 12.3: Claim/lease lifecycle — transactional pending→processing claim, stale-lease reclaim after 30 min, no double-sends from overlapping/timed-out runs
+  * [x] Task 12.4: getNextFutureOccurrence() — recurring advance skips missed occurrences (no catch-up bursts)
+  * [x] Task 12.5: Generator empty-run retry cap (generatorAttempts, 36 ≈ 6h) — recurring skips occurrence, one-off fails
+  * [x] Task 12.6: Test-mode gate on newsletter generate() (isTesting && !TEST_EXTENDED_MODE → null) — default test runs no longer fire the real pipeline in the background
+  * [x] Task 12.7: isURL() http(s)-only — colon-prefixed text seeds ("AI: ...") no longer misclassified as URLs and lost
+  * [x] Task 12.8: bm_cronFrequent 512MB/540s (was 256MB/300s); strip article payload from history-doc settings
+  * [x] Task 12.9: Tests — cron suite 7→13 (lease reclaim, fresh-lease no-touch, unknown type/gen, catch-up, retry cap ×2, attempts bookkeeping), pure getNextFutureOccurrence, isURL colon cases, extended-mode published-article + CTA regression asserts. All green (13 + 41 default; extended e2e published real article)
+  * [x] Task 12.10: Docs — marketing-campaigns.md (lease lifecycle, statuses, retry cap, catch-up, test gating), CHANGELOG [Unreleased]
+  * [ ] Task 12.11: Ship + publish BEM, then deploy consumers (picks up 512MB/540s cron runtime)
 * [ ] Phase 9: Blog auto-publisher dedup + fallback fixes
   * [x] Task 9.1: Diagnose — $brand fallback ignoring user config, per-feed-only dedup, weak prompt
   * [x] Task 9.2: Add `getRecentTitles` to source-resolver.js (collects both postTitle + itemTitle)

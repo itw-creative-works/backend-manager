@@ -238,10 +238,9 @@ async function uploadAssets({ images, html, markdown, summary, brandId, campaign
     });
   }
 
-  // 4. Commit + push with retry. The newsletter pipeline calls uploadAssets
-  //    twice sequentially (images then HTML). GitHub's API can return a stale
-  //    ref on the second getRef if the first updateRef hasn't fully propagated.
-  //    Retry with a fresh ref read + jitter handles this.
+  // 4. Commit + push with retry. Per-brand branches make ref races effectively
+  //    impossible (one writer per branch), but keep a defensive retry in case
+  //    the same brand ever uploads concurrently or GitHub returns a stale ref.
   const defaultSubject = subject ? subject.trim() : `${files.length} newsletter asset${files.length === 1 ? '' : 's'}`;
   const message = commitMessage || `[${brandId}] ${campaignId} — ${defaultSubject}`;
   const MAX_RETRIES = 3;

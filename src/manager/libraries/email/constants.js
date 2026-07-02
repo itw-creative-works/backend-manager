@@ -194,6 +194,37 @@ function getNextOccurrence(currentSendAt, recurrence) {
 }
 
 /**
+ * Like getNextOccurrence, but guarantees the returned time is in the FUTURE.
+ *
+ * A recurring campaign that stalled for several periods (cron outage, sources
+ * dried up, repeated failures) advances past ALL missed occurrences instead of
+ * firing a catch-up burst — one send per cron tick until sendAt catches up.
+ *
+ * @param {number} currentSendAt - Current fire time (unix)
+ * @param {object} recurrence - { pattern, hour, day, nth?, minute? }
+ * @param {number} [now] - Unix time to advance past (defaults to Date.now())
+ * @returns {number} Next fire time strictly after `now`
+ */
+function getNextFutureOccurrence(currentSendAt, recurrence, now) {
+  now = now || Math.round(Date.now() / 1000);
+
+  let next = getNextOccurrence(currentSendAt, recurrence);
+
+  while (next <= now) {
+    const after = getNextOccurrence(next, recurrence);
+
+    // Safety: a recurrence must strictly advance, otherwise bail out
+    if (after <= next) {
+      break;
+    }
+
+    next = after;
+  }
+
+  return next;
+}
+
+/**
  * Convert SVG image URLs to PNG equivalents — email clients don't render SVGs.
  * CDN naming convention: `-x.svg` -> `-1024.png`
  */
@@ -401,4 +432,5 @@ module.exports = {
   nextNthWeekday,
   nextMonthDay,
   getNextOccurrence,
+  getNextFutureOccurrence,
 };

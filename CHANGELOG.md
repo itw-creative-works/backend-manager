@@ -14,6 +14,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.11.4] - 2026-07-02
+
+### Fixed
+- **Linked-article publishing was silently broken in production since 5.11.0** — `buildLinkedArticle()` referenced `sources` (a variable that only exists inside `generate()`), throwing a ReferenceError that the publish try/catch swallowed as "publishArticle failed". Every production run generated the article but never committed it, so the CTA was never injected and the report email never listed articles. The brand-fit sources are now passed in explicitly; verified end-to-end with a real published article (`NEWSLETTER_CREATE_ARTICLE=1` extended run now asserts `published === true` + CTA injection as a regression guard).
+- **One-off generator campaigns were never finalized** — the generator branch only advanced recurring campaigns; a one-off kept `status: 'pending'` with a past `sendAt` and would regenerate + resend every 10 minutes forever. One-offs are now finalized to `sent`/`failed` like non-generator campaigns.
+- **Newsletter generator now gates itself in normal test mode** (`assistant.isTesting() && !TEST_EXTENDED_MODE` → `null`), same convention as the marketing providers and the 5.11.3 blog-cron gate. Ungated, every normal consumer test run kicked off the REAL pipeline in the background from the cron suite's seeded generator campaign — AI spend, GitHub commits, Beehiiv drafts, and stray report emails per test run.
+- **`isURL()` (source-resolver) only accepts `http(s)://`** — a bare `new URL()` check misclassified colon-prefixed text seeds ("AI: the future of work" parses with scheme `ai:`) as URLs; the fetch then failed and the seed was silently lost.
+
+### Added
+- **Claim/lease lifecycle for campaign processing** — the frequent cron transactionally claims each due campaign (`pending` → `processing` + `processingStartedAt`) before any work, making double-sends from overlapping/timed-out runs impossible. Stale leases (crashed runs) are reclaimed after 30 min — a natural retry backoff. Unknown campaign types/generators are marked `failed` with an `error` field instead of retrying forever.
+- **`getNextFutureOccurrence()` (constants.js)** — recurring advance now skips ALL missed occurrences and always lands in the future. A weekly campaign stalled 3 weeks sends ONE issue and resumes schedule instead of firing a catch-up burst (one send per cron tick).
+- **Generator empty-run retry cap** — `generatorAttempts` tracks consecutive null generations; after 36 (~6h at the 10-min cadence) a recurring campaign skips to its next occurrence and a one-off is failed, instead of retrying every 10 minutes forever.
+- **6 new campaign-cron tests** (13 total) — stale-lease reclaim, fresh-lease no-touch, unknown type/generator failure, catch-up-safe advance, retry-cap one-off + recurring, generator attempts bookkeeping; plus pure `getNextFutureOccurrence` coverage and `isURL` colon-text regression cases.
+
+### Changed
+- **`bm_cronFrequent` runtime bumped to 512MB / 540s** (was 256MB / 300s) — the inline newsletter generator (AI structure + section images + article + uploads) ran close to the old 5-minute timeout; a mid-flight kill after Beehiiv publish but before the history write meant a duplicate send on retry. The lease reclaim now also covers that window.
+- **Generator history docs no longer store the full `article` payload** in `settings` (stripped alongside `structure`/`mjml`/image buffers) — keeps campaign docs clear of Firestore's 1MB ceiling and send payloads lean.
+
 # [5.11.3] - 2026-07-02
 
 ### Fixed

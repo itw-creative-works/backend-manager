@@ -474,6 +474,18 @@ module.exports = {
     assert.ok(result.contentMarkdown, 'Generator returned contentMarkdown');
     assert.ok(result.structure?.sections?.length >= 2, 'Has at least 2 sections');
 
+    // Regression guard: with NEWSLETTER_CREATE_ARTICLE=1 the linked article
+    // must actually PUBLISH (commit to the website repo) and the CTA must be
+    // injected. Catches publish-path failures that generate-only runs mask
+    // (e.g. the v5.11.0 `sources` scope bug that silently failed every
+    // production publish inside buildLinkedArticle's try/catch).
+    if (env.NEWSLETTER_CREATE_ARTICLE && result.article) {
+      assert.ok(result.article.published === true,
+        `Linked article must be published when NEWSLETTER_CREATE_ARTICLE=1 (url: ${result.article.url})`);
+      assert.ok(result.structure.sections[0]?.cta?.url === result.article.url,
+        'Lead section CTA must point at the published article');
+    }
+
     // --- Write outputs ---
     const previewPath = path.join(runDir, 'newsletter.html');
     jetpack.write(previewPath, result.contentHtml);

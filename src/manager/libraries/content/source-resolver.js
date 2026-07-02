@@ -526,7 +526,14 @@ function getURLContent(url) {
   });
 }
 
+// http(s) only — a bare `new URL()` check misclassifies colon-prefixed text
+// seeds ("AI: the future of work" parses with scheme "ai:") as URLs, which
+// then fail to fetch and silently lose the seed.
 function isURL(url) {
+  if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) {
+    return false;
+  }
+
   try {
     return !!new URL(url);
   } catch (e) {

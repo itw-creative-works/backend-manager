@@ -15,13 +15,16 @@
 {
   settings: { name, subject, preheader, content, template, sender, segments, excludeSegments, ... },
   sendAt: 1743465600,        // Unix timestamp (any format accepted, normalized on create)
-  status: 'pending',         // pending | sent | failed
+  status: 'pending',         // pending | processing | sent | failed
   type: 'email',             // email | push
   recurrence: { pattern, day, hour, minute?, nth? },  // Optional — makes it recurring
   generator: 'newsletter',   // Optional — runs content generator before sending
   recurringId: '_recurring-sale',      // Present on history docs (links to parent template)
   generatedFrom: '_recurring-newsletter', // Present on generated docs
   results: { campaigns: {...}, newsletter: {...} },
+  processingStartedAt: 1743465610,  // Set while claimed by a cron run (lease)
+  generatorAttempts: 2,      // Consecutive empty generator runs (retry-cap bookkeeping)
+  error: 'Unknown generator "..."',  // Set when marked failed without sending
   metadata: { created: {...}, updated: {...} },
 }
 ```
@@ -32,29 +35,44 @@
 - **Push**: dispatches to FCM via `notification.send()` (shared library)
 - Content is **markdown** — converted to HTML at send time. Template variables resolved before conversion.
 
+## Claim/Lease Lifecycle
+
+Every due campaign is **claimed** before any work happens: the cron transactionally flips `status: 'pending'` → `'processing'` (stamping `processingStartedAt`). A campaign another (overlapping) run already claimed is skipped — double-sends are impossible by construction.
+
+- Every terminal path writes a final status: `sent`/`failed` for one-offs, back to `pending` (with an advanced `sendAt`) for recurring
+- If a run dies mid-flight (crash, function timeout), the doc stays `processing` until the **stale-lease reclaim** flips it back to `pending` after `PROCESSING_LEASE_SECONDS` (30 min) — a natural retry backoff
+- Unknown campaign `type`s and unknown `generator`s are marked `failed` with an `error` field (a config typo must not retry every 10 minutes forever)
+- `PUT /marketing/campaign` only edits `pending` campaigns, so a mid-flight campaign can't be edited out from under the cron
+
 ## Recurring Campaigns
 
 Campaigns with a `recurrence` field repeat automatically:
 - Cron fires → creates a **history doc** (same collection, `recurringId` set) → advances `sendAt` to next occurrence
-- Status stays `pending` on the recurring template, history docs are `sent`/`failed`
+- Status returns to `pending` on the recurring template after each run, history docs are `sent`/`failed`
 - `_` prefix on IDs groups them at top of Firestore console
 
 Recurrence patterns: `daily`, `weekly`, `monthly`, `monthly-weekday`, `quarterly`, `yearly`
 
 The `monthly-weekday` pattern targets the Nth weekday of each month (e.g., 2nd Wednesday). Requires `nth` (1-4) and `day` (0=Sun–6=Sat) in the recurrence object. All other patterns use simple interval addition from the current `sendAt`.
 
-All scheduling helpers live in `constants.js` (SSOT): `nextWeekday()`, `nextNthWeekday()`, `nextMonthDay()`, `getNextOccurrence()`. The cron job imports from there — no duplicated logic.
+All scheduling helpers live in `constants.js` (SSOT): `nextWeekday()`, `nextNthWeekday()`, `nextMonthDay()`, `getNextOccurrence()`, `getNextFutureOccurrence()`. The cron job imports from there — no duplicated logic.
+
+**Catch-up safety:** the cron advances recurring campaigns with `getNextFutureOccurrence()`, which skips ALL missed occurrences and always lands in the future. A weekly campaign stalled for 3 weeks (cron outage, dried-up sources) sends ONE issue and resumes its schedule — never a catch-up burst of back-to-back sends.
 
 ## Generator Campaigns
 
 Campaigns with a `generator` field (e.g. `generator: 'newsletter'`) are handled by the frequent cron inline — generate content and send in one shot when `sendAt` is due:
-1. Frequent cron finds the generator campaign past its `sendAt`
+1. Frequent cron claims the generator campaign past its `sendAt`
 2. Runs the generator module (e.g., `generators/newsletter.js`)
 3. Sends the generated content immediately
-4. Stores a history record with generated content + send results
-5. Advances the recurring template's `sendAt` to the next occurrence
+4. Stores a history record with generated content + send results (bulky byproducts — `article`, `structure`, `mjml`, image buffers — are stripped from the stored settings)
+5. Recurring: advances the template's `sendAt` to the next FUTURE occurrence and returns it to `pending`. One-off: finalized to `sent`/`failed` so it is never picked up again
 
-In production, Beehiiv posts are published (`status: 'confirmed'`). In testing, they're forced to draft (`status: 'draft'`). If Beehiiv upload fails, a fallback alert email is sent to `alerts@{brandDomain}` with all asset links for manual upload.
+**Empty-run retry cap:** when the generator yields nothing (no sources, filter dropped everything), the campaign returns to `pending` with `generatorAttempts` incremented and retries next run. After `GENERATOR_MAX_ATTEMPTS` (36 ≈ 6h at the 10-minute cadence) a recurring campaign skips to its next occurrence (counter reset); a one-off is marked `failed`.
+
+**Test gating:** `generate()` short-circuits to `null` under `assistant.isTesting()` without `TEST_EXTENDED_MODE` — same convention as the marketing providers and the blog cron. A normal consumer test run never spends AI tokens or touches GitHub/Beehiiv; extended runs are production-equivalent.
+
+In production, Beehiiv posts are published (`status: 'confirmed'`). In testing, they're forced to draft (`status: 'draft'`). The report email always goes to `alerts@{brandDomain}` with all asset links; its subject adapts to whether Beehiiv upload succeeded.
 
 ## Email Rendering
 
