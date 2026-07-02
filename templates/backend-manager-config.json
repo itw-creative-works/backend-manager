@@ -150,6 +150,7 @@
       content: [
         {
           sources: ['$parent'],    // '$parent' | '$feed:https://...' | '$brand'
+          sourceCount: 6,          // how many sources are picked (randomly) per issue
           categories: [],          // e.g., ['social-media', 'marketing'] — topic constraints + AI categorization
           links: [],               // links to inject into generated content
           instructions: '',        // free-form text passed to the AI

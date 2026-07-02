@@ -1,11 +1,24 @@
 /**
  * Shared content-source resolution for blog + newsletter pipelines.
  *
- * Both blog-auto-publisher and newsletter-generator need to:
- *   - Resolve $feed:, $parent, $brand, URL, and text sources
- *   - Track used sources in Firestore (content-sources collection)
- *   - Deduplicate across runs
- *   - Follow anti-traceability rules
+ * Both blog-auto-publisher and newsletter-generator resolve their sources
+ * through the SAME function — resolveSources(). It:
+ *   - Picks random source(s) from the entry's sources array (never anything
+ *     outside the array)
+ *   - Resolves each pick to a concrete item ($feed: article, $parent source,
+ *     $brand seed, URL content, or text seed)
+ *   - Checks Firestore (content-sources collection) so used items are never
+ *     re-picked, and a session-used set so the same item is never returned
+ *     twice in one call
+ *   - Falls back on failure following a strict type hierarchy:
+ *       $feed   → other items in the same feed → other $feed sources
+ *                 → $parent (if listed) → give up
+ *       $parent → other unused parent items → give up
+ *       $brand  → pick-only; NOTHING ever falls back to $brand
+ *       URL/text→ pick-only; no fallback in or out
+ *   - Leaves marking-as-used to the CALLER (trackContentSource) so sources
+ *     are only marked used after the content that used them actually
+ *     generated/published successfully
  *
  * This module is the single source of truth for all of that.
  */
@@ -17,6 +30,9 @@ const { parseFeed, extractArticleContent } = require('./feed-parser.js');
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
 const FEED_PREFIX = '$feed:';
 const CONTENT_SOURCES_COLLECTION = 'content-sources';
+
+// Parent sources fetched per category when the $parent pool is built
+const PARENT_SOURCES_PER_CATEGORY = 3;
 
 // ── Prompt constants ─────────────────────────────────────────────────
 
@@ -57,9 +73,44 @@ const PROMPT = `
   {suggestion}
 `;
 
-// ── Feed source processing ───────────────────────────────────────────
+// ── Resolver state ───────────────────────────────────────────────────
 
-async function processFeedSource(assistant, feedUrl, brandId, admin) {
+/**
+ * Create the per-call resolver state. Caches parsed feeds and the parent
+ * pool so a single resolveSources() call never fetches the same feed or
+ * the parent endpoint twice.
+ *
+ * @param {object} args
+ * @param {string[]} args.sources - The entry's source pool ($feed:/$parent/$brand/URL/text)
+ * @param {string[]} [args.categories] - Categories for $parent fetches
+ * @param {object} [args.admin] - firebase-admin (used-source checks; omit to skip)
+ * @param {object} [args.Manager] - Manager instance (parent URL resolution)
+ * @param {object} args.assistant - logger
+ * @returns {object} state
+ */
+function createResolverState({ sources, categories, admin, Manager, assistant }) {
+  return {
+    pool: [...(sources || [])],
+    categories: categories || [],
+    admin,
+    Manager,
+    assistant,
+    sessionUsed: new Set(),   // item url/id already returned this call
+    feedCache: new Map(),     // feedUrl → { items: [...], dead: bool }
+    parentPool: null,         // null = not fetched yet; [] = fetched (possibly exhausted)
+  };
+}
+
+// ── Feed resolution ──────────────────────────────────────────────────
+
+async function loadFeed(state, feedUrl) {
+  if (state.feedCache.has(feedUrl)) {
+    return state.feedCache.get(feedUrl);
+  }
+
+  const entry = { items: [], dead: false };
+  state.feedCache.set(feedUrl, entry);
+
   const feedText = await fetch(feedUrl, {
     timeout: 30000,
     tries: 2,
@@ -68,37 +119,53 @@ async function processFeedSource(assistant, feedUrl, brandId, admin) {
   }).catch((e) => e);
 
   if (feedText instanceof Error) {
-    assistant.error(`processFeedSource(): Failed to fetch feed: ${feedUrl}`, feedText);
-    return null;
+    state.assistant.error(`loadFeed(): Failed to fetch feed: ${feedUrl}`, feedText);
+    entry.dead = true;
+    return entry;
   }
 
   const { items } = parseFeed(feedText);
   if (!items.length) {
-    assistant.log(`processFeedSource(): No items in feed: ${feedUrl}`);
-    return null;
+    state.assistant.log(`loadFeed(): No items in feed: ${feedUrl}`);
+    entry.dead = true;
+    return entry;
   }
 
-  assistant.log(`processFeedSource(): Parsed ${items.length} items from feed`);
-
-  const processedIds = await getProcessedItemIds(admin, feedUrl).catch((e) => {
-    assistant.error('processFeedSource(): Error querying tracked items (continuing)', e);
+  const processedIds = await getProcessedItemIds(state.admin, feedUrl).catch((e) => {
+    state.assistant.error('loadFeed(): Error querying tracked items (continuing)', e);
     return new Set();
   });
 
-  const unprocessed = items.filter((item) => !processedIds.has(item.id) && !processedIds.has(item.url));
-  if (!unprocessed.length) {
-    assistant.log(`processFeedSource(): All ${items.length} items already processed for: ${feedUrl}`);
+  entry.items = items.filter((item) => !processedIds.has(item.id) && !processedIds.has(item.url));
+
+  state.assistant.log(`loadFeed(): ${entry.items.length}/${items.length} unprocessed items in ${feedUrl}`);
+
+  return entry;
+}
+
+async function resolveFeedItem(state, feedUrl) {
+  const feed = await loadFeed(state, feedUrl);
+
+  if (feed.dead) {
     return null;
   }
 
-  assistant.log(`processFeedSource(): ${unprocessed.length} unprocessed items available`);
+  // Newest-first among items not yet used this session
+  const item = feed.items.find((i) => !state.sessionUsed.has(i.id) && !state.sessionUsed.has(i.url));
+  if (!item) {
+    state.assistant.log(`resolveFeedItem(): Feed exhausted for this session: ${feedUrl}`);
+    return null;
+  }
 
-  const item = unprocessed[0];
+  state.sessionUsed.add(item.id);
+  if (item.url) {
+    state.sessionUsed.add(item.url);
+  }
 
   let content = '';
   if (item.url) {
     content = await extractArticleContent(item.url).catch((e) => {
-      assistant.error(`processFeedSource(): Failed to extract content from ${item.url} (using summary)`, e);
+      state.assistant.error(`resolveFeedItem(): Failed to extract content from ${item.url} (using summary)`, e);
       return '';
     });
   }
@@ -107,26 +174,45 @@ async function processFeedSource(assistant, feedUrl, brandId, admin) {
     content = item.content || item.summary || '';
   }
 
-  return { item, content };
+  return {
+    type: 'feed',
+    id: item.id || item.url || '',
+    title: item.title || '',
+    url: item.url || '',
+    content,
+    feedUrl,
+    raw: item,
+    trackingData: {
+      url: item.url || item.id,
+      origin: `${FEED_PREFIX}${feedUrl}`,
+      feedUrl,
+      itemId: item.id,
+      itemTitle: item.title,
+    },
+  };
 }
 
-// ── Parent source processing ─────────────────────────────────────────
+// ── Parent resolution ────────────────────────────────────────────────
 
-async function processParentSource(assistant, entry, admin, Manager) {
-  const parentUrl = Manager?.getParentApiUrl?.();
-
-  if (!parentUrl) {
-    assistant.log('processParentSource(): No parent URL configured');
-    return null;
+async function loadParentPool(state) {
+  if (state.parentPool !== null) {
+    return state.parentPool;
   }
 
-  const categories = entry.categories || [];
-  const allSources = [];
-  const categoriesToFetch = categories.length ? categories : [''];
+  state.parentPool = [];
+
+  const parentUrl = state.Manager?.getParentApiUrl?.();
+  if (!parentUrl) {
+    state.assistant.log('loadParentPool(): No parent URL configured');
+    return state.parentPool;
+  }
+
+  const categoriesToFetch = state.categories.length ? state.categories : [''];
+  const fetched = [];
 
   for (const category of categoriesToFetch) {
     const query = {
-      limit: 3,
+      limit: PARENT_SOURCES_PER_CATEGORY,
       backendManagerKey: process.env.BACKEND_MANAGER_KEY,
     };
 
@@ -140,29 +226,37 @@ async function processParentSource(assistant, entry, admin, Manager) {
       timeout: 60000,
       query: query,
     }).catch((e) => {
-      assistant.error(`processParentSource(): Failed to fetch sources for category=${category}: ${e.message}`);
+      state.assistant.error(`loadParentPool(): Failed to fetch sources for category=${category}: ${e.message}`);
       return null;
     });
 
     if (data?.sources?.length) {
-      allSources.push(...data.sources);
+      fetched.push(...data.sources);
     }
   }
 
-  if (!allSources.length) {
-    assistant.log('processParentSource(): No sources available from parent');
-    return null;
-  }
+  // Dedupe across categories (same source can appear in multiple categories)
+  const seen = new Set();
+  const deduped = fetched.filter((s) => {
+    const key = s.url || s.id;
+    if (!key || seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
 
-  if (admin) {
+  // Filter out sources already used (Firestore content-sources)
+  let available = deduped;
+  if (state.admin) {
     const usedUrls = new Set();
-    const snapshot = await admin.firestore()
+    const snapshot = await state.admin.firestore()
       .collection(CONTENT_SOURCES_COLLECTION)
       .where('origin', '==', '$parent')
       .select('url')
       .get()
       .catch((e) => {
-        assistant.error('processParentSource(): Error querying tracked sources (continuing)', e);
+        state.assistant.error('loadParentPool(): Error querying tracked sources (continuing)', e);
         return { docs: [] };
       });
 
@@ -173,98 +267,193 @@ async function processParentSource(assistant, entry, admin, Manager) {
       }
     });
 
-    const available = allSources.filter((s) => !usedUrls.has(s.url || s.id));
-
-    if (!available.length) {
-      assistant.log('processParentSource(): All parent sources already used');
-      return null;
-    }
-
-    return available;
+    available = deduped.filter((s) => !usedUrls.has(s.url || s.id));
   }
 
-  return allSources;
+  state.assistant.log(`loadParentPool(): ${available.length}/${fetched.length} parent sources available`);
+
+  state.parentPool = available;
+  return state.parentPool;
 }
 
-// ── Parent source fetching for newsletter ────────────────────────────
+async function resolveParentItem(state) {
+  const pool = await loadParentPool(state);
 
-async function fetchParentSources(parentUrl, categories, assistant) {
-  const allSources = [];
+  const candidates = pool.filter((s) => {
+    const key = s.url || s.id;
+    return key && !state.sessionUsed.has(key);
+  });
 
-  for (const category of categories) {
-    try {
-      const data = await fetch(`${parentUrl}/newsletter-sources`, {
-        method: 'get',
-        response: 'json',
-        timeout: 60000,
-        query: {
-          category,
-          limit: 3,
-          backendManagerKey: process.env.BACKEND_MANAGER_KEY,
-        },
-      });
-
-      if (data.sources?.length) {
-        allSources.push(...data.sources);
-      }
-    } catch (e) {
-      assistant.error(`fetchParentSources(): Failed to fetch ${category} sources: ${e.message}`);
-    }
+  if (!candidates.length) {
+    state.assistant.log('resolveParentItem(): Parent pool exhausted for this session');
+    return null;
   }
 
-  return allSources;
-}
-
-// ── Feed-to-newsletter normalization ─────────────────────────────────
-
-function normalizeFeedItemForNewsletter(feedResult, feedUrl, categories) {
-  const item = feedResult.item;
-  let hostname = '';
-  try { hostname = new URL(feedUrl).hostname; } catch (e) { /* ignore */ }
+  // Random pick among remaining candidates
+  const item = candidates[Math.floor(Math.random() * candidates.length)];
+  state.sessionUsed.add(item.url || item.id);
 
   return {
-    id: item.id || item.url || '',
-    title: item.title || '',
-    subject: item.title || '',
-    category: (categories && categories[0]) || '',
-    categories: categories || [],
-    url: item.url || '',
-    source: {
-      from: hostname,
-      subject: item.title || '',
-      content: feedResult.content || item.content || item.summary || '',
+    type: 'parent',
+    id: item.id || '',
+    title: item.title || item.subject || '',
+    url: (item.url && item.url.startsWith('http')) ? item.url : '',
+    content: item.source?.content || item.content || item.summary || '',
+    raw: item,
+    trackingData: {
+      url: item.url || item.id,
+      origin: '$parent',
+      itemId: item.id,
+      itemTitle: item.title || item.subject || '',
     },
-    ai: null,
   };
 }
 
-// ── Resolve newsletter sources (feeds + parent + fallback) ───────────
+// ── Pick resolution (type-aware fallback) ────────────────────────────
 
-async function resolveNewsletterSources({ sources, categories, admin, Manager, assistant }) {
+/**
+ * Resolve ONE picked source, following the fallback hierarchy for its type.
+ * Exported for deterministic testing — production goes through resolveSources().
+ *
+ * @param {object} state - from createResolverState()
+ * @param {string} source - the picked source ($feed:X / $parent / $brand / URL / text)
+ * @returns {Promise<object|null>} resolved source or null when the chain is exhausted
+ */
+async function resolvePick(state, source) {
+  // --- $feed: → same feed → other feeds → $parent (if listed) ---
+  if (typeof source === 'string' && source.startsWith(FEED_PREFIX)) {
+    const startUrl = source.slice(FEED_PREFIX.length);
+    const otherFeeds = shuffle(
+      state.pool
+        .filter((s) => typeof s === 'string' && s.startsWith(FEED_PREFIX) && s !== source)
+        .map((s) => s.slice(FEED_PREFIX.length))
+    );
+
+    for (const feedUrl of [startUrl, ...otherFeeds]) {
+      const resolved = await resolveFeedItem(state, feedUrl);
+      if (resolved) {
+        return resolved;
+      }
+    }
+
+    if (state.pool.includes('$parent')) {
+      state.assistant.log('resolvePick(): All feeds exhausted, falling back to $parent');
+      return resolveParentItem(state);
+    }
+
+    return null;
+  }
+
+  // --- $parent → other parent items only ---
+  if (source === '$parent') {
+    return resolveParentItem(state);
+  }
+
+  // --- $brand → pick-only seed (nothing ever falls back TO this) ---
+  if (source === '$brand') {
+    return {
+      type: 'brand',
+      id: '',
+      title: '',
+      url: '',
+      content: '',
+      raw: null,
+      trackingData: null,
+    };
+  }
+
+  // --- URL → fetch content, no fallback ---
+  if (isURL(source)) {
+    const content = await getURLContent(source).catch((e) => {
+      state.assistant.error(`resolvePick(): Error fetching URL ${source}`, e);
+      return null;
+    });
+
+    if (content === null) {
+      return null;
+    }
+
+    return {
+      type: 'url',
+      id: source,
+      title: '',
+      url: source,
+      content,
+      raw: null,
+      trackingData: null,
+    };
+  }
+
+  // --- Text seed → always resolves ---
+  return {
+    type: 'text',
+    id: '',
+    title: '',
+    url: '',
+    content: source,
+    raw: null,
+    trackingData: null,
+  };
+}
+
+// ── Main entry: resolve N sources from a pool ────────────────────────
+
+/**
+ * Resolve `count` sources from the entry's source pool.
+ *
+ * Each pick starts with a RANDOM source from the pool, then follows the
+ * type fallback hierarchy (see module doc). Returns however many sources
+ * could be resolved (may be fewer than count when pools are exhausted).
+ *
+ * The caller is responsible for marking returned sources as used via
+ * trackContentSource(resolved.trackingData) AFTER the content that used
+ * them succeeds.
+ *
+ * @param {object} args
+ * @param {string[]} args.sources - The entry's source pool
+ * @param {number} [args.count=1] - How many resolved sources to return
+ * @param {string[]} [args.categories] - Categories for $parent fetches
+ * @param {object} [args.admin] - firebase-admin
+ * @param {object} [args.Manager]
+ * @param {object} args.assistant
+ * @returns {Promise<object[]>} resolved sources ({ type, id, title, url, content, feedUrl?, raw?, trackingData })
+ */
+async function resolveSources({ sources, count, categories, admin, Manager, assistant }) {
+  count = count || 1;
+
+  const state = createResolverState({ sources, categories, admin, Manager, assistant });
+
+  if (!state.pool.length) {
+    assistant.log('resolveSources(): Empty source pool');
+    return [];
+  }
+
   const resolved = [];
 
-  const feedUrls = (sources || []).filter((s) => typeof s === 'string' && s.startsWith(FEED_PREFIX));
-  const hasParent = (sources || []).includes('$parent');
+  for (let i = 0; i < count; i++) {
+    const pick = state.pool[Math.floor(Math.random() * state.pool.length)];
 
-  const brandId = Manager?.config?.brand?.id || '';
+    assistant.log(`resolveSources(): Pick ${i + 1}/${count} → ${typeof pick === 'string' ? pick.slice(0, 80) : pick}`);
 
-  for (const source of feedUrls) {
-    const feedUrl = source.slice(FEED_PREFIX.length);
-    const feedResult = await processFeedSource(assistant, feedUrl, brandId, admin);
-    if (feedResult) {
-      resolved.push(normalizeFeedItemForNewsletter(feedResult, feedUrl, categories));
+    const result = await resolvePick(state, pick).catch((e) => {
+      assistant.error('resolveSources(): Error resolving pick', e);
+      return null;
+    });
+
+    if (result) {
+      resolved.push(result);
+    } else {
+      assistant.log(`resolveSources(): Pick ${i + 1}/${count} exhausted its fallback chain`);
     }
   }
 
-  if (hasParent) {
-    const parentUrl = Manager?.getParentApiUrl?.();
-    if (parentUrl) {
-      const parentSources = await fetchParentSources(parentUrl, categories || [], assistant);
-      resolved.push(...parentSources);
-    }
-  }
+  assistant.log(`resolveSources(): Resolved ${resolved.length}/${count} sources`);
 
   return resolved;
+}
+
+function shuffle(array) {
+  return [...array].sort(() => Math.random() - 0.5);
 }
 
 // ── Firestore tracking ──────────────────────────────────────────────
@@ -411,11 +600,9 @@ module.exports = {
   FEED_PREFIX,
   CONTENT_SOURCES_COLLECTION,
   USER_AGENT,
-  processFeedSource,
-  processParentSource,
-  fetchParentSources,
-  resolveNewsletterSources,
-  normalizeFeedItemForNewsletter,
+  resolveSources,
+  createResolverState,
+  resolvePick,
   trackContentSource,
   contentSourceHash,
   getProcessedItemIds,

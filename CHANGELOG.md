@@ -14,6 +14,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.11.0] - 2026-07-01
+
+### Changed
+- **Unified source resolution** — `resolveSources()` in `source-resolver.js` is now the single resolution path for BOTH the blog auto-publisher and the newsletter generator. Each needed source is a RANDOM pick from the entry's `sources` array; failures follow a strict type hierarchy: `$feed` → other items in the same feed → other `$feed` sources → `$parent` (if listed) → give up; `$parent` → other unused parent items only; **nothing ever falls back to `$brand`** (pick-only, and only if listed); URL/text are pick-only. Firestore-checked at resolution (used items never re-picked — the old newsletter parent path skipped this check) plus session dedup (the same item can never appear twice in one issue — fixes duplicate parent sources from cross-category fetches). Sources are marked used ONLY after the content that used them actually publishes/generates.
+- **Newsletter `sourceCount` config** (default 6) — replaces the old process-every-feed + 9-parent-sources behavior with N random picks per issue.
+- **Newsletter report email — always sent** — the internal report (previously only on Beehiiv failure) now fires after every generation. Subject adapts to Beehiiv status. Adds a prominent "Preview Newsletter" button, a Sources section (all sources used, linked when they have real URLs), and linked articles (published only). Section layout: text label + indented links.
+- **Linked article passes sources to `admin/post`** — `publishArticle()` receives the newsletter's source URLs via the existing `source` field.
+
+### Removed
+- **`resolveNewsletterSources` / `fetchParentSources` / `processParentSource` / `processFeedSource` / `normalizeFeedItemForNewsletter`** — superseded by the unified `resolveSources()` / `createResolverState()` / `resolvePick()`. Blog-auto-publisher no longer re-exports resolver utilities — import from `source-resolver.js` directly.
+
 # [5.10.3] - 2026-07-01
 
 ### Added

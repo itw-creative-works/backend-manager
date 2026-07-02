@@ -13,9 +13,9 @@
 const path = require('path');
 const jetpack = require('fs-jetpack');
 const fetch = require('wonderful-fetch');
-const publisherPath = path.resolve(__dirname, '../../../src/manager/events/cron/daily/blog-auto-publisher.js');
+const resolverPath = path.resolve(__dirname, '../../../src/manager/libraries/content/source-resolver.js');
 const { parseFeed, extractArticleContent } = require('../../../src/manager/libraries/content/feed-parser.js');
-const { contentSourceHash, getProcessedItemIds, trackContentSource } = require(publisherPath);
+const { contentSourceHash, getProcessedItemIds, trackContentSource } = require(resolverPath);
 
 const EXTENDED = !!process.env.TEST_EXTENDED_MODE;
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';

@@ -333,7 +333,7 @@ module.exports = {
     // inserts `api.` at call time. PARENT_API_URL env override is honored
     // verbatim for one-off testing against a different parent.
     // When NEWSLETTER_SOURCE is set, skip parent URL checks and source fetching —
-    // the generator's built-in resolver (resolveNewsletterSources) handles everything.
+    // the generator's built-in resolver (resolveSources) handles everything.
     let sources = [];
 
     if (!env.NEWSLETTER_SOURCE) {
@@ -437,9 +437,9 @@ module.exports = {
     console.log(`[extended] uploading to itw-creative-works/newsletter-assets/${config.brand?.id}/${campaignId || '<auto-id>'}/ + Beehiiv draft`);
 
     // NEWSLETTER_SOURCE overrides the configured sources[] and lets the
-    // generator's built-in resolver run (resolveNewsletterSources). Without
-    // this, the test always passes pre-fetched parent sources via opts.sources,
-    // bypassing feed resolution entirely.
+    // generator's built-in resolver run (resolveSources — the unified
+    // blog/newsletter resolver). Without this, the test always passes
+    // pre-fetched parent sources via opts.sources, bypassing resolution.
     //   NEWSLETTER_SOURCE='$feed:https://feeds.arstechnica.com/arstechnica/index'
     //   NEWSLETTER_SOURCE='$parent'   (default behavior, explicit)
     const useResolverSources = !!env.NEWSLETTER_SOURCE;
@@ -455,7 +455,6 @@ module.exports = {
       { name: `${config.brand?.name || 'Brand'} Newsletter — Iteration ${stamp}` },
       {
         sources: useResolverSources ? undefined : sources,
-        skipClaim: true, // We manage the claim/release lifecycle ourselves
         skipImages: !!env.NEWSLETTER_NO_IMAGES,
         // The article is GENERATED whenever the brand's config.article.enabled is on
         // (exercises the Ghostii write + URL/CTA path), but only PUBLISHED to the

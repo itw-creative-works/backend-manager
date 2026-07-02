@@ -3,10 +3,10 @@
 
 ## 🎯 Current Focus
 * **Goal:** Fix newsletter pipeline end-to-end — cron, generation, asset hosting, delivery
-* **Current Phase:** Per-brand branch architecture verified, pending BEM publish + deploy
+* **Current Phase:** Unified source resolution complete — pending v5.11.0 publish + Cloudflare CDN rule + consumer deploys.
 * **Priority:** High
-* **Last Updated:** 2026-06-30 5:50 PM PDT
-* **Notes:** v5.10.0 published + deployed but hit two more issues: (1) somiibo config had `newsletter.content` as object instead of array — lodash merge left template defaults (empty categories) at index 0, (2) GitHub asset uploads raced when multiple brands deployed simultaneously ("not a fast forward"). Fixed both: config format corrected, image-host.js rewritten for per-brand branches (zero contention). E2E test verified — images + HTML upload to `somiibo` branch, fallback email fires. Ready for v5.10.1.
+* **Last Updated:** 2026-07-01 3:00 PM PDT
+* **Notes:** resolveSources() in source-resolver.js is now the SSOT for blog + newsletter source picking: random picks from the entry's sources array, type-hierarchy fallback ($feed → other feeds → $parent; $parent → parent only; NOTHING falls back to $brand), Firestore + session dedup (fixes duplicate parent sources + missing used-check in old newsletter path), mark-used only after success. Newsletter sourceCount config (default 6). 31 resolver tests + 7 cron tests + extended e2e all passing. Docs updated (ghostii.md, marketing-campaigns.md).
 
 ## 📌 Active Task List
 * [ ] Phase 11: Fix newsletter generator never firing in frequent cron
@@ -34,8 +34,16 @@
   * [x] Task 11.22: Fix newsletter-generate test for array content format
   * [x] Task 11.23: New brand branches created as empty orphans (zero files, zero history)
   * [x] Task 11.24: E2E verified — images to `somiibo` branch `content/` dir, CTA omitted (test mode), fallback email fires
-  * [ ] Task 11.25: Publish BEM v5.10.1
-  * [ ] Task 11.26: Update + deploy all consumer backends with new BEM + array config format
+  * [x] Task 11.25: Publish BEM v5.10.1 (per-brand branches + content/ path)
+  * [x] Task 11.26: Publish BEM v5.10.2 (single-commit upload, CDN URLs, fallback email improvements)
+  * [x] Task 11.27: Newsletter report email — always sent (not just on failure), preview button, sources section
+  * [x] Task 11.28: Article source passed to admin/post via publishArticle()
+  * [x] Task 11.29: Unified source resolution — resolveSources() in source-resolver.js, shared by blog + newsletter (random picks, type-hierarchy fallback, Firestore + session dedup, no $brand fallback ever)
+  * [x] Task 11.30: Newsletter sourceCount config (default 6) — replaces process-every-feed + 9-parent-sources behavior
+  * [x] Task 11.31: Tests rewritten for new hierarchy (31 passing) + extended e2e verified (resolver picks 6/6, dedupes 9→7 parent pool)
+  * [ ] Task 11.32: Publish BEM v5.11.0
+  * [ ] Task 11.33: Set up Cloudflare redirect rule for cdn.itwcreativeworks.com/newsletters/*
+  * [ ] Task 11.34: Update + deploy all consumer backends with new BEM + array config format
 * [ ] Phase 9: Blog auto-publisher dedup + fallback fixes
   * [x] Task 9.1: Diagnose — $brand fallback ignoring user config, per-feed-only dedup, weak prompt
   * [x] Task 9.2: Add `getRecentTitles` to source-resolver.js (collects both postTitle + itemTitle)

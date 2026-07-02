@@ -14,13 +14,13 @@ config.blog.content[] entry
   |
 blog-auto-publisher cron (daily)
   | (per entry, per article)
-resolveSource() -- detect source type, fetch/parse if needed
+resolveSources({ count: 1 }) -- unified resolver: random pick + type fallback + Firestore dedup
   |
 provider.writeArticle() -- call provider API (e.g. Ghostii: api.ghostii.ai/write/article)
   |
-provider.publishArticle() -- POST to admin/post -> GitHub commit
+provider.publishArticle() -- POST to admin/post -> GitHub commit (passes source URL)
   |
-trackContentSource() -- Firestore (for $feed:, $parent sources)
+trackContentSource() -- Firestore, AFTER successful publish
 ```
 
 ### Key files
@@ -90,21 +90,28 @@ content-sources/{sha256(origin + '::' + url).slice(0,20)}: {
 
 ### Topic deduplication
 
-The blog auto-publisher prevents near-duplicate articles at three levels:
+The blog auto-publisher prevents near-duplicate articles at two levels:
 
-1. **Per-feed dedup**: `processFeedSource()` queries `content-sources` by `feedUrl` to skip items already used from that specific feed.
+1. **Per-item dedup** (structural): the resolver queries `content-sources` before picking — feed items by `feedUrl`, parent sources by `origin == '$parent'`. Used items are never re-picked. Within one `resolveSources()` call, a session-used set also prevents the same item from resolving twice.
 
-2. **Cross-feed dedup** (structural): Before picking a feed item, `processFeedSource()` compares each candidate's title against ALL recent titles (from any source) using `isTitleTooSimilar()` — a word-overlap check with basic stemming. This catches the same news event reported by different publications (e.g. Guardian and NYT both covering Apple's price hike). Items with >= 50% significant-word overlap are skipped.
+2. **Topic dedup** (prompt-based): Before generating each article, `harvest()` appends all recent titles (Firestore history + same-run) to the Ghostii prompt as a strict avoidance list. The prompt forbids writing about the same topic, theme, or keyword combination — not just the same story.
 
-3. **Topic dedup** (prompt-based): Before generating each article, `harvest()` appends all recent titles (Firestore history + same-run) to the Ghostii prompt as a strict avoidance list. The prompt forbids writing about the same topic, theme, or keyword combination — not just the same story.
+Within a single cron run, both generated post titles AND source item titles are tracked in `runTitles` and fed into the prompt for subsequent articles.
 
-Within a single cron run, both generated post titles AND source item titles are tracked in `runTitles` and fed into levels 2 and 3 for subsequent articles.
+Sources are marked used in `content-sources` ONLY after the article actually publishes ($brand posts get a synthetic tracking entry so recent-title dedup still sees them).
 
-All source types (`$feed`, `$parent`, `$brand`, URL, text) are tracked in `content-sources` after publishing.
+### Source picking + fallback hierarchy
 
-### Source fallback behavior
+Both blog and newsletter resolve through the same `resolveSources()` (source-resolver.js). Each needed source starts as a RANDOM pick from the entry's `sources` array — nothing outside the array is ever used. On failure, a strict type hierarchy applies:
 
-When a source fails or is exhausted, `resolveSource()` only falls back to `$brand` if `$brand` is explicitly listed in the entry's `sources` array. Otherwise it returns null, and `harvest()` tries the next source in a shuffled copy of the pool. If all sources are exhausted, that article slot is skipped.
+| Picked type | Fallback chain |
+|---|---|
+| `$feed:` | other items in the same feed → other `$feed` sources (random order) → `$parent` (only if listed) → give up |
+| `$parent` | other unused parent-pool items → give up (never falls to feeds) |
+| `$brand` | none — resolves directly; **nothing ever falls back TO `$brand`** |
+| URL / text | none — pick-only |
+
+If a pick's chain is exhausted, that slot is unfilled: the blog skips that article, the newsletter proceeds with fewer sources (or skips entirely at zero).
 
 ## Configuration
 

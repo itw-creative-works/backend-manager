@@ -1,7 +1,8 @@
 /**
  * Test: content/blog-auto-publisher
- * Tests for the blog-auto-publisher cron: source type detection,
- * feed processing, Firestore tracking, hash determinism, and source resolution.
+ * Tests for the shared source-resolver (used by both blog + newsletter crons):
+ * source type detection, Firestore tracking, hash determinism, and the
+ * unified pick/fallback resolution.
  *
  * Run: npx mgr test helpers/content/blog-auto-publisher
  *
@@ -9,34 +10,8 @@
  * processing and Firestore tracking tests run against the real emulator.
  */
 const path = require('path');
-const publisherPath = path.resolve(__dirname, '../../../src/manager/events/cron/daily/blog-auto-publisher.js');
-const { contentSourceHash, isURL } = require(publisherPath);
-
-// --- Sample feed XML for testing ---
-const SAMPLE_RSS = `<?xml version="1.0"?>
-<rss version="2.0">
-  <channel>
-    <title>Test Feed</title>
-    <item>
-      <guid>feed-item-1</guid>
-      <title>Feed Article One</title>
-      <link>https://example.com/article-1</link>
-      <description>Description of article one.</description>
-    </item>
-    <item>
-      <guid>feed-item-2</guid>
-      <title>Feed Article Two</title>
-      <link>https://example.com/article-2</link>
-      <description>Description of article two.</description>
-    </item>
-    <item>
-      <guid>feed-item-3</guid>
-      <title>Feed Article Three</title>
-      <link>https://example.com/article-3</link>
-      <description>Description of article three.</description>
-    </item>
-  </channel>
-</rss>`;
+const resolverPath = path.resolve(__dirname, '../../../src/manager/libraries/content/source-resolver.js');
+const { contentSourceHash, isURL } = require(resolverPath);
 
 module.exports = {
   description: 'content/blog-auto-publisher',
@@ -179,7 +154,7 @@ module.exports = {
           return assert.ok(true, 'skipped: no emulator');
         }
 
-        const { trackContentSource } = require(publisherPath);
+        const { trackContentSource } = require(resolverPath);
         const origin = '$feed:https://test-feed.com/rss';
         const url = 'https://test-feed.com/article-1';
         const docId = contentSourceHash(origin, url);
@@ -226,7 +201,7 @@ module.exports = {
           return assert.ok(true, 'skipped: no emulator');
         }
 
-        const { trackContentSource } = require(publisherPath);
+        const { trackContentSource } = require(resolverPath);
         const origin = '$parent';
         const url = 'https://parent-server.com/source-42';
         const docId = contentSourceHash(origin, url);
@@ -256,7 +231,7 @@ module.exports = {
           return assert.ok(true, 'skipped: no emulator');
         }
 
-        const { getProcessedItemIds, trackContentSource } = require(publisherPath);
+        const { getProcessedItemIds, trackContentSource } = require(resolverPath);
         const feedUrl = 'https://processed-test.com/rss';
         const origin = `$feed:${feedUrl}`;
 
@@ -294,7 +269,7 @@ module.exports = {
           return assert.ok(true, 'skipped: no emulator');
         }
 
-        const { getProcessedItemIds, trackContentSource } = require(publisherPath);
+        const { getProcessedItemIds, trackContentSource } = require(resolverPath);
 
         // Track item in feed A
         await trackContentSource(admin, {
@@ -316,132 +291,141 @@ module.exports = {
     {
       name: 'getProcessedItemIds-returns-empty-set-without-admin',
       async run({ assert }) {
-        const { getProcessedItemIds } = require(publisherPath);
+        const { getProcessedItemIds } = require(resolverPath);
         const ids = await getProcessedItemIds(null, 'https://example.com/feed');
         assert.equal(ids.size, 0, 'returns empty Set when admin is null');
       },
     },
 
     // ============================
-    // SOURCE RESOLUTION (resolveSource)
+    // UNIFIED SOURCE RESOLUTION (resolveSources / resolvePick)
     // ============================
     {
-      name: 'resolveSource-brand-returns-description-no-sourceContent',
-      async run({ assert }) {
-        const { resolveSource } = require(publisherPath);
-        const mockAssistant = { log() {}, error() {} };
-        const entry = {
-          brand: { brand: { name: 'Test', description: 'A test brand', id: 'test' } },
-          instructions: 'Focus on AI',
-          tone: 'professional',
-          categories: ['tech'],
-          keywords: ['AI', 'automation'],
-        };
+      name: 'resolveSources-brand-pick-resolves-seed',
+      async run({ assert, Manager }) {
+        const { resolveSources } = require(resolverPath);
+        const assistant = Manager.Assistant();
 
-        const result = await resolveSource(mockAssistant, '$brand', entry, null, null);
-        assert.ok(result.description.includes('Test'), 'description includes brand name');
-        assert.ok(result.description.includes('Focus on AI'), 'description includes instructions');
-        assert.equal(result.sourceContent, '', 'no sourceContent for $brand');
-        assert.equal(result.trackingData, undefined, 'no trackingData for $brand');
+        const resolved = await resolveSources({
+          sources: ['$brand'],
+          count: 1,
+          assistant,
+        });
+
+        assert.equal(resolved.length, 1, 'one source resolved');
+        assert.equal(resolved[0].type, 'brand', 'type is brand');
+        assert.equal(resolved[0].trackingData, null, 'no trackingData for $brand');
       },
     },
 
     {
-      name: 'resolveSource-brand-includes-tone-and-keywords',
-      async run({ assert }) {
-        const { resolveSource } = require(publisherPath);
-        const mockAssistant = { log() {}, error() {} };
-        const entry = {
-          brand: { brand: { name: 'Test', description: 'A test brand', id: 'test' } },
-          instructions: '',
-          tone: 'casual',
-          categories: ['marketing', 'social-media'],
-          keywords: ['growth', 'engagement'],
-        };
+      name: 'resolveSources-text-pick-resolves-content',
+      async run({ assert, Manager }) {
+        const { resolveSources } = require(resolverPath);
+        const assistant = Manager.Assistant();
 
-        const result = await resolveSource(mockAssistant, '$brand', entry, null, null);
-        assert.ok(result.description.includes('casual'), 'description includes tone');
-        assert.ok(result.description.includes('marketing, social-media'), 'description includes categories');
-        assert.ok(result.description.includes('growth, engagement'), 'description includes keywords');
+        const resolved = await resolveSources({
+          sources: ['Write about blockchain technology'],
+          count: 1,
+          assistant,
+        });
+
+        assert.equal(resolved.length, 1, 'one source resolved');
+        assert.equal(resolved[0].type, 'text', 'type is text');
+        assert.equal(resolved[0].content, 'Write about blockchain technology', 'content is the text seed');
+        assert.equal(resolved[0].trackingData, null, 'no trackingData for text');
       },
     },
 
     {
-      name: 'resolveSource-text-returns-suggestion-in-description',
-      async run({ assert }) {
-        const { resolveSource } = require(publisherPath);
-        const mockAssistant = { log() {}, error() {} };
-        const entry = {
-          brand: { brand: { name: 'Test', description: 'A test brand', id: 'test' } },
-          instructions: '',
-          tone: 'professional',
-          categories: [],
-          keywords: [],
-        };
+      name: 'resolvePick-feed-failure-never-falls-back-to-brand',
+      timeout: 30000,
+      async run({ assert, Manager }) {
+        const { createResolverState, resolvePick } = require(resolverPath);
+        const assistant = Manager.Assistant();
 
-        const result = await resolveSource(mockAssistant, 'Write about blockchain technology', entry, null, null);
-        assert.ok(result.description.includes('blockchain technology'), 'text source in description');
-        assert.equal(result.sourceContent, '', 'no sourceContent for text');
+        // $brand IS listed in the pool — the fallback chain must STILL never
+        // land on it. Feed fails (nonexistent domain), no $parent listed → null.
+        const state = createResolverState({
+          sources: ['$feed:https://nonexistent-feed.invalid/feed.xml', '$brand'],
+          assistant,
+        });
+
+        const result = await resolvePick(state, '$feed:https://nonexistent-feed.invalid/feed.xml');
+        assert.equal(result, null, 'feed failure returns null — never falls back to $brand');
       },
     },
 
     {
-      name: 'resolveSource-feed-falls-back-to-brand-without-admin',
-      async run({ assert }) {
-        const { resolveSource } = require(publisherPath);
-        const mockAssistant = { log() {}, error() {} };
-        const entry = {
-          brand: { brand: { name: 'Test', description: 'A test brand', id: 'test' } },
-          instructions: '',
-          tone: 'professional',
-          categories: [],
-          keywords: [],
-        };
+      name: 'resolvePick-feed-falls-back-to-other-feeds-then-parent',
+      timeout: 30000,
+      async run({ assert, Manager }) {
+        const { createResolverState, resolvePick } = require(resolverPath);
+        const assistant = Manager.Assistant();
 
-        const result = await resolveSource(mockAssistant, '$feed:https://nonexistent.example.com/feed', entry, null, null);
-        assert.ok(result.description, 'falls back to $brand and returns description');
-        assert.equal(result.sourceContent, '', 'no sourceContent on fallback');
+        // Both feeds dead, $parent listed but no Manager → parent unreachable → null.
+        // Exercises the full chain (same feed → other feeds → parent) without throwing.
+        const state = createResolverState({
+          sources: [
+            '$feed:https://nonexistent-a.invalid/feed.xml',
+            '$feed:https://nonexistent-b.invalid/feed.xml',
+            '$parent',
+          ],
+          assistant,
+        });
+
+        const result = await resolvePick(state, '$feed:https://nonexistent-a.invalid/feed.xml');
+        assert.equal(result, null, 'chain exhausts feeds then parent, returns null');
+        assert.ok(state.feedCache.has('https://nonexistent-a.invalid/feed.xml'), 'first feed was tried');
+        assert.ok(state.feedCache.has('https://nonexistent-b.invalid/feed.xml'), 'second feed was tried as fallback');
+        assert.ok(Array.isArray(state.parentPool), 'parent pool was attempted after feeds');
       },
     },
 
     {
-      name: 'resolveSource-parent-falls-back-to-brand-without-manager',
-      async run({ assert }) {
-        const { resolveSource } = require(publisherPath);
-        const mockAssistant = { log() {}, error() {} };
-        const entry = {
-          brand: { brand: { name: 'Test', description: 'A test brand', id: 'test' } },
-          instructions: '',
-          tone: 'professional',
-          categories: [],
-          keywords: [],
-        };
+      name: 'resolvePick-parent-only-falls-back-to-parent',
+      async run({ assert, Manager }) {
+        const { createResolverState, resolvePick } = require(resolverPath);
+        const assistant = Manager.Assistant();
 
-        // Manager is null, so getParentApiUrl() can't be called — falls back to $brand
-        const result = await resolveSource(mockAssistant, '$parent', entry, null, null);
-        assert.ok(result.description, 'falls back to $brand and returns description');
-        assert.equal(result.sourceContent, '', 'no sourceContent on fallback');
+        // Parent unreachable (no Manager). Feeds ARE listed — but $parent must
+        // NOT fall back to them.
+        const state = createResolverState({
+          sources: ['$parent', '$feed:https://nonexistent.invalid/feed.xml', '$brand'],
+          assistant,
+        });
+
+        const result = await resolvePick(state, '$parent');
+        assert.equal(result, null, 'parent failure returns null — never falls to feeds or $brand');
+        assert.equal(state.feedCache.size, 0, 'no feed was touched by the parent chain');
       },
     },
 
     {
-      name: 'resolveSource-parent-falls-back-when-no-parent-url',
-      async run({ assert }) {
-        const { resolveSource } = require(publisherPath);
-        const mockAssistant = { log() {}, error() {} };
-        const entry = {
-          brand: { brand: { name: 'Test', description: 'A test brand', id: 'test' } },
-          instructions: '',
-          tone: 'professional',
-          categories: [],
-          keywords: [],
-        };
+      name: 'resolveSources-empty-pool-returns-empty',
+      async run({ assert, Manager }) {
+        const { resolveSources } = require(resolverPath);
+        const assistant = Manager.Assistant();
 
-        // Manager with no parent URL configured
-        const mockManager = { getParentApiUrl: () => null };
-        const result = await resolveSource(mockAssistant, '$parent', entry, null, mockManager);
-        assert.ok(result.description, 'falls back to $brand when no parent URL');
-        assert.equal(result.sourceContent, '', 'no sourceContent on fallback');
+        const resolved = await resolveSources({ sources: [], count: 3, assistant });
+        assert.equal(resolved.length, 0, 'empty pool resolves nothing');
+      },
+    },
+
+    {
+      name: 'resolveSources-dead-feed-only-pool-returns-empty',
+      timeout: 30000,
+      async run({ assert, Manager }) {
+        const { resolveSources } = require(resolverPath);
+        const assistant = Manager.Assistant();
+
+        const resolved = await resolveSources({
+          sources: ['$feed:https://nonexistent.invalid/feed.xml'],
+          count: 2,
+          assistant,
+        });
+
+        assert.equal(resolved.length, 0, 'dead-feed-only pool resolves nothing (no $brand invented)');
       },
     },
 

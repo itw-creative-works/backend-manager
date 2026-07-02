@@ -156,11 +156,11 @@ Per-brand subusers provide full contact/segment/field isolation under one billin
 `generators/newsletter.js` orchestrates a multi-step pipeline that produces a fully rendered, email-safe newsletter. Output is HTML (not markdown) — the marketing library detects `settings.contentHtml` and uses it directly, skipping the markdown pipeline.
 
 Pipeline:
-1. Fetch sources: `GET {parentUrl}/newsletter/sources?category=X&claimFor=brandId` (atomic claim)
+1. Resolve sources: `resolveSources({ sources, count: sourceCount || 6, categories })` — the unified blog/newsletter resolver (source-resolver.js). Each pick is a RANDOM source from the entry's `sources` array; failures follow the type hierarchy ($feed → other feeds → $parent; $parent → other parent items; nothing falls to $brand). Firestore-checked so used items never repeat, session-checked so one issue never gets duplicates. See [docs/ghostii.md](ghostii.md#source-picking--fallback-hierarchy) for the full hierarchy.
 2. **structure.js** — Generic dispatcher. Resolves the active template, merges `BASE_SCHEMA` (universal fields: subject, preheader, signoff, citations) with the template's own `schema` fragment, calls the template's `buildPrompt({brand, newsletterConfig, sources})` to get the AI brief, runs the AI call, and normalizes the result via the template's optional `normalize()`. Default provider: `openai` (override per-run only via `NEWSLETTER_PROVIDER_STRUCTURE` env).
 3. **image-illustrator.js** (default) — One flat-vector PNG per section in parallel (`Promise.all`), generated directly via `Manager.AI(assistant).image()` → `gpt-image-2`. Iterates `structure.sections` — templates whose content shape isn't section-based (e.g. field-report uses `dispatches`) populate `sections` in their `normalize()` step so this loop keeps working unchanged. The prompt enforces a clean flat 2D vector style (Stripe / Linear / undraw.co aesthetic) built from the brand palette (`content.theme.{primary,secondary,accent}Color`), on a white background, no text. **Legacy method:** set `marketing.newsletter.content.method.image = 'svg'` to use the older `svg-illustrator.js` (AI authors an `<svg>`, rasterized via `@resvg/resvg-js`). Both methods return the same `{ png: Buffer, fallback, meta }` contract.
 4. **mjml-template.js** — Resolves the template by name from `templates/index.js`, calls `template.build({structure, imagePaths, theme, ...})` for the MJML, compiles to email-safe HTML via the `mjml` package. Brand-domain links get UTM-tagged via the existing `tagLinks()` utility.
-5. Mark used: `PUT {parentUrl}/newsletter/sources` per source
+5. Mark used: `trackContentSource()` per source into the local `content-sources` collection — ONLY after generation succeeds. No PUT to the parent; the child tracks its own usage.
 
 > **Step 3 runs concurrently with the linked-article build** (see below) when `article.enabled` is on — both are slow AI calls, so they share one `Promise.all`. The article URL is stamped onto the lead section before steps 4/5 render.
 
@@ -283,12 +283,16 @@ Templates add their own fields on top (e.g. classic adds `intro` + `sections`; f
 
 **No AI-authored CTAs in generated content.** The schema intentionally does NOT include section-level CTAs / outbound links. The AI cannot author URLs reliably — it has no browse access to your site and no real source URLs to reference, so any URL it produces is invented. Newsletters are self-contained reads; outbound links come from sponsorship blocks rendered by the template shell (driven by `marketing.newsletter.content.sponsorships[]`), not from generated section bodies. The **one exception** is the linked-article CTA: when `article.enabled` is on, `section.cta = { label, url }` is injected onto the lead section by code *after* the article is published (a real, verified URL) — never authored by the AI. Both `sectionCard` (MJML) and the markdown renderer render `section.cta` when present.
 
-**Beehiiv failure → fallback alert email.** When Beehiiv draft creation fails (e.g. `SEND_API_NOT_ENTERPRISE_PLAN` on the free plan), the generator sends an internal alert email via `sender: 'internal'` (resolves to `alerts@{brandDomain}`) to `brand.contact.email` with:
-- The failure reason
+**Newsletter report email — always sent.** After every generation, the generator sends an internal report email via `sender: 'internal'` (resolves to `alerts@{brandDomain}`) with:
+- Beehiiv status (uploaded, or the failure reason when it failed — subject line adapts)
+- A prominent "Preview Newsletter" button (GitHub Pages viewer)
 - Subject, preheader, tags
-- Direct links to the rendered HTML, per-section markdown, summary, and the full GitHub folder
+- Direct links to the rendered HTML, per-section markdown, and summary
+- Linked articles (published ones only — unpublished articles are never referenced)
+- All sources used (linked when they have real URLs, feed hostname in parentheses)
+- The full GitHub folder
 
-This means the newsletter is never "stuck" — even with Beehiiv disabled or failing, you get an actionable email pointing to ready-to-paste assets. The alert is best-effort; failure to send is logged but does not block the Firestore campaign-doc write.
+This means the newsletter is never "stuck" — even with Beehiiv disabled or failing, you get an actionable email pointing to ready-to-paste assets. The report is best-effort; failure to send is logged but does not block the Firestore campaign-doc write.
 
 Requires `GH_TOKEN` env var (org-scoped, write access to `newsletter-assets`). Without it, the cron's HTML/image upload calls throw and the run aborts.
 
@@ -307,7 +311,7 @@ Requires `GH_TOKEN` env var (org-scoped, write access to `newsletter-assets`). W
 | `lib/templates/shared-campaign.js` | Shared utilities for all templates (`escape()`, `resolveTheme()`, `formatAddress()`) |
 | `lib/templates/editorial/helpers.js` | Editorial-only helpers (pullquote, issue number, eyebrow) |
 | `lib/templates/field-report/helpers.js` | Field-report-only helpers (kicker, dispatch dateline, terminal block, terminator) |
-| `newsletter.js` | Orchestrator — calls lib modules, fetches sources, claims sources |
+| `newsletter.js` | Orchestrator — resolves sources via the unified source-resolver, calls lib modules, tracks usage locally |
 | `test/marketing/fixtures/{name}.json` | Hand-crafted structure per template (loaded by iteration test in fixture mode) |
 
 ## Seed Campaigns

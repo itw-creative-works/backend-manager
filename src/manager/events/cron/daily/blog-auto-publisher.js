@@ -13,13 +13,11 @@
  *   'https://...'       — fetch URL content as prompt seed
  *   '<text>'            — use directly as prompt seed
  *
- * All feed/parent sources are tracked in Firestore (`content-sources`) so the
- * same article is never processed twice. When a feed is unreachable or
- * exhausted, harvest() tries the next source in the pool. Only falls
- * back to $brand if '$brand' is explicitly listed in the entry's sources.
- *
- * Source resolution, tracking, and prompt constants live in the shared
- * source-resolver library (src/manager/libraries/content/source-resolver.js).
+ * Source picking, fallback hierarchy, Firestore dedup, and tracking live in
+ * the shared source-resolver library — the SAME resolution the newsletter
+ * generator uses. Per article, ONE random source is picked from the pool;
+ * failures follow the type hierarchy ($feed → other feeds → $parent; $parent
+ * → other parent items; NOTHING falls back to $brand).
  */
 const powertools = require('node-powertools');
 const moment = require('moment');
@@ -27,15 +25,9 @@ const moment = require('moment');
 const {
   PROMPT_SOURCE,
   PROMPT,
-  FEED_PREFIX,
-  processFeedSource,
-  processParentSource,
+  resolveSources,
   trackContentSource,
-  contentSourceHash,
-  getProcessedItemIds,
   getRecentTitles,
-  getURLContent,
-  isURL,
 } = require('../../../libraries/content/source-resolver.js');
 
 let postId;
@@ -62,7 +54,7 @@ module.exports = async ({ Manager, assistant, context, libraries }) => {
 
   for (const entry of contentArray) {
     entry.quantity = entry.quantity || 0;
-    entry.sources = randomize(entry.sources || []);
+    entry.sources = entry.sources || [];
     entry.links = randomize(entry.links || []);
     entry.instructions = entry.instructions || '';
     entry.tone = entry.tone || 'professional';
@@ -135,24 +127,27 @@ async function harvest(assistant, entry, admin, provider, Manager) {
   }
 
   for (let index = 0; index < entry.quantity; index++) {
+    assistant.log(`harvest(): Processing ${index + 1}/${entry.quantity}`);
+
     const allKnownTitles = [...recentTitles, ...runTitles];
 
-    let resolved = null;
-    const shuffled = randomize([...entry.sources]);
-    for (const source of shuffled) {
-      assistant.log(`harvest(): Processing ${index + 1}/${entry.quantity}`, source);
+    // ONE random source per article — fallback hierarchy handled by the resolver.
+    // Tracking between iterations means the next resolve sees this run's usage.
+    const [source] = await resolveSources({
+      sources: entry.sources,
+      count: 1,
+      categories: entry.categories,
+      admin,
+      Manager,
+      assistant,
+    });
 
-      resolved = await resolveSource(assistant, source, entry, admin, Manager).catch((e) => {
-        assistant.error('harvest(): Error resolving source', e);
-        return null;
-      });
-      if (resolved) { break; }
-    }
-
-    if (!resolved) {
-      assistant.log('harvest(): All sources exhausted for this article, skipping');
+    if (!source) {
+      assistant.log('harvest(): No source could be resolved for this article, skipping');
       continue;
     }
+
+    const resolved = buildPromptFromSource(source, entry);
 
     if (allKnownTitles.length) {
       resolved.description += '\n\nTOPIC DEDUPLICATION (STRICT):\n'
@@ -165,7 +160,7 @@ async function harvest(assistant, entry, admin, provider, Manager) {
         + allKnownTitles.slice(0, 25).map((t) => `- ${t}`).join('\n');
     }
 
-    assistant.log('harvest(): Resolved source', resolved);
+    assistant.log('harvest(): Resolved source', { type: source.type, title: source.title, url: source.url });
 
     const overrides = { ...entry.overrides };
     if (!overrides.keywords && entry.keywords.length) {
@@ -195,7 +190,7 @@ async function harvest(assistant, entry, admin, provider, Manager) {
       id: postId++,
       author: entry.author,
       postPath: entry.postPath,
-      source: resolved.trackingData?.url || null,
+      source: source.trackingData?.url || null,
     };
     assistant.log('harvest(): publishArgs', publishArgs);
 
@@ -210,21 +205,22 @@ async function harvest(assistant, entry, admin, provider, Manager) {
     if (generatedTitle) {
       runTitles.push(generatedTitle);
     }
-    if (resolved.trackingData?.itemTitle) {
-      runTitles.push(resolved.trackingData.itemTitle);
+    if (source.trackingData?.itemTitle) {
+      runTitles.push(source.trackingData.itemTitle);
     }
 
-    if (!resolved.trackingData) {
-      resolved.trackingData = {
-        url: uploadedPost.slug || `brand-${postId}`,
-        origin: '$brand',
-        usedBy: 'blog',
-      };
-    }
+    // Mark the source used ONLY now that the article actually published.
+    // $brand/url/text picks have no trackingData — synthesize one for $brand
+    // so recent-title dedup still sees the post.
+    const trackingData = source.trackingData || {
+      url: uploadedPost.slug || `brand-${postId}`,
+      origin: '$brand',
+    };
 
     if (admin) {
       await trackContentSource(admin, {
-        ...resolved.trackingData,
+        ...trackingData,
+        usedBy: 'blog',
         brandId: entry.brand.brand.id,
         postUrl: uploadedPost.url,
         postSlug: uploadedPost.slug,
@@ -236,133 +232,48 @@ async function harvest(assistant, entry, admin, provider, Manager) {
   }
 }
 
-async function resolveSource(assistant, source, entry, admin, Manager) {
-  const date = moment().format('MMMM YYYY');
-
+/**
+ * Map a resolved source to the provider prompt shape.
+ * feed/parent sources rewrite an existing article (PROMPT_SOURCE);
+ * brand/url/text sources seed a fresh topic (PROMPT).
+ *
+ * @param {object} source - resolved source from resolveSources()
+ * @param {object} entry - the blog content entry
+ * @returns {{ description: string, sourceContent: string }}
+ */
+function buildPromptFromSource(source, entry) {
   const templateVars = {
     ...entry,
     instructions: entry.instructions,
-    date: date,
+    date: moment().format('MMMM YYYY'),
     tone: entry.tone || '',
     categories: (entry.categories || []).join(', '),
     keywords: (entry.keywords || []).join(', '),
   };
 
-  // --- $feed: source ---
-  if (typeof source === 'string' && source.startsWith(FEED_PREFIX)) {
-    const feedUrl = source.slice(FEED_PREFIX.length);
-    assistant.log(`resolveSource(): Processing feed: ${feedUrl}`);
-
-    const feedResult = await processFeedSource(assistant, feedUrl, entry.brand.brand.id, admin).catch((e) => e);
-
-    if (feedResult instanceof Error || !feedResult) {
-      assistant.log('resolveSource(): Feed failed or exhausted');
-      if (entry.sources.includes('$brand')) {
-        return resolveSource(assistant, '$brand', entry, admin, Manager);
-      }
-      return null;
-    }
-
-    const description = powertools.template(PROMPT_SOURCE, {
-      ...templateVars,
-      sourceTitle: feedResult.item.title,
-    });
-
+  if (source.type === 'feed' || source.type === 'parent') {
     return {
-      description,
-      sourceContent: feedResult.content || feedResult.item.summary || '',
-      trackingData: {
-        url: feedResult.item.url || feedResult.item.id,
-        origin: source,
-        feedUrl: feedUrl,
-        itemId: feedResult.item.id,
-        itemTitle: feedResult.item.title,
-        usedBy: 'blog',
-      },
+      description: powertools.template(PROMPT_SOURCE, {
+        ...templateVars,
+        sourceTitle: source.title,
+      }),
+      sourceContent: source.content || '',
     };
   }
 
-  // --- $parent source ---
-  if (source === '$parent') {
-    assistant.log('resolveSource(): Processing $parent source');
+  const suggestion = source.type === 'brand'
+    ? 'Write an article about any topic that would be relevant to our website and business (it does not have to be about our company, but it can be)'
+    : source.content;
 
-    const parentResults = await processParentSource(assistant, entry, admin, Manager).catch((e) => e);
-
-    if (parentResults instanceof Error || !parentResults?.length) {
-      assistant.log('resolveSource(): Parent source failed or exhausted');
-      if (entry.sources.includes('$brand')) {
-        return resolveSource(assistant, '$brand', entry, admin, Manager);
-      }
-      return null;
-    }
-
-    const parentResult = parentResults[0];
-    const description = powertools.template(PROMPT_SOURCE, {
-      ...templateVars,
-      sourceTitle: parentResult.title,
-    });
-
-    return {
-      description,
-      sourceContent: parentResult.content || parentResult.summary || '',
-      trackingData: {
-        url: parentResult.url || parentResult.id,
-        origin: '$parent',
-        itemId: parentResult.id,
-        itemTitle: parentResult.title,
-        usedBy: 'blog',
-      },
-    };
-  }
-
-  // --- $brand source ---
-  if (source === '$brand') {
-    const suggestion = 'Write an article about any topic that would be relevant to our website and business (it does not have to be about our company, but it can be)';
-    const description = powertools.template(PROMPT, {
+  return {
+    description: powertools.template(PROMPT, {
       ...templateVars,
       suggestion: suggestion,
-    });
-
-    return { description, sourceContent: '' };
-  }
-
-  // --- URL source ---
-  if (isURL(source)) {
-    const suggestion = await getURLContent(source).catch((e) => e);
-
-    if (suggestion instanceof Error) {
-      assistant.error(`resolveSource(): Error fetching URL ${source}`, suggestion);
-      if (entry.sources.includes('$brand')) {
-        return resolveSource(assistant, '$brand', entry, admin, Manager);
-      }
-      return null;
-    }
-
-    const description = powertools.template(PROMPT, {
-      ...templateVars,
-      suggestion: suggestion,
-    });
-
-    return { description, sourceContent: '' };
-  }
-
-  // --- Text source ---
-  const description = powertools.template(PROMPT, {
-    ...templateVars,
-    suggestion: source,
-  });
-
-  return { description, sourceContent: '' };
+    }),
+    sourceContent: '',
+  };
 }
 
 function randomize(array) {
   return array.sort(() => Math.random() - 0.5);
 }
-
-// Re-export shared functions for backwards compatibility (newsletter + tests import from here)
-module.exports.resolveSource = resolveSource;
-module.exports.processFeedSource = processFeedSource;
-module.exports.contentSourceHash = contentSourceHash;
-module.exports.getProcessedItemIds = getProcessedItemIds;
-module.exports.trackContentSource = trackContentSource;
-module.exports.isURL = isURL;

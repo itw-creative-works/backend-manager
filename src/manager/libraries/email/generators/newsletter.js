@@ -42,7 +42,7 @@ const { renderMarkdown } = require('./lib/markdown-renderer.js');
 const { uploadAssets, USE_CDN_URLS, REPO_OWNER, REPO_NAME, RAW_BASE } = require('./lib/image-host.js');
 const { buildPublicConfig } = require('../../../routes/brand/get.js');
 const { writeArticle, publishArticle } = require('../../../libraries/content/ghostii.js');
-const { trackContentSource, contentSourceHash, resolveNewsletterSources } = require('../../../libraries/content/source-resolver.js');
+const { trackContentSource, contentSourceHash, resolveSources } = require('../../../libraries/content/source-resolver.js');
 
 /**
  * Generate newsletter content from parent server sources.
@@ -60,7 +60,6 @@ const { trackContentSource, contentSourceHash, resolveNewsletterSources } = requ
  * @param {string} [opts.campaignId] - Stable ID used as the folder name in newsletter-assets.
  *                                     Defaults to the Firestore campaign doc ID if available.
  * @param {object[]} [opts.sources] - Pre-fetched sources (bypasses parent server claim)
- * @param {boolean} [opts.skipClaim] - Don't call PUT to mark sources as used
  * @param {boolean} [opts.skipImages] - Skip SVG/PNG generation (use placeholders)
  * @param {boolean} [opts.publishArticle] - When the linked-article build runs (config.article.enabled),
  *                                          actually COMMIT the post to the website repo via admin/post.
@@ -108,13 +107,20 @@ async function generate(Manager, assistant, settings, opts = {}) {
 
     const admin = Manager.libraries?.admin;
 
-    sources = await resolveNewsletterSources({
+    // Unified resolver — same picking/fallback/dedup as the blog pipeline.
+    // config.sourceCount controls how many sources feed the issue (default 6).
+    const resolved = await resolveSources({
       sources: contentSources,
+      count: config.sourceCount || 6,
       categories,
       admin,
       Manager,
       assistant,
     });
+
+    sources = resolved
+      .filter((r) => r.type === 'feed' || r.type === 'parent')
+      .map((r) => toNewsletterSource(r, categories));
   }
 
   if (!sources?.length) {
@@ -378,40 +384,45 @@ async function generate(Manager, assistant, settings, opts = {}) {
     }
   }
 
-  // 3d. Fallback alert email — sent to the brand's internal alerts inbox when
-  //     Beehiiv draft creation fails. The newsletter is fully generated and
-  //     archived to GitHub at this point, so the email contains everything
-  //     needed for a human to manually upload to Beehiiv: HTML URL (one-shot
-  //     paste), markdown URL (per-section blocks for ad insertion), summary
-  //     URL, and the tags to set. Failure of THIS email is logged but never
-  //     blocks the cron — the campaign doc is still written either way.
-  if (beehiivFailureReason) {
-    await sendBeehiivFallbackEmail(Manager, assistant, {
-      brand,
-      subject: structure.subject,
-      preheader: structure.preheader,
-      tags: Array.isArray(structure.tags) ? structure.tags : [],
-      htmlUrl,
-      previewUrl,
-      markdownUrl,
-      summaryUrl,
-      folderUrl: assetsFolderUrl,
-      reason: beehiivFailureReason,
-      articles: (articleResult?.published) ? [{ title: articleResult.article?.title || structure.sections?.[0]?.title, url: articleResult.url }] : [],
-    });
-  }
+  // 3d. Newsletter report email — always sent to the brand's internal alerts
+  //     inbox after generation completes. Contains everything needed for
+  //     review and manual Beehiiv upload if needed.
+  await sendNewsletterReportEmail(Manager, assistant, {
+    brand,
+    subject: structure.subject,
+    preheader: structure.preheader,
+    tags: Array.isArray(structure.tags) ? structure.tags : [],
+    htmlUrl,
+    previewUrl,
+    markdownUrl,
+    summaryUrl,
+    folderUrl: assetsFolderUrl,
+    beehiivPostId,
+    beehiivFailureReason,
+    articles: (articleResult?.published) ? [{ title: articleResult.article?.title || structure.sections?.[0]?.title, url: articleResult.url }] : [],
+    sources: sources.map(s => ({
+      title: s.title || '',
+      url: (s.url && s.url.startsWith('http')) ? s.url : '',
+      from: s.source?.from || '',
+    })),
+  });
 
-  // 4. Track all sources in the unified content-sources collection
+  // 4. Mark all sources used in the unified content-sources collection —
+  //    only NOW that the newsletter actually generated successfully.
+  //    trackingData comes from the resolver; pre-fetched test sources
+  //    without it get a best-effort fallback.
   const admin = Manager.libraries?.admin;
   if (admin) {
     for (const source of sources) {
-      const origin = source.source?.from?.startsWith?.('http') ? `$feed:${source.source.from}` : '$parent';
-      await trackContentSource(admin, {
+      const tracking = source.trackingData || {
         url: source.url || source.id,
-        origin,
-        feedUrl: origin.startsWith('$feed:') ? origin.slice(6) : undefined,
+        origin: '$parent',
         itemId: source.id,
         itemTitle: source.title || '',
+      };
+
+      await trackContentSource(admin, {
+        ...tracking,
         usedBy: 'newsletter',
         brandId: brand?.id || '',
       }).catch((e) => {
@@ -555,12 +566,14 @@ async function buildLinkedArticle({ Manager, assistant, brand, config, structure
   }
 
   try {
+    const sourceUrls = sources.map(s => s.url || s.id).filter(Boolean);
     const result = await publishArticle(assistant, {
       brand: publicConfig,
       article,
       id: Math.round(Date.now() / 1000),
       author: config?.article?.author,
       postPath: 'newsletter',
+      source: sourceUrls.join(', '),
     });
 
     if (result?.path) {
@@ -590,43 +603,52 @@ async function buildLinkedArticle({ Manager, assistant, brand, config, structure
  * @param {object} assistant
  * @param {object} args
  * @param {object} args.brand
- * @param {string} args.subject - The newsletter's subject (used in the alert subject)
+ * @param {string} args.subject
  * @param {string} args.preheader
  * @param {string[]} args.tags
- * @param {string} args.htmlUrl - GitHub raw URL to the fully-rendered HTML
- * @param {string} [args.markdownUrl] - GitHub raw URL to the per-section markdown
- * @param {string} [args.previewUrl] - GitHub Pages URL for browser-rendered HTML preview
- * @param {string} [args.summaryUrl] - GitHub raw URL to the 2-3 sentence summary
- * @param {string} [args.folderUrl] - GitHub folder URL (browseable archive)
- * @param {string} args.reason - Why Beehiiv upload failed (API error message)
+ * @param {string} [args.htmlUrl]
+ * @param {string} [args.markdownUrl]
+ * @param {string} [args.previewUrl]
+ * @param {string} [args.summaryUrl]
+ * @param {string} [args.folderUrl]
+ * @param {string} [args.beehiivPostId] - Beehiiv post ID (if upload succeeded)
+ * @param {string} [args.beehiivFailureReason] - Why Beehiiv upload failed (null if succeeded)
+ * @param {object[]} [args.articles] - Published linked articles
+ * @param {object[]} [args.sources] - Content sources used for generation
  */
-async function sendBeehiivFallbackEmail(Manager, assistant, args) {
-  // Send TO and FROM the same internal alerts inbox — alerts@{brandDomain}.
-  // The `sender: 'internal'` SENDERS entry already resolves the FROM address
-  // to this; we mirror the same domain for the TO so it's a self-addressed
-  // operational alert (no human inbox involved).
+async function sendNewsletterReportEmail(Manager, assistant, args) {
   const brandDomain = Manager.config?.brand?.contact?.email?.split('@')[1];
 
   if (!brandDomain) {
-    assistant.log('Newsletter generator: Beehiiv fallback email skipped — no brand.contact.email');
+    assistant.log('Newsletter generator: report email skipped — no brand.contact.email');
     return;
   }
 
   const alertsEmail = `alerts@${brandDomain}`;
+  const beehiivOk = !!args.beehiivPostId;
 
   try {
     const email = Manager.Email(assistant);
     const messageLines = [];
 
-    messageLines.push(`The newsletter is generated and archived, but Beehiiv draft creation failed. It needs to be manually uploaded.`);
+    // --- Status ---
+    if (beehiivOk) {
+      messageLines.push(`The newsletter has been generated and uploaded to Beehiiv.`);
+    } else {
+      messageLines.push(`The newsletter has been generated but Beehiiv upload failed. It needs to be manually uploaded.`);
+      messageLines.push('');
+      messageLines.push('<strong>Beehiiv failure reason</strong>');
+      messageLines.push('<ul>');
+      messageLines.push(`<li>${args.beehiivFailureReason || 'unknown'}</li>`);
+      messageLines.push('</ul>');
+    }
     messageLines.push('');
 
-    // --- Failure ---
-    messageLines.push('<strong>Failure reason</strong>');
-    messageLines.push('<ul>');
-    messageLines.push(`<li>${args.reason}</li>`);
-    messageLines.push('</ul>');
-    messageLines.push('');
+    // --- Preview button (big, prominent) ---
+    if (args.previewUrl) {
+      messageLines.push(`<p style="text-align:center;margin:16px 0;"><a href="${args.previewUrl}" style="display:inline-block;padding:14px 32px;background:#1a1a2e;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;font-size:16px;">Preview Newsletter</a></p>`);
+      messageLines.push('');
+    }
 
     // --- Details ---
     messageLines.push('<strong>Newsletter details</strong>');
@@ -640,14 +662,13 @@ async function sendBeehiivFallbackEmail(Manager, assistant, args) {
     messageLines.push('');
 
     // --- Full HTML ---
-    messageLines.push('<strong>Full HTML</strong> — one-shot paste into Beehiiv');
-    messageLines.push('<ul>');
-    if (args.previewUrl) {
-      messageLines.push(`<li><a href="${args.previewUrl}">Preview in browser</a></li>`);
+    if (args.htmlUrl) {
+      messageLines.push('<strong>Full HTML</strong> — one-shot paste into Beehiiv');
+      messageLines.push('<ul>');
+      messageLines.push(`<li><a href="${args.htmlUrl}">View raw HTML</a></li>`);
+      messageLines.push('</ul>');
+      messageLines.push('');
     }
-    messageLines.push(`<li><a href="${args.htmlUrl}">View raw HTML</a></li>`);
-    messageLines.push('</ul>');
-    messageLines.push('');
 
     // --- Markdown ---
     if (args.markdownUrl) {
@@ -669,13 +690,33 @@ async function sendBeehiivFallbackEmail(Manager, assistant, args) {
 
     // --- Linked articles (only published ones) ---
     if (args.articles?.length) {
-      messageLines.push('');
       messageLines.push('<strong>Linked articles</strong>');
       messageLines.push('<ul>');
       for (const article of args.articles) {
         messageLines.push(`<li><a href="${article.url}">${article.title || 'Article'}</a></li>`);
       }
       messageLines.push('</ul>');
+      messageLines.push('');
+    }
+
+    // --- Sources ---
+    if (args.sources?.length) {
+      messageLines.push(`<strong>Sources</strong> — ${args.sources.length} used`);
+      messageLines.push('<ul>');
+      for (const source of args.sources) {
+        const label = source.title || source.url || 'Untitled';
+        let fromLabel = '';
+        if (source.from) {
+          try { fromLabel = ` (${new URL(source.from).hostname})`; } catch { fromLabel = ` (${source.from})`; }
+        }
+        if (source.url) {
+          messageLines.push(`<li><a href="${source.url}">${label}</a>${fromLabel}</li>`);
+        } else {
+          messageLines.push(`<li>${label}${fromLabel}</li>`);
+        }
+      }
+      messageLines.push('</ul>');
+      messageLines.push('');
     }
 
     // --- All assets ---
@@ -686,29 +727,33 @@ async function sendBeehiivFallbackEmail(Manager, assistant, args) {
       messageLines.push('</ul>');
     }
 
+    const subjectLine = beehiivOk
+      ? `Newsletter generated: "${args.subject}"`
+      : `Newsletter ready for manual upload: "${args.subject}"`;
+
     await email.send({
-      sender: 'internal',  // resolves to alerts@{brandDomain}
+      sender: 'internal',
       to: alertsEmail,
-      copy: false,  // self-addressed operational alert — no CC/BCC clutter
-      subject: `Newsletter ready for manual Beehiiv upload: "${args.subject}"`,
+      copy: false,
+      subject: subjectLine,
       template: 'card',
-      categories: ['marketing/newsletter-manual-upload'],
+      categories: ['marketing/newsletter-report'],
       data: {
         email: {
-          preview: `Beehiiv upload failed — newsletter awaiting manual upload from ${args.folderUrl || 'GitHub archive'}`,
+          preview: beehiivOk
+            ? `Newsletter generated and uploaded to Beehiiv`
+            : `Beehiiv upload failed — newsletter awaiting manual upload`,
         },
         content: {
-          title: 'Newsletter Ready for Manual Upload',
+          title: beehiivOk ? 'Newsletter Generated' : 'Newsletter Ready for Manual Upload',
           message: messageLines.join('\n'),
         },
       },
     });
 
-    assistant.log(`Newsletter generator: Beehiiv fallback alert sent to ${alertsEmail}`);
+    assistant.log(`Newsletter generator: report email sent to ${alertsEmail}`);
   } catch (e) {
-    // Best-effort — log and move on. We don't want a misconfigured email
-    // setup to break the cron's Firestore write.
-    assistant.error(`Newsletter generator: Beehiiv fallback email failed — ${e.message}`);
+    assistant.error(`Newsletter generator: report email failed — ${e.message}`);
   }
 }
 
@@ -745,8 +790,41 @@ function aggregateTotals(filterMeta, structureMeta, images) {
   };
 }
 
-// fetchSources() removed — replaced by resolveNewsletterSources() from source-resolver.js
 
+/**
+ * Map a resolved source (from resolveSources) to the newsletter item shape
+ * the structure generator expects. Parent items already arrive in that shape
+ * from the parent server; feed items get normalized.
+ *
+ * @param {object} resolved - resolved source ({ type, id, title, url, content, feedUrl?, raw, trackingData })
+ * @param {string[]} categories - the entry's configured categories
+ * @returns {object} newsletter source record (+ trackingData for used-marking)
+ */
+function toNewsletterSource(resolved, categories) {
+  if (resolved.type === 'parent') {
+    return { ...resolved.raw, trackingData: resolved.trackingData };
+  }
+
+  // feed item
+  let hostname = '';
+  try { hostname = new URL(resolved.feedUrl).hostname; } catch (e) { /* ignore */ }
+
+  return {
+    id: resolved.id,
+    title: resolved.title,
+    subject: resolved.title,
+    category: (categories && categories[0]) || '',
+    categories: categories || [],
+    url: resolved.url,
+    source: {
+      from: hostname,
+      subject: resolved.title,
+      content: resolved.content,
+    },
+    ai: null,
+    trackingData: resolved.trackingData,
+  };
+}
 
 /**
  * Generate a 20-character Firebase push ID (RTDB-style).
