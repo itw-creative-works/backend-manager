@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.11.3] - 2026-07-02
+
+### Fixed
+- **`blog-auto-publisher` daily cron now gates itself in normal test mode** (`assistant.isTesting() && !TEST_EXTENDED_MODE` → skip) like every other external boundary. Ungated, a consumer's normal test run live-fetched real RSS feeds from the seeded blog config inside `bm_cronDaily`, delaying the serial job sequence past the usage suite's `reset-usage` deadline — `cron-resets-daily-counters` timed out at 70s in full consumer runs (it was already marginal at 57.7s under 5.10.3; the 5.11.0 unified resolver pushed it over). Extended runs still exercise the full pipeline.
+
 # [5.11.2] - 2026-07-02
 
 ### Fixed

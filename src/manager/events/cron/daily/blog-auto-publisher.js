@@ -33,6 +33,15 @@ const {
 let postId;
 
 module.exports = async ({ Manager, assistant, context, libraries }) => {
+  // External boundary (live feed fetches + AI generation + publishing) — the
+  // cron entry gates itself like every other external call. Ungated, a normal
+  // test run harvests real feeds from the consumer's blog config, delaying the
+  // serial bm_cronDaily sequence past the usage suite's reset-usage deadline.
+  if (assistant.isTesting() && !process.env.TEST_EXTENDED_MODE) {
+    assistant.log('Blog auto-publisher skipped (test mode without TEST_EXTENDED_MODE)');
+    return;
+  }
+
   if (!Manager.config.blog?.enabled) {
     assistant.log('Blog auto-publisher disabled in config');
     return;
