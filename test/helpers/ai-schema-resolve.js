@@ -12,6 +12,7 @@ function noopLog() {}
 
 const FIXTURES_DIR = path.join(__dirname, '..', 'fixtures', 'ai-schema');
 const VALID_SCHEMA_PATH = path.join(FIXTURES_DIR, 'valid.json');
+const INVALID_SCHEMA_PATH = path.join(FIXTURES_DIR, 'invalid.json');
 const VALID_SCHEMA = {
   type: 'object',
   properties: {
@@ -22,19 +23,16 @@ const VALID_SCHEMA = {
   additionalProperties: false,
 };
 
+// The runner has no before/after hooks (module contract: tests[] + cleanup),
+// so each test that reads from disk seeds the fixtures itself (idempotent).
+function ensureFixtures() {
+  jetpack.write(VALID_SCHEMA_PATH, VALID_SCHEMA);
+  jetpack.write(INVALID_SCHEMA_PATH, '{ not valid json !!!');
+}
+
 module.exports = {
   description: 'AI schema resolution (inline vs file path)',
   type: 'group',
-
-  before() {
-    jetpack.dir(FIXTURES_DIR);
-    jetpack.write(VALID_SCHEMA_PATH, VALID_SCHEMA);
-    jetpack.write(path.join(FIXTURES_DIR, 'invalid.json'), '{ not valid json !!!');
-  },
-
-  after() {
-    jetpack.remove(FIXTURES_DIR);
-  },
 
   tests: [
     {
@@ -70,6 +68,7 @@ module.exports = {
     {
       name: 'path-loads-json-file',
       async run({ assert }) {
+        ensureFixtures();
         const result = resolveSchema({ path: VALID_SCHEMA_PATH }, noopLog);
         assert.deepEqual(result, VALID_SCHEMA, 'loaded schema matches fixture');
       },
@@ -92,6 +91,7 @@ module.exports = {
     {
       name: 'path-to-directory-throws',
       async run({ assert }) {
+        ensureFixtures();
         let threw = false;
         try {
           resolveSchema({ path: FIXTURES_DIR }, noopLog);
@@ -106,9 +106,10 @@ module.exports = {
     {
       name: 'invalid-json-throws',
       async run({ assert }) {
+        ensureFixtures();
         let threw = false;
         try {
-          resolveSchema({ path: path.join(FIXTURES_DIR, 'invalid.json') }, noopLog);
+          resolveSchema({ path: INVALID_SCHEMA_PATH }, noopLog);
         } catch (e) {
           threw = true;
         }
@@ -116,4 +117,8 @@ module.exports = {
       },
     },
   ],
+
+  async cleanup() {
+    jetpack.remove(FIXTURES_DIR);
+  },
 };

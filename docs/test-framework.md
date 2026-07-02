@@ -236,6 +236,8 @@ Use `bem:` or `project:` prefix to filter by source. **Mirror the source path so
 ## Test Types
 
 > **The runner reads each file's `module.exports` object — it does NOT inject Mocha/Jest globals.** A test file that calls `describe`/`it`/`before`/`beforeEach`/`after` at top level throws `ReferenceError: beforeEach is not defined` and shows as `Failed to load`. There is no global `assert` either — use the `assert` passed into `run({ assert })`. Every test file MUST export one of the shapes below.
+>
+> **The only lifecycle hook is `cleanup`** (per-test and module-level). Exporting `before`/`after`/`beforeEach` properties on the module does NOT error — the runner silently ignores them, so setup they were supposed to do never happens (this bit `helpers/ai-schema-resolve`, which failed for weeks because its fixtures were written in a `before()` that never ran). Seed disk/DB fixtures inside the tests themselves via an idempotent helper, or in `test/_init.js`'s `setup()`.
 
 | Type | Use When | Behavior |
 |------|----------|----------|
