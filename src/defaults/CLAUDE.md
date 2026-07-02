@@ -1,6 +1,8 @@
 # ========== Default Values ==========
 # Backend Manager (BEM) — consumer project
 
+<!-- MAINTAINERS (framework repo): this consumer template is MIRRORED across UJM/BEM/BXM/EM/MAM — same sections, same order (framework-specific extras may be inserted; canonical sections are never reordered/renamed). Edit all five together. Canonical skeleton: omega:main skill → resources/mirror-spec.md -->
+
 ## Framework
 
 This project consumes **Backend Manager** (BEM) — a comprehensive framework for building modern Firebase Cloud Functions backends. BEM provides a single `Manager.init(exports, {...})` bootstrap that wires built-in functions (`bm_api`, auth events, cron jobs), helper classes (Assistant, User, Analytics, Usage, Middleware, Settings, Utilities, Metadata), payment processor integrations (Stripe / PayPal), Firestore-trigger pipelines, and a deploy/emulator/watch tooling pipeline.

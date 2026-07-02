@@ -9,6 +9,9 @@
 * **Notes:** resolveSources() in source-resolver.js is now the SSOT for blog + newsletter source picking: random picks from the entry's sources array, type-hierarchy fallback ($feed → other feeds → $parent; $parent → parent only; NOTHING falls back to $brand), Firestore + session dedup (fixes duplicate parent sources + missing used-check in old newsletter path), mark-used only after success. Newsletter sourceCount config (default 6). 31 resolver tests + 7 cron tests + extended e2e all passing. Docs updated (ghostii.md, marketing-campaigns.md).
 
 ## 📌 Active Task List
+* [x] One-off: CDP doc rewrite for the per-session isolated browser (2026-07-01)
+  * [x] `docs/cdp-debugging.md` rewritten (mirrored UJM/BEM/BXM/EM/WM): sessions auto-launch their own private Chrome via the `chrome-devtools` MCP — no launch command/ports/shared profile; UJM dev URL rule: `https://localhost:4000`, NEVER the LAN IP; CLAUDE.md live-test line updated; CHANGELOG [Unreleased] added (uncommitted — ship with next release)
+  * [x] OMEGA mirror mandate: Doc-update parity now documents the mirrored structure (canonical skeletons: omega:main mirror-spec); maintainer mirror note added to src/defaults/CLAUDE.md
 * [ ] Phase 11: Fix newsletter generator never firing in frequent cron
   * [x] Task 11.1: Diagnose — frequent cron skips generator campaigns, `bm_cronDaily` not running (7+ days)
   * [x] Task 11.2: Fix stale `fetchSources` export in `newsletter.js` (ReferenceError on require)
@@ -41,7 +44,7 @@
   * [x] Task 11.29: Unified source resolution — resolveSources() in source-resolver.js, shared by blog + newsletter (random picks, type-hierarchy fallback, Firestore + session dedup, no $brand fallback ever)
   * [x] Task 11.30: Newsletter sourceCount config (default 6) — replaces process-every-feed + 9-parent-sources behavior
   * [x] Task 11.31: Tests rewritten for new hierarchy (31 passing) + extended e2e verified (resolver picks 6/6, dedupes 9→7 parent pool)
-  * [ ] Task 11.32: Publish BEM v5.11.0
+  * [x] Task 11.32: Publish BEM v5.11.0
   * [ ] Task 11.33: Set up Cloudflare redirect rule for cdn.itwcreativeworks.com/newsletters/*
   * [ ] Task 11.34: Update + deploy all consumer backends with new BEM + array config format
 * [ ] Phase 9: Blog auto-publisher dedup + fallback fixes
