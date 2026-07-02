@@ -3,7 +3,7 @@
 
 ## 🎯 Current Focus
 * **Goal:** Fix newsletter pipeline end-to-end — cron, generation, asset hosting, delivery
-* **Current Phase:** Phase 12 (campaign pipeline hardening) complete + validated — unshipped in working tree; ship + consumer deploys next.
+* **Current Phase:** Phase 12 (campaign pipeline hardening) shipped as v5.11.4 (npm + GitHub release) — consumer deploys next.
 * **Priority:** High
 * **Last Updated:** 2026-07-02 1:45 AM PDT
 * **Notes:** Full-system review found + fixed: (1) `sources` ReferenceError in buildLinkedArticle — article publishing silently broken in prod since 5.11.0; (2) one-off generator campaigns never finalized (re-fired every 10 min); (3) no claim/lease → double-send risk (now transactional pending→processing + 30-min stale reclaim); (4) catch-up bursts on stalled recurring (now getNextFutureOccurrence); (5) generator empty-run retry cap (36); (6) newsletter generate() test-mode gate (default test runs were firing the REAL pipeline in background); (7) isURL http(s)-only. bm_cronFrequent → 512MB/540s. Cron suite 7→13 tests, all green; extended e2e published a real article + CTA verified; CDN rule live (302→200). CHANGELOG [Unreleased] + docs updated. NOT yet shipped/published.
@@ -58,7 +58,8 @@
   * [x] Task 12.8: bm_cronFrequent 512MB/540s (was 256MB/300s); strip article payload from history-doc settings
   * [x] Task 12.9: Tests — cron suite 7→13 (lease reclaim, fresh-lease no-touch, unknown type/gen, catch-up, retry cap ×2, attempts bookkeeping), pure getNextFutureOccurrence, isURL colon cases, extended-mode published-article + CTA regression asserts. All green (13 + 41 default; extended e2e published real article)
   * [x] Task 12.10: Docs — marketing-campaigns.md (lease lifecycle, statuses, retry cap, catch-up, test gating), CHANGELOG [Unreleased]
-  * [ ] Task 12.11: Ship + publish BEM, then deploy consumers (picks up 512MB/540s cron runtime)
+  * [x] Task 12.11: Ship + publish BEM v5.11.4 (npm + GitHub release)
+  * [ ] Task 12.12: Deploy consumers with 5.11.4 (picks up article-publish fix + 512MB/540s cron runtime)
 * [ ] Phase 9: Blog auto-publisher dedup + fallback fixes
   * [x] Task 9.1: Diagnose — $brand fallback ignoring user config, per-feed-only dedup, weak prompt
   * [x] Task 9.2: Add `getRecentTitles` to source-resolver.js (collects both postTitle + itemTitle)
