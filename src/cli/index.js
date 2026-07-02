@@ -1,6 +1,12 @@
 const os = require('os');
 const path = require('path');
-const argv = require('yargs')(process.argv.slice(2)).argv;
+// Universal boolean flags must be declared — otherwise yargs treats the next
+// positional as the flag's VALUE (`mgr test --extended project:foo` became
+// extended='project:foo' with NO targets, silently running EVERYTHING in
+// extended mode against real external APIs).
+const argv = require('yargs')(process.argv.slice(2))
+  .boolean(['extended', 'legacy', 'force', 'raw', 'emulator'])
+  .argv;
 const _ = require('lodash');
 
 // Abort if running from ~/node_modules (accidental home directory install)

@@ -14,6 +14,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.10.3] - 2026-07-01
+
+### Added
+- **`admin/post` PNG/WebP ingest** — non-JPG raster sources (`.png`, `.webp`) are now converted to progressive JPEG at ingest (`convertToJpeg`: alpha flattened onto white, re-encoded at `IMAGE_JPEG_QUALITY`) instead of rejected — stock CDNs beyond Unsplash (Pexels, Pixabay) commonly serve them. Other non-JPG formats are still rejected, now naming the offending URL.
+- **Pexels CDN pre-scale** — `applyImageCDNParams` now adds `w`/`auto=compress` to `images.pexels.com` URLs (mirroring the Unsplash `w`/`q` params) so oversized originals are scaled server-side before download.
+
+### Fixed
+- **Readable image-download failures in `admin/post`** — `downloadImage` failures now surface `Could not download image (<url>): <reason>` with HTML stripped from the reason. CDN 404 pages previously bubbled a raw `<html><body>404</body></html>` body that downstream HTML rendering (e.g. consumer failure emails) swallowed to a bare "404". The `.jpg`-only rejection now also names the offending image URL. New helper `formatImageDownloadError` exported for tests.
+- **CLI boolean flags swallowing positional args** — `--extended`, `--legacy`, `--force`, `--raw`, `--emulator` are now declared as booleans in the yargs setup. Previously `mgr test --extended project:routes/foo` parsed the target path as the *value* of `--extended`, leaving zero targets and silently running the ENTIRE suite in extended mode (real external APIs, real side effects).
+
 # [5.10.2] - 2026-06-30
 
 ### Changed

@@ -24,6 +24,11 @@ const IMAGE_REGEX = /(?:!\[(.*?)\]\((.*?)\))/img;
 const IMAGE_MAX_DIMENSION = 2048;
 const IMAGE_JPEG_QUALITY = 80;
 
+// Non-JPG raster sources are converted to JPEG at ingest rather than rejected
+// — stock CDNs beyond Unsplash (Pexels, Pixabay) commonly serve png/webp.
+// Anything not in this list (and not already .jpg) is still rejected.
+const CONVERTIBLE_IMAGE_EXTS = ['.png', '.webp'];
+
 module.exports = async ({ assistant, Manager, user, settings, analytics }) => {
 
   // Require authentication
@@ -221,10 +226,33 @@ function applyImageCDNParams(src) {
       }
     }
 
+    if (url.hostname === 'images.pexels.com') {
+      if (!url.searchParams.has('w')) {
+        url.searchParams.set('w', String(IMAGE_MAX_DIMENSION));
+      }
+      if (!url.searchParams.has('auto')) {
+        url.searchParams.set('auto', 'compress');
+      }
+    }
+
     return url.toString();
   } catch (e) {
     return src;
   }
+}
+
+// Helper: Build a readable message for a failed image download. Fetch errors
+// can carry raw HTML bodies as the message (CDN 404 pages) — strip tags and
+// truncate so callers surface "Could not download image (<url>): 404" instead
+// of markup that downstream HTML rendering swallows.
+function formatImageDownloadError(src, e) {
+  const reason = (e && typeof e.message === 'string' ? e.message : `${e}`)
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const truncated = reason.length > 200 ? `${reason.slice(0, 197)}...` : reason;
+
+  return `Could not download image (${src}): ${truncated || 'unknown error'}`;
 }
 
 // Helper: Download image
@@ -242,6 +270,8 @@ async function downloadImage(assistant, src, alt) {
   const result = await fetch(url, {
     method: 'get',
     download: `${assistant.tmpdir}/${hyphenated}`,
+  }).catch(e => {
+    throw new Error(formatImageDownloadError(src, e));
   });
 
   result.filename = path.basename(result.path);
@@ -249,12 +279,47 @@ async function downloadImage(assistant, src, alt) {
 
   assistant.log('downloadImage(): Result', result.path);
 
+  // Convert supported non-JPG formats in place (mutates result.path/filename/ext)
+  if (CONVERTIBLE_IMAGE_EXTS.includes(result.ext)) {
+    await convertToJpeg(assistant, result);
+  }
+
   if (result.ext !== '.jpg') {
-    throw new Error(`Images must be .jpg (not ${result.ext})`);
+    throw new Error(`Images must be .jpg, .png, or .webp (got ${result.ext}): ${src}`);
   }
 
   // Resize in place if the long edge exceeds IMAGE_MAX_DIMENSION
   await resizeImage(assistant, result.path);
+
+  return result;
+}
+
+// Helper: Convert a downloaded png/webp to progressive JPEG in place. Alpha is
+// flattened onto white (JPEG has no transparency; default flatten is black).
+// Mutates result.path/filename/ext to the new .jpg file and removes the
+// original so the rest of the pipeline (resize, base64, GitHub path) only ever
+// sees JPGs.
+async function convertToJpeg(assistant, result) {
+  const sharp = assistant.Manager.require('sharp');
+  sharp.cache(false);
+
+  const newPath = result.path.replace(/\.[^.]+$/, '.jpg');
+  const buffer = await sharp(result.path)
+    .flatten({ background: '#ffffff' })
+    .jpeg({ quality: IMAGE_JPEG_QUALITY, progressive: true })
+    .toBuffer();
+
+  jetpack.write(newPath, buffer);
+
+  if (newPath !== result.path) {
+    jetpack.remove(result.path);
+  }
+
+  result.path = newPath;
+  result.filename = path.basename(newPath);
+  result.ext = '.jpg';
+
+  assistant.log(`convertToJpeg(): Converted to ${newPath}`);
 
   return result;
 }
@@ -406,6 +471,9 @@ function formatClone(payload) {
 
 // Expose helpers + constants for tests
 module.exports.resizeImage = resizeImage;
+module.exports.convertToJpeg = convertToJpeg;
+module.exports.formatImageDownloadError = formatImageDownloadError;
+module.exports.applyImageCDNParams = applyImageCDNParams;
 module.exports.IMAGE_MAX_DIMENSION = IMAGE_MAX_DIMENSION;
 module.exports.IMAGE_JPEG_QUALITY = IMAGE_JPEG_QUALITY;
 

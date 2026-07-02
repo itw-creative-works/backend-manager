@@ -11,10 +11,13 @@ The `POST /admin/post` route creates blog posts via GitHub's API. It handles ima
 1. Receives markdown body with external image URLs (e.g., `![alt](https://images.unsplash.com/...)`)
 2. Extracts all `![alt](url)` patterns from the body using regex
 3. Downloads each image to a tmp dir
-4. **Resizes** each image in place if its long edge exceeds `IMAGE_MAX_DIMENSION` (see below)
-5. Commits all images to `src/assets/images/blog/post-{id}/` on GitHub (single commit via Git Trees API)
-6. **Rewrites the body** to replace external URLs with `@post/{filename}` format
-7. The `@post/` prefix is resolved at Jekyll build time by `jekyll-uj-powertools` to the full path
+4. **Converts** png/webp sources to progressive JPEG in place (`convertToJpeg` — alpha flattened onto white); other non-JPG formats are rejected, naming the offending URL
+5. **Resizes** each image in place if its long edge exceeds `IMAGE_MAX_DIMENSION` (see below)
+6. Commits all images to `src/assets/images/blog/post-{id}/` on GitHub (single commit via Git Trees API)
+7. **Rewrites the body** to replace external URLs with `@post/{filename}` format
+8. The `@post/` prefix is resolved at Jekyll build time by `jekyll-uj-powertools` to the full path
+
+**Download failures:** the header image is fatal (the whole request 400s); body images are skipped with a warning (the body keeps the original external URL — the post still publishes). Failure reasons go through `formatImageDownloadError` — `Could not download image (<url>): <reason>` with HTML stripped from the reason (CDN 404 pages return raw HTML bodies) and long reasons truncated, so callers (e.g. sponsorship failure emails) surface something readable. Unsupported formats (anything that isn't jpg/png/webp) are rejected, naming the offending URL. Tests: `test/routes/admin/post-download-error.js` + `test/routes/admin/post-convert-image.js`.
 
 ## Image resize
 
@@ -22,7 +25,7 @@ Sources from guest-post submissions can be enormous (16384×10576 has been seen 
 
 Two defenses:
 
-1. **CDN pre-scale** — `applyImageCDNParams(src)` adds server-side resize params to supported CDN URLs *before* downloading. Currently supports Unsplash (`images.unsplash.com`), which uses Imgix-style `?w=&q=` params. The CDN delivers a pre-scaled image (e.g. ~314KB instead of 3.8MB for a 2048px cap), so sharp never sees the massive original. Params are only added if not already present on the URL.
+1. **CDN pre-scale** — `applyImageCDNParams(src)` adds server-side resize params to supported CDN URLs *before* downloading. Currently supports Unsplash (`images.unsplash.com`, Imgix-style `?w=&q=` params) and Pexels (`images.pexels.com`, `?w=&auto=compress`). The CDN delivers a pre-scaled image (e.g. ~314KB instead of 3.8MB for a 2048px cap), so sharp never sees the massive original. Params are only added if not already present on the URL.
 
 2. **Local sharp resize** — after download, `resizeImage()` checks the long edge against `IMAGE_MAX_DIMENSION` and re-encodes as progressive JPEG at `IMAGE_JPEG_QUALITY` if it exceeds the limit. Images already within the limit pass through untouched. `sharp.cache(false)` is set so decoded pixel buffers are freed immediately between images — without this, processing several images serially can OOM even at 256MB.
 
