@@ -9,9 +9,11 @@
 // Test email patterns - look like real emails but +bem suffix identifies them for cleanup.
 // Names should be inferred by AI from the email local part.
 //
-// Fixed test domain (`acme.com`) — deterministic across brands. Using the running brand's
-// domain caused cross-brand state divergence in SendGrid/Beehiiv and non-deterministic
-// company inference (different domain → different inferred company name).
+// Fixed test domain (`itwcreativeworks.com`) — deterministic across brands (using the
+// running brand's domain caused cross-brand state divergence in SendGrid/Beehiiv and
+// non-deterministic company inference), and we control it: mailbox verdicts are stable
+// and any double-opt-in email lands on our own domain. Was `acme.com`, but the AI now
+// treats that domain as a placeholder (empty names, confidence 0), breaking inference.
 //
 // `valid`: use a name that won't be flagged as fictional/placeholder by the AI prompt.
 // (The infer-contact prompt rejects fictional names — e.g. "rachel.greene" sometimes
@@ -21,7 +23,7 @@
 // NOT start with "test"/"example" which are in BLOCKED_LOCAL_PATTERNS, NOT be on
 // a corporate/disposable domain). Real-looking name on a real domain with no actual
 // mailbox there is the safest pick.
-const TEST_DOMAIN = 'acme.com';
+const TEST_DOMAIN = 'itwcreativeworks.com';
 const TEST_EMAILS = {
   valid: () => `sarah.martinez+bem@${TEST_DOMAIN}`,         // Should infer: Sarah Martinez
   invalid: () => `nonexistent.user+bem@${TEST_DOMAIN}`,     // No such mailbox — mailbox verification should flag as invalid
@@ -164,6 +166,10 @@ module.exports = {
           email: testEmail,
           source: 'bem-test',
           // No firstName/lastName - should be inferred
+          // skipValidation bypasses the mailbox verification check — this test's concern
+          // is AI name inference (which runs after validation); without it the mailbox
+          // check 400s the fabricated address before the inference asserts run.
+          skipValidation: true,
         });
 
         assert.isSuccess(response, 'Add marketing contact should succeed');
@@ -245,6 +251,27 @@ module.exports = {
           source: 'bem-test',
         });
 
+        // Outcome A: the provider rejected the fabricated mailbox → admin 400. Every
+        // earlier check passes deterministically for this address (format/localPart/
+        // disposable/corporate return their own dedicated messages, typo can't match,
+        // and the domain has real MX), so reaching the generic validation-failed 400
+        // proves the paid mailbox pipeline ran and rejected. Nothing was added, so
+        // cleanup is a no-op.
+        if (response.status === 400) {
+          assert.ok(
+            response.error?.includes('Email validation failed'),
+            `400 should be the validation-failed branch, got: ${response.error}`
+          );
+
+          if (response.error.includes('(dns)')) {
+            skip('Transient DNS failure — mailbox check never ran');
+          }
+
+          assert.ok(response.error.includes('(mailbox)'), `Failed check should be mailbox, got: ${response.error}`);
+          return;
+        }
+
+        // Outcome B: provider accepted (valid/catch-all/unknown) or failed open.
         assert.isSuccess(response, 'Add marketing contact should succeed');
 
         // Check that validation info is included
@@ -256,9 +283,10 @@ module.exports = {
 
         const mbResult = response.data.validation.checks.mailbox;
 
-        // If out of credits, skip test - not a failure
-        if (mbResult.error?.includes('out of credits')) {
-          skip('Mailbox verification out of credits');
+        // Provider errors fail open as { valid: true, error, provider } with NO status
+        // field — out of credits, bad key, timeouts. Nothing assertable; skip.
+        if (mbResult.error) {
+          skip(`Mailbox verification unavailable: ${mbResult.error}`);
         }
 
         assert.hasProperty(mbResult, 'status', 'Mailbox check should return status');
@@ -301,13 +329,18 @@ module.exports = {
         // verify here is that mailbox check ran and didn't mark the email as `valid`.
         const mbResult = response.data?.validation?.checks?.mailbox;
 
-        // If credits are out, the test can't actually exercise rejection — skip.
-        if (mbResult?.error?.includes('out of credits') || mbResult?.error?.includes('Invalid API key')) {
-          skip('Mailbox verification out of credits');
+        // Provider errors fail open with no status — the test can't exercise rejection; skip.
+        if (mbResult?.error) {
+          skip(`Mailbox verification unavailable: ${mbResult.error}`);
         }
 
         // If the response was a 400, that's the legitimate rejection path — done.
         if (response.status === 400) {
+          if (response.error?.includes('(dns)')) {
+            skip('Transient DNS failure — mailbox check never ran');
+          }
+
+          assert.ok(response.error?.includes('(mailbox)'), `Failed check should be mailbox, got: ${response.error}`);
           return;
         }
 

@@ -94,7 +94,10 @@ Module.prototype.main = function () {
           return reject(assistant.errorify(`Corporate/social-media domain not allowed: ${corporate.domain}`, { code: 400 }));
         }
 
-        return reject(assistant.errorify('Email validation failed', { code: 400 }));
+        // Name the failing check (admin-only branch — public callers already got a
+        // generic success above, so email-enumeration protection is untouched)
+        const failedCheck = Object.keys(validation.checks).find((name) => validation.checks[name]?.valid === false);
+        return reject(assistant.errorify(`Email validation failed (${failedCheck})`, { code: 400 }));
       }
     }
 

@@ -7,9 +7,11 @@
  */
 
 // Test email patterns - look like real emails but +bem suffix identifies them for cleanup.
-// Fixed `acme.com` test domain — deterministic across brands. Avoids cross-brand
-// state contamination in SendGrid/Beehiiv when the same test runs under different brands.
-const TEST_DOMAIN = 'acme.com';
+// Fixed `itwcreativeworks.com` test domain — deterministic across brands (avoids cross-brand
+// state contamination in SendGrid/Beehiiv) and we control it: mailbox verdicts are stable
+// and the AI won't flag it as a placeholder (which `acme.com` now is — empty names,
+// confidence 0 — breaking inference).
+const TEST_DOMAIN = 'itwcreativeworks.com';
 const TEST_EMAILS = {
   valid: () => `sarah.martinez+bem@${TEST_DOMAIN}`,         // Should infer: Sarah Martinez
   invalid: () => `nonexistent.user+bem@${TEST_DOMAIN}`,     // No such mailbox — mailbox verification should flag invalid
@@ -32,7 +34,11 @@ module.exports = {
         const response = await http.command('general:add-marketing-contact', {
           email: testEmail,
           source: 'bem-test',
-          // No firstName/lastName - should be inferred as "Rachel Greene"
+          // No firstName/lastName - should be inferred
+          // skipValidation bypasses the mailbox verification check — the test email
+          // doesn't have a real mailbox so the provider (correctly) marks it as not
+          // deliverable. We're testing the command flow, not the deliverability check.
+          skipValidation: true,
         });
 
         assert.isSuccess(response, 'Add marketing contact should succeed for admin');
@@ -146,6 +152,10 @@ module.exports = {
           email: testEmail,
           source: 'bem-test',
           // No firstName/lastName - should be inferred
+          // skipValidation bypasses the mailbox verification check — this test's concern
+          // is AI name inference (which runs after validation); without it the mailbox
+          // check 400s the fabricated address before the inference asserts run.
+          skipValidation: true,
         });
 
         assert.isSuccess(response, 'Add marketing contact should succeed');
@@ -227,6 +237,27 @@ module.exports = {
           source: 'bem-test',
         });
 
+        // Outcome A: the provider rejected the fabricated mailbox → admin 400. Every
+        // earlier check passes deterministically for this address (format/localPart/
+        // disposable/corporate return their own dedicated messages, typo can't match,
+        // and the domain has real MX), so reaching the generic validation-failed 400
+        // proves the paid mailbox pipeline ran and rejected. Nothing was added, so
+        // cleanup is a no-op.
+        if (response.status === 400) {
+          assert.ok(
+            response.error?.includes('Email validation failed'),
+            `400 should be the validation-failed branch, got: ${response.error}`
+          );
+
+          if (response.error.includes('(dns)')) {
+            skip('Transient DNS failure — mailbox check never ran');
+          }
+
+          assert.ok(response.error.includes('(mailbox)'), `Failed check should be mailbox, got: ${response.error}`);
+          return;
+        }
+
+        // Outcome B: provider accepted (valid/catch-all/unknown) or failed open.
         assert.isSuccess(response, 'Add marketing contact should succeed');
 
         // Check that validation info is included
@@ -238,9 +269,10 @@ module.exports = {
 
         const mbResult = response.data.validation.checks.mailbox;
 
-        // If out of credits, skip test - not a failure
-        if (mbResult.error?.includes('out of credits')) {
-          skip('Mailbox verification out of credits');
+        // Provider errors fail open as { valid: true, error, provider } with NO status
+        // field — out of credits, bad key, timeouts. Nothing assertable; skip.
+        if (mbResult.error) {
+          skip(`Mailbox verification unavailable: ${mbResult.error}`);
         }
 
         assert.hasProperty(mbResult, 'status', 'Mailbox check should return status');
@@ -268,7 +300,8 @@ module.exports = {
         : false,
 
       async run({ http, assert, skip }) {
-        // Use fake email that mailbox verification should flag as invalid
+        // Email that should reach the mailbox provider and be flagged as undeliverable.
+        // Must NOT trip earlier checks (localPart blocklist, disposable, corporate).
         const testEmail = TEST_EMAILS.invalid();
 
         const response = await http.command('general:add-marketing-contact', {
@@ -276,20 +309,27 @@ module.exports = {
           source: 'bem-test',
         });
 
-        // Should still succeed (we fail open) but mailbox should report invalid
-        assert.isSuccess(response, 'Request should succeed even with invalid email');
-
         const mbResult = response.data?.validation?.checks?.mailbox;
 
-        // If out of credits, skip test - not a failure
-        if (mbResult?.error?.includes('out of credits')) {
-          skip('Mailbox verification out of credits');
+        // Provider errors fail open with no status — the test can't exercise rejection; skip.
+        if (mbResult?.error) {
+          skip(`Mailbox verification unavailable: ${mbResult.error}`);
         }
 
-        // Mailbox should return a status indicating the email is not valid
+        // If the response was a 400, that's the legitimate rejection path — done.
+        if (response.status === 400) {
+          if (response.error?.includes('(dns)')) {
+            skip('Transient DNS failure — mailbox check never ran');
+          }
+
+          assert.ok(response.error?.includes('(mailbox)'), `Failed check should be mailbox, got: ${response.error}`);
+          return;
+        }
+
+        // Otherwise expect a 200 with a non-"valid" mailbox status.
+        assert.isSuccess(response, 'Request should succeed (fail-open) or error 400');
         if (mbResult) {
           assert.hasProperty(mbResult, 'status', 'Should have status');
-          // Status should NOT be 'valid' for this fake email
           assert.notEqual(mbResult.status, 'valid', 'Fake email should not be marked valid');
         }
       },

@@ -679,8 +679,10 @@ module.exports = {
       async run({ assert, skip }) {
         const result = await validate('disposable@gmail.com', { checks: ALL_CHECKS });
 
-        if (result.checks.mailbox?.error?.includes('out of credits')) {
-          skip('Mailbox verification out of credits');
+        // Provider errors fail open as { valid: true, error } with NO status field —
+        // out of credits, bad key, timeouts. Nothing assertable; skip.
+        if (result.checks.mailbox?.error) {
+          skip(`Mailbox verification unavailable: ${result.checks.mailbox.error}`);
         }
 
         assert.hasProperty(result, 'checks.mailbox', 'Should have mailbox check');
@@ -689,7 +691,7 @@ module.exports = {
     },
 
     {
-      name: 'mailbox-fake-domain-fails',
+      name: 'mailbox-not-called-when-dns-fails',
       timeout: 15000,
       skip: !process.env.TEST_EXTENDED_MODE || !HAS_MAILBOX_API_KEY
         ? 'TEST_EXTENDED_MODE or mailbox API key not set'
@@ -698,12 +700,45 @@ module.exports = {
       async run({ assert, skip }) {
         const result = await validate('rachel.greene@thisfakedomain99999.com', { checks: ALL_CHECKS });
 
-        if (result.checks.mailbox?.error?.includes('out of credits')) {
-          skip('Mailbox verification out of credits');
+        // Transient resolver errors fail open (dns: { valid: true, skipped: true })
+        // and let mailbox run — the short-circuit can't be observed that run.
+        if (result.checks.dns?.skipped) {
+          skip(`DNS lookup errored (${result.checks.dns.reason}) — cannot observe short-circuit`);
         }
 
-        assert.hasProperty(result, 'checks.mailbox.status', 'Should have status');
-        assert.notEqual(result.checks.mailbox.status, 'valid', 'Fake domain should not be valid');
+        assert.equal(result.valid, false, 'Fake domain should be invalid');
+        assert.propertyEquals(result, 'checks.dns.valid', false, 'DNS check should fail (NXDOMAIN)');
+        assert.equal(
+          result.checks.mailbox,
+          undefined,
+          'Mailbox must NOT run after dns fails — the short-circuit saves a paid API call'
+        );
+      },
+    },
+
+    {
+      name: 'mailbox-nonexistent-mailbox-not-valid',
+      timeout: 15000,
+      skip: !process.env.TEST_EXTENDED_MODE || !HAS_MAILBOX_API_KEY
+        ? 'TEST_EXTENDED_MODE or mailbox API key not set'
+        : false,
+
+      async run({ assert, skip }) {
+        // Real-MX domain (gmail passes dns) with a fabricated local part — this is
+        // the case that actually reaches the paid mailbox provider.
+        const result = await validate('rachel.greene.zk84qx@gmail.com', { checks: ALL_CHECKS });
+
+        assert.hasProperty(result, 'checks.mailbox', 'Should have mailbox check');
+
+        const mb = result.checks.mailbox;
+
+        // Provider errors fail open as { valid: true, error } with NO status; skip.
+        if (mb.error) {
+          skip(`Mailbox verification unavailable: ${mb.error}`);
+        }
+
+        assert.hasProperty(mb, 'status', 'Should have status');
+        assert.notEqual(mb.status, 'valid', 'Fabricated gmail mailbox should not verify as valid');
       },
     },
   ],

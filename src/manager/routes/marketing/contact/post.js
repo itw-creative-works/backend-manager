@@ -59,7 +59,10 @@ module.exports = async ({ assistant, Manager, settings, analytics }) => {
       return assistant.respond(`Corporate/social-media domain not allowed: ${corporate.domain}`, { code: 400 });
     }
 
-    return assistant.respond('Email validation failed', { code: 400 });
+    // Name the failing check (admin-only branch — public callers already got a
+    // generic success above, so email-enumeration protection is untouched)
+    const failedCheck = Object.keys(validation.checks).find((name) => validation.checks[name]?.valid === false);
+    return assistant.respond(`Email validation failed (${failedCheck})`, { code: 400 });
   }
 
   // Public access protection (after validation so we don't waste reCAPTCHA on garbage)

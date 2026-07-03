@@ -243,10 +243,10 @@ module.exports = {
     {
       name: 'verify-edit',
       auth: 'admin',
-      timeout: 30000,
+      timeout: 90000, // waitFor polls up to 60s for GitHub content propagation
       skip: !process.env.GH_TOKEN ? 'GH_TOKEN env var not set' : false,
 
-      async run({ assert, state }) {
+      async run({ assert, state, waitFor }) {
         if (!state.postPath || state.editSkipped) {
           assert.ok(true, 'Skipping verify - edit was not performed');
           return;
@@ -254,15 +254,19 @@ module.exports = {
 
         const octokit = new Octokit({ auth: process.env.GH_TOKEN });
 
-        // Fetch the file directly from GitHub
-        const { data: fileData } = await octokit.rest.repos.getContent({
-          owner: state.owner,
-          repo: state.repo,
-          path: state.postPath,
-        });
+        // GitHub's contents API is eventually consistent after createOrUpdateFileContents —
+        // an immediate read-back can serve the pre-edit blob. Poll until the edit lands.
+        const content = await waitFor(async () => {
+          const { data: fileData } = await octokit.rest.repos.getContent({
+            owner: state.owner,
+            repo: state.repo,
+            path: state.postPath,
+          });
 
-        // Decode the content
-        const content = Buffer.from(fileData.content, 'base64').toString();
+          const decoded = Buffer.from(fileData.content, 'base64').toString();
+
+          return decoded.includes('EDITED by the BEM test suite') ? decoded : false;
+        }, 60000, 3000);
 
         assert.ok(
           content.includes('EDITED by the BEM test suite'),

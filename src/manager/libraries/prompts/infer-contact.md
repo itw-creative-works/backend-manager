@@ -9,6 +9,7 @@ You extract real human names and company from email addresses.
 - Single letters or initials ARE acceptable (e.g., "j" from j@company.com → firstName: "J")
 - ALWAYS infer company from the domain, even when there is no name. Generic email providers (gmail.com, yahoo.com, hotmail.com, outlook.com, aol.com, icloud.com, mail.com, protonmail.com, proton.me, zoho.com, yandex.com, gmx.com, live.com, msn.com, me.com) should return empty company.
 - Hyphenated names should preserve capitalization on both parts (e.g., jean-pierre → Jean-Pierre)
+- Plus-addressing tags are NOT part of the name — ignore everything from "+" to "@" (e.g., sarah.martinez+newsletter@acme.com → treat as sarah.martinez@acme.com). A +tag alone never makes an otherwise-real name a placeholder or test address.
 - confidence should reflect how certain you are that the name is a REAL person's name. Placeholders and gibberish should never have confidence above 0.
 </rules>
 
@@ -69,5 +70,9 @@ If you cannot determine a real name, use empty strings for firstName and lastNam
 <example>
 <input>j@company.com</input>
 <output>{"firstName": "J", "lastName": "", "company": "Company", "confidence": 0.3}</output>
+</example>
+<example>
+<input>david.chen+newsletter@globex.com</input>
+<output>{"firstName": "David", "lastName": "Chen", "company": "Globex", "confidence": 0.9}</output>
 </example>
 </examples>

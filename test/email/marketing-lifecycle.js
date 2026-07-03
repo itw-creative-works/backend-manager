@@ -37,6 +37,11 @@ module.exports = {
           firstName: 'Lifecycle',
           lastName: 'Test',
           source: 'bem-test-lifecycle',
+          // skipValidation bypasses the mailbox verification check — the lifecycle
+          // address has no real mailbox so the provider (correctly) marks it
+          // undeliverable. This suite tests add → sync → remove against the real
+          // providers, not deliverability (covered by email/validation + contact tests).
+          skipValidation: true,
         });
 
         assert.isSuccess(response, 'Add contact should succeed');
