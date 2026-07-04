@@ -14,6 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.11.7] - 2026-07-03
+
+### Fixed
+- **`mgr serve` no longer reuses HTTPS certificates that this machine doesn't trust** — `_getHttpsCerts()` reused any `localhost*.pem` found in `.temp/certs/` blindly. Certs issued by a DIFFERENT machine's mkcert root CA (e.g. `.temp` copied/synced from another Mac) or expired certs made browsers reject `https://localhost:5002` outright, so the only thing that responded was the internal plain-HTTP firebase port (5443) — which looked like "the proxy isn't being used." Existing certs are now verified (unexpired + signature chains to the current `mkcert -CAROOT` root) and wiped + regenerated when they don't; the skip-verify fallback (no mkcert installed) is preserved.
+
 # [5.11.6] - 2026-07-03
 
 ### Fixed

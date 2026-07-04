@@ -207,12 +207,59 @@ class ServeCommand extends BaseCommand {
     const certFile = certFiles.find((f) => !f.includes('-key.pem'));
 
     if (keyFile && certFile) {
-      this.log(chalk.gray('  Using existing mkcert certificates from .temp/certs/'));
-      return { key: keyFile, cert: certFile };
+      const problem = this._checkCertProblem(certFile);
+
+      if (!problem) {
+        this.log(chalk.gray('  Using existing mkcert certificates from .temp/certs/'));
+        return { key: keyFile, cert: certFile };
+      }
+
+      // Stale certs (expired, or issued by a DIFFERENT machine's mkcert CA — e.g.
+      // .temp copied over from another Mac) make browsers reject the proxy outright,
+      // so the only thing that responds is the internal plain-HTTP firebase port.
+      // Wipe and regenerate against THIS machine's trusted CA.
+      this.log(chalk.yellow(`  Existing certificates are not usable (${problem}) — regenerating...`));
+      jetpack.remove(certsDir);
+      jetpack.dir(certsDir);
     }
 
     // Try to generate with mkcert
     return this._generateMkcertCerts(certsDir);
+  }
+
+  // Returns a reason string when the existing cert must be regenerated, or null
+  // when it's usable: unexpired AND signed by this machine's trusted mkcert root CA.
+  _checkCertProblem(certFile) {
+    const { X509Certificate } = require('crypto');
+    const { execSync } = require('child_process');
+
+    let cert;
+    try {
+      cert = new X509Certificate(fs.readFileSync(certFile));
+    } catch (e) {
+      return 'unreadable certificate';
+    }
+
+    if (new Date(cert.validTo) <= new Date()) {
+      return `expired ${cert.validTo}`;
+    }
+
+    // Verify the signature chains to the CURRENT mkcert root CA. If mkcert (or its
+    // root) isn't available we can't verify — keep the existing certs rather than
+    // breaking the no-mkcert fallback path.
+    try {
+      const caRoot = execSync('mkcert -CAROOT', { encoding: 'utf8' }).trim();
+      const ca = new X509Certificate(fs.readFileSync(path.join(caRoot, 'rootCA.pem')));
+
+      if (!cert.verify(ca.publicKey)) {
+        const issuerCN = cert.issuer.split('\n').find((line) => line.startsWith('CN=')) || cert.issuer;
+        return `issued by a different CA (${issuerCN})`;
+      }
+    } catch (e) {
+      return null;
+    }
+
+    return null;
   }
 
   async _generateMkcertCerts(certsDir) {
