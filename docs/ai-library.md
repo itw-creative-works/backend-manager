@@ -96,7 +96,9 @@ URL citations live in the returned `output` (message content) as `annotations` o
 
 `provider: 'test'` is the AI analog of the `test` payment processor: a first-class provider that suites drive with directives in the LAST user message, so consumer routes exercise their full loop (Firestore writes, usage, locks, tool execution) against the real emulator with zero paid API calls. It **refuses to run outside development/testing**.
 
-Directives form a sequence consumed across loop turns (call N executes directive N-1, indexed by assistant turns after the last user turn). Directive values must not contain `]]` internally (a trailing JSON `]` is fine):
+Directives form a sequence consumed across loop turns (call N executes directive N-1, indexed by assistant turns after the last user turn). Directive values must not contain `]]` internally (a trailing JSON `]` is fine).
+
+The directive source is resolved in order: the last `messages[]` user turn → `message.content` → **`message.settings` values** (flattened raw). That last fallback makes path-based routes (`message: { path, settings }` — the idiomatic BEM prompt-template style) scriptable as-is: embed the directive in whatever request field gets interpolated into the template (e.g. a chat's `message`, a quiz's `topic`).
 
 | Directive | Behavior |
 |---|---|

@@ -27,6 +27,8 @@ For anonymous-to-owner billing, call `setUser()` BEFORE `validate()` — validat
 
 Limits are always specified as **monthly** values in product config (e.g., `limits.requests = 100` means 100/month).
 
+**Negative limits are unlimited.** `limits.requests = -1` means the metric is never rate-limited for that product — `validate()` always resolves and no daily caps apply. A limit of `0` (or a metric missing from `limits`) always rejects.
+
 By default, limits are enforced with **daily caps** to prevent users from burning their entire monthly quota in a single day. Two checks are applied:
 
 1. **Flat daily cap**: `ceil(monthlyLimit / daysInMonth)` — max uses per day

@@ -198,5 +198,29 @@ module.exports = {
         assert.equal(String(second.content).startsWith('Echo:'), true, 'echo fallback');
       },
     },
+
+    // ─── Path-based messages (BEM prompt-template style) ───
+
+    {
+      name: 'reply-directive-from-path-based-message-settings',
+      async run({ assert }) {
+        // Routes idiomatically pass message: { path, settings } — the real
+        // providers render the template, so directives arrive via settings values
+        const provider = makeProvider();
+        const result = await provider.request({
+          response: 'json',
+          message: {
+            path: '/prompts/user.md',
+            settings: {
+              level: 'college',
+              message: 'What is 2+2? [[reply:{"answer":"4"}]]',
+            },
+          },
+        });
+
+        assert.equal(typeof result.content, 'object', 'parsed object');
+        assert.equal(result.content.answer, '4', 'directive extracted from settings values');
+      },
+    },
   ],
 };

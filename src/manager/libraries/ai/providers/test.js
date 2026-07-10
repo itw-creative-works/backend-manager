@@ -55,7 +55,12 @@ TestProvider.prototype.request = async function (options) {
 
   const messages = Array.isArray(options.messages) ? options.messages : [];
   const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user' && typeof m.content === 'string');
-  const scriptSource = lastUserMessage?.content || stringifyLoose(options.message?.content) || '';
+  // Path-based messages ({ path, settings }) are rendered inside the real
+  // providers, so directives arrive via the settings values — read them too.
+  const scriptSource = lastUserMessage?.content
+    || stringifyLoose(options.message?.content)
+    || stringifyLoose(options.message?.settings)
+    || '';
 
   const { steps, cleanText } = parseScript(scriptSource);
 
@@ -228,6 +233,15 @@ function stringifyLoose(content) {
 
   if (Array.isArray(content)) {
     return content.map((c) => c?.text || '').join('\n');
+  }
+
+  // Plain objects (e.g. prompt-template settings) flatten to their raw values
+  // so directives embedded in them stay parseable (JSON.stringify would escape
+  // the quotes inside a directive's JSON payload)
+  if (content && typeof content === 'object') {
+    return Object.values(content)
+      .map((value) => (typeof value === 'string' ? value : `${value}`))
+      .join('\n');
   }
 
   return content ? String(content) : '';

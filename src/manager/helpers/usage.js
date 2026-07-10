@@ -170,6 +170,13 @@ Usage.prototype.validate = function (name, options) {
       return _reject();
     }
 
+    // Negative limits are unlimited (product config convention: -1)
+    if (allowed < 0) {
+      self.log(`Usage.validate(): Unlimited limit (${allowed}) for ${name}`);
+
+      return resolve(true);
+    }
+
     // Check if they have a white list key
     const hasWhitelistKey = self.options.whitelistKeys.some((key) => key && key === self?.user?.api?.privateKey);
     if (hasWhitelistKey) {
@@ -367,9 +374,9 @@ Usage.prototype.getDailyAllowance = function (name) {
     return null;
   }
 
-  // Get the monthly limit
+  // Get the monthly limit (negative limits are unlimited — no daily cap)
   const monthlyLimit = self.getLimit(name);
-  if (!monthlyLimit) {
+  if (!monthlyLimit || monthlyLimit < 0) {
     return null;
   }
 

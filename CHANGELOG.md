@@ -14,6 +14,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
+# [5.12.0] - 2026-07-09
+
+### Fixed
+- **Negative usage limits (`-1`) are now actually unlimited** — `usage.validate()` had no negative-limit handling, so the daily-cap math (`ceil(-1/daysInMonth)`) produced a 0/day cap that 429'd EVERY request from users on unlimited plans (confirmed live against studymonkey's `max` plan). `validate()` now resolves immediately for negative limits and `getDailyAllowance()` returns no cap for them; 0/missing limits still reject. New suite: `test/helpers/usage-limits.js`.
+
+### Added
+- **The `test` AI provider now reads directives from path-based messages** — routes idiomatically pass `message: { path, settings }` (rendered inside the real providers), so the scripted-directive source now falls back to the message's `settings` values (flattened raw, keeping directive JSON parseable). Consumer routes written in the standard prompt-template style are now scriptable in tests without restructuring their AI calls.
+
 # [5.11.7] - 2026-07-03
 
 ### Fixed
