@@ -14,7 +14,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Fixed` for any bug fixes.
 - `Security` in case of vulnerabilities.
 
-# [5.12.0] - 2026-07-09
+# [5.13.0] - 2026-08-04
+
+### Changed
+- **Personal email signoffs no longer default to a hardcoded identity** — `resolveSignoff()` (and the legacy `admin/send-email` dynamic-template path) previously filled `type: 'personal'` signoffs with Ian's headshot, name, URL, and handle when the caller omitted them. Personal signoffs now render only with caller-provided details (`name`/`image`/`url`/`urlText`); without a `name` they fall back to the team rendering, and the `plain` template's name fallback is now always `The <brand> Team`. Callers passing their own personal identity render exactly as before.
+- **Signup lifecycle emails speak in team voice** — the welcome, discount-nudge, and checkup emails no longer introduce a named founder; copy is now from "the team at <brand>" and signs off as the brand team. The discount-nudge subject is now "we've got something for you 🎁".
+- **Disposable-domain list refreshed** (+96 domains).
+
+
 
 ### Fixed
 - **Negative usage limits (`-1`) are now actually unlimited** — `usage.validate()` had no negative-limit handling, so the daily-cap math (`ceil(-1/daysInMonth)`) produced a 0/day cap that 429'd EVERY request from users on unlimited plans (confirmed live against studymonkey's `max` plan). `validate()` now resolves immediately for negative limits and `getDailyAllowance()` returns no cap for them; 0/missing limits still reject. New suite: `test/helpers/usage-limits.js`.
