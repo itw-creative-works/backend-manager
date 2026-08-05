@@ -100,23 +100,14 @@ function renderContent({ content, html }, utmOptions) {
 }
 
 /**
- * Build signoff defaults. Fills in personal signoff details when type is 'personal'.
+ * Build signoff defaults. Personal signoffs render only with caller-provided
+ * details (name/image/url) — there are no built-in personal defaults.
  *
  * @param {object} [signoff] - Caller-provided signoff (or empty)
  * @returns {object} Complete signoff object
  */
 function resolveSignoff(signoff) {
-  const resolved = { type: 'team', ...signoff };
-
-  if (resolved.type === 'personal') {
-    resolved.image = resolved.image
-      || 'https://cdn.itwcreativeworks.com/assets/ian-wiedenman/images/website/ian-wiedenman-headshot-2021-color-1024x1024.jpg';
-    resolved.name = resolved.name || 'Ian Wiedenman, CEO';
-    resolved.url = resolved.url || 'https://ianwiedenman.com';
-    resolved.urlText = resolved.urlText || '@ianwieds';
-  }
-
-  return resolved;
+  return { type: 'team', ...signoff };
 }
 
 /**

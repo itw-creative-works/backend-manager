@@ -171,14 +171,6 @@ Module.prototype.defaultize = function () {
     email.dynamicTemplateData.signoff = options?.data?.signoff || {};
     email.dynamicTemplateData.signoff.type = options?.data?.signoff?.type || 'team';
 
-    if (email.dynamicTemplateData.signoff.type === 'personal') {
-      email.dynamicTemplateData.signoff.image = options?.data?.signoff?.image
-        || 'https://cdn.itwcreativeworks.com/assets/ian-wiedenman/images/website/ian-wiedenman-headshot-2021-color-1024x1024.jpg';
-      email.dynamicTemplateData.signoff.name = options?.data?.signoff?.name || 'Ian Wiedenman, CEO';
-      email.dynamicTemplateData.signoff.url = options?.data?.signoff?.url || 'https://ianwiedenman.com';
-      email.dynamicTemplateData.signoff.urlText = options?.data?.signoff?.urlText || '@ianwieds';
-    }
-
     email.dynamicTemplateData.user = Manager.User(options.user).properties;
 
     // Get brand configuration from Manager.config.brand (backend-manager-config.json)

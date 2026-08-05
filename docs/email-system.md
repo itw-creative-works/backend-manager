@@ -33,7 +33,7 @@ Both transactional and marketing paths share the same preparation layer:
 | `resolveBrand(Manager)` | Clones brand config, sanitizes images (SVG→PNG via CDN naming) |
 | `resolveSender({ sender, from, group }, brand, brandDomain)` | Resolves sender from/display-name/ASM group by category key |
 | `renderContent({ content, html }, utmOptions)` | Markdown→HTML via markdown-it, applies UTM link tagging |
-| `resolveSignoff(signoff)` | Fills personal signoff defaults (headshot, name, URL) when `type: 'personal'` |
+| `resolveSignoff(signoff)` | Defaults `type` to `'team'`; personal signoffs render only with caller-provided details (name/image/url) — no built-in personal defaults |
 | `buildCategories(type, brandId, extra)` | Builds categories array: `['transactional', brandId, ...extra]` |
 | `buildUnsubscribeUrl({ email, groupId, template, websiteUrl })` | HMAC-signed one-click unsubscribe URL |
 | `buildTemplateData({ brand, subject, ... })` | Deep-merges system defaults with caller data into the template data tree |
@@ -96,10 +96,12 @@ await email.send({
   categories: ['account/welcome'],
   data: {
     content: { title: 'Welcome!', message: '# Hello!\n\nMarkdown here.' },
-    signoff: { type: 'personal' },
+    signoff: { type: 'personal', name: 'Jane Doe, CEO', image: 'https://cdn.example.com/headshot.jpg', url: 'https://example.com', urlText: '@janedoe' },
   },
 });
 ```
+
+A `personal` signoff without a `name` falls back to the team rendering — there are no built-in personal defaults.
 
 ### Per-template `data.content` shapes
 

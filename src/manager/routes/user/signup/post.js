@@ -414,23 +414,17 @@ function sendWelcomeEmail(assistant, uid, firstName) {
     copy: false,
     data: {
       email: {
-        preview: `Welcome aboard! I'm Ian, the CEO and founder of ${Manager.config.brand.name}. I'm here to ensure your journey with us gets off to a great start.`,
+        preview: `Welcome aboard! We're here to ensure your journey with ${Manager.config.brand.name} gets off to a great start.`,
       },
       content: {
         title: `Welcome to ${Manager.config.brand.name}!`,
         message: `${greeting} aboard!
 
-I'm Ian, the founder and CEO of **${Manager.config.brand.name}**, and I'm thrilled to have you with us. Your journey begins today, and we are committed to supporting you every step of the way.
+We're thrilled to have you with us at **${Manager.config.brand.name}**. Your journey begins today, and we are committed to supporting you every step of the way.
 
 We are dedicated to ensuring your experience is exceptional. Feel free to reply directly to this email with any questions you may have.
 
 Thank you for choosing **${Manager.config.brand.name}**. Here's to new beginnings!`,
-      },
-      signoff: {
-        type: 'personal',
-        name: 'Ian Wiedenman, CEO',
-        url: 'https://ianwiedenman.com',
-        urlText: '@ianwieds',
       },
     },
   })
@@ -463,8 +457,8 @@ function sendDiscountNudgeEmail(assistant, uid, firstName) {
   const mailer = Manager.Email(assistant);
   const greeting = firstName ? `Hey ${firstName}` : 'Hey there';
   const subject = firstName
-    ? `${firstName}, I've got something for you 🎁`
-    : `I've got something for you 🎁`;
+    ? `${firstName}, we've got something for you 🎁`
+    : `We've got something for you 🎁`;
 
   return mailer.send({
     to: uid,
@@ -476,25 +470,19 @@ function sendDiscountNudgeEmail(assistant, uid, firstName) {
     sendAt: moment().add(24, 'hours').unix(),
     data: {
       email: {
-        preview: `Just checking in from ${Manager.config.brand.name} — and I've got a little thank-you for you.`,
+        preview: `Just checking in from ${Manager.config.brand.name} — and we've got a little thank-you for you.`,
       },
       content: {
         title: `How's it going?`,
         message: `${greeting},
 
-It's Ian, the founder of **${Manager.config.brand.name}**.
+It's the team at **${Manager.config.brand.name}**.
 
-As a thank-you for giving us a try, I'd love to send you a code for a **premium upgrade**.
+As a thank-you for giving us a try, we'd love to send you a code for a **premium upgrade**.
 
-**Just reply to this email** and I'll get one over to you.
+**Just reply to this email** and we'll get one over to you.
 
-I read every reply and I'm looking forward to hearing from you!`,
-      },
-      signoff: {
-        type: 'personal',
-        name: 'Ian Wiedenman, CEO',
-        url: 'https://ianwiedenman.com',
-        urlText: '@ianwieds',
+We read every reply and we're looking forward to hearing from you!`,
       },
     },
   })
@@ -528,19 +516,13 @@ function sendCheckupEmail(assistant, uid, firstName) {
         title: `How's everything going?`,
         message: `${greeting},
 
-It's Ian again from **${Manager.config.brand.name}**. Just checking in to see how things are going for you.
+It's the team at **${Manager.config.brand.name}** again. Just checking in to see how things are going for you.
 
 Have you had a chance to explore all our features? Any questions or feedback for us?
 
 We're always here to help, so don't hesitate to reach out. Just reply to this email and we'll get back to you as soon as possible.
 
 Thank you for choosing **${Manager.config.brand.name}**. Here's to new beginnings!`,
-      },
-      signoff: {
-        type: 'personal',
-        name: 'Ian Wiedenman, CEO',
-        url: 'https://ianwiedenman.com',
-        urlText: '@ianwieds',
       },
     },
   })
